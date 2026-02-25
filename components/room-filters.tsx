@@ -1,16 +1,17 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, BedDouble, Wrench, LayoutGrid } from "lucide-react"
-import type { RoomStatus } from "@/lib/room-data"
+import { CheckCircle2, BedDouble, SprayCan, Lock, LayoutGrid } from "lucide-react"
+import type { RoomStatus } from "@/lib/store"
 
 type Filter = RoomStatus | "todos"
 
 const filters: { value: Filter; label: string; icon: React.ReactNode }[] = [
   { value: "todos", label: "Todos", icon: <LayoutGrid className="size-3.5" /> },
-  { value: "livre", label: "Livres", icon: <CheckCircle2 className="size-3.5" /> },
+  { value: "disponivel", label: "Disponivel", icon: <CheckCircle2 className="size-3.5" /> },
   { value: "ocupado", label: "Ocupados", icon: <BedDouble className="size-3.5" /> },
-  { value: "manutencao", label: "Manut.", icon: <Wrench className="size-3.5" /> },
+  { value: "limpeza", label: "Limpeza", icon: <SprayCan className="size-3.5" /> },
+  { value: "bloqueado", label: "Bloqueado", icon: <Lock className="size-3.5" /> },
 ]
 
 export function RoomFilters({
