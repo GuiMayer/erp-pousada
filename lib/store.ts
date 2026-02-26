@@ -60,6 +60,10 @@ export type Transaction = {
   value: number
   type: "receita" | "despesa" | "estorno"
   refId?: string
+  category?: string
+  paymentMethod?: string
+  responsible?: string
+  notes?: string
 }
 
 export type AuditEntry = {
@@ -77,6 +81,18 @@ export type CashClose = {
   physicalValue: number
   expectedValue: number
   divergence: number
+}
+
+export type ConsumptionItem = {
+  id: string
+  label: string
+  unitPrice: number
+  quantity: number
+}
+
+export type RoomConsumption = {
+  roomId: number
+  items: ConsumptionItem[]
 }
 
 export type UserRole = "operador" | "supervisor"
@@ -203,12 +219,12 @@ export const initialExpenses: Expense[] = [
 ]
 
 export const initialTransactions: Transaction[] = [
-  { id: "T001", date: getDateISO(-2), description: "Reserva R001 - Carlos Mendes", value: 850, type: "receita" },
-  { id: "T002", date: getDateISO(-1), description: "Reserva R002 - Ana Beatriz", value: 2200, type: "receita" },
-  { id: "T003", date: getDateISO(-3), description: "Reserva R003 - Roberto Almeida", value: 1500, type: "receita" },
-  { id: "T004", date: getDateISO(-1), description: "Conta de Agua", value: 780, type: "despesa" },
-  { id: "T005", date: getDateISO(0), description: "Reserva R005 - Fernanda Lima", value: 1800, type: "receita" },
-  { id: "T006", date: getDateISO(0), description: "Fornecedor de Toalhas", value: 680, type: "despesa" },
+  { id: "T001", date: getDateISO(-2), description: "Reserva R001 - Carlos Mendes", value: 850, type: "receita", category: "Hospedagem", paymentMethod: "Cartao Credito", responsible: "operador", notes: "Pagamento integral na entrada" },
+  { id: "T002", date: getDateISO(-1), description: "Reserva R002 - Ana Beatriz", value: 2200, type: "receita", category: "Hospedagem", paymentMethod: "PIX", responsible: "operador", notes: "Suite Luxo com cafe da manha" },
+  { id: "T003", date: getDateISO(-3), description: "Reserva R003 - Roberto Almeida", value: 1500, type: "receita", category: "Hospedagem", paymentMethod: "Dinheiro", responsible: "supervisor", notes: "Hospede frequente" },
+  { id: "T004", date: getDateISO(-1), description: "Conta de Agua", value: 780, type: "despesa", category: "Pousada", paymentMethod: "Boleto", responsible: "supervisor", notes: "Referente ao mes anterior" },
+  { id: "T005", date: getDateISO(0), description: "Reserva R005 - Fernanda Lima", value: 1800, type: "receita", category: "Hospedagem", paymentMethod: "Cartao Debito", responsible: "operador", notes: "Primeira hospedagem" },
+  { id: "T006", date: getDateISO(0), description: "Fornecedor de Toalhas", value: 680, type: "despesa", category: "Pousada", paymentMethod: "Transferencia", responsible: "supervisor", notes: "Reposicao trimestral" },
 ]
 
 export const initialAuditLog: AuditEntry[] = [

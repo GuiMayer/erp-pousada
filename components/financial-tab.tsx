@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -16,14 +16,20 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet"
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Separator } from "@/components/ui/separator"
 import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle,
-  Plus, Undo2, Lock,
+  Plus, Undo2, Lock, CalendarDays, Clock, User,
+  CreditCard, FileText, Tag, Eye,
 } from "lucide-react"
-import type { Transaction } from "@/lib/store"
+import type { Transaction, Expense } from "@/lib/store"
 
 function formatCurrency(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -40,10 +46,12 @@ function daysUntilDue(iso: string) {
   return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
+type DueFilter = "todos" | "pendentes" | "pagos" | "vencidos"
+
 export function FinancialTab() {
   const {
     expenses, transactions, categories, cashCloses,
-    discountCeiling, addExpense, addTransaction,
+    discountCeiling, addExpense, updateExpense, addTransaction,
     addAuditEntry, addCategory, addCashClose, setDiscountCeiling,
   } = useApp()
   const { isSupervisor, username } = useAuth()
@@ -74,17 +82,60 @@ export function FinancialTab() {
   const [cashPhysical, setCashPhysical] = useState("")
   const [cashConfirmed, setCashConfirmed] = useState(false)
 
+  // Due filter (toggle group)
+  const [dueFilter, setDueFilter] = useState<DueFilter>("todos")
+
+  // Date range filter
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+
+  // Transaction detail sheet
+  const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null)
+
+  // Transaction type filter
+  const [txTypeFilter, setTxTypeFilter] = useState<string>("todos")
+
   const totalReceitas = transactions.filter(t => t.type === "receita").reduce((a, t) => a + t.value, 0)
   const totalDespesas = transactions.filter(t => t.type === "despesa").reduce((a, t) => a + t.value, 0)
   const totalEstornos = transactions.filter(t => t.type === "estorno").reduce((a, t) => a + Math.abs(t.value), 0)
   const netResult = totalReceitas - totalDespesas - totalEstornos
-  const unpaidExpenses = expenses.filter(e => !e.paid).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 
-  // Expected cash value (sum of today's transactions)
   const todayISO = new Date().toISOString().split("T")[0]
   const expectedCash = transactions
     .filter(t => t.date === todayISO)
     .reduce((a, t) => a + (t.type === "receita" ? t.value : -t.value), 0)
+
+  // Filtered expenses based on toggle group
+  const filteredExpenses = useMemo(() => {
+    let result = [...expenses]
+    switch (dueFilter) {
+      case "pendentes":
+        result = result.filter(e => !e.paid && daysUntilDue(e.dueDate) >= 0)
+        break
+      case "pagos":
+        result = result.filter(e => e.paid)
+        break
+      case "vencidos":
+        result = result.filter(e => !e.paid && daysUntilDue(e.dueDate) < 0)
+        break
+    }
+    return result.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+  }, [expenses, dueFilter])
+
+  // Filtered transactions based on date range and type
+  const filteredTransactions = useMemo(() => {
+    let result = [...transactions]
+    if (txTypeFilter !== "todos") {
+      result = result.filter(t => t.type === txTypeFilter)
+    }
+    if (dateFrom) {
+      result = result.filter(t => t.date >= dateFrom)
+    }
+    if (dateTo) {
+      result = result.filter(t => t.date <= dateTo)
+    }
+    return result.sort((a, b) => b.date.localeCompare(a.date))
+  }, [transactions, dateFrom, dateTo, txTypeFilter])
 
   function handleCreateExpense() {
     if (!expDesc || !expCategory || !expValue || !expDueDate) return
@@ -103,9 +154,20 @@ export function FinancialTab() {
       description: expDesc,
       value: Number(expValue),
       type: "despesa",
+      category: expCategory,
+      responsible: username || "operador",
     })
     setExpDesc(""); setExpCategory(""); setExpValue(""); setExpDueDate("")
     setShowNewExpense(false)
+  }
+
+  function handleMarkPaid(expense: Expense) {
+    updateExpense(expense.id, { paid: true })
+    addAuditEntry({
+      user: username || "sistema",
+      action: "Pagamento registrado",
+      reference: `${expense.id} - ${expense.description}`,
+    })
   }
 
   function handleRefund() {
@@ -121,6 +183,7 @@ export function FinancialTab() {
       value: -refundModal.value,
       type: "estorno",
       refId: refundModal.id,
+      responsible: username || "supervisor",
     })
     addAuditEntry({
       user: username || "sistema",
@@ -141,9 +204,7 @@ export function FinancialTab() {
 
   function handleDiscountCheck() {
     const pct = discountType === "percent" ? Number(discountValue) : 0
-    if (pct > discountCeiling && discountUnlockPass !== "admin") {
-      return
-    }
+    if (pct > discountCeiling && discountUnlockPass !== "admin") return
     addAuditEntry({
       user: username || "sistema",
       action: `Desconto aplicado (${discountValue}${discountType === "percent" ? "%" : " R$"})`,
@@ -203,11 +264,43 @@ export function FinancialTab() {
         <TabsContent value="vencimentos">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <h3 className="text-sm font-semibold text-foreground">Proximos Vencimentos</h3>
+              <h3 className="text-sm font-semibold text-foreground">Vencimentos</h3>
               <Button size="sm" className="gap-1.5" onClick={() => setShowNewExpense(true)}>
                 <Plus className="size-4" /> Nova Despesa
               </Button>
             </div>
+
+            {/* Toggle group filter */}
+            <ToggleGroup
+              type="single"
+              value={dueFilter}
+              onValueChange={(v) => { if (v) setDueFilter(v as DueFilter) }}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="todos" className="text-xs gap-1.5">
+                Todos
+                <Badge className="bg-secondary text-secondary-foreground border-transparent text-[10px] ml-1">{expenses.length}</Badge>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="pendentes" className="text-xs gap-1.5">
+                Pendentes
+                <Badge className="bg-warning/15 text-warning-foreground border-transparent text-[10px] ml-1">
+                  {expenses.filter(e => !e.paid && daysUntilDue(e.dueDate) >= 0).length}
+                </Badge>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="pagos" className="text-xs gap-1.5">
+                Pagos
+                <Badge className="bg-success/15 text-success border-transparent text-[10px] ml-1">
+                  {expenses.filter(e => e.paid).length}
+                </Badge>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="vencidos" className="text-xs gap-1.5">
+                Vencidos
+                <Badge className="bg-destructive/15 text-destructive border-transparent text-[10px] ml-1">
+                  {expenses.filter(e => !e.paid && daysUntilDue(e.dueDate) < 0).length}
+                </Badge>
+              </ToggleGroupItem>
+            </ToggleGroup>
+
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -218,10 +311,11 @@ export function FinancialTab() {
                       <TableHead>Valor</TableHead>
                       <TableHead>Vencimento</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Acao</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {unpaidExpenses.map((e) => {
+                    {filteredExpenses.map((e) => {
                       const days = daysUntilDue(e.dueDate)
                       const isUrgent = days <= 3 && days >= 0
                       const isOverdue = days < 0
@@ -232,7 +326,9 @@ export function FinancialTab() {
                           <TableCell className="tabular-nums text-xs">{formatCurrency(e.value)}</TableCell>
                           <TableCell className="text-xs">{formatDateBR(e.dueDate)}</TableCell>
                           <TableCell>
-                            {isOverdue ? (
+                            {e.paid ? (
+                              <Badge className="bg-success/15 text-success border-transparent text-[10px]">Pago</Badge>
+                            ) : isOverdue ? (
                               <Badge className="bg-destructive text-destructive-foreground border-transparent text-[10px] gap-1">
                                 <AlertTriangle className="size-3" /> Vencido
                               </Badge>
@@ -246,9 +342,27 @@ export function FinancialTab() {
                               </Badge>
                             )}
                           </TableCell>
+                          <TableCell className="text-right">
+                            {!e.paid && (
+                              <Button
+                                variant="ghost" size="sm"
+                                className="text-xs text-success hover:text-success gap-1"
+                                onClick={() => handleMarkPaid(e)}
+                              >
+                                Pagar
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       )
                     })}
+                    {filteredExpenses.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                          Nenhum vencimento encontrado para este filtro
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -261,12 +375,50 @@ export function FinancialTab() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <h3 className="text-sm font-semibold text-foreground">Historico de Transacoes</h3>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowDiscountModal(true)}>
-                  Aplicar Desconto
-                </Button>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowDiscountModal(true)}>
+                Aplicar Desconto
+              </Button>
+            </div>
+
+            {/* Filters row */}
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Tipo</Label>
+                <ToggleGroup
+                  type="single" value={txTypeFilter}
+                  onValueChange={v => { if (v) setTxTypeFilter(v) }}
+                >
+                  <ToggleGroupItem value="todos" className="text-xs">Todos</ToggleGroupItem>
+                  <ToggleGroupItem value="receita" className="text-xs">Receitas</ToggleGroupItem>
+                  <ToggleGroupItem value="despesa" className="text-xs">Despesas</ToggleGroupItem>
+                  <ToggleGroupItem value="estorno" className="text-xs">Estornos</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Periodo</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date" value={dateFrom}
+                    onChange={e => setDateFrom(e.target.value)}
+                    className="h-9 w-36 text-xs"
+                    placeholder="De"
+                  />
+                  <span className="text-xs text-muted-foreground">ate</span>
+                  <Input
+                    type="date" value={dateTo}
+                    onChange={e => setDateTo(e.target.value)}
+                    className="h-9 w-36 text-xs"
+                    placeholder="Ate"
+                  />
+                  {(dateFrom || dateTo) && (
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setDateFrom(""); setDateTo("") }}>
+                      Limpar
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
+
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -281,8 +433,12 @@ export function FinancialTab() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map((t) => (
-                      <TableRow key={t.id}>
+                    {filteredTransactions.map((t) => (
+                      <TableRow
+                        key={t.id}
+                        className="cursor-pointer hover:bg-accent/50 transition-colors"
+                        onClick={() => setDetailTransaction(t)}
+                      >
                         <TableCell className="font-mono text-xs">{t.id}</TableCell>
                         <TableCell className="text-xs">{formatDateBR(t.date)}</TableCell>
                         <TableCell className="font-medium text-sm">{t.description}</TableCell>
@@ -301,7 +457,7 @@ export function FinancialTab() {
                           </Badge>
                         </TableCell>
                         {isSupervisor && (
-                          <TableCell className="text-right">
+                          <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                             {t.type === "receita" && (
                               <Button
                                 variant="ghost" size="sm"
@@ -315,10 +471,21 @@ export function FinancialTab() {
                         )}
                       </TableRow>
                     ))}
+                    {filteredTransactions.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={isSupervisor ? 6 : 5} className="py-8 text-center text-muted-foreground">
+                          Nenhuma transacao encontrada para os filtros selecionados
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+
+            <p className="text-xs text-muted-foreground">
+              {filteredTransactions.length} transacao(oes) encontrada(s)
+            </p>
           </div>
         </TabsContent>
 
@@ -341,13 +508,7 @@ export function FinancialTab() {
                   <div className="flex flex-col gap-4 max-w-sm mx-auto">
                     <div className="flex flex-col gap-1.5">
                       <Label>Valor Fisico em Caixa (R$)</Label>
-                      <Input
-                        type="number"
-                        placeholder="0,00"
-                        value={cashPhysical}
-                        onChange={e => setCashPhysical(e.target.value)}
-                        autoFocus
-                      />
+                      <Input type="number" placeholder="0,00" value={cashPhysical} onChange={e => setCashPhysical(e.target.value)} autoFocus />
                     </div>
                     <div className="flex gap-2 justify-end">
                       <Button variant="outline" onClick={() => setShowCashClose(false)}>Cancelar</Button>
@@ -367,9 +528,7 @@ export function FinancialTab() {
                       </div>
                       <div className="border-t border-border mt-1 pt-2 flex justify-between text-sm">
                         <span className="text-muted-foreground">Divergencia:</span>
-                        <span className={`font-bold ${
-                          Number(cashPhysical) - Math.abs(expectedCash) >= 0 ? "text-success" : "text-destructive"
-                        }`}>
+                        <span className={`font-bold ${Number(cashPhysical) - Math.abs(expectedCash) >= 0 ? "text-success" : "text-destructive"}`}>
                           {formatCurrency(Number(cashPhysical) - Math.abs(expectedCash))}
                         </span>
                       </div>
@@ -380,7 +539,6 @@ export function FinancialTab() {
               </CardContent>
             </Card>
 
-            {/* Previous cash closes */}
             {cashCloses.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">
@@ -417,6 +575,53 @@ export function FinancialTab() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Transaction detail sheet */}
+      <Sheet open={!!detailTransaction} onOpenChange={v => { if (!v) setDetailTransaction(null) }}>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          {detailTransaction && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <Eye className="size-5 text-primary" />
+                  Transacao {detailTransaction.id}
+                </SheetTitle>
+                <SheetDescription>Detalhes completos da movimentacao</SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col gap-5 py-6">
+                <Badge className={`w-fit text-xs border-transparent ${
+                  detailTransaction.type === "receita" ? "bg-success/15 text-success" :
+                  detailTransaction.type === "estorno" ? "bg-warning/15 text-warning-foreground" :
+                  "bg-destructive/15 text-destructive"
+                }`}>
+                  {detailTransaction.type === "receita" ? "Receita" : detailTransaction.type === "estorno" ? "Estorno" : "Despesa"}
+                </Badge>
+
+                <div className="flex flex-col gap-3">
+                  <TxDetailRow icon={<FileText className="size-4" />} label="Descricao" value={detailTransaction.description} />
+                  <TxDetailRow icon={<DollarSign className="size-4" />} label="Valor" value={
+                    `${detailTransaction.type === "receita" ? "+" : "-"} ${formatCurrency(Math.abs(detailTransaction.value))}`
+                  } />
+                  <TxDetailRow icon={<CalendarDays className="size-4" />} label="Data" value={formatDateBR(detailTransaction.date)} />
+                  <Separator />
+                  <TxDetailRow icon={<Tag className="size-4" />} label="Categoria" value={detailTransaction.category || "Nao informada"} />
+                  <TxDetailRow icon={<CreditCard className="size-4" />} label="Meio de Pagamento" value={detailTransaction.paymentMethod || "Nao informado"} />
+                  <TxDetailRow icon={<User className="size-4" />} label="Responsavel" value={detailTransaction.responsible || "Nao informado"} />
+                  {detailTransaction.notes && (
+                    <>
+                      <Separator />
+                      <TxDetailRow icon={<Clock className="size-4" />} label="Observacoes" value={detailTransaction.notes} />
+                    </>
+                  )}
+                  {detailTransaction.refId && (
+                    <TxDetailRow icon={<Undo2 className="size-4" />} label="Ref. Original" value={detailTransaction.refId} />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* New expense modal */}
       <Dialog open={showNewExpense} onOpenChange={setShowNewExpense}>
@@ -485,7 +690,7 @@ export function FinancialTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Refund modal (supervisor only) */}
+      {/* Refund modal */}
       <Dialog open={!!refundModal} onOpenChange={v => { if (!v) setRefundModal(null) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -524,9 +729,7 @@ export function FinancialTab() {
               <div className="flex flex-col gap-1.5">
                 <Label>Tipo</Label>
                 <Select value={discountType} onValueChange={v => setDiscountType(v as "percent" | "fixed")}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percent">Percentual (%)</SelectItem>
                     <SelectItem value="fixed">Valor Fixo (R$)</SelectItem>
@@ -536,8 +739,7 @@ export function FinancialTab() {
               <div className="flex flex-col gap-1.5">
                 <Label>Valor</Label>
                 <Input
-                  type="number"
-                  value={discountValue}
+                  type="number" value={discountValue}
                   onChange={e => { setDiscountValue(e.target.value); setDiscountUnlocked(false); setDiscountUnlockPass("") }}
                   placeholder={discountType === "percent" ? "0%" : "R$ 0,00"}
                 />
@@ -550,32 +752,15 @@ export function FinancialTab() {
                   <span className="text-sm text-warning-foreground">Desconto acima do teto. Necessaria senha de liberacao.</span>
                 </div>
                 <div className="flex gap-2">
-                  <Input
-                    type="password"
-                    value={discountUnlockPass}
-                    onChange={e => setDiscountUnlockPass(e.target.value)}
-                    placeholder="Senha do supervisor"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (discountUnlockPass === "admin") setDiscountUnlocked(true)
-                    }}
-                  >
-                    Liberar
-                  </Button>
+                  <Input type="password" value={discountUnlockPass} onChange={e => setDiscountUnlockPass(e.target.value)} placeholder="Senha do supervisor" />
+                  <Button size="sm" onClick={() => { if (discountUnlockPass === "admin") setDiscountUnlocked(true) }}>Liberar</Button>
                 </div>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDiscountModal(false)}>Cancelar</Button>
-            <Button
-              disabled={!discountValue || (discountNeedsSupervisor && !discountUnlocked)}
-              onClick={handleDiscountCheck}
-            >
-              Aplicar
-            </Button>
+            <Button disabled={!discountValue || (discountNeedsSupervisor && !discountUnlocked)} onClick={handleDiscountCheck}>Aplicar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -601,6 +786,18 @@ function SummaryCard({
       <div className="flex flex-col">
         <span className="text-xs font-medium opacity-70">{label}</span>
         <span className="text-lg font-bold tabular-nums">{formatCurrency(value)}</span>
+      </div>
+    </div>
+  )
+}
+
+function TxDetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="text-muted-foreground">{icon}</div>
+      <div className="flex flex-col">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className="text-sm font-medium text-foreground">{value}</span>
       </div>
     </div>
   )

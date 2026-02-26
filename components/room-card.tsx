@@ -15,6 +15,8 @@ import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { MiniTimeline } from "./mini-timeline"
 import { BlockRoomModal } from "./block-room-modal"
+import { CheckinModal } from "./checkin-modal"
+import { ConsumptionSheet } from "./consumption-sheet"
 
 const statusConfig: Record<
   RoomStatus,
@@ -77,34 +79,63 @@ function isOverdue(room: Room): boolean {
 export function RoomCard({ room }: { room: Room }) {
   const config = statusConfig[room.status]
   const overdue = isOverdue(room)
-  const { updateRoom, addAuditEntry } = useApp()
+  const { updateRoom, addAuditEntry, getConsumption, clearConsumption } = useApp()
   const { username } = useAuth()
   const [blockModalOpen, setBlockModalOpen] = useState(false)
+  const [checkinOpen, setCheckinOpen] = useState(false)
+  const [consumptionOpen, setConsumptionOpen] = useState(false)
 
-  function handleCheckIn() {
-    updateRoom(room.id, { status: "ocupado" })
-    addAuditEntry({ user: username || "sistema", action: "Check-in realizado", reference: `Quarto ${room.number}` })
-  }
+  const consumption = getConsumption(room.id)
+  const consumptionTotal = consumption
+    ? consumption.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+    : 0
 
   function handleCheckOut() {
-    updateRoom(room.id, { status: "limpeza", guest: undefined, guestCpf: undefined, checkIn: undefined, checkOut: undefined })
-    addAuditEntry({ user: username || "sistema", action: "Check-out realizado", reference: `Quarto ${room.number}` })
+    updateRoom(room.id, {
+      status: "limpeza",
+      guest: undefined, guestCpf: undefined,
+      checkIn: undefined, checkOut: undefined,
+    })
+    clearConsumption(room.id)
+    addAuditEntry({
+      user: username || "sistema",
+      action: "Check-out realizado",
+      reference: `Quarto ${room.number}`,
+    })
   }
 
   function handleRelease() {
     updateRoom(room.id, { status: "disponivel" })
-    addAuditEntry({ user: username || "sistema", action: "Quarto liberado (limpeza concluida)", reference: `Quarto ${room.number}` })
+    addAuditEntry({
+      user: username || "sistema",
+      action: "Quarto liberado (limpeza concluida)",
+      reference: `Quarto ${room.number}`,
+    })
   }
 
   function handleBlock(endDate: string, responsible: string, reason: string) {
-    updateRoom(room.id, { status: "bloqueado", blockEndDate: endDate, blockResponsible: responsible, blockReason: reason })
-    addAuditEntry({ user: username || "sistema", action: "Quarto bloqueado", reference: `Quarto ${room.number} - ${reason}` })
+    updateRoom(room.id, {
+      status: "bloqueado",
+      blockEndDate: endDate, blockResponsible: responsible, blockReason: reason,
+    })
+    addAuditEntry({
+      user: username || "sistema",
+      action: "Quarto bloqueado",
+      reference: `Quarto ${room.number} - ${reason}`,
+    })
     setBlockModalOpen(false)
   }
 
   function handleUnblock() {
-    updateRoom(room.id, { status: "disponivel", blockEndDate: undefined, blockResponsible: undefined, blockReason: undefined })
-    addAuditEntry({ user: username || "sistema", action: "Desbloqueio de quarto", reference: `Quarto ${room.number}` })
+    updateRoom(room.id, {
+      status: "disponivel",
+      blockEndDate: undefined, blockResponsible: undefined, blockReason: undefined,
+    })
+    addAuditEntry({
+      user: username || "sistema",
+      action: "Desbloqueio de quarto",
+      reference: `Quarto ${room.number}`,
+    })
     setBlockModalOpen(false)
   }
 
@@ -158,6 +189,17 @@ export function RoomCard({ room }: { room: Room }) {
                   </span>
                 </div>
               )}
+              {consumptionTotal > 0 && (
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="size-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    {"Consumo: "}
+                    <span className="font-semibold text-foreground tabular-nums">
+                      {consumptionTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -193,16 +235,21 @@ export function RoomCard({ room }: { room: Room }) {
           {/* Conditional action buttons */}
           <div className="mt-3 flex flex-wrap gap-2">
             {room.status === "disponivel" && (
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={handleCheckIn}>
-                <LogIn className="size-3.5" /> Check-in
-              </Button>
+              <>
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setCheckinOpen(true)}>
+                  <LogIn className="size-3.5" /> Check-in
+                </Button>
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setBlockModalOpen(true)}>
+                  <Lock className="size-3.5" />
+                </Button>
+              </>
             )}
             {room.status === "ocupado" && (
               <>
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={handleCheckOut}>
                   <LogOutIcon className="size-3.5" /> Check-out
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1">
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setConsumptionOpen(true)}>
                   <ShoppingCart className="size-3.5" /> Consumo
                 </Button>
               </>
@@ -227,11 +274,17 @@ export function RoomCard({ room }: { room: Room }) {
       </Card>
 
       <BlockRoomModal
-        room={room}
-        open={blockModalOpen}
+        room={room} open={blockModalOpen}
         onClose={() => setBlockModalOpen(false)}
-        onConfirmBlock={handleBlock}
-        onUnblock={handleUnblock}
+        onConfirmBlock={handleBlock} onUnblock={handleUnblock}
+      />
+      <CheckinModal
+        room={room} open={checkinOpen}
+        onClose={() => setCheckinOpen(false)}
+      />
+      <ConsumptionSheet
+        room={room} open={consumptionOpen}
+        onClose={() => setConsumptionOpen(false)}
       />
     </>
   )
