@@ -436,13 +436,13 @@ export function POSTab() {
 
             {/* Customer selection */}
             <div className="mt-3">
-              <Select value={customer} onValueChange={setCustomer}>
+              <Select value={customer || "none"} onValueChange={(v) => setCustomer(v === "none" ? "" : v)}>
                 <SelectTrigger className="h-9 text-sm">
                   <User className="mr-2 size-3.5 text-muted-foreground" />
                   <SelectValue placeholder="Vincular a hospede (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="none">Nenhum</SelectItem>
                   {occupiedRooms.map(room => (
                     <SelectItem key={room.id} value={`Quarto ${room.number} - ${room.guest}`}>
                       Quarto {room.number} - {room.guest}
