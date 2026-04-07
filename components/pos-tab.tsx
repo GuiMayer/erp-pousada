@@ -30,7 +30,7 @@ import {
   Banknote, QrCode, Receipt, X, Percent, User, Barcode,
   Clock, CheckCircle2, XCircle, History, Package, Settings, Pencil,
 } from "lucide-react"
-import type { POSProduct, POSCartItem, POSSale } from "@/lib/store"
+import { PRODUCT_CATEGORIES, type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
 
 const PAYMENT_METHODS = [
   { id: "dinheiro", label: "Dinheiro", icon: Banknote },
@@ -1189,12 +1189,9 @@ export function POSTab() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Selecione...</SelectItem>
-                  <SelectItem value="Bebidas">Bebidas</SelectItem>
-                  <SelectItem value="Lanches">Lanches</SelectItem>
-                  <SelectItem value="Doces">Doces</SelectItem>
-                  <SelectItem value="Servicos">Servicos</SelectItem>
-                  <SelectItem value="Frigobar">Frigobar</SelectItem>
-                  <SelectItem value="Outros">Outros</SelectItem>
+                  {PRODUCT_CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
