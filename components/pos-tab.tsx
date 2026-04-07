@@ -28,7 +28,7 @@ import {
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, CreditCard,
   Banknote, QrCode, Receipt, X, Percent, User, Barcode,
-  Clock, CheckCircle2, XCircle, History, Package,
+  Clock, CheckCircle2, XCircle, History, Package, Settings, Pencil,
 } from "lucide-react"
 import type { POSProduct, POSCartItem, POSSale } from "@/lib/store"
 
@@ -43,6 +43,7 @@ export function POSTab() {
   const {
     posProducts, posSales, rooms,
     addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
+    addPOSProduct, updatePOSProduct, removePOSProduct,
   } = useApp()
   const { username, role } = useAuth()
 
@@ -77,6 +78,15 @@ export function POSTab() {
   const [itemDiscountOpen, setItemDiscountOpen] = useState(false)
   const [itemToDiscount, setItemToDiscount] = useState<POSCartItem | null>(null)
   const [itemDiscountValue, setItemDiscountValue] = useState("")
+
+  // Product management modal
+  const [manageProductsOpen, setManageProductsOpen] = useState(false)
+  const [productModalOpen, setProductModalOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<POSProduct | null>(null)
+  const [productForm, setProductForm] = useState({ name: "", category: "", price: "", barcode: "" })
+  const [productSearch, setProductSearch] = useState("")
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [productToDelete, setProductToDelete] = useState<POSProduct | null>(null)
 
   const barcodeRef = useRef<HTMLInputElement>(null)
 
@@ -303,6 +313,85 @@ export function POSTab() {
     setSaleToCancel(null)
   }
 
+  // Product management functions
+  const filteredProductsForManage = useMemo(() => {
+    if (!productSearch) return posProducts
+    return posProducts.filter(p =>
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      p.category.toLowerCase().includes(productSearch.toLowerCase()) ||
+      (p.barcode && p.barcode.includes(productSearch))
+    )
+  }, [posProducts, productSearch])
+
+  function openAddProduct() {
+    setEditingProduct(null)
+    setProductForm({ name: "", category: "", price: "", barcode: "" })
+    setProductModalOpen(true)
+  }
+
+  function openEditProduct(product: POSProduct) {
+    setEditingProduct(product)
+    setProductForm({
+      name: product.name,
+      category: product.category,
+      price: String(product.price),
+      barcode: product.barcode || "",
+    })
+    setProductModalOpen(true)
+  }
+
+  function handleSaveProduct() {
+    if (!productForm.name || !productForm.category || !productForm.price) return
+    
+    if (editingProduct) {
+      updatePOSProduct(editingProduct.id, {
+        name: productForm.name,
+        category: productForm.category,
+        price: Number(productForm.price),
+        barcode: productForm.barcode || undefined,
+      })
+      addAuditEntry({
+        user: username || "sistema",
+        action: `Produto editado: ${productForm.name}`,
+        reference: `PDV - ${editingProduct.id}`,
+      })
+    } else {
+      const newId = `P${String(posProducts.length + 1).padStart(3, "0")}-${Date.now()}`
+      addPOSProduct({
+        id: newId,
+        name: productForm.name,
+        category: productForm.category,
+        price: Number(productForm.price),
+        barcode: productForm.barcode || undefined,
+      })
+      addAuditEntry({
+        user: username || "sistema",
+        action: `Produto adicionado: ${productForm.name}`,
+        reference: `PDV - ${newId}`,
+      })
+    }
+    setProductModalOpen(false)
+    setProductForm({ name: "", category: "", price: "", barcode: "" })
+    setEditingProduct(null)
+  }
+
+  function openDeleteConfirm(product: POSProduct) {
+    setProductToDelete(product)
+    setDeleteConfirmOpen(true)
+  }
+
+  function handleDeleteProduct() {
+    if (!productToDelete) return
+    removePOSProduct(productToDelete.id)
+    addAuditEntry({
+      user: username || "sistema",
+      action: `Produto removido: ${productToDelete.name}`,
+      reference: `PDV - ${productToDelete.id}`,
+    })
+    setDeleteConfirmOpen(false)
+    setProductToDelete(null)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header with stats */}
@@ -317,6 +406,15 @@ export function POSTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setManageProductsOpen(true)}
+          >
+            <Settings className="size-3.5" />
+            Gerenciar Produtos
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -968,6 +1066,211 @@ export function POSTab() {
               disabled={!cancelReason || (role !== "supervisor" && supervisorPassword !== "1234")}
             >
               Confirmar Cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Products Sheet */}
+      <Sheet open={manageProductsOpen} onOpenChange={setManageProductsOpen}>
+        <SheetContent className="flex flex-col overflow-y-auto sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Settings className="size-5 text-primary" />
+              Gerenciar Produtos
+            </SheetTitle>
+            <SheetDescription>
+              Adicione, edite ou remova produtos do catalogo
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex flex-col gap-4 py-4">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar produto..."
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Button className="gap-1.5" onClick={openAddProduct}>
+                <Plus className="size-4" />
+                Novo Produto
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto">
+              {filteredProductsForManage.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">Nenhum produto encontrado</p>
+              ) : (
+                filteredProductsForManage.map(product => (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-accent/50"
+                  >
+                    <Package className="size-4 text-muted-foreground shrink-0" />
+                    <div className="flex flex-1 flex-col min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate">{product.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-[10px]">{product.category}</Badge>
+                        {product.barcode && (
+                          <span className="text-[10px] text-muted-foreground">{product.barcode}</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums text-primary">
+                      {product.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-muted-foreground hover:text-primary"
+                        onClick={() => openEditProduct(product)}
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => openDeleteConfirm(product)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
+              <span className="text-xs text-muted-foreground">Total de Produtos</span>
+              <Badge className="bg-primary text-primary-foreground">{posProducts.length}</Badge>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Add/Edit Product Modal */}
+      <Dialog open={productModalOpen} onOpenChange={setProductModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {editingProduct ? <Pencil className="size-5 text-primary" /> : <Plus className="size-5 text-primary" />}
+              {editingProduct ? "Editar Produto" : "Novo Produto"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingProduct ? `Editando: ${editingProduct.name}` : "Preencha os dados do novo produto"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="productName">Nome do Produto *</Label>
+              <Input
+                id="productName"
+                value={productForm.name}
+                onChange={e => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: Agua Mineral 500ml"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="productCategory">Categoria *</Label>
+              <Select
+                value={productForm.category || "none"}
+                onValueChange={v => setProductForm(prev => ({ ...prev, category: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger id="productCategory">
+                  <SelectValue placeholder="Selecione uma categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Selecione...</SelectItem>
+                  <SelectItem value="Bebidas">Bebidas</SelectItem>
+                  <SelectItem value="Lanches">Lanches</SelectItem>
+                  <SelectItem value="Doces">Doces</SelectItem>
+                  <SelectItem value="Servicos">Servicos</SelectItem>
+                  <SelectItem value="Frigobar">Frigobar</SelectItem>
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="productPrice">Preco (R$) *</Label>
+                <Input
+                  id="productPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={productForm.price}
+                  onChange={e => setProductForm(prev => ({ ...prev, price: e.target.value }))}
+                  placeholder="0,00"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="productBarcode">Codigo de Barras</Label>
+                <Input
+                  id="productBarcode"
+                  value={productForm.barcode}
+                  onChange={e => setProductForm(prev => ({ ...prev, barcode: e.target.value }))}
+                  placeholder="Opcional"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProductModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveProduct}
+              disabled={!productForm.name || !productForm.category || !productForm.price}
+            >
+              {editingProduct ? "Salvar Alteracoes" : "Adicionar Produto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Product Confirmation */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="size-5" />
+              Remover Produto
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja remover o produto?
+            </DialogDescription>
+          </DialogHeader>
+
+          {productToDelete && (
+            <div className="flex items-center gap-3 rounded-lg bg-destructive/5 p-3">
+              <Package className="size-5 text-destructive" />
+              <div className="flex flex-1 flex-col">
+                <span className="text-sm font-medium text-foreground">{productToDelete.name}</span>
+                <span className="text-xs text-muted-foreground">{productToDelete.category}</span>
+              </div>
+              <span className="text-sm font-semibold tabular-nums text-foreground">
+                {productToDelete.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </span>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteProduct}>
+              Remover Produto
             </Button>
           </DialogFooter>
         </DialogContent>

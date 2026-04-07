@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
   SheetDescription, SheetFooter,
@@ -10,21 +10,11 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
-import { Plus, Trash2, ShoppingCart, Package } from "lucide-react"
+import { Plus, Trash2, ShoppingCart, Package, Search } from "lucide-react"
 import type { Room } from "@/lib/store"
-
-const CATALOG = [
-  { label: "Agua Mineral", unitPrice: 5 },
-  { label: "Refrigerante", unitPrice: 8 },
-  { label: "Cerveja", unitPrice: 12 },
-  { label: "Suco Natural", unitPrice: 10 },
-  { label: "Snack / Salgadinho", unitPrice: 7 },
-  { label: "Chocolate", unitPrice: 6 },
-  { label: "Toalha Extra", unitPrice: 15 },
-  { label: "Frigobar Completo", unitPrice: 45 },
-]
 
 type Props = {
   room: Room
@@ -33,27 +23,47 @@ type Props = {
 }
 
 export function ConsumptionSheet({ room, open, onClose }: Props) {
-  const { addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry } = useApp()
+  const { 
+    addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry,
+    posProducts 
+  } = useApp()
   const { username } = useAuth()
 
   const [customLabel, setCustomLabel] = useState("")
   const [customPrice, setCustomPrice] = useState("")
   const [customQty, setCustomQty] = useState("1")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("Todos")
 
   const consumption = getConsumption(room.id)
   const items = consumption?.items || []
   const total = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
 
-  function handleAddCatalogItem(label: string, unitPrice: number) {
+  // Get unique categories from POS products
+  const categories = useMemo(() => {
+    const cats = new Set(posProducts.map(p => p.category))
+    return ["Todos", ...Array.from(cats)]
+  }, [posProducts])
+
+  // Filter products based on search and category
+  const filteredProducts = useMemo(() => {
+    return posProducts.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesCategory = categoryFilter === "Todos" || p.category === categoryFilter
+      return matchesSearch && matchesCategory
+    })
+  }, [posProducts, searchQuery, categoryFilter])
+
+  function handleAddCatalogItem(name: string, unitPrice: number) {
     addConsumptionItem(room.id, {
       id: `CI-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      label,
+      label: name,
       unitPrice,
       quantity: 1,
     })
     addAuditEntry({
       user: username || "sistema",
-      action: `Consumo lancado: ${label}`,
+      action: `Consumo lancado: ${name}`,
       reference: `Quarto ${room.number} - ${room.guest}`,
     })
   }
@@ -82,7 +92,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <SheetContent className="flex flex-col overflow-y-auto sm:max-w-md">
+      <SheetContent className="flex flex-col overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="size-5 text-primary" />
@@ -94,27 +104,58 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-5 py-4">
-          {/* Quick catalog */}
+          {/* Search and Category Filter */}
+          <div className="flex flex-col gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
+              <TabsList className="h-auto flex-wrap gap-1 bg-transparent p-0">
+                {categories.map(cat => (
+                  <TabsTrigger
+                    key={cat}
+                    value={cat}
+                    className="rounded-full border border-transparent bg-secondary/50 px-2.5 py-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    {cat}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {/* Product catalog */}
           <div className="flex flex-col gap-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Catalogo Rapido
+              Catalogo de Produtos ({filteredProducts.length})
             </Label>
-            <div className="grid grid-cols-2 gap-2">
-              {CATALOG.map((item) => (
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {filteredProducts.map((product) => (
                 <button
-                  key={item.label}
-                  onClick={() => handleAddCatalogItem(item.label, item.unitPrice)}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent"
+                  key={product.id}
+                  onClick={() => handleAddCatalogItem(product.name, product.price)}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent hover:border-primary"
                 >
                   <Package className="size-3.5 text-muted-foreground shrink-0" />
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium text-foreground truncate">{item.label}</span>
+                    <span className="text-xs font-medium text-foreground truncate">{product.name}</span>
                     <span className="text-[10px] tabular-nums text-muted-foreground">
-                      {item.unitPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      {product.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </span>
                   </div>
                 </button>
               ))}
+              {filteredProducts.length === 0 && (
+                <p className="col-span-2 py-4 text-center text-xs text-muted-foreground">
+                  Nenhum produto encontrado
+                </p>
+              )}
             </div>
           </div>
 
