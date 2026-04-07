@@ -7,8 +7,9 @@ import { RoomGrid } from "./room-grid"
 import { ReservationsTab } from "./reservations-tab"
 import { FinancialTab } from "./financial-tab"
 import { AuditLogTab } from "./audit-log-tab"
+import { POSTab } from "./pos-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Map, CalendarDays, DollarSign, Shield } from "lucide-react"
+import { Map, CalendarDays, DollarSign, Shield, ShoppingCart } from "lucide-react"
 
 export function DashboardShell() {
   const { rooms } = useApp()
@@ -35,6 +36,10 @@ export function DashboardShell() {
             <Shield className="size-3.5" />
             Auditoria
           </TabsTrigger>
+          <TabsTrigger value="pdv" className="gap-1.5">
+            <ShoppingCart className="size-3.5" />
+            Frente de Caixa
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="mapa">
@@ -48,6 +53,9 @@ export function DashboardShell() {
         </TabsContent>
         <TabsContent value="auditoria">
           <AuditLogTab />
+        </TabsContent>
+        <TabsContent value="pdv">
+          <POSTab />
         </TabsContent>
       </Tabs>
     </div>

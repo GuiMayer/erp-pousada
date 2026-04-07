@@ -5,10 +5,12 @@ import {
   initialRooms, initialReservations, initialGuests,
   initialExpenses, initialTransactions, initialAuditLog,
   initialCategories, initialCashCloses,
+  initialPOSProducts, initialPOSSales,
   type Room, type Reservation, type GuestProfile,
   type Expense, type Transaction, type AuditEntry,
   type ExpenseCategory, type CashClose, type RoomStatus,
   type RoomConsumption, type ConsumptionItem,
+  type POSProduct, type POSSale,
 } from "./store"
 
 type AppContextType = {
@@ -22,6 +24,8 @@ type AppContextType = {
   cashCloses: CashClose[]
   consumptions: RoomConsumption[]
   discountCeiling: number
+  posProducts: POSProduct[]
+  posSales: POSSale[]
   updateRoom: (id: number, data: Partial<Room>) => void
   addRoom: (room: Room) => void
   removeRoom: (id: number) => void
@@ -40,6 +44,11 @@ type AppContextType = {
   removeConsumptionItem: (roomId: number, itemId: string) => void
   getConsumption: (roomId: number) => RoomConsumption | undefined
   clearConsumption: (roomId: number) => void
+  addPOSProduct: (p: POSProduct) => void
+  updatePOSProduct: (id: string, data: Partial<POSProduct>) => void
+  removePOSProduct: (id: string) => void
+  addPOSSale: (s: POSSale) => void
+  updatePOSSale: (id: string, data: Partial<POSSale>) => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -55,6 +64,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cashCloses, setCashCloses] = useState<CashClose[]>(initialCashCloses)
   const [consumptions, setConsumptions] = useState<RoomConsumption[]>([])
   const [discountCeiling, setDiscountCeiling] = useState(5)
+  const [posProducts, setPOSProducts] = useState<POSProduct[]>(initialPOSProducts)
+  const [posSales, setPOSSales] = useState<POSSale[]>(initialPOSSales)
 
   const updateRoom = useCallback((id: number, data: Partial<Room>) => {
     setRooms(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
@@ -146,15 +157,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setConsumptions(prev => prev.filter(c => c.roomId !== roomId))
   }, [])
 
+  const addPOSProduct = useCallback((p: POSProduct) => {
+    setPOSProducts(prev => [...prev, p])
+  }, [])
+
+  const updatePOSProduct = useCallback((id: string, data: Partial<POSProduct>) => {
+    setPOSProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
+  }, [])
+
+  const removePOSProduct = useCallback((id: string) => {
+    setPOSProducts(prev => prev.filter(p => p.id !== id))
+  }, [])
+
+  const addPOSSale = useCallback((s: POSSale) => {
+    setPOSSales(prev => [...prev, s])
+  }, [])
+
+  const updatePOSSale = useCallback((id: string, data: Partial<POSSale>) => {
+    setPOSSales(prev => prev.map(s => s.id === id ? { ...s, ...data } : s))
+  }, [])
+
   return (
     <AppContext.Provider value={{
       rooms, reservations, guests, expenses, transactions,
       auditLog, categories, cashCloses, consumptions, discountCeiling,
+      posProducts, posSales,
       updateRoom, addRoom, removeRoom,
       addReservation, updateReservation,
       addExpense, updateExpense, addTransaction, addAuditEntry,
       addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
       addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
+      addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
     }}>
       {children}
     </AppContext.Provider>
