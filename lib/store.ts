@@ -91,6 +91,66 @@ export interface SeedPOSSale {
   cancelReason?: string
 }
 
+// ─── Restaurant Seed Data Interfaces ───────────────────────────────────
+export interface SeedRestaurantTable {
+  id: number
+  number: string
+  capacity: number
+  status: TableStatus
+  currentOrderId?: string
+  openedAtHoursAgo?: number
+}
+
+export interface SeedRestaurantOrderItem {
+  id: string
+  productId: string
+  quantity: number
+}
+
+export interface SeedRestaurantOrder {
+  id: string
+  tableId: number
+  hoursAgo: number
+  items: SeedRestaurantOrderItem[]
+  subtotal: number
+  discount: number
+  total: number
+  status: OrderStatus
+  paymentMethod?: string
+  amountPaid?: number
+  change?: number
+  customer?: string
+  operator: string
+  cancelReason?: string
+}
+
+export interface SeedStockItem {
+  id: string
+  productId: string
+  currentStock: number
+  unit: StockUnit
+  minimumStock: number
+  maximumStock: number
+  averageCost: number
+  lastPurchasePrice: number
+  lastPurchaseDaysAgo?: number
+}
+
+export interface SeedEmployee {
+  id: string
+  name: string
+  cpf: string
+  photo?: string
+  role: EmployeeRole
+  active: boolean
+  consumptionLimit: number
+  mealBenefit: {
+    lunchIncluded: boolean
+    dinnerIncluded: boolean
+    snackIncluded: boolean
+  }
+}
+
 // ─── Application Types (Runtime structure) ─────────────────────────────
 export type RoomStatus = "disponivel" | "ocupado" | "limpeza" | "bloqueado"
 export type ReservationStatus = "confirmada" | "checkin" | "checkout" | "cancelada" | "noshow"
@@ -229,6 +289,163 @@ export interface POSSale {
   cancelReason?: string
 }
 
+// ─── Restaurant Types ──────────────────────────────────────────────────
+export type TableStatus = "livre" | "ocupada" | "reservada"
+export type OrderStatus = "aberta" | "fechada" | "cancelada"
+export type StockUnit = "kg" | "un" | "lt" | "cx"
+export type MovementType = "entrada" | "saida" | "ajuste" | "perda"
+export type EmployeeRole = "caixa" | "cozinha" | "atendimento" | "gerente" | "supervisor"
+export type ConsumptionPaymentType = "beneficio" | "desconto" | "pago"
+
+export interface ProductCategory {
+  id: string
+  name: string
+  color: string
+  icon: string
+  active: boolean
+  isRestaurant: boolean // true for restaurant categories, false for pousada
+}
+
+export interface RestaurantTable {
+  id: number
+  number: string
+  capacity: number
+  status: TableStatus
+  currentOrderId?: string
+  openedAt?: string
+}
+
+export interface RestaurantOrderItem {
+  id: string
+  productId: string
+  productName: string
+  quantity: number
+  unitPrice: number
+  subtotal: number
+  category: string
+}
+
+export interface RestaurantOrder {
+  id: string
+  tableId: number
+  tableNumber: string
+  items: RestaurantOrderItem[]
+  subtotal: number
+  discount: number
+  total: number
+  status: OrderStatus
+  openedAt: string
+  closedAt?: string
+  paymentMethod?: string
+  amountPaid?: number
+  change?: number
+  customer?: string
+  operator: string
+  cancelReason?: string
+}
+
+export interface StockItem {
+  id: string
+  productId: string
+  productName: string
+  currentStock: number
+  unit: StockUnit
+  minimumStock: number
+  maximumStock: number
+  averageCost: number
+  lastPurchasePrice: number
+  lastPurchaseDate?: string
+}
+
+export interface StockMovement {
+  id: string
+  type: MovementType
+  productId: string
+  productName: string
+  quantity: number
+  unit: StockUnit
+  cost?: number
+  reason: string
+  timestamp: string
+  registeredBy: string
+  invoiceNumber?: string
+  expirationDate?: string
+  notes?: string
+}
+
+export interface RecipeIngredient {
+  productId: string
+  productName: string
+  quantity: number
+  unit: StockUnit
+  cost: number
+}
+
+export interface Recipe {
+  id: string
+  name: string
+  category: string
+  version: number
+  ingredients: RecipeIngredient[]
+  expectedYield: number
+  yieldUnit: StockUnit
+  preparationTime: number
+  instructions: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Production {
+  id: string
+  recipeId: string
+  recipeName: string
+  plannedQuantity: number
+  producedQuantity: number
+  yield: number
+  totalCost: number
+  unitCost: number
+  timestamp: string
+  producedBy: string
+  notes?: string
+}
+
+export interface Employee {
+  id: string
+  name: string
+  cpf: string
+  photo?: string
+  role: EmployeeRole
+  active: boolean
+  consumptionLimit: number
+  mealBenefit: {
+    lunchIncluded: boolean
+    dinnerIncluded: boolean
+    snackIncluded: boolean
+  }
+}
+
+export interface EmployeeConsumptionItem {
+  productId: string
+  productName: string
+  quantity: number
+  unitPrice: number
+  subtotal: number
+}
+
+export interface EmployeeConsumption {
+  id: string
+  employeeId: string
+  employeeName: string
+  items: EmployeeConsumptionItem[]
+  total: number
+  category: string
+  timestamp: string
+  registeredBy: string
+  paymentType: ConsumptionPaymentType
+  notes?: string
+}
+
 // ─── Helper Functions ──────────────────────────────────────────────────
 function getDateISO(offset: number): string {
   const date = new Date()
@@ -360,6 +577,67 @@ function transformPOSSale(seed: SeedPOSSale, products: POSProduct[]): POSSale {
   }
 }
 
+function transformRestaurantTable(seed: SeedRestaurantTable): RestaurantTable {
+  return {
+    id: seed.id,
+    number: seed.number,
+    capacity: seed.capacity,
+    status: seed.status,
+    currentOrderId: seed.currentOrderId,
+    openedAt: seed.openedAtHoursAgo !== undefined ? getDateFromHoursAgo(seed.openedAtHoursAgo) : undefined,
+  }
+}
+
+function transformRestaurantOrder(seed: SeedRestaurantOrder, products: POSProduct[], tables: RestaurantTable[]): RestaurantOrder {
+  const productMap = new Map(products.map(p => [p.id, p]))
+  const table = tables.find(t => t.id === seed.tableId)
+  return {
+    id: seed.id,
+    tableId: seed.tableId,
+    tableNumber: table?.number || `Mesa ${seed.tableId}`,
+    items: seed.items.map(item => {
+      const product = productMap.get(item.productId) || { id: item.productId, name: "Produto Removido", category: "Outros", price: 0 }
+      return {
+        id: item.id,
+        productId: item.productId,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice: product.price,
+        subtotal: product.price * item.quantity,
+        category: product.category,
+      }
+    }),
+    subtotal: seed.subtotal,
+    discount: seed.discount,
+    total: seed.total,
+    status: seed.status,
+    openedAt: getDateFromHoursAgo(seed.hoursAgo),
+    closedAt: seed.status === "fechada" ? getDateFromHoursAgo(seed.hoursAgo - 1) : undefined,
+    paymentMethod: seed.paymentMethod,
+    amountPaid: seed.amountPaid,
+    change: seed.change,
+    customer: seed.customer,
+    operator: seed.operator,
+    cancelReason: seed.cancelReason,
+  }
+}
+
+function transformStockItem(seed: SeedStockItem, products: POSProduct[]): StockItem {
+  const product = products.find(p => p.id === seed.productId)
+  return {
+    id: seed.id,
+    productId: seed.productId,
+    productName: product?.name || "Produto Desconhecido",
+    currentStock: seed.currentStock,
+    unit: seed.unit,
+    minimumStock: seed.minimumStock,
+    maximumStock: seed.maximumStock,
+    averageCost: seed.averageCost,
+    lastPurchasePrice: seed.lastPurchasePrice,
+    lastPurchaseDate: seed.lastPurchaseDaysAgo !== undefined ? getDateISO(-seed.lastPurchaseDaysAgo) : undefined,
+  }
+}
+
 // ─── Initial Data (Exported for use in app-context) ────────────────────
 export const initialRooms: Room[] = (seedData.rooms as SeedRoom[]).map(transformRoom)
 export const initialReservations: Reservation[] = (seedData.reservations as SeedReservation[]).map(transformReservation)
@@ -380,3 +658,21 @@ export const RESERVATION_STATUSES = seedData.reservationStatuses as ReservationS
 export const ROOM_STATUSES = seedData.roomStatuses as RoomStatus[]
 export const TRANSACTION_TYPES = seedData.transactionTypes as TransactionType[]
 export const CANCEL_TREATMENTS = seedData.cancelTreatments as CancelTreatment[]
+
+// ─── Restaurant Initial Data ───────────────────────────────────────────
+export const initialRestaurantTables: RestaurantTable[] = (seedData.restaurantTables as SeedRestaurantTable[] || []).map(transformRestaurantTable)
+export const initialRestaurantOrders: RestaurantOrder[] = []
+export const initialStockItems: StockItem[] = []
+export const initialStockMovements: StockMovement[] = []
+export const initialRecipes: Recipe[] = []
+export const initialProductions: Production[] = []
+export const initialEmployees: Employee[] = (seedData.employees as SeedEmployee[] || [])
+export const initialEmployeeConsumptions: EmployeeConsumption[] = []
+
+// ─── Restaurant Config Constants ───────────────────────────────────────
+export const TABLE_STATUSES: TableStatus[] = ["livre", "ocupada", "reservada"]
+export const ORDER_STATUSES: OrderStatus[] = ["aberta", "fechada", "cancelada"]
+export const STOCK_UNITS: StockUnit[] = ["kg", "un", "lt", "cx"]
+export const MOVEMENT_TYPES: MovementType[] = ["entrada", "saida", "ajuste", "perda"]
+export const EMPLOYEE_ROLES: EmployeeRole[] = ["caixa", "cozinha", "atendimento", "gerente", "supervisor"]
+export const CONSUMPTION_PAYMENT_TYPES: ConsumptionPaymentType[] = ["beneficio", "desconto", "pago"]

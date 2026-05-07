@@ -6,11 +6,20 @@ import {
   initialExpenses, initialTransactions, initialAuditLog,
   initialCategories, initialCashCloses,
   initialPOSProducts, initialPOSSales,
+  initialRestaurantTables, initialRestaurantOrders,
+  initialStockItems, initialStockMovements,
+  initialRecipes, initialProductions,
+  initialEmployees, initialEmployeeConsumptions,
   type Room, type Reservation, type GuestProfile,
   type Expense, type Transaction, type AuditEntry,
   type ExpenseCategory, type CashClose, type RoomStatus,
   type RoomConsumption, type ConsumptionItem,
   type POSProduct, type POSSale,
+  type RestaurantTable, type RestaurantOrder, type RestaurantOrderItem,
+  type StockItem, type StockMovement,
+  type Recipe, type Production,
+  type Employee, type EmployeeConsumption, type EmployeeConsumptionItem,
+  type ProductCategory,
 } from "./store"
 
 type AppContextType = {
@@ -26,6 +35,15 @@ type AppContextType = {
   discountCeiling: number
   posProducts: POSProduct[]
   posSales: POSSale[]
+  productCategories: ProductCategory[]
+  restaurantTables: RestaurantTable[]
+  restaurantOrders: RestaurantOrder[]
+  stockItems: StockItem[]
+  stockMovements: StockMovement[]
+  recipes: Recipe[]
+  productions: Production[]
+  employees: Employee[]
+  employeeConsumptions: EmployeeConsumption[]
   updateRoom: (id: number, data: Partial<Room>) => void
   addRoom: (room: Room) => void
   removeRoom: (id: number) => void
@@ -49,6 +67,25 @@ type AppContextType = {
   removePOSProduct: (id: string) => void
   addPOSSale: (s: POSSale) => void
   updatePOSSale: (id: string, data: Partial<POSSale>) => void
+  addProductCategory: (c: ProductCategory) => void
+  updateProductCategory: (id: string, data: Partial<ProductCategory>) => void
+  removeProductCategory: (id: string) => void
+  addRestaurantTable: (t: RestaurantTable) => void
+  updateRestaurantTable: (id: number, data: Partial<RestaurantTable>) => void
+  removeRestaurantTable: (id: number) => void
+  addRestaurantOrder: (o: RestaurantOrder) => void
+  updateRestaurantOrder: (id: string, data: Partial<RestaurantOrder>) => void
+  addOrderItem: (orderId: string, item: RestaurantOrderItem) => void
+  removeOrderItem: (orderId: string, itemId: string) => void
+  addStockItem: (s: StockItem) => void
+  updateStockItem: (id: string, data: Partial<StockItem>) => void
+  addStockMovement: (m: StockMovement) => void
+  addRecipe: (r: Recipe) => void
+  updateRecipe: (id: string, data: Partial<Recipe>) => void
+  addProduction: (p: Production) => void
+  addEmployee: (e: Employee) => void
+  updateEmployee: (id: string, data: Partial<Employee>) => void
+  addEmployeeConsumption: (c: EmployeeConsumption) => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -66,6 +103,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [discountCeiling, setDiscountCeiling] = useState(5)
   const [posProducts, setPOSProducts] = useState<POSProduct[]>(initialPOSProducts)
   const [posSales, setPOSSales] = useState<POSSale[]>(initialPOSSales)
+  
+  // Restaurant states
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([])
+  const [restaurantTables, setRestaurantTables] = useState<RestaurantTable[]>(initialRestaurantTables)
+  const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>(initialRestaurantOrders)
+  const [stockItems, setStockItems] = useState<StockItem[]>(initialStockItems)
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>(initialStockMovements)
+  const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes)
+  const [productions, setProductions] = useState<Production[]>(initialProductions)
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees)
+  const [employeeConsumptions, setEmployeeConsumptions] = useState<EmployeeConsumption[]>(initialEmployeeConsumptions)
 
   const updateRoom = useCallback((id: number, data: Partial<Room>) => {
     setRooms(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
@@ -177,27 +225,143 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPOSSales(prev => prev.map(s => s.id === id ? { ...s, ...data } : s))
   }, [])
 
+  // Restaurant methods - Product Categories
+  const addProductCategory = useCallback((c: ProductCategory) => {
+    setProductCategories(prev => [...prev, c])
+  }, [])
+
+  const updateProductCategory = useCallback((id: string, data: Partial<ProductCategory>) => {
+    setProductCategories(prev => prev.map(c => c.id === id ? { ...c, ...data } : c))
+  }, [])
+
+  const removeProductCategory = useCallback((id: string) => {
+    setProductCategories(prev => prev.filter(c => c.id !== id))
+  }, [])
+
+  // Restaurant methods - Tables
+  const addRestaurantTable = useCallback((t: RestaurantTable) => {
+    setRestaurantTables(prev => [...prev, t])
+  }, [])
+
+  const updateRestaurantTable = useCallback((id: number, data: Partial<RestaurantTable>) => {
+    setRestaurantTables(prev => prev.map(t => t.id === id ? { ...t, ...data } : t))
+  }, [])
+
+  const removeRestaurantTable = useCallback((id: number) => {
+    setRestaurantTables(prev => prev.filter(t => t.id !== id))
+  }, [])
+
+  // Restaurant methods - Orders
+  const addRestaurantOrder = useCallback((o: RestaurantOrder) => {
+    setRestaurantOrders(prev => [...prev, o])
+  }, [])
+
+  const updateRestaurantOrder = useCallback((id: string, data: Partial<RestaurantOrder>) => {
+    setRestaurantOrders(prev => prev.map(o => o.id === id ? { ...o, ...data } : o))
+  }, [])
+
+  const addOrderItem = useCallback((orderId: string, item: RestaurantOrderItem) => {
+    setRestaurantOrders(prev => prev.map(o => 
+      o.id === orderId ? { ...o, items: [...o.items, item] } : o
+    ))
+  }, [])
+
+  const removeOrderItem = useCallback((orderId: string, itemId: string) => {
+    setRestaurantOrders(prev => prev.map(o => 
+      o.id === orderId ? { ...o, items: o.items.filter(i => i.id !== itemId) } : o
+    ))
+  }, [])
+
+  // Restaurant methods - Stock
+  const addStockItem = useCallback((s: StockItem) => {
+    setStockItems(prev => [...prev, s])
+  }, [])
+
+  const updateStockItem = useCallback((id: string, data: Partial<StockItem>) => {
+    setStockItems(prev => prev.map(s => s.id === id ? { ...s, ...data } : s))
+  }, [])
+
+  const addStockMovement = useCallback((m: StockMovement) => {
+    setStockMovements(prev => [...prev, m])
+    // Update stock quantity based on movement type
+    if (m.type === "entrada") {
+      updateStockItem(m.productId, { 
+        currentStock: (stockItems.find(s => s.productId === m.productId)?.currentStock || 0) + m.quantity 
+      })
+    } else if (m.type === "saida" || m.type === "perda") {
+      updateStockItem(m.productId, { 
+        currentStock: (stockItems.find(s => s.productId === m.productId)?.currentStock || 0) - m.quantity 
+      })
+    }
+  }, [stockItems, updateStockItem])
+
+  // Restaurant methods - Recipes
+  const addRecipe = useCallback((r: Recipe) => {
+    setRecipes(prev => [...prev, r])
+  }, [])
+
+  const updateRecipe = useCallback((id: string, data: Partial<Recipe>) => {
+    setRecipes(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
+  }, [])
+
+  // Restaurant methods - Production
+  const addProduction = useCallback((p: Production) => {
+    setProductions(prev => [...prev, p])
+  }, [])
+
+  // Restaurant methods - Employees
+  const addEmployee = useCallback((e: Employee) => {
+    setEmployees(prev => [...prev, e])
+  }, [])
+
+  const updateEmployee = useCallback((id: string, data: Partial<Employee>) => {
+    setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e))
+  }, [])
+
+  // Restaurant methods - Employee Consumption
+  const addEmployeeConsumption = useCallback((c: EmployeeConsumption) => {
+    setEmployeeConsumptions(prev => [...prev, c])
+  }, [])
+
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
+    productCategories, restaurantTables, restaurantOrders,
+    stockItems, stockMovements, recipes, productions,
+    employees, employeeConsumptions,
     updateRoom, addRoom, removeRoom,
     addReservation, updateReservation,
     addExpense, updateExpense, addTransaction, addAuditEntry,
     addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
+    addProductCategory, updateProductCategory, removeProductCategory,
+    addRestaurantTable, updateRestaurantTable, removeRestaurantTable,
+    addRestaurantOrder, updateRestaurantOrder, addOrderItem, removeOrderItem,
+    addStockItem, updateStockItem, addStockMovement,
+    addRecipe, updateRecipe, addProduction,
+    addEmployee, updateEmployee, addEmployeeConsumption,
   }), [
     rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
+    productCategories, restaurantTables, restaurantOrders,
+    stockItems, stockMovements, recipes, productions,
+    employees, employeeConsumptions,
     updateRoom, addRoom, removeRoom,
     addReservation, updateReservation,
     addExpense, updateExpense, addTransaction, addAuditEntry,
     addCategory, addCashClose, findGuest, addGuest,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
+    addProductCategory, updateProductCategory, removeProductCategory,
+    addRestaurantTable, updateRestaurantTable, removeRestaurantTable,
+    addRestaurantOrder, updateRestaurantOrder, addOrderItem, removeOrderItem,
+    addStockItem, updateStockItem, addStockMovement,
+    addRecipe, updateRecipe, addProduction,
+    addEmployee, updateEmployee, addEmployeeConsumption,
   ])
 
   return (

@@ -238,5 +238,65 @@
   "reservationStatuses": ["confirmada", "checkin", "checkout", "cancelada", "noshow"],
   "roomStatuses": ["disponivel", "ocupado", "limpeza", "bloqueado"],
   "transactionTypes": ["receita", "despesa", "estorno"],
-  "cancelTreatments": ["estorno", "multa", "credito"]
+  "cancelTreatments": ["estorno", "multa", "credito"],
+  "restaurantTables": [
+    {
+      "id": 1,
+      "number": "1",
+      "capacity": 4,
+      "status": "livre"
+    },
+    {
+      "id": 2,
+      "number": "2",
+      "capacity": 2,
+      "status": "livre"
+    },
+    {
+      "id": 3,
+      "number": "3",
+      "capacity": 6,
+      "status": "livre"
+    },
+    {
+      "id": 4,
+      "number": "4",
+      "capacity": 4,
+      "status": "livre"
+    },
+    {
+      "id": 5,
+      "number": "5",
+      "capacity": 2,
+      "status": "livre"
+    }
+  ],
+  "employees": [
+    {
+      "id": "EMP001",
+      "name": "Maria Silva",
+      "cpf": "111.222.333-44",
+      "role": "caixa",
+      "active": true,
+      "consumptionLimit": 50,
+      "mealBenefit": {
+        "lunchIncluded": true,
+        "dinnerIncluded": false,
+        "snackIncluded": true
+      }
+    },
+    {
+      "id": "EMP002",
+      "name": "João Santos",
+      "cpf": "222.333.444-55",
+      "role": "cozinha",
+      "active": true,
+      "consumptionLimit": 50,
+      "mealBenefit": {
+        "lunchIncluded": true,
+        "dinnerIncluded": true,
+        "snackIncluded": true
+      }
+    }
+  ]
 }

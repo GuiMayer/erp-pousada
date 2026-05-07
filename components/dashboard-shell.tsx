@@ -8,8 +8,10 @@ import { ReservationsTab } from "./reservations-tab"
 import { FinancialTab } from "./financial-tab"
 import { AuditLogTab } from "./audit-log-tab"
 import { POSTab } from "./pos-tab"
+import { RestaurantTab } from "./restaurant/restaurant-tab"
+import { StockTab } from "./stock/stock-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Map, CalendarDays, DollarSign, Shield, ShoppingCart } from "lucide-react"
+import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package } from "lucide-react"
 
 export function DashboardShell() {
   const { rooms } = useApp()
@@ -40,6 +42,14 @@ export function DashboardShell() {
             <ShoppingCart className="size-3.5" />
             Frente de Caixa
           </TabsTrigger>
+          <TabsTrigger value="restaurante" className="gap-1.5">
+            <UtensilsCrossed className="size-3.5" />
+            Restaurante
+          </TabsTrigger>
+          <TabsTrigger value="estoque" className="gap-1.5">
+            <Package className="size-3.5" />
+            Estoque
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="mapa">
@@ -56,6 +66,12 @@ export function DashboardShell() {
         </TabsContent>
         <TabsContent value="pdv">
           <POSTab />
+        </TabsContent>
+        <TabsContent value="restaurante">
+          <RestaurantTab />
+        </TabsContent>
+        <TabsContent value="estoque">
+          <StockTab />
         </TabsContent>
       </Tabs>
     </div>
