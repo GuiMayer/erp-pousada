@@ -141,7 +141,7 @@ export function RoomCard({ room }: { room: Room }) {
 
   return (
     <>
-      <Card className={`group relative overflow-hidden transition-all duration-200 hover:shadow-md ${config.borderClass}`}>
+      <Card className={`group relative overflow-hidden transition-all duration-200 hover:shadow-md ${config.borderClass} flex flex-col`}>
         <div className={`absolute inset-x-0 top-0 h-1 ${config.accent}`} />
 
         <CardHeader className="pb-0 pt-5">
@@ -262,6 +262,9 @@ export function RoomCard({ room }: { room: Room }) {
             )}
           </div>
         </CardContent>
+
+        {/* Flexible spacer to push timeline to consistent bottom position */}
+        <div className="flex-1" />
 
         <CardFooter className="flex-col items-stretch gap-0 pb-4 pt-0">
           <Separator className="mb-3 mt-3" />
