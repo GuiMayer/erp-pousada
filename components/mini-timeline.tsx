@@ -26,7 +26,7 @@ export function MiniTimeline({ days, startIndex = 0 }: { days: TimelineDay[]; st
             Agenda 7 dias
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="grid grid-cols-7 gap-1 w-full">
           {days.map((day, i) => {
             const isToday = day.date === todayISO
             const isEdge = (i === 0 || i === days.length - 1) && day.status === "ocupado"
@@ -34,7 +34,7 @@ export function MiniTimeline({ days, startIndex = 0 }: { days: TimelineDay[]; st
             return (
               <Tooltip key={day.date}>
                 <TooltipTrigger asChild>
-                  <div className="flex flex-1 flex-col items-center gap-1">
+                  <div className="flex flex-col items-center gap-1">
                     <div
                       className={`h-2 w-full rounded-full transition-all ${statusColors[day.status]} ${
                         isToday ? "ring-2 ring-foreground/20 ring-offset-1 ring-offset-card" : ""
