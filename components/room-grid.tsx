@@ -48,7 +48,7 @@ export function RoomGrid() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Interactive date selector */}
-      <div className="flex items-center justify-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p - 1)}>
             <ChevronLeft className="size-4" />
