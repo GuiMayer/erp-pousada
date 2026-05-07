@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
   SheetDescription, SheetFooter,
@@ -11,8 +11,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CurrencyDisplay } from "@/components/ui/currency-display"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { useProductSearch } from "@/lib/hooks/useProductSearch"
+import { useConsumption } from "@/lib/hooks/useConsumption"
 import { Plus, Trash2, ShoppingCart, Package, Search } from "lucide-react"
 import type { Room } from "@/lib/store"
 
@@ -32,35 +35,34 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   const [customLabel, setCustomLabel] = useState("")
   const [customPrice, setCustomPrice] = useState("")
   const [customQty, setCustomQty] = useState("1")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("Todos")
 
   const consumption = getConsumption(room.id)
   const items = consumption?.items || []
-  const total = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
 
-  // Get unique categories from POS products
-  const categories = useMemo(() => {
-    const cats = new Set(posProducts.map(p => p.category))
-    return ["Todos", ...Array.from(cats)]
-  }, [posProducts])
+  // Use custom hooks
+  const { 
+    searchQuery, 
+    setSearchQuery, 
+    categoryFilter, 
+    setCategoryFilter,
+    categories,
+    filteredProducts 
+  } = useProductSearch(posProducts)
 
-  // Filter products based on search and category
-  const filteredProducts = useMemo(() => {
-    return posProducts.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesCategory = categoryFilter === "Todos" || p.category === categoryFilter
-      return matchesSearch && matchesCategory
-    })
-  }, [posProducts, searchQuery, categoryFilter])
+  const { 
+    total,
+    addCatalogItem,
+    addCustomItem,
+    removeConsumptionItem: removeItem
+  } = useConsumption({
+    roomId: room.id,
+    items,
+    addItem: addConsumptionItem,
+    removeItem: removeConsumptionItem,
+  })
 
   function handleAddCatalogItem(name: string, unitPrice: number) {
-    addConsumptionItem(room.id, {
-      id: `CI-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      label: name,
-      unitPrice,
-      quantity: 1,
-    })
+    addCatalogItem(name, unitPrice)
     addAuditEntry({
       user: username || "sistema",
       action: `Consumo lancado: ${name}`,
@@ -70,12 +72,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
   function handleAddCustomItem() {
     if (!customLabel || !customPrice) return
-    addConsumptionItem(room.id, {
-      id: `CI-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      label: customLabel,
-      unitPrice: Number(customPrice),
-      quantity: Number(customQty) || 1,
-    })
+    addCustomItem(customLabel, Number(customPrice), Number(customQty) || 1)
     addAuditEntry({
       user: username || "sistema",
       action: `Consumo lancado: ${customLabel}`,
@@ -87,7 +84,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   }
 
   function handleRemoveItem(itemId: string) {
-    removeConsumptionItem(room.id, itemId)
+    removeItem(itemId)
   }
 
   return (
@@ -145,9 +142,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                   <Package className="size-3.5 text-muted-foreground shrink-0" />
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-medium text-foreground truncate">{product.name}</span>
-                    <span className="text-[10px] tabular-nums text-muted-foreground">
-                      {product.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </span>
+                    <CurrencyDisplay value={product.price} size="sm" className="text-[10px]" />
                   </div>
                 </button>
               ))}
@@ -217,13 +212,11 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                   >
                     <div className="flex flex-1 flex-col min-w-0">
                       <span className="text-sm font-medium text-foreground truncate">{item.label}</span>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {item.quantity}x {item.unitPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      <span className="text-xs text-muted-foreground">
+                        {item.quantity}x <CurrencyDisplay value={item.unitPrice} size="sm" className="inline" />
                       </span>
                     </div>
-                    <span className="text-sm font-semibold tabular-nums text-foreground">
-                      {(item.unitPrice * item.quantity).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </span>
+                    <CurrencyDisplay value={item.unitPrice * item.quantity} size="sm" className="font-semibold" />
                     <Button
                       variant="ghost"
                       size="icon"
@@ -243,9 +236,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground">Total Consumo</span>
-              <span className="text-xl font-bold tabular-nums text-foreground">
-                {total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </span>
+              <CurrencyDisplay value={total} size="lg" className="text-xl" />
             </div>
             <Badge className="bg-primary/10 text-primary border-transparent">
               {items.length} {items.length === 1 ? "item" : "itens"}

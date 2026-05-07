@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { CurrencyDisplay } from "@/components/ui/currency-display"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { useGuestSearch } from "@/lib/hooks/useGuestSearch"
 import { Search, User, BarChart3, AlertTriangle, LogIn } from "lucide-react"
-import type { Room, GuestProfile } from "@/lib/store"
+import type { Room } from "@/lib/store"
 
 type Props = {
   room: Room
@@ -24,22 +26,20 @@ export function CheckinModal({ room, open, onClose }: Props) {
   const { updateRoom, addReservation, addAuditEntry, findGuest, addGuest, reservations } = useApp()
   const { username } = useAuth()
 
-  const [cpf, setCpf] = useState("")
-  const [guestName, setGuestName] = useState("")
   const [checkOut, setCheckOut] = useState("")
   const [totalValue, setTotalValue] = useState("")
-  const [foundGuest, setFoundGuest] = useState<GuestProfile | undefined>()
 
-  function handleCpfSearch(value: string) {
-    setCpf(value)
-    if (value.length >= 11) {
-      const guest = findGuest(value)
-      setFoundGuest(guest)
-      if (guest) setGuestName(guest.name)
-    } else {
-      setFoundGuest(undefined)
-    }
-  }
+  // Use custom hook for guest search
+  const {
+    cpf,
+    setCpf,
+    guestName,
+    setGuestName,
+    foundGuest,
+    isValidCPF,
+    isNewGuest,
+    reset: resetGuest,
+  } = useGuestSearch(findGuest)
 
   function handleConfirm() {
     if (!cpf || !guestName || !checkOut) return
@@ -55,7 +55,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
       checkOutTime: "12:00",
     })
 
-    if (!foundGuest) {
+    if (isNewGuest) {
       addGuest({ cpf, name: guestName, totalStays: 1, avgTicket: Number(totalValue) || 0, noShows: 0 })
     }
 
@@ -79,12 +79,16 @@ export function CheckinModal({ room, open, onClose }: Props) {
     })
 
     // Reset and close
-    setCpf(""); setGuestName(""); setCheckOut(""); setTotalValue(""); setFoundGuest(undefined)
+    resetGuest()
+    setCheckOut("")
+    setTotalValue("")
     onClose()
   }
 
   function handleClose() {
-    setCpf(""); setGuestName(""); setCheckOut(""); setTotalValue(""); setFoundGuest(undefined)
+    resetGuest()
+    setCheckOut("")
+    setTotalValue("")
     onClose()
   }
 
@@ -109,9 +113,9 @@ export function CheckinModal({ room, open, onClose }: Props) {
                 <Input
                   placeholder="000.000.000-00"
                   value={cpf}
-                  onChange={e => handleCpfSearch(e.target.value)}
+                  onChange={e => setCpf(e.target.value)}
                 />
-                <Button variant="outline" size="icon" className="shrink-0" onClick={() => handleCpfSearch(cpf)}>
+                <Button variant="outline" size="icon" className="shrink-0" disabled>
                   <Search className="size-4" />
                 </Button>
               </div>
@@ -137,7 +141,9 @@ export function CheckinModal({ room, open, onClose }: Props) {
                   <BarChart3 className="size-3" />
                   {foundGuest.totalStays} estadias
                 </span>
-                <span>Ticket: {foundGuest.avgTicket.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                <span className="flex items-center gap-1">
+                  Ticket: <CurrencyDisplay value={foundGuest.avgTicket} size="sm" className="inline" />
+                </span>
                 {foundGuest.noShows > 0 && (
                   <Badge className="gap-1 bg-destructive/15 text-destructive border-transparent text-[10px]">
                     <AlertTriangle className="size-3" />
