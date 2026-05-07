@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { RestaurantOrder, RestaurantOrderItem, POSProduct } from "../store"
+import { generateOrderItemId } from "../utils/id-generators"
 
 /**
  * Hook for managing restaurant orders (comandas)
@@ -40,7 +41,7 @@ export function useOrderManagement(orderId?: string) {
     if (!orderId) return
 
     const item: RestaurantOrderItem = {
-      id: `OI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateOrderItemId(),
       productId: product.id,
       productName: product.name,
       quantity,

@@ -30,6 +30,7 @@ import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { Plus, Pencil, Trash2, ChefHat, Copy, Search, AlertTriangle, DollarSign, Clock } from "lucide-react"
 import type { Recipe, RecipeIngredient, StockUnit } from "@/lib/store"
+import { generateRecipeId } from "@/lib/utils/id-generators"
 
 const RECIPE_CATEGORIES = ["Entradas", "Pratos Principais", "Sobremesas", "Bebidas", "Acompanhamentos", "Molhos", "Outros"]
 const STOCK_UNITS: StockUnit[] = ["kg", "un", "lt", "cx"]
@@ -165,7 +166,7 @@ export function ManageRecipesModal({ open, onClose }: Props) {
       setFormError("Ja existe uma receita com esse nome.")
       return
     }
-    const newId = `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`
+    const newId = generateRecipeId()
     const newRecipe: Recipe = {
       id: newId,
       name: recipeName,
@@ -322,7 +323,7 @@ export function ManageRecipesModal({ open, onClose }: Props) {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v)}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue />
                   </SelectTrigger>

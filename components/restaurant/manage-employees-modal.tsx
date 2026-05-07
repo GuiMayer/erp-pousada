@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { cpf } from "cpf-cnpj-validator"
+import { validateCPF } from "@/lib/utils/validators"
 import {
   Dialog,
   DialogContent,
@@ -114,8 +114,9 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
     }
 
     const cleanCPF = cpfValue.replace(/\D/g, "")
-    if (!cpf.isValid(cleanCPF)) {
-      setFormError("CPF inválido")
+    const cpfValidation = validateCPF(cleanCPF)
+    if (!cpfValidation.valid) {
+      setFormError(cpfValidation.error || "CPF inválido")
       return false
     }
 
@@ -294,7 +295,7 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
                   <Plus className="h-4 w-4" /> Novo Funcionário
                 </Button>
 
-                <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+                <Select value={filter} onValueChange={(v: string) => setFilter(v)}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue />
                   </SelectTrigger>

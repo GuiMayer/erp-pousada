@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 import type { Reservation, GuestProfile, Room } from "@/lib/store"
 import { cn } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils/formatters"
 
 const statusLabels: Record<Reservation["status"], string> = {
   confirmada: "Confirmada",
@@ -50,10 +51,6 @@ const statusBadgeClass: Record<Reservation["status"], string> = {
   checkout: "bg-secondary text-secondary-foreground border-transparent",
   cancelada: "bg-destructive/15 text-destructive border-transparent",
   noshow: "bg-destructive/15 text-destructive border-transparent",
-}
-
-function formatCurrency(v: number) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 }
 
 function formatDateBR(iso: string) {

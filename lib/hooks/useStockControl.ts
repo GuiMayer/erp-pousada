@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { StockItem, StockMovement, MovementType, StockUnit } from "../store"
+import { generateStockMovementId } from "../utils/id-generators"
 
 /**
  * Hook for managing stock control
@@ -69,31 +70,55 @@ export function useStockControl() {
     invoiceNumber?: string,
     expirationDate?: string,
     notes?: string
-  ) => {
-    const product = posProducts.find(p => p.id === productId)
-    if (!product) return
-
-    const movement: StockMovement = {
-      id: `SM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type,
-      productId,
-      productName: product.name,
-      quantity,
-      unit: getStockByProduct(productId)?.unit || "un",
-      cost,
-      reason,
-      timestamp: new Date().toISOString(),
-      registeredBy,
-      invoiceNumber,
-      expirationDate,
-      notes,
+  ): { success: boolean; error?: string } => {
+    // Validate movement before processing
+    const validation = validateMovement(type, productId, quantity)
+    if (!validation.valid) {
+      console.error(`Stock movement validation failed: ${validation.error}`)
+      return { success: false, error: validation.error }
     }
 
-    addStockMovement(movement)
+    const product = posProducts.find(p => p.id === productId)
+    if (!product) {
+      const error = "Produto não encontrado"
+      console.error(`Stock movement failed: ${error}`)
+      return { success: false, error }
+    }
 
-    // Update stock item
     const stockItem = getStockByProduct(productId)
-    if (stockItem) {
+    if (!stockItem) {
+      const error = "Item de estoque não encontrado"
+      console.error(`Stock movement failed: ${error}`)
+      return { success: false, error }
+    }
+
+    // Validate cost for entrada movements
+    if (type === "entrada" && cost !== undefined && cost < 0) {
+      const error = "Custo não pode ser negativo"
+      console.error(`Stock movement failed: ${error}`)
+      return { success: false, error }
+    }
+
+    try {
+      const movement: StockMovement = {
+        id: generateStockMovementId(),
+        type,
+        productId,
+        productName: product.name,
+        quantity,
+        unit: stockItem.unit,
+        cost,
+        reason,
+        timestamp: new Date().toISOString(),
+        registeredBy,
+        invoiceNumber,
+        expirationDate,
+        notes,
+      }
+
+      addStockMovement(movement)
+
+      // Update stock item
       let newStock = stockItem.currentStock
 
       if (type === "entrada") {
@@ -117,8 +142,14 @@ export function useStockControl() {
       } else if (type === "ajuste") {
         updateStockItem(stockItem.id, { currentStock: quantity })
       }
+
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao registrar movimento"
+      console.error(`Stock movement failed: ${errorMessage}`, error)
+      return { success: false, error: errorMessage }
     }
-  }, [posProducts, stockItems, addStockMovement, updateStockItem, getStockByProduct])
+  }, [posProducts, stockItems, addStockMovement, updateStockItem, getStockByProduct, validateMovement])
 
   // Get movements by product
   const getMovementsByProduct = useCallback((productId: string) => {

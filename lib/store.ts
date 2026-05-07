@@ -264,6 +264,7 @@ export interface POSProduct {
   category: string
   price: number
   barcode?: string
+  trackStock: boolean // Controls stock integration - if true, requires StockItem
 }
 
 export interface POSCartItem {
@@ -647,7 +648,10 @@ export const initialTransactions: Transaction[] = (seedData.transactions as Seed
 export const initialAuditLog: AuditEntry[] = (seedData.auditLog as SeedAuditEntry[]).map(transformAuditEntry)
 export const initialCategories: ExpenseCategory[] = seedData.expenseCategories as ExpenseCategory[]
 export const initialCashCloses: CashClose[] = (seedData.cashCloses as SeedCashClose[]).map(transformCashClose)
-export const initialPOSProducts: POSProduct[] = seedData.posProducts as POSProduct[]
+export const initialPOSProducts: POSProduct[] = (seedData.posProducts as any[]).map(p => ({
+  ...p,
+  trackStock: false // Default: products don't require stock tracking
+}))
 export const initialPOSSales: POSSale[] = (seedData.posSales as SeedPOSSale[]).map(s => transformPOSSale(s, initialPOSProducts))
 
 // ─── Config Constants (from seed data) ─────────────────────────────────

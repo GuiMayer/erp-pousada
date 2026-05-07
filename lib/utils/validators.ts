@@ -1,84 +1,176 @@
 /**
- * Validation utilities for business rules and data integrity
+ * Validation utilities for state mutations
  */
 
-import { SUPERVISOR_PASSWORD } from "../constants"
-
-/**
- * Validates supervisor password
- * @param password - Password to validate
- * @returns True if password is correct
- */
-export function validateSupervisorPassword(password: string): boolean {
-  return password === SUPERVISOR_PASSWORD
-}
+import type { Room, Reservation, Expense, Transaction, StockItem, Recipe, Employee } from "../store"
 
 /**
- * Validates Brazilian CPF format (basic format check)
- * @param cpf - CPF string to validate
- * @returns True if CPF has valid format
+ * Validates room data before mutation
  */
-export function validateCPF(cpf: string): boolean {
-  // Remove non-numeric characters
-  const cleaned = cpf.replace(/\D/g, "")
+export function validateRoom(room: Partial<Room>): { valid: boolean; error?: string } {
+  if (room.number !== undefined && room.number <= 0) {
+    return { valid: false, error: "Room number must be positive" }
+  }
   
-  // Check if has 11 digits
-  if (cleaned.length !== 11) return false
+  if (room.price !== undefined && room.price < 0) {
+    return { valid: false, error: "Room price cannot be negative" }
+  }
   
-  // Check if all digits are the same (invalid CPF)
-  if (/^(\d)\1{10}$/.test(cleaned)) return false
+  return { valid: true }
+}
+
+/**
+ * Validates reservation data before mutation
+ */
+export function validateReservation(reservation: Partial<Reservation>): { valid: boolean; error?: string } {
+  if (reservation.checkIn && reservation.checkOut) {
+    const checkIn = new Date(reservation.checkIn)
+    const checkOut = new Date(reservation.checkOut)
+    
+    if (checkOut <= checkIn) {
+      return { valid: false, error: "Check-out must be after check-in" }
+    }
+  }
   
-  return true
+  if (reservation.totalPrice !== undefined && reservation.totalPrice < 0) {
+    return { valid: false, error: "Total price cannot be negative" }
+  }
+  
+  return { valid: true }
 }
 
 /**
- * Validates if a discount value is within allowed ceiling
- * @param value - Discount value (percentage)
- * @param ceiling - Maximum allowed discount
- * @returns True if discount is within ceiling
+ * Validates expense data before mutation
  */
-export function validateDiscount(value: number, ceiling: number): boolean {
-  return value >= 0 && value <= ceiling
+export function validateExpense(expense: Partial<Expense>): { valid: boolean; error?: string } {
+  if (expense.amount !== undefined && expense.amount <= 0) {
+    return { valid: false, error: "Expense amount must be positive" }
+  }
+  
+  if (expense.description !== undefined && expense.description.trim() === "") {
+    return { valid: false, error: "Expense description cannot be empty" }
+  }
+  
+  return { valid: true }
 }
 
 /**
- * Validates if a discount requires supervisor approval
- * @param value - Discount value (percentage)
- * @param ceiling - Maximum allowed discount without approval
- * @returns True if supervisor approval is required
+ * Validates transaction data before mutation
  */
-export function requiresSupervisorApproval(value: number, ceiling: number): boolean {
-  return value > ceiling
+export function validateTransaction(transaction: Partial<Transaction>): { valid: boolean; error?: string } {
+  if (transaction.amount !== undefined && transaction.amount === 0) {
+    return { valid: false, error: "Transaction amount cannot be zero" }
+  }
+  
+  return { valid: true }
 }
 
 /**
- * Validates if a payment amount is sufficient for a transaction
- * @param amountPaid - Amount paid by customer
- * @param total - Total amount due
- * @returns True if payment is sufficient
+ * Validates stock item data before mutation
  */
-export function validatePaymentAmount(amountPaid: number, total: number): boolean {
-  return amountPaid >= total
+export function validateStockItem(item: Partial<StockItem>): { valid: boolean; error?: string } {
+  if (item.quantity !== undefined && item.quantity < 0) {
+    return { valid: false, error: "Stock quantity cannot be negative" }
+  }
+  
+  if (item.minQuantity !== undefined && item.minQuantity < 0) {
+    return { valid: false, error: "Minimum quantity cannot be negative" }
+  }
+  
+  if (item.unitCost !== undefined && item.unitCost < 0) {
+    return { valid: false, error: "Unit cost cannot be negative" }
+  }
+  
+  if (item.name !== undefined && item.name.trim() === "") {
+    return { valid: false, error: "Stock item name cannot be empty" }
+  }
+  
+  return { valid: true }
 }
 
 /**
- * Validates if a date string is in valid ISO format
- * @param dateString - Date string to validate
- * @returns True if date is valid
+ * Validates recipe data before mutation
  */
-export function validateISODate(dateString: string): boolean {
-  const date = new Date(dateString)
-  return !isNaN(date.getTime())
+export function validateRecipe(recipe: Partial<Recipe>): { valid: boolean; error?: string } {
+  if (recipe.name !== undefined && recipe.name.trim() === "") {
+    return { valid: false, error: "Recipe name cannot be empty" }
+  }
+  
+  if (recipe.yield !== undefined && recipe.yield <= 0) {
+    return { valid: false, error: "Recipe yield must be positive" }
+  }
+  
+  if (recipe.ingredients && recipe.ingredients.length === 0) {
+    return { valid: false, error: "Recipe must have at least one ingredient" }
+  }
+  
+  if (recipe.ingredients) {
+    for (const ingredient of recipe.ingredients) {
+      if (ingredient.quantity <= 0) {
+        return { valid: false, error: "Ingredient quantities must be positive" }
+      }
+    }
+  }
+  
+  return { valid: true }
 }
 
 /**
- * Validates if checkout date is after checkin date
- * @param checkIn - Check-in date (ISO string)
- * @param checkOut - Check-out date (ISO string)
- * @returns True if dates are valid
+ * Validates employee data before mutation
  */
-export function validateCheckInOutDates(checkIn: string, checkOut: string): boolean {
-  const checkInDate = new Date(checkIn)
-  const checkOutDate = new Date(checkOut)
-  return checkOutDate > checkInDate
+export function validateEmployee(employee: Partial<Employee>): { valid: boolean; error?: string } {
+  if (employee.name !== undefined && employee.name.trim() === "") {
+    return { valid: false, error: "Employee name cannot be empty" }
+  }
+  
+  if (employee.cpf !== undefined) {
+    const cpfClean = employee.cpf.replace(/\D/g, "")
+    if (cpfClean.length !== 11) {
+      return { valid: false, error: "CPF must have 11 digits" }
+    }
+  }
+  
+  return { valid: true }
+}
+
+/**
+ * Validates CPF format and checksum
+ */
+export function validateCPF(cpf: string): { valid: boolean; error?: string } {
+  const cpfClean = cpf.replace(/\D/g, "")
+  
+  if (cpfClean.length !== 11) {
+    return { valid: false, error: "CPF must have 11 digits" }
+  }
+  
+  // Check for known invalid CPFs (all same digit)
+  if (/^(\d)\1{10}$/.test(cpfClean)) {
+    return { valid: false, error: "Invalid CPF format" }
+  }
+  
+  // Validate first check digit
+  let sum = 0
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cpfClean.charAt(i)) * (10 - i)
+  }
+  let checkDigit = 11 - (sum % 11)
+  if (checkDigit >= 10) checkDigit = 0
+  
+  if (checkDigit !== parseInt(cpfClean.charAt(9))) {
+    return { valid: false, error: "Invalid CPF checksum" }
+  }
+  
+  // Validate second check digit
+  sum = 0
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cpfClean.charAt(i)) * (11 - i)
+  }
+  checkDigit = 11 - (sum % 11)
+  if (checkDigit >= 10) checkDigit = 0
+  
+  if (checkDigit !== parseInt(cpfClean.charAt(10))) {
+    return { valid: false, error: "Invalid CPF checksum" }
+  }
+  
+  return { valid: true }
 }

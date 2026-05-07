@@ -7,14 +7,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Shield } from "lucide-react"
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleString("pt-BR", {
-    day: "2-digit", month: "2-digit", year: "2-digit",
-    hour: "2-digit", minute: "2-digit",
-  })
-}
+import { formatDateTime } from "@/lib/utils/formatters"
 
 const actionColors: Record<string, string> = {
   Estorno: "bg-warning/15 text-warning-foreground",

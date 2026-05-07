@@ -3,6 +3,9 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { calculateCartSubtotal, calculateCartTotal, calculateItemTotal, formatCurrency, formatCurrencyFixed } from "@/lib/utils/price-calculations"
+import { getTodayISO, ROOM_STATUS } from "@/lib/utils/constants"
+import { formatDateTime } from "@/lib/utils/date-formatting"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,9 +31,11 @@ import {
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, CreditCard,
   Banknote, QrCode, Receipt, X, Percent, User, Barcode,
-  Clock, CheckCircle2, XCircle, History, Package, Settings, Pencil,
+  Clock, CheckCircle2, XCircle, History, Package,
 } from "lucide-react"
 import { PRODUCT_CATEGORIES, type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
+
+const SUPERVISOR_PASSWORD = process.env.NEXT_PUBLIC_SUPERVISOR_PASSWORD || "1234"
 
 const PAYMENT_METHODS = [
   { id: "dinheiro", label: "Dinheiro", icon: Banknote },
@@ -41,9 +46,9 @@ const PAYMENT_METHODS = [
 
 export function POSTab() {
   const {
-    posProducts, posSales, rooms,
+    posProducts, posSales, rooms, stockItems,
     addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
-    addPOSProduct, updatePOSProduct, removePOSProduct,
+    addConsumptionItem, addStockMovement, updateStockItem,
   } = useApp()
   const { username, role } = useAuth()
 
@@ -79,15 +84,6 @@ export function POSTab() {
   const [itemToDiscount, setItemToDiscount] = useState<POSCartItem | null>(null)
   const [itemDiscountValue, setItemDiscountValue] = useState("")
 
-  // Product management modal
-  const [manageProductsOpen, setManageProductsOpen] = useState(false)
-  const [productModalOpen, setProductModalOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<POSProduct | null>(null)
-  const [productForm, setProductForm] = useState({ name: "", category: "", price: "", barcode: "" })
-  const [productSearch, setProductSearch] = useState("")
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const [productToDelete, setProductToDelete] = useState<POSProduct | null>(null)
-
   const barcodeRef = useRef<HTMLInputElement>(null)
 
   // Categories
@@ -107,20 +103,14 @@ export function POSTab() {
   }, [posProducts, searchQuery, categoryFilter])
 
   // Cart calculations
-  const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      const itemTotal = item.product.price * item.quantity
-      const itemDiscount = itemTotal * (item.discount / 100)
-      return sum + (itemTotal - itemDiscount)
-    }, 0)
-  }, [cart])
+  const subtotal = useMemo(() => calculateCartSubtotal(cart), [cart])
 
   const discountAmount = subtotal * (globalDiscount / 100)
-  const total = subtotal - discountAmount
+  const total = calculateCartTotal(subtotal, discountAmount)
 
   // Today's sales
   const todaySales = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0]
+    const today = getTodayISO()
     return posSales.filter(s => s.date.startsWith(today) && s.status === "concluida")
   }, [posSales])
 
@@ -130,7 +120,7 @@ export function POSTab() {
 
   // Occupied rooms for customer selection
   const occupiedRooms = useMemo(() => {
-    return rooms.filter(r => r.status === "ocupado" && r.guest)
+    return rooms.filter(r => r.status === ROOM_STATUS.OCCUPIED && r.guest)
   }, [rooms])
 
   // Handle barcode scan
@@ -254,7 +244,7 @@ export function POSTab() {
     // Add transaction
     addTransaction({
       id: `T${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
+      date: getTodayISO(),
       description: `Venda PDV ${sale.id}${customer ? ` - ${customer}` : ""}`,
       value: total,
       type: "receita",
@@ -265,9 +255,71 @@ export function POSTab() {
 
     addAuditEntry({
       user: username || "sistema",
-      action: `Venda finalizada: ${total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+      action: `Venda finalizada: ${formatCurrency(total)}`,
       reference: `PDV ${sale.id} - ${sale.paymentMethod}`,
     })
+
+    // If sale is linked to a room, add items to room consumption
+    if (customer) {
+      const roomMatch = customer.match(/^Quarto (\d+)/)
+      if (roomMatch) {
+        const roomNumber = parseInt(roomMatch[1])
+        const room = rooms.find(r => r.number === roomNumber)
+        if (room) {
+          cart.forEach(cartItem => {
+            addConsumptionItem(room.id, {
+              id: `CI-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              label: cartItem.product.name,
+              unitPrice: cartItem.product.price,
+              quantity: cartItem.quantity,
+            })
+          })
+          addAuditEntry({
+            user: username || "sistema",
+            action: `Consumo lancado via PDV`,
+            reference: `Quarto ${room.number} - ${cart.length} ${cart.length === 1 ? "item" : "itens"}`,
+          })
+        }
+      }
+    }
+
+    // Process stock movements for products with trackStock enabled
+    let stockItemsProcessed = 0
+    cart.forEach(cartItem => {
+      if (cartItem.product.trackStock) {
+        const stockItem = stockItems.find(s => s.productId === cartItem.product.id)
+        if (stockItem) {
+          // Create stock movement (saida)
+          addStockMovement({
+            id: `SM-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            type: "saida",
+            productId: stockItem.productId,
+            productName: stockItem.productName,
+            quantity: cartItem.quantity,
+            unit: stockItem.unit,
+            reason: `Venda PDV ${sale.id}`,
+            timestamp: new Date().toISOString(),
+            registeredBy: username || "sistema",
+          })
+
+          // Update stock quantity
+          updateStockItem(stockItem.id, {
+            currentStock: stockItem.currentStock - cartItem.quantity,
+          })
+
+          stockItemsProcessed++
+        }
+      }
+    })
+
+    // Add audit entry for stock movements
+    if (stockItemsProcessed > 0) {
+      addAuditEntry({
+        user: username || "sistema",
+        action: `Baixa automatica de estoque`,
+        reference: `PDV ${sale.id} - ${stockItemsProcessed} ${stockItemsProcessed === 1 ? "item" : "itens"}`,
+      })
+    }
 
     setLastSale(sale)
     setPaymentOpen(false)
@@ -284,7 +336,7 @@ export function POSTab() {
 
   function confirmCancelSale() {
     if (!saleToCancel) return
-    if (role !== "supervisor" && supervisorPassword !== "1234") return
+    if (role !== "supervisor" && supervisorPassword !== SUPERVISOR_PASSWORD) return
 
     updatePOSSale(saleToCancel.id, {
       status: "cancelada",
@@ -294,7 +346,7 @@ export function POSTab() {
     // Add reversal transaction
     addTransaction({
       id: `T${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
+      date: getTodayISO(),
       description: `Cancelamento Venda ${saleToCancel.id}`,
       value: saleToCancel.total,
       type: "estorno",
@@ -305,91 +357,12 @@ export function POSTab() {
 
     addAuditEntry({
       user: username || "sistema",
-      action: `Venda cancelada: ${saleToCancel.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+      action: `Venda cancelada: ${formatCurrency(saleToCancel.total)}`,
       reference: `PDV ${saleToCancel.id} - ${cancelReason}`,
     })
 
     setCancelOpen(false)
     setSaleToCancel(null)
-  }
-
-  // Product management functions
-  const filteredProductsForManage = useMemo(() => {
-    if (!productSearch) return posProducts
-    return posProducts.filter(p =>
-      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-      p.category.toLowerCase().includes(productSearch.toLowerCase()) ||
-      (p.barcode && p.barcode.includes(productSearch))
-    )
-  }, [posProducts, productSearch])
-
-  function openAddProduct() {
-    setEditingProduct(null)
-    setProductForm({ name: "", category: "", price: "", barcode: "" })
-    setProductModalOpen(true)
-  }
-
-  function openEditProduct(product: POSProduct) {
-    setEditingProduct(product)
-    setProductForm({
-      name: product.name,
-      category: product.category,
-      price: String(product.price),
-      barcode: product.barcode || "",
-    })
-    setProductModalOpen(true)
-  }
-
-  function handleSaveProduct() {
-    if (!productForm.name || !productForm.category || !productForm.price) return
-    
-    if (editingProduct) {
-      updatePOSProduct(editingProduct.id, {
-        name: productForm.name,
-        category: productForm.category,
-        price: Number(productForm.price),
-        barcode: productForm.barcode || undefined,
-      })
-      addAuditEntry({
-        user: username || "sistema",
-        action: `Produto editado: ${productForm.name}`,
-        reference: `PDV - ${editingProduct.id}`,
-      })
-    } else {
-      const newId = `P${String(posProducts.length + 1).padStart(3, "0")}-${Date.now()}`
-      addPOSProduct({
-        id: newId,
-        name: productForm.name,
-        category: productForm.category,
-        price: Number(productForm.price),
-        barcode: productForm.barcode || undefined,
-      })
-      addAuditEntry({
-        user: username || "sistema",
-        action: `Produto adicionado: ${productForm.name}`,
-        reference: `PDV - ${newId}`,
-      })
-    }
-    setProductModalOpen(false)
-    setProductForm({ name: "", category: "", price: "", barcode: "" })
-    setEditingProduct(null)
-  }
-
-  function openDeleteConfirm(product: POSProduct) {
-    setProductToDelete(product)
-    setDeleteConfirmOpen(true)
-  }
-
-  function handleDeleteProduct() {
-    if (!productToDelete) return
-    removePOSProduct(productToDelete.id)
-    addAuditEntry({
-      user: username || "sistema",
-      action: `Produto removido: ${productToDelete.name}`,
-      reference: `PDV - ${productToDelete.id}`,
-    })
-    setDeleteConfirmOpen(false)
-    setProductToDelete(null)
   }
 
   return (
@@ -401,20 +374,11 @@ export function POSTab() {
           <p className="text-sm text-muted-foreground">
             Operador: {username} | {todaySales.length} vendas hoje |{" "}
             <span className="font-medium text-success">
-              {todayTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              {formatCurrency(todayTotal)}
             </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setManageProductsOpen(true)}
-          >
-            <Settings className="size-3.5" />
-            Gerenciar Produtos
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -493,7 +457,7 @@ export function POSTab() {
                     {product.category}
                   </Badge>
                   <span className="mt-auto text-base font-bold tabular-nums text-primary">
-                    {product.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    {formatCurrency(product.price)}
                   </span>
                 </button>
               ))}
@@ -569,7 +533,7 @@ export function POSTab() {
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs tabular-nums text-muted-foreground">
-                        {item.product.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} x {item.quantity}
+                        {formatCurrency(item.product.price)} x {item.quantity}
                       </span>
                       {item.discount > 0 && (
                         <Badge variant="secondary" className="h-4 px-1 text-[10px] text-success">
@@ -603,7 +567,7 @@ export function POSTab() {
 
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-sm font-semibold tabular-nums text-foreground">
-                      {((item.product.price * item.quantity) * (1 - item.discount / 100)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      {formatCurrency(calculateItemTotal(item.product.price, item.quantity, item.discount))}
                     </span>
                     <div className="flex gap-0.5">
                       <Button
@@ -650,7 +614,7 @@ export function POSTab() {
               </div>
               {globalDiscount > 0 && (
                 <span className="text-xs text-success">
-                  -{discountAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  -{formatCurrency(discountAmount)}
                 </span>
               )}
             </div>
@@ -661,17 +625,17 @@ export function POSTab() {
             <div className="mb-4 flex flex-col gap-1">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Subtotal</span>
-                <span className="tabular-nums">{subtotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                <span className="tabular-nums">{formatCurrency(subtotal)}</span>
               </div>
               {globalDiscount > 0 && (
                 <div className="flex justify-between text-sm text-success">
                   <span>Desconto ({globalDiscount}%)</span>
-                  <span className="tabular-nums">-{discountAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                  <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-xl font-bold text-foreground">
                 <span>Total</span>
-                <span className="tabular-nums">{total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                <span className="tabular-nums">{formatCurrency(total)}</span>
               </div>
             </div>
 
@@ -698,7 +662,7 @@ export function POSTab() {
               Pagamento
             </DialogTitle>
             <DialogDescription>
-              Total: <span className="font-bold text-foreground">{total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+              Total: <span className="font-bold text-foreground">{formatCurrency(total)}</span>
             </DialogDescription>
           </DialogHeader>
 
@@ -746,7 +710,7 @@ export function POSTab() {
                   <div className="flex items-center justify-between rounded-lg bg-success/10 px-3 py-2">
                     <span className="text-sm text-success">Troco:</span>
                     <span className="text-lg font-bold tabular-nums text-success">
-                      {calculateChange().toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      {formatCurrency(calculateChange())}
                     </span>
                   </div>
                 )}
@@ -764,7 +728,7 @@ export function POSTab() {
                     onClick={() => setAmountPaid(String(value))}
                     disabled={value < total}
                   >
-                    {value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    {formatCurrency(value)}
                   </Button>
                 ))}
                 <Button
@@ -818,7 +782,7 @@ export function POSTab() {
                 </div>
                 <div className="mb-2 flex justify-between text-muted-foreground">
                   <span>Data:</span>
-                  <span>{new Date(lastSale.date).toLocaleString("pt-BR")}</span>
+                  <span>{formatDateTime(lastSale.date)}</span>
                 </div>
                 {lastSale.customer && (
                   <div className="mb-2 flex justify-between text-muted-foreground">
@@ -832,7 +796,7 @@ export function POSTab() {
                     <div className="flex justify-between">
                       <span className="truncate pr-2">{item.product.name}</span>
                       <span className="tabular-nums">
-                        {((item.product.price * item.quantity) * (1 - item.discount / 100)).toFixed(2)}
+                        {formatCurrencyFixed(calculateItemTotal(item.product.price, item.quantity, item.discount))}
                       </span>
                     </div>
                     <div className="text-muted-foreground">
@@ -966,7 +930,7 @@ export function POSTab() {
                           </Badge>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(sale.date).toLocaleString("pt-BR")}
+                          {formatDateTime(sale.date)}
                         </span>
                         {sale.customer && (
                           <span className="text-xs text-muted-foreground">{sale.customer}</span>
@@ -974,7 +938,7 @@ export function POSTab() {
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span className={`font-bold tabular-nums ${sale.status === "cancelada" ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                          {sale.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          {formatCurrency(sale.total)}
                         </span>
                         <span className="text-xs text-muted-foreground">{sale.paymentMethod}</span>
                       </div>
@@ -1027,7 +991,7 @@ export function POSTab() {
               Cancelar Venda
             </DialogTitle>
             <DialogDescription>
-              Venda {saleToCancel?.id} - {saleToCancel?.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              Venda {saleToCancel?.id} - {formatCurrency(saleToCancel?.total || 0)}
             </DialogDescription>
           </DialogHeader>
 
@@ -1063,7 +1027,7 @@ export function POSTab() {
             <Button
               variant="destructive"
               onClick={confirmCancelSale}
-              disabled={!cancelReason || (role !== "supervisor" && supervisorPassword !== "1234")}
+              disabled={!cancelReason || (role !== "supervisor" && supervisorPassword !== SUPERVISOR_PASSWORD)}
             >
               Confirmar Cancelamento
             </Button>
@@ -1071,207 +1035,7 @@ export function POSTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Manage Products Sheet */}
-      <Sheet open={manageProductsOpen} onOpenChange={setManageProductsOpen}>
-        <SheetContent className="flex flex-col overflow-y-auto sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Settings className="size-5 text-primary" />
-              Gerenciar Produtos
-            </SheetTitle>
-            <SheetDescription>
-              Adicione, edite ou remova produtos do catalogo
-            </SheetDescription>
-          </SheetHeader>
 
-          <div className="flex flex-col gap-4 py-4">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar produto..."
-                  value={productSearch}
-                  onChange={e => setProductSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Button className="gap-1.5" onClick={openAddProduct}>
-                <Plus className="size-4" />
-                Novo Produto
-              </Button>
-            </div>
-
-            <div className="flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto">
-              {filteredProductsForManage.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">Nenhum produto encontrado</p>
-              ) : (
-                filteredProductsForManage.map(product => (
-                  <div
-                    key={product.id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-accent/50"
-                  >
-                    <Package className="size-4 text-muted-foreground shrink-0" />
-                    <div className="flex flex-1 flex-col min-w-0">
-                      <span className="text-sm font-medium text-foreground truncate">{product.name}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-[10px]">{product.category}</Badge>
-                        {product.barcode && (
-                          <span className="text-[10px] text-muted-foreground">{product.barcode}</span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold tabular-nums text-primary">
-                      {product.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-muted-foreground hover:text-primary"
-                        onClick={() => openEditProduct(product)}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => openDeleteConfirm(product)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-              <span className="text-xs text-muted-foreground">Total de Produtos</span>
-              <Badge className="bg-primary text-primary-foreground">{posProducts.length}</Badge>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Add/Edit Product Modal */}
-      <Dialog open={productModalOpen} onOpenChange={setProductModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {editingProduct ? <Pencil className="size-5 text-primary" /> : <Plus className="size-5 text-primary" />}
-              {editingProduct ? "Editar Produto" : "Novo Produto"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingProduct ? `Editando: ${editingProduct.name}` : "Preencha os dados do novo produto"}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-4 py-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="productName">Nome do Produto *</Label>
-              <Input
-                id="productName"
-                value={productForm.name}
-                onChange={e => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Ex: Agua Mineral 500ml"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="productCategory">Categoria *</Label>
-              <Select
-                value={productForm.category || "none"}
-                onValueChange={v => setProductForm(prev => ({ ...prev, category: v === "none" ? "" : v }))}
-              >
-                <SelectTrigger id="productCategory">
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Selecione...</SelectItem>
-                  {PRODUCT_CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="productPrice">Preco (R$) *</Label>
-                <Input
-                  id="productPrice"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={productForm.price}
-                  onChange={e => setProductForm(prev => ({ ...prev, price: e.target.value }))}
-                  placeholder="0,00"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="productBarcode">Codigo de Barras</Label>
-                <Input
-                  id="productBarcode"
-                  value={productForm.barcode}
-                  onChange={e => setProductForm(prev => ({ ...prev, barcode: e.target.value }))}
-                  placeholder="Opcional"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProductModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveProduct}
-              disabled={!productForm.name || !productForm.category || !productForm.price}
-            >
-              {editingProduct ? "Salvar Alteracoes" : "Adicionar Produto"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Product Confirmation */}
-      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <Trash2 className="size-5" />
-              Remover Produto
-            </DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja remover o produto?
-            </DialogDescription>
-          </DialogHeader>
-
-          {productToDelete && (
-            <div className="flex items-center gap-3 rounded-lg bg-destructive/5 p-3">
-              <Package className="size-5 text-destructive" />
-              <div className="flex flex-1 flex-col">
-                <span className="text-sm font-medium text-foreground">{productToDelete.name}</span>
-                <span className="text-xs text-muted-foreground">{productToDelete.category}</span>
-              </div>
-              <span className="text-sm font-semibold tabular-nums text-foreground">
-                {productToDelete.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </span>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteProduct}>
-              Remover Produto
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

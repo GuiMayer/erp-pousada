@@ -21,6 +21,7 @@ import { EmployeeConsumptionModal } from "./employee-consumption-modal"
 import { useTableManagement } from "@/lib/hooks/useTableManagement"
 import { useApp } from "@/lib/app-context"
 import type { RestaurantTable, RestaurantOrder } from "@/lib/store"
+import { generateOrderId } from "@/lib/utils/id-generators"
 
 export function RestaurantTab() {
   const { addRestaurantOrder, updateRestaurantTable } = useApp()
@@ -45,7 +46,7 @@ export function RestaurantTab() {
   const handleTableClick = (table: RestaurantTable) => {
     if (table.status === "livre") {
       // Open new order
-      const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const orderId = generateOrderId()
       const newOrder: RestaurantOrder = {
         id: orderId,
         tableId: table.id,
@@ -160,7 +161,7 @@ export function RestaurantTab() {
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
-          <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
+          <Select value={filter} onValueChange={(value: string) => setFilter(value)}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filtrar por status" />
             </SelectTrigger>

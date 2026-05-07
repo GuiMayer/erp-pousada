@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { calculateItemTotal, formatCurrencyFixed } from "@/lib/utils/price-calculations"
 import {
   Dialog,
   DialogContent,
@@ -97,7 +98,7 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
   }
 
   const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+    return cart.reduce((sum, item) => sum + calculateItemTotal(item.product.price, item.quantity), 0)
   }, [cart])
 
   const remainingLimit = useMemo(() => {
@@ -198,7 +199,7 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
         productName: item.product.name,
         quantity: item.quantity,
         unitPrice: item.product.price,
-        subtotal: item.product.price * item.quantity,
+        subtotal: calculateItemTotal(item.product.price, item.quantity),
       })),
       total: cartTotal,
       mealType,
@@ -467,7 +468,7 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
                         </div>
 
                         <span className="text-sm font-medium tabular-nums">
-                          R$ {(item.product.price * item.quantity).toFixed(2)}
+                          R$ {formatCurrencyFixed(calculateItemTotal(item.product.price, item.quantity))}
                         </span>
                       </div>
                     ))}
@@ -579,7 +580,7 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
                   {cart.map(item => (
                     <div key={item.id}>
                       {item.quantity}x {item.product.name} - R${" "}
-                      {(item.product.price * item.quantity).toFixed(2)}
+                      {formatCurrencyFixed(calculateItemTotal(item.product.price, item.quantity))}
                     </div>
                   ))}
                 </div>

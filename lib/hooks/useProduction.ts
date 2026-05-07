@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { Recipe, Production, RecipeIngredient } from "../store"
 import { useStockControl } from "./useStockControl"
+import { generateProductionId } from "../utils/id-generators"
 
 /**
  * Hook for managing recipe production
@@ -81,7 +82,7 @@ export function useProduction() {
 
     // Create production record
     const production: Production = {
-      id: `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateProductionId(),
       recipeId,
       recipeName: recipe.name,
       plannedQuantity,

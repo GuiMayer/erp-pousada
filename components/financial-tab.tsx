@@ -30,10 +30,7 @@ import {
   CreditCard, FileText, Tag, Eye,
 } from "lucide-react"
 import type { Transaction, Expense } from "@/lib/store"
-
-function formatCurrency(v: number) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-}
+import { formatCurrency } from "@/lib/utils/formatters"
 
 function formatDateBR(iso: string) {
   const d = new Date(iso.includes("T") ? iso : iso + "T12:00:00")

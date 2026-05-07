@@ -203,7 +203,7 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={(v: any) => { setActiveTab(v); setMode("list"); resetForm() }}>
+          <Tabs value={activeTab} onValueChange={(v: string) => { setActiveTab(v); setMode("list"); resetForm() }}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="pdv">PDV</TabsTrigger>
               <TabsTrigger value="restaurant">Restaurante</TabsTrigger>

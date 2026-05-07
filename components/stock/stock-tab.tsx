@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Package, Plus, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StockMovementModal } from "./stock-movement-modal"
+import { ProductsManagementTab } from "./products-management-tab"
 import { useStockControl } from "@/lib/hooks/useStockControl"
 import type { StockItem } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -29,6 +31,7 @@ export function StockTab() {
   const { stockItems, filter, setFilter, stats, getStockStatus } = useStockControl()
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [movementModalOpen, setMovementModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("products")
 
   const handleAddMovement = (item: StockItem) => {
     setSelectedItem(item)
@@ -71,37 +74,51 @@ export function StockTab() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Package className="h-8 w-8" />
-            Controle de Estoque
+            Estoque
           </h2>
           <p className="text-muted-foreground">
-            Gerencie o estoque de produtos e insumos
+            Gerencie produtos e controle de estoque
           </p>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-sm font-medium text-muted-foreground">Total de Itens</div>
-          <div className="text-2xl font-bold">{stats.total}</div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-sm font-medium text-muted-foreground">Estoque Crítico</div>
-          <div className="text-2xl font-bold text-red-600">{stats.critical}</div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-sm font-medium text-muted-foreground">Estoque Baixo</div>
-          <div className="text-2xl font-bold text-yellow-600">{stats.low}</div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-sm font-medium text-muted-foreground">Estoque OK</div>
-          <div className="text-2xl font-bold text-green-600">{stats.ok}</div>
-        </div>
-      </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="products">Produtos</TabsTrigger>
+          <TabsTrigger value="movements">Movimentações</TabsTrigger>
+        </TabsList>
+
+        {/* Products Tab */}
+        <TabsContent value="products" className="space-y-6">
+          <ProductsManagementTab />
+        </TabsContent>
+
+        {/* Movements Tab */}
+        <TabsContent value="movements" className="space-y-6">
+          {/* Stats */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="rounded-lg border bg-card p-4">
+              <div className="text-sm font-medium text-muted-foreground">Total de Itens</div>
+              <div className="text-2xl font-bold">{stats.total}</div>
+            </div>
+            <div className="rounded-lg border bg-card p-4">
+              <div className="text-sm font-medium text-muted-foreground">Estoque Crítico</div>
+              <div className="text-2xl font-bold text-red-600">{stats.critical}</div>
+            </div>
+            <div className="rounded-lg border bg-card p-4">
+              <div className="text-sm font-medium text-muted-foreground">Estoque Baixo</div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.low}</div>
+            </div>
+            <div className="rounded-lg border bg-card p-4">
+              <div className="text-sm font-medium text-muted-foreground">Estoque OK</div>
+              <div className="text-2xl font-bold text-green-600">{stats.ok}</div>
+            </div>
+          </div>
 
       {/* Filters */}
       <div className="flex items-center gap-4">
-        <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
+        <Select value={filter} onValueChange={(value: string) => setFilter(value)}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filtrar por status" />
           </SelectTrigger>
@@ -168,6 +185,8 @@ export function StockTab() {
           </Table>
         </div>
       )}
+        </TabsContent>
+      </Tabs>
 
       {/* Stock Movement Modal */}
       <StockMovementModal

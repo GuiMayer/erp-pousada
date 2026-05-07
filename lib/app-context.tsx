@@ -21,6 +21,15 @@ import {
   type Employee, type EmployeeConsumption, type EmployeeConsumptionItem,
   type ProductCategory,
 } from "./store"
+import {
+  validateRoom,
+  validateReservation,
+  validateExpense,
+  validateTransaction,
+  validateStockItem,
+  validateRecipe,
+  validateEmployee,
+} from "./utils/validators"
 
 type AppContextType = {
   rooms: Room[]
@@ -116,10 +125,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [employeeConsumptions, setEmployeeConsumptions] = useState<EmployeeConsumption[]>(initialEmployeeConsumptions)
 
   const updateRoom = useCallback((id: number, data: Partial<Room>) => {
+    const validation = validateRoom(data)
+    if (!validation.valid) {
+      console.error(`Room validation failed: ${validation.error}`)
+      return
+    }
     setRooms(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
   }, [])
 
   const addRoom = useCallback((room: Room) => {
+    const validation = validateRoom(room)
+    if (!validation.valid) {
+      console.error(`Room validation failed: ${validation.error}`)
+      return
+    }
     setRooms(prev => [...prev, room])
   }, [])
 
@@ -128,18 +147,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addReservation = useCallback((r: Reservation) => {
+    const validation = validateReservation(r)
+    if (!validation.valid) {
+      console.error(`Reservation validation failed: ${validation.error}`)
+      return
+    }
     setReservations(prev => [...prev, r])
   }, [])
 
   const updateReservation = useCallback((id: string, data: Partial<Reservation>) => {
+    const validation = validateReservation(data)
+    if (!validation.valid) {
+      console.error(`Reservation validation failed: ${validation.error}`)
+      return
+    }
     setReservations(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
   }, [])
 
   const addExpense = useCallback((e: Expense) => {
+    const validation = validateExpense(e)
+    if (!validation.valid) {
+      console.error(`Expense validation failed: ${validation.error}`)
+      return
+    }
     setExpenses(prev => [...prev, e])
   }, [])
 
   const updateExpense = useCallback((id: string, data: Partial<Expense>) => {
+    const validation = validateExpense(data)
+    if (!validation.valid) {
+      console.error(`Expense validation failed: ${validation.error}`)
+      return
+    }
     setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...data } : e))
   }, [])
 
@@ -274,33 +313,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Restaurant methods - Stock
   const addStockItem = useCallback((s: StockItem) => {
+    const validation = validateStockItem(s)
+    if (!validation.valid) {
+      console.error(`Stock item validation failed: ${validation.error}`)
+      return
+    }
     setStockItems(prev => [...prev, s])
   }, [])
 
   const updateStockItem = useCallback((id: string, data: Partial<StockItem>) => {
+    const validation = validateStockItem(data)
+    if (!validation.valid) {
+      console.error(`Stock item validation failed: ${validation.error}`)
+      return
+    }
     setStockItems(prev => prev.map(s => s.id === id ? { ...s, ...data } : s))
   }, [])
 
   const addStockMovement = useCallback((m: StockMovement) => {
     setStockMovements(prev => [...prev, m])
-    // Update stock quantity based on movement type
-    if (m.type === "entrada") {
-      updateStockItem(m.productId, { 
-        currentStock: (stockItems.find(s => s.productId === m.productId)?.currentStock || 0) + m.quantity 
-      })
-    } else if (m.type === "saida" || m.type === "perda") {
-      updateStockItem(m.productId, { 
-        currentStock: (stockItems.find(s => s.productId === m.productId)?.currentStock || 0) - m.quantity 
-      })
-    }
-  }, [stockItems, updateStockItem])
+    // Note: Stock quantity updates are handled by the caller (useStockControl hook)
+    // to avoid double updates and ensure proper atomic operations
+  }, [])
 
   // Restaurant methods - Recipes
   const addRecipe = useCallback((r: Recipe) => {
+    const validation = validateRecipe(r)
+    if (!validation.valid) {
+      console.error(`Recipe validation failed: ${validation.error}`)
+      return
+    }
     setRecipes(prev => [...prev, r])
   }, [])
 
   const updateRecipe = useCallback((id: string, data: Partial<Recipe>) => {
+    const validation = validateRecipe(data)
+    if (!validation.valid) {
+      console.error(`Recipe validation failed: ${validation.error}`)
+      return
+    }
     setRecipes(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
   }, [])
 
@@ -311,10 +362,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Restaurant methods - Employees
   const addEmployee = useCallback((e: Employee) => {
+    const validation = validateEmployee(e)
+    if (!validation.valid) {
+      console.error(`Employee validation failed: ${validation.error}`)
+      return
+    }
     setEmployees(prev => [...prev, e])
   }, [])
 
   const updateEmployee = useCallback((id: string, data: Partial<Employee>) => {
+    const validation = validateEmployee(data)
+    if (!validation.valid) {
+      console.error(`Employee validation failed: ${validation.error}`)
+      return
+    }
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e))
   }, [])
 
@@ -324,6 +385,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Memoize context value to prevent unnecessary re-renders
+  // Note: useCallback functions with empty deps are stable and don't need to be in dependencies
   const contextValue = useMemo(() => ({
     rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
@@ -344,24 +406,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRecipe, updateRecipe, addProduction,
     addEmployee, updateEmployee, addEmployeeConsumption,
   }), [
+    // State values that trigger re-memoization
     rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
     productCategories, restaurantTables, restaurantOrders,
     stockItems, stockMovements, recipes, productions,
     employees, employeeConsumptions,
-    updateRoom, addRoom, removeRoom,
-    addReservation, updateReservation,
-    addExpense, updateExpense, addTransaction, addAuditEntry,
-    addCategory, addCashClose, findGuest, addGuest,
-    addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
-    addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
-    addProductCategory, updateProductCategory, removeProductCategory,
-    addRestaurantTable, updateRestaurantTable, removeRestaurantTable,
-    addRestaurantOrder, updateRestaurantOrder, addOrderItem, removeOrderItem,
-    addStockItem, updateStockItem, addStockMovement,
-    addRecipe, updateRecipe, addProduction,
-    addEmployee, updateEmployee, addEmployeeConsumption,
+    // Functions are stable (useCallback with empty deps) and omitted from dependencies
   ])
 
   return (

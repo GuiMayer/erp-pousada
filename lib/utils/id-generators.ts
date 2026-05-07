@@ -88,3 +88,43 @@ export function generateCategoryId(count: number): string {
 export function generateCartItemId(): string {
   return `CI-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
+
+/**
+ * Generates a stock movement ID
+ * @returns Unique stock movement ID (e.g., "SM-1714989600000-a1b2c3d4")
+ */
+export function generateStockMovementId(): string {
+  return `SM-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}
+
+/**
+ * Generates a restaurant order ID
+ * @returns Unique order ID (e.g., "ORD-1714989600000-a1b2c3d4")
+ */
+export function generateOrderId(): string {
+  return `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}
+
+/**
+ * Generates a restaurant order item ID
+ * @returns Unique order item ID (e.g., "OI-1714989600000-a1b2c3d4")
+ */
+export function generateOrderItemId(): string {
+  return `OI-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}
+
+/**
+ * Generates a recipe ID
+ * @returns Unique recipe ID (e.g., "REC-1714989600000-a1b2")
+ */
+export function generateRecipeId(): string {
+  return `REC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+/**
+ * Generates a production ID
+ * @returns Unique production ID (e.g., "PROD-1714989600000-a1b2c3d4")
+ */
+export function generateProductionId(): string {
+  return `PROD-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}

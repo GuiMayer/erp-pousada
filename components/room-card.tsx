@@ -191,7 +191,7 @@ export function RoomCard({ room }: { room: Room }) {
                   <span className="text-xs text-muted-foreground">
                     {"Consumo: "}
                     <span className="font-semibold text-foreground tabular-nums">
-                      {consumptionTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      {formatCurrency(consumptionTotal)}
                     </span>
                   </span>
                 </div>
