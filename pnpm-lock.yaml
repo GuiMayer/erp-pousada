@@ -107,6 +107,9 @@ importers:
       cmdk:
         specifier: 1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      cpf-cnpj-validator:
+        specifier: ^2.1.0
+        version: 2.1.0(zod@3.25.76)
       date-fns:
         specifier: 4.1.0
         version: 4.1.0
@@ -1788,6 +1791,30 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
+
+  cpf-cnpj-validator@2.1.0:
+    resolution: {integrity: sha512-tgSVKy8EK8LMRYRtoTfPICQ5innN0go/aqokEAF66HW466MHDsjBGkyPOY0KmCJ+k7Jh0CG9m70YHp30yiOCLg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@angular/forms': '>=15'
+      class-validator: ^0.14.0 || ^0.15.0
+      joi: ^17.0.0
+      reflect-metadata: ^0.2.0
+      yup: ^1.0.0
+      zod: ^3.22.0 || ^4.0.0
+    peerDependenciesMeta:
+      '@angular/forms':
+        optional: true
+      class-validator:
+        optional: true
+      joi:
+        optional: true
+      reflect-metadata:
+        optional: true
+      yup:
+        optional: true
+      zod:
+        optional: true
 
   css.escape@1.5.1:
     resolution: {integrity: sha512-YUifsXXuknHlUsmlgyY0PKzgPOr7/FjCePfHNt0jxm83wHZi44VDMQ7/fGNkjY3/jV1MC+1CmZbaHzugyeRtpg==}
@@ -3900,6 +3927,10 @@ snapshots:
       - '@types/react-dom'
 
   convert-source-map@2.0.0: {}
+
+  cpf-cnpj-validator@2.1.0(zod@3.25.76):
+    optionalDependencies:
+      zod: 3.25.76
 
   css.escape@1.5.1: {}
 

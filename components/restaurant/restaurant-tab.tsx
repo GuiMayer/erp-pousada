@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { UtensilsCrossed, Plus } from "lucide-react"
+import { UtensilsCrossed, Plus, Settings, ChefHat, Users, Factory, Coffee } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -13,6 +13,11 @@ import {
 } from "@/components/ui/select"
 import { TableGrid } from "./table-grid"
 import { OrderSheet } from "./order-sheet"
+import { ManageTablesModal } from "./manage-tables-modal"
+import { ManageRecipesModal } from "./manage-recipes-modal"
+import { ManageEmployeesModal } from "./manage-employees-modal"
+import { ProductionModal } from "./production-modal"
+import { EmployeeConsumptionModal } from "./employee-consumption-modal"
 import { useTableManagement } from "@/lib/hooks/useTableManagement"
 import { useApp } from "@/lib/app-context"
 import type { RestaurantTable, RestaurantOrder } from "@/lib/store"
@@ -31,6 +36,11 @@ export function RestaurantTab() {
 
   const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null)
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
+  const [manageTablesOpen, setManageTablesOpen] = useState(false)
+  const [manageRecipesOpen, setManageRecipesOpen] = useState(false)
+  const [manageEmployeesOpen, setManageEmployeesOpen] = useState(false)
+  const [productionOpen, setProductionOpen] = useState(false)
+  const [consumptionOpen, setConsumptionOpen] = useState(false)
 
   const handleTableClick = (table: RestaurantTable) => {
     if (table.status === "livre") {
@@ -77,6 +87,53 @@ export function RestaurantTab() {
           <p className="text-muted-foreground">
             Gerencie mesas e comandas do restaurante
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setProductionOpen(true)}
+          >
+            <Factory className="size-4" />
+            Produção
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setConsumptionOpen(true)}
+          >
+            <Coffee className="size-4" />
+            Consumo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setManageRecipesOpen(true)}
+          >
+            <ChefHat className="size-4" />
+            Receitas
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setManageEmployeesOpen(true)}
+          >
+            <Users className="size-4" />
+            Funcionários
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setManageTablesOpen(true)}
+          >
+            <Settings className="size-4" />
+            Gerenciar Mesas
+          </Button>
         </div>
       </div>
 
@@ -130,6 +187,36 @@ export function RestaurantTab() {
         onOpenChange={setOrderSheetOpen}
         table={selectedTable}
         onClose={handleOrderSheetClose}
+      />
+
+      {/* Manage Tables Modal */}
+      <ManageTablesModal
+        open={manageTablesOpen}
+        onClose={() => setManageTablesOpen(false)}
+      />
+
+      {/* Manage Recipes Modal */}
+      <ManageRecipesModal
+        open={manageRecipesOpen}
+        onClose={() => setManageRecipesOpen(false)}
+      />
+
+      {/* Manage Employees Modal */}
+      <ManageEmployeesModal
+        open={manageEmployeesOpen}
+        onClose={() => setManageEmployeesOpen(false)}
+      />
+
+      {/* Production Modal */}
+      <ProductionModal
+        open={productionOpen}
+        onClose={() => setProductionOpen(false)}
+      />
+
+      {/* Employee Consumption Modal */}
+      <EmployeeConsumptionModal
+        open={consumptionOpen}
+        onClose={() => setConsumptionOpen(false)}
       />
     </div>
   )
