@@ -48,32 +48,34 @@ export function RoomGrid() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Interactive date selector */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p - 1)}>
-          <ChevronLeft className="size-4" />
-        </Button>
-        <div className="flex gap-1.5 overflow-x-auto flex-1 justify-center">
-          {weekDates.map((d) => (
-            <button
-              key={d.date}
-              onClick={() => setSelectedDate(d.date)}
-              className={`flex flex-col items-center rounded-xl px-3 py-2 transition-all cursor-pointer min-w-[56px] ${
-                d.date === selectedDate
-                  ? "bg-primary text-primary-foreground shadow-sm scale-105"
-                  : d.isToday
-                    ? "bg-primary/10 text-primary hover:bg-primary/15"
-                    : "bg-secondary text-secondary-foreground hover:bg-accent"
-              }`}
-            >
-              <span className="text-[10px] uppercase font-medium opacity-80">{d.weekday}</span>
-              <span className="text-lg font-bold tabular-nums leading-tight">{d.day}</span>
-              <span className="text-[9px] uppercase opacity-60">{d.month}</span>
-            </button>
-          ))}
+      <div className="flex items-center justify-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p - 1)}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <div className="flex gap-1.5">
+            {weekDates.map((d) => (
+              <button
+                key={d.date}
+                onClick={() => setSelectedDate(d.date)}
+                className={`flex flex-col items-center rounded-xl px-3 py-2 transition-all cursor-pointer min-w-[56px] ${
+                  d.date === selectedDate
+                    ? "bg-primary text-primary-foreground shadow-sm scale-105"
+                    : d.isToday
+                      ? "bg-primary/10 text-primary hover:bg-primary/15"
+                      : "bg-secondary text-secondary-foreground hover:bg-accent"
+                }`}
+              >
+                <span className="text-[10px] uppercase font-medium opacity-80">{d.weekday}</span>
+                <span className="text-lg font-bold tabular-nums leading-tight">{d.day}</span>
+                <span className="text-[9px] uppercase opacity-60">{d.month}</span>
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p + 1)}>
+            <ChevronRight className="size-4" />
+          </Button>
         </div>
-        <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p + 1)}>
-          <ChevronRight className="size-4" />
-        </Button>
         {weekOffset !== 0 && (
           <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => { setWeekOffset(0); setSelectedDate(new Date().toISOString().split("T")[0]) }}>
             Hoje
