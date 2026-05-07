@@ -144,22 +144,18 @@ export function RoomCard({ room }: { room: Room }) {
       <Card className={`group relative overflow-hidden transition-all duration-200 hover:shadow-md ${config.borderClass}`}>
         <div className={`absolute inset-x-0 top-0 h-1 ${config.accent}`} />
 
-        {overdue && (
-          <div className="absolute right-3 top-3 z-10">
-            <Badge className="animate-pulse-alert gap-1 bg-destructive text-white border-transparent text-[10px]">
-              <AlertTriangle className="size-3" />
-              Atrasado
-            </Badge>
-          </div>
-        )}
-
         <CardHeader className="pb-0 pt-5">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold tabular-nums tracking-tight text-foreground">{room.number}</span>
               <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{room.type}</span>
             </div>
-            {!overdue && (
+            {overdue ? (
+              <Badge className="animate-pulse-alert gap-1 bg-destructive text-white border-transparent text-[10px]">
+                <AlertTriangle className="size-3" />
+                Atrasado
+              </Badge>
+            ) : (
               <Badge className={`${config.badgeClass} gap-1 text-[11px]`}>
                 {config.icon}
                 {config.label}
