@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react"
 import {
   initialRooms, initialReservations, initialGuests,
   initialExpenses, initialTransactions, initialAuditLog,
@@ -177,18 +177,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPOSSales(prev => prev.map(s => s.id === id ? { ...s, ...data } : s))
   }, [])
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    rooms, reservations, guests, expenses, transactions,
+    auditLog, categories, cashCloses, consumptions, discountCeiling,
+    posProducts, posSales,
+    updateRoom, addRoom, removeRoom,
+    addReservation, updateReservation,
+    addExpense, updateExpense, addTransaction, addAuditEntry,
+    addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
+    addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
+    addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
+  }), [
+    rooms, reservations, guests, expenses, transactions,
+    auditLog, categories, cashCloses, consumptions, discountCeiling,
+    posProducts, posSales,
+    updateRoom, addRoom, removeRoom,
+    addReservation, updateReservation,
+    addExpense, updateExpense, addTransaction, addAuditEntry,
+    addCategory, addCashClose, findGuest, addGuest,
+    addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
+    addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
+  ])
+
   return (
-    <AppContext.Provider value={{
-      rooms, reservations, guests, expenses, transactions,
-      auditLog, categories, cashCloses, consumptions, discountCeiling,
-      posProducts, posSales,
-      updateRoom, addRoom, removeRoom,
-      addReservation, updateReservation,
-      addExpense, updateExpense, addTransaction, addAuditEntry,
-      addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
-      addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
-      addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
-    }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   )

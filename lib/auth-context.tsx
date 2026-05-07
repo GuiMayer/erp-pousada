@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from "react"
 import type { UserRole } from "./store"
 
 type AuthState = {
@@ -61,15 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("pousada_auth")
   }, [])
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    ...state,
+    login,
+    logout,
+    isSupervisor: state.role === "supervisor",
+  }), [state, login, logout])
+
   return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        logout,
-        isSupervisor: state.role === "supervisor",
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )
