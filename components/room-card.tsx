@@ -146,7 +146,7 @@ export function RoomCard({ room }: { room: Room }) {
 
         {overdue && (
           <div className="absolute right-3 top-3 z-10">
-            <Badge className="animate-pulse-alert gap-1 bg-destructive text-destructive-foreground border-transparent text-[10px]">
+            <Badge className="animate-pulse-alert gap-1 bg-destructive text-white border-transparent text-[10px]">
               <AlertTriangle className="size-3" />
               Atrasado
             </Badge>
