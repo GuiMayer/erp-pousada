@@ -13,6 +13,7 @@ import {
 import type { Room, RoomStatus } from "@/lib/store"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { useNotifications } from "@/lib/notification-context"
 import { MiniTimeline } from "./mini-timeline"
 import { BlockRoomModal } from "./block-room-modal"
 import { CheckinModal } from "./checkin-modal"
@@ -81,6 +82,7 @@ export function RoomCard({ room }: { room: Room }) {
   const overdue = isOverdue(room)
   const { updateRoom, addAuditEntry, getConsumption, clearConsumption } = useApp()
   const { username } = useAuth()
+  const { sendNotification } = useNotifications()
   const [blockModalOpen, setBlockModalOpen] = useState(false)
   const [checkinOpen, setCheckinOpen] = useState(false)
   const [consumptionOpen, setConsumptionOpen] = useState(false)
@@ -102,6 +104,13 @@ export function RoomCard({ room }: { room: Room }) {
       action: "Check-out realizado",
       reference: `Quarto ${room.number}`,
     })
+    sendNotification(
+      'check-out',
+      'Check-out Realizado',
+      `Quarto ${room.number} - ${room.guest || 'Hóspede'} realizou check-out`,
+      'medium',
+      room.id
+    )
   }
 
   function handleRelease() {
@@ -111,6 +120,13 @@ export function RoomCard({ room }: { room: Room }) {
       action: "Quarto liberado (limpeza concluida)",
       reference: `Quarto ${room.number}`,
     })
+    sendNotification(
+      'cleaning',
+      'Limpeza Concluída',
+      `Quarto ${room.number} está disponível para nova reserva`,
+      'low',
+      room.id
+    )
   }
 
   function handleBlock(endDate: string, responsible: string, reason: string) {
@@ -123,6 +139,13 @@ export function RoomCard({ room }: { room: Room }) {
       action: "Quarto bloqueado",
       reference: `Quarto ${room.number} - ${reason}`,
     })
+    sendNotification(
+      'reservation',
+      'Quarto Bloqueado',
+      `Quarto ${room.number} bloqueado até ${formatDateBR(endDate)} - ${reason}`,
+      'high',
+      room.id
+    )
     setBlockModalOpen(false)
   }
 
@@ -136,6 +159,13 @@ export function RoomCard({ room }: { room: Room }) {
       action: "Desbloqueio de quarto",
       reference: `Quarto ${room.number}`,
     })
+    sendNotification(
+      'reservation',
+      'Quarto Desbloqueado',
+      `Quarto ${room.number} está disponível novamente`,
+      'medium',
+      room.id
+    )
     setBlockModalOpen(false)
   }
 

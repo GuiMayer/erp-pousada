@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { CurrencyDisplay } from "@/components/ui/currency-display"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { useNotifications } from "@/lib/notification-context"
 import { useGuestSearch } from "@/lib/hooks/useGuestSearch"
 import { Search, User, BarChart3, AlertTriangle, LogIn } from "lucide-react"
 import type { Room } from "@/lib/store"
@@ -25,6 +26,7 @@ type Props = {
 export function CheckinModal({ room, open, onClose }: Props) {
   const { updateRoom, addReservation, addAuditEntry, findGuest, addGuest, reservations } = useApp()
   const { username } = useAuth()
+  const { sendNotification } = useNotifications()
 
   const [checkOut, setCheckOut] = useState("")
   const [totalValue, setTotalValue] = useState("")
@@ -77,6 +79,14 @@ export function CheckinModal({ room, open, onClose }: Props) {
       action: "Check-in realizado",
       reference: `Quarto ${room.number} - ${guestName}`,
     })
+
+    sendNotification(
+      'check-in',
+      'Check-in Realizado',
+      `Quarto ${room.number} - ${guestName} realizou check-in`,
+      'high',
+      room.id
+    )
 
     // Reset and close
     resetGuest()

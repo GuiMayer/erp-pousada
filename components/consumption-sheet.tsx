@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CurrencyDisplay } from "@/components/ui/currency-display"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { useNotifications } from "@/lib/notification-context"
 import { useProductSearch } from "@/lib/hooks/useProductSearch"
 import { useConsumption } from "@/lib/hooks/useConsumption"
 import { Plus, Trash2, ShoppingCart, Package, Search } from "lucide-react"
@@ -31,6 +32,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     posProducts 
   } = useApp()
   const { username } = useAuth()
+  const { sendNotification } = useNotifications()
 
   const [customLabel, setCustomLabel] = useState("")
   const [customPrice, setCustomPrice] = useState("")
@@ -68,6 +70,13 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
       action: `Consumo lancado: ${name}`,
       reference: `Quarto ${room.number} - ${room.guest}`,
     })
+    sendNotification(
+      'pos',
+      'Consumo Lançado',
+      `${name} adicionado ao Quarto ${room.number}`,
+      'low',
+      room.id
+    )
   }
 
   function handleAddCustomItem() {
@@ -78,6 +87,13 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
       action: `Consumo lancado: ${customLabel}`,
       reference: `Quarto ${room.number} - ${room.guest}`,
     })
+    sendNotification(
+      'pos',
+      'Consumo Lançado',
+      `${customLabel} adicionado ao Quarto ${room.number}`,
+      'low',
+      room.id
+    )
     setCustomLabel("")
     setCustomPrice("")
     setCustomQty("1")
