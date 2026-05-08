@@ -23,6 +23,7 @@ import { TopProductsTable } from "./reports/top-products-table"
 import { StockAlertsCard } from "./reports/stock-alerts-card"
 import { PeriodSelector } from "./reports/period-selector"
 import { RevenueTrendChart } from "./reports/revenue-trend-chart"
+import { PeriodComparisonCard } from "./reports/period-comparison-card"
 import { 
   exportDailySummaryToCSV, 
   exportTopProductsToCSV,
@@ -97,6 +98,36 @@ export function ReportsTab() {
   const hourlySales = getHourlySales(startDate)
   const stockAlerts = getStockAlerts()
   const revenueTrend = isMultiDay ? getRevenueTrend(startDate, endDate) : []
+
+  // Prepare period comparison data
+  const getPeriodLabel = () => {
+    if (selectedPeriod === 'today') return 'Hoje'
+    if (selectedPeriod === 'week') return 'Esta Semana'
+    if (selectedPeriod === 'month') return 'Este Mês'
+    return 'Período Atual'
+  }
+
+  const getPreviousPeriodLabel = () => {
+    if (selectedPeriod === 'today') return 'Ontem'
+    if (selectedPeriod === 'week') return 'Semana Anterior'
+    if (selectedPeriod === 'month') return 'Mês Anterior'
+    return 'Período Anterior'
+  }
+
+  const periodComparison = {
+    currentPeriod: {
+      label: getPeriodLabel(),
+      revenue: dailySummary.totalRevenue,
+      transactions: dailySummary.transactionCount,
+      averageTicket: dailySummary.averageTicket,
+    },
+    previousPeriod: {
+      label: getPreviousPeriodLabel(),
+      revenue: dailySummary.previousDayRevenue,
+      transactions: 0, // Would need to calculate from previous period
+      averageTicket: 0, // Would need to calculate from previous period
+    },
+  }
 
   const handleExportDailySummary = () => {
     const dateLabel = isMultiDay ? `${startDate}_${endDate}` : startDate
@@ -218,6 +249,14 @@ export function ReportsTab() {
               subtitle={`${stockAlerts.filter(a => a.status === 'critical').length} críticos`}
             />
           </div>
+
+          {/* Period Comparison (only for multi-day periods) */}
+          {isMultiDay && (
+            <PeriodComparisonCard
+              currentPeriod={periodComparison.currentPeriod}
+              previousPeriod={periodComparison.previousPeriod}
+            />
+          )}
 
           {/* Revenue Trend (only for multi-day periods) */}
           {isMultiDay && revenueTrend.length > 0 && (
