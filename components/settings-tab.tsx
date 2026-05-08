@@ -1,23 +1,30 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Settings, Moon, Bell } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Settings, Moon, Sun, Monitor, Bell } from "lucide-react"
 
 type UserPreferences = {
-  darkMode: boolean
   notifications: boolean
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  darkMode: false,
   notifications: true,
 }
 
 export function SettingsTab() {
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES)
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Load preferences from localStorage on mount
   useEffect(() => {
@@ -41,12 +48,12 @@ export function SettingsTab() {
     }
   }, [preferences])
 
-  const handleDarkModeChange = (checked: boolean) => {
-    setPreferences(prev => ({ ...prev, darkMode: checked }))
-  }
-
   const handleNotificationsChange = (checked: boolean) => {
     setPreferences(prev => ({ ...prev, notifications: checked }))
+  }
+
+  if (!mounted) {
+    return null
   }
 
   return (
@@ -71,18 +78,36 @@ export function SettingsTab() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="dark-mode">Modo Noturno</Label>
-              <p className="text-sm text-muted-foreground">
-                Ativar tema escuro (em breve)
-              </p>
-            </div>
-            <Switch
-              id="dark-mode"
-              checked={preferences.darkMode}
-              onCheckedChange={handleDarkModeChange}
-            />
+          <div className="space-y-2">
+            <Label htmlFor="theme-select">Tema</Label>
+            <Select value={theme} onValueChange={setTheme}>
+              <SelectTrigger id="theme-select">
+                <SelectValue placeholder="Selecione o tema" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">
+                  <div className="flex items-center gap-2">
+                    <Sun className="size-4" />
+                    <span>Claro</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="dark">
+                  <div className="flex items-center gap-2">
+                    <Moon className="size-4" />
+                    <span>Escuro</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="system">
+                  <div className="flex items-center gap-2">
+                    <Monitor className="size-4" />
+                    <span>Sistema</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Escolha entre tema claro, escuro ou seguir as preferências do sistema
+            </p>
           </div>
         </CardContent>
       </Card>
