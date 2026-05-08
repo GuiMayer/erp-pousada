@@ -68,8 +68,8 @@ export class LocalStorageAdapter implements IStorageAdapter {
       } catch (error) {
         if (error instanceof Error && error.name === "QuotaExceededError") {
           console.error(`LocalStorage quota exceeded for key: ${key}`)
-          // Try to free up space by removing oldest items
-          this.cleanupOldData()
+          // Try to free up space by removing oldest items (fire-and-forget)
+          void this.cleanupOldData()
         } else {
           console.error(`Error writing to localStorage for key: ${key}`, error)
         }
@@ -82,11 +82,11 @@ export class LocalStorageAdapter implements IStorageAdapter {
   /**
    * Clean up old data to free space
    */
-  private cleanupOldData(): void {
+  private async cleanupOldData(): Promise<void> {
     if (!this.isClient()) return
 
     try {
-      const keys = this.keys()
+      const keys = await this.keys()
       // Remove items that look like old audit logs or transactions
       const keysToRemove = keys.filter(k => 
         k.includes("audit") || k.includes("transaction")
@@ -165,7 +165,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
     this.writeQueue.clear()
 
     try {
-      const keys = this.keys()
+      const keys = await this.keys()
       for (const key of keys) {
         localStorage.removeItem(key)
       }
@@ -177,7 +177,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
   /**
    * Get all keys with this prefix
    */
-  keys(): string[] {
+  async keys(): Promise<string[]> {
     if (!this.isClient()) return []
 
     const keys: string[] = []
@@ -207,7 +207,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
     this.flush()
 
     const data: Record<string, any> = {}
-    const keys = this.keys()
+    const keys = await this.keys()
 
     for (const fullKey of keys) {
       try {
@@ -257,7 +257,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
     if (!this.isClient()) return 0
 
     let totalBytes = 0
-    const keys = this.keys()
+    const keys = await this.keys()
 
     for (const key of keys) {
       try {

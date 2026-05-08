@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
+import { useAuth } from "@/lib/auth-context"
 import { DashboardHeader } from "./dashboard-header"
 import { RoomGrid } from "./room-grid"
 import { ReservationsTab } from "./reservations-tab"
@@ -12,10 +13,11 @@ import { RestaurantTab } from "./restaurant/restaurant-tab"
 import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3 } from "lucide-react"
+import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
 
 export function DashboardShell() {
   const { rooms } = useApp()
+  const { isSupervisor } = useAuth()
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -31,14 +33,6 @@ export function DashboardShell() {
             <CalendarDays className="size-3.5" />
             Reservas
           </TabsTrigger>
-          <TabsTrigger value="financeiro" className="gap-1.5">
-            <DollarSign className="size-3.5" />
-            Financeiro
-          </TabsTrigger>
-          <TabsTrigger value="auditoria" className="gap-1.5">
-            <Shield className="size-3.5" />
-            Auditoria
-          </TabsTrigger>
           <TabsTrigger value="pdv" className="gap-1.5">
             <ShoppingCart className="size-3.5" />
             Frente de Caixa
@@ -51,9 +45,23 @@ export function DashboardShell() {
             <Package className="size-3.5" />
             Estoque
           </TabsTrigger>
+          <TabsTrigger value="financeiro" className="gap-1.5">
+            <DollarSign className="size-3.5" />
+            Financeiro
+          </TabsTrigger>
           <TabsTrigger value="relatorios" className="gap-1.5">
             <BarChart3 className="size-3.5" />
             Relatórios
+          </TabsTrigger>
+          {isSupervisor && (
+            <TabsTrigger value="configuracoes" className="gap-1.5">
+              <Settings className="size-3.5" />
+              Configurações
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="auditoria" className="gap-1.5">
+            <Shield className="size-3.5" />
+            Auditoria
           </TabsTrigger>
         </TabsList>
 
@@ -62,12 +70,6 @@ export function DashboardShell() {
         </TabsContent>
         <TabsContent value="reservas">
           <ReservationsTab />
-        </TabsContent>
-        <TabsContent value="financeiro">
-          <FinancialTab />
-        </TabsContent>
-        <TabsContent value="auditoria">
-          <AuditLogTab />
         </TabsContent>
         <TabsContent value="pdv">
           <POSTab />
@@ -78,8 +80,19 @@ export function DashboardShell() {
         <TabsContent value="estoque">
           <StockTab />
         </TabsContent>
+        <TabsContent value="financeiro">
+          <FinancialTab />
+        </TabsContent>
         <TabsContent value="relatorios">
           <ReportsTab />
+        </TabsContent>
+        {isSupervisor && (
+          <TabsContent value="configuracoes">
+            <div className="text-muted-foreground">Configurações em desenvolvimento...</div>
+          </TabsContent>
+        )}
+        <TabsContent value="auditoria">
+          <AuditLogTab />
         </TabsContent>
       </Tabs>
     </div>

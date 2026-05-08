@@ -10,7 +10,8 @@ import type {
   Room, Reservation, GuestProfile, Expense, Transaction, AuditEntry,
   ExpenseCategory, CashClose, RoomConsumption, POSProduct, POSSale,
   RestaurantTable, RestaurantOrder, StockItem, StockMovement,
-  Recipe, Production, Employee, EmployeeConsumption, ProductCategory
+  Recipe, Production, Employee, EmployeeConsumption, ProductCategory,
+  User, UserSession, SystemSettings
 } from "../store"
 
 /**
@@ -169,6 +170,11 @@ export interface DataStore {
   // Employee entities
   employees: IDataRepository<Employee>
   employeeConsumptions: IDataRepository<EmployeeConsumption>
+  
+  // User management entities
+  users: IDataRepository<User>
+  userSessions: IDataRepository<UserSession>
+  systemSettings: IDataRepository<SystemSettings>
   
   // Utility methods
   exportAll(): Promise<string>

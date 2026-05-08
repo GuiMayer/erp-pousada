@@ -426,6 +426,39 @@ export interface Employee {
   }
 }
 
+// ─── User Management Types ─────────────────────────────────────────────
+export interface User {
+  id: string
+  username: string
+  password: string // In production, this would be hashed
+  role: UserRole
+  fullName: string
+  email?: string
+  active: boolean
+  createdAt: string
+  createdBy: string
+  lastLogin?: string
+}
+
+export interface UserSession {
+  id: string
+  userId: string
+  username: string
+  loginTime: string
+  logoutTime?: string
+}
+
+export interface SystemSettings {
+  id: string
+  pousadaName: string
+  checkInTime: string // HH:mm format
+  checkOutTime: string // HH:mm format
+  discountCeiling: number
+  contactPhone?: string
+  contactEmail?: string
+  address?: string
+}
+
 export interface EmployeeConsumptionItem {
   productId: string
   productName: string
@@ -672,6 +705,45 @@ export const initialRecipes: Recipe[] = []
 export const initialProductions: Production[] = []
 export const initialEmployees: Employee[] = (seedData.employees as SeedEmployee[] || [])
 export const initialEmployeeConsumptions: EmployeeConsumption[] = []
+
+// ─── User Management Initial Data ──────────────────────────────────────
+export const initialUsers: User[] = [
+  {
+    id: "user-supervisor",
+    username: "supervisor",
+    password: "adm123", // In production, this would be hashed
+    role: "supervisor",
+    fullName: "Supervisor do Sistema",
+    email: "supervisor@pousada.com",
+    active: true,
+    createdAt: new Date().toISOString(),
+    createdBy: "system",
+  },
+  {
+    id: "user-operador",
+    username: "operador",
+    password: "1234",
+    role: "operador",
+    fullName: "Operador Padrão",
+    email: "operador@pousada.com",
+    active: true,
+    createdAt: new Date().toISOString(),
+    createdBy: "system",
+  },
+]
+
+export const initialUserSessions: UserSession[] = []
+
+export const initialSystemSettings: SystemSettings = {
+  id: "settings-1",
+  pousadaName: "Pousada Sol & Mar",
+  checkInTime: "14:00",
+  checkOutTime: "12:00",
+  discountCeiling: 20,
+  contactPhone: "(11) 98765-4321",
+  contactEmail: "contato@pousadasolemar.com.br",
+  address: "Rua das Praias, 123 - Praia Grande, SP",
+}
 
 // ─── Restaurant Config Constants ───────────────────────────────────────
 export const TABLE_STATUSES: TableStatus[] = ["livre", "ocupada", "reservada"]

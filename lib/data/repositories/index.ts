@@ -29,6 +29,9 @@ import { RecipeRepository } from "./recipe-repository"
 import { ProductionRepository } from "./production-repository"
 import { EmployeeRepository } from "./employee-repository"
 import { EmployeeConsumptionRepository } from "./employee-consumption-repository"
+import { UserRepository } from "./user-repository"
+import { UserSessionRepository } from "./user-session-repository"
+import { SystemSettingsRepository } from "./system-settings-repository"
 
 /**
  * Create a complete DataStore with all repositories
@@ -71,6 +74,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
   const productions = new ProductionRepository(adapter, userId)
   const employees = new EmployeeRepository(adapter, userId)
   const employeeConsumptions = new EmployeeConsumptionRepository(adapter, userId)
+  const users = new UserRepository(adapter, userId)
+  const userSessions = new UserSessionRepository(adapter, userId)
+  const systemSettings = new SystemSettingsRepository(adapter, userId)
 
   // Return DataStore interface
   return {
@@ -104,6 +110,11 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
     employees,
     employeeConsumptions,
 
+    // User management entities
+    users,
+    userSessions,
+    systemSettings,
+
     // Utility methods
     async exportAll(): Promise<string> {
       return adapter.export()
@@ -135,6 +146,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
         productions.clear(),
         employees.clear(),
         employeeConsumptions.clear(),
+        users.clear(),
+        userSessions.clear(),
+        systemSettings.clear(),
       ])
     },
 
@@ -165,4 +179,7 @@ export * from "./recipe-repository"
 export * from "./production-repository"
 export * from "./employee-repository"
 export * from "./employee-consumption-repository"
+export * from "./user-repository"
+export * from "./user-session-repository"
+export * from "./system-settings-repository"
 export * from "./base-repository"

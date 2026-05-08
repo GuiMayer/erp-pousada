@@ -10,6 +10,7 @@ import {
   initialStockItems, initialStockMovements,
   initialRecipes, initialProductions,
   initialEmployees, initialEmployeeConsumptions,
+  initialUsers, initialUserSessions, initialSystemSettings,
   type Room, type Reservation, type GuestProfile,
   type Expense, type Transaction, type AuditEntry,
   type ExpenseCategory, type CashClose,
@@ -20,6 +21,7 @@ import {
   type Recipe, type Production,
   type Employee, type EmployeeConsumption,
   type ProductCategory,
+  type User, type UserSession, type SystemSettings,
 } from "./store"
 import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
@@ -46,6 +48,9 @@ type AppContextType = {
   productions: Production[]
   employees: Employee[]
   employeeConsumptions: EmployeeConsumption[]
+  users: User[]
+  userSessions: UserSession[]
+  systemSettings: SystemSettings
   isLoading: boolean
   isHydrated: boolean
   updateRoom: (id: number, data: Partial<Room>) => Promise<void>
@@ -90,6 +95,11 @@ type AppContextType = {
   addEmployee: (e: Employee) => Promise<void>
   updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>
   addEmployeeConsumption: (c: EmployeeConsumption) => Promise<void>
+  addUser: (u: User) => Promise<void>
+  updateUser: (id: string, data: Partial<User>) => Promise<void>
+  findUser: (username: string) => User | undefined
+  addUserSession: (s: UserSession) => Promise<void>
+  updateSystemSettings: (data: Partial<SystemSettings>) => Promise<void>
   exportData: () => Promise<string>
   importData: (json: string) => Promise<void>
   clearAllData: () => Promise<void>
@@ -130,6 +140,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [productions, setProductions] = useState<Production[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [employeeConsumptions, setEmployeeConsumptions] = useState<EmployeeConsumption[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [userSessions, setUserSessions] = useState<UserSession[]>([])
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(initialSystemSettings)
 
   // Load data from repositories on mount and when syncing
   const loadAllData = useCallback(async () => {
@@ -140,7 +153,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         posProductsData, posSalesData, productCategoriesData,
         restaurantTablesData, restaurantOrdersData,
         stockItemsData, stockMovementsData, recipesData, productionsData,
-        employeesData, employeeConsumptionsData
+        employeesData, employeeConsumptionsData,
+        usersData, userSessionsData, systemSettingsData
       ] = await Promise.all([
         dataStore.rooms.getAll(),
         dataStore.reservations.getAll(),
@@ -161,7 +175,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dataStore.recipes.getAll(),
         dataStore.productions.getAll(),
         dataStore.employees.getAll(),
-        dataStore.employeeConsumptions.getAll()
+        dataStore.employeeConsumptions.getAll(),
+        dataStore.users.getAll(),
+        dataStore.userSessions.getAll(),
+        dataStore.systemSettings.getAll()
       ])
 
       setRooms(roomsData)
@@ -184,6 +201,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProductions(productionsData)
       setEmployees(employeesData)
       setEmployeeConsumptions(employeeConsumptionsData)
+      setUsers(usersData)
+      setUserSessions(userSessionsData)
+      setSystemSettings(systemSettingsData[0] || initialSystemSettings)
     } catch (error) {
       console.error('[AppContext] Error loading data:', error)
     }
@@ -486,6 +506,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setEmployeeConsumptions(await dataStore.employeeConsumptions.getAll())
   }, [dataStore])
 
+  // User methods
+  const addUser = useCallback(async (u: User) => {
+    await dataStore.users.create(u)
+    setUsers(await dataStore.users.getAll())
+  }, [dataStore])
+
+  const updateUser = useCallback(async (id: string, data: Partial<User>) => {
+    await dataStore.users.update(id, data)
+    setUsers(await dataStore.users.getAll())
+  }, [dataStore])
+
+  const findUser = useCallback((username: string) => {
+    return users.find(u => u.username === username)
+  }, [users])
+
+  // User Session methods
+  const addUserSession = useCallback(async (s: UserSession) => {
+    await dataStore.userSessions.create(s)
+    setUserSessions(await dataStore.userSessions.getAll())
+  }, [dataStore])
+
+  // System Settings methods
+  const updateSystemSettings = useCallback(async (data: Partial<SystemSettings>) => {
+    if (systemSettings.id) {
+      await dataStore.systemSettings.update(systemSettings.id, data)
+      const updated = await dataStore.systemSettings.getAll()
+      setSystemSettings(updated[0] || initialSystemSettings)
+    }
+  }, [dataStore, systemSettings])
+
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     rooms, reservations, guests, expenses, transactions,
@@ -494,6 +544,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     productCategories, restaurantTables, restaurantOrders,
     stockItems, stockMovements, recipes, productions,
     employees, employeeConsumptions,
+    users, userSessions, systemSettings,
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom,
     addReservation, updateReservation,
@@ -507,6 +558,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addStockItem, updateStockItem, addStockMovement,
     addRecipe, updateRecipe, addProduction,
     addEmployee, updateEmployee, addEmployeeConsumption,
+    addUser, updateUser, findUser, addUserSession, updateSystemSettings,
     exportData, importData, clearAllData, getStorageUsage,
   }), [
     rooms, reservations, guests, expenses, transactions,
@@ -515,6 +567,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     productCategories, restaurantTables, restaurantOrders,
     stockItems, stockMovements, recipes, productions,
     employees, employeeConsumptions,
+    users, userSessions, systemSettings,
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom,
     addReservation, updateReservation,
@@ -528,6 +581,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addStockItem, updateStockItem, addStockMovement,
     addRecipe, updateRecipe, addProduction,
     addEmployee, updateEmployee, addEmployeeConsumption,
+    addUser, updateUser, findUser, addUserSession, updateSystemSettings,
     exportData, importData, clearAllData, getStorageUsage,
   ])
 
