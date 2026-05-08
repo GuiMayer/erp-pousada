@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   validateSupervisorPassword,
   validateCPF,
+  isValidCPF,
   validateDiscount,
   requiresSupervisorApproval,
   validatePaymentAmount,
@@ -23,20 +24,28 @@ describe('Validators', () => {
   })
 
   describe('validateCPF', () => {
+    it('should return object with valid property', () => {
+      const result = validateCPF('12345678900')
+      expect(result).toHaveProperty('valid')
+      expect(typeof result.valid).toBe('boolean')
+    })
+  })
+
+  describe('isValidCPF', () => {
     it('should validate CPF with correct format', () => {
-      expect(validateCPF('123.456.789-00')).toBe(true)
-      expect(validateCPF('12345678900')).toBe(true)
+      expect(isValidCPF('191.000.000-43')).toBe(true)
+      expect(isValidCPF('19100000043')).toBe(true)
     })
 
     it('should reject CPF with invalid format', () => {
-      expect(validateCPF('123')).toBe(false)
-      expect(validateCPF('123.456.789')).toBe(false)
-      expect(validateCPF('')).toBe(false)
+      expect(isValidCPF('123')).toBe(false)
+      expect(isValidCPF('123.456.789')).toBe(false)
+      expect(isValidCPF('')).toBe(false)
     })
 
     it('should reject CPF with all same digits', () => {
-      expect(validateCPF('111.111.111-11')).toBe(false)
-      expect(validateCPF('00000000000')).toBe(false)
+      expect(isValidCPF('111.111.111-11')).toBe(false)
+      expect(isValidCPF('00000000000')).toBe(false)
     })
   })
 
