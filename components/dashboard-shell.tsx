@@ -13,6 +13,7 @@ import { RestaurantTab } from "./restaurant/restaurant-tab"
 import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
 import { SettingsTab } from "./settings-tab"
+import { AdminTab } from "./admin-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
 
@@ -54,10 +55,14 @@ export function DashboardShell() {
             <BarChart3 className="size-3.5" />
             Relatórios
           </TabsTrigger>
+          <TabsTrigger value="configuracoes" className="gap-1.5">
+            <Settings className="size-3.5" />
+            Configurações
+          </TabsTrigger>
           {isSupervisor && (
-            <TabsTrigger value="configuracoes" className="gap-1.5">
-              <Settings className="size-3.5" />
-              Configurações
+            <TabsTrigger value="administracao" className="gap-1.5">
+              <Shield className="size-3.5" />
+              Administração
             </TabsTrigger>
           )}
           <TabsTrigger value="auditoria" className="gap-1.5">
@@ -87,9 +92,12 @@ export function DashboardShell() {
         <TabsContent value="relatorios">
           <ReportsTab />
         </TabsContent>
+        <TabsContent value="configuracoes">
+          <SettingsTab />
+        </TabsContent>
         {isSupervisor && (
-          <TabsContent value="configuracoes">
-            <SettingsTab />
+          <TabsContent value="administracao">
+            <AdminTab />
           </TabsContent>
         )}
         <TabsContent value="auditoria">
