@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, Fragment } from "react"
 import { useApp } from "@/lib/app-context"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -271,8 +271,8 @@ export function AuditLogTab() {
                   (entry.metadata.before || entry.metadata.after || entry.metadata.reason || entry.metadata.amount !== undefined)
 
                 return (
-                  <>
-                    <TableRow key={entry.id} className={hasMetadata ? "cursor-pointer hover:bg-muted/50" : ""}>
+                  <Fragment key={entry.id}>
+                    <TableRow className={hasMetadata ? "cursor-pointer hover:bg-muted/50" : ""}>
                       <TableCell>
                         {hasMetadata && (
                           <Button
@@ -331,7 +331,7 @@ export function AuditLogTab() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 )
               })}
               {filteredLog.length === 0 && (
