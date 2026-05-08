@@ -34,11 +34,13 @@ export function AdminTab() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showRestoreDialog, setShowRestoreDialog] = useState(false)
 
-  // Sync with context when systemSettings changes
+  // Sync with context when systemSettings changes (only if not currently editing)
   useEffect(() => {
-    setFormData(systemSettings)
-    setIsDirty(false)
-  }, [systemSettings])
+    // Only reset if we're not in the middle of editing
+    if (!isDirty) {
+      setFormData(systemSettings)
+    }
+  }, [systemSettings, isDirty])
 
   // Validation functions
   const validatePousadaName = (value: string): string | null => {
