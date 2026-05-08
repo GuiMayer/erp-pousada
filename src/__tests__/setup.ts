@@ -134,6 +134,14 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
         cashCloses: createMockRepo('cashCloses'),
         consumptions: {
           ...createMockRepo('consumptions'),
+          update: vi.fn(async (roomId: number, updates: any) => {
+            const data = sharedState.consumptions
+            const index = data.findIndex((item: any) => item.roomId === roomId)
+            if (index !== -1) {
+              data[index] = { ...data[index], ...updates }
+              return data[index]
+            }
+          }),
           clearByRoomId: vi.fn(async (roomId: number) => {
             const data = sharedState.consumptions
             const index = data.findIndex((item: any) => item.roomId === roomId)
