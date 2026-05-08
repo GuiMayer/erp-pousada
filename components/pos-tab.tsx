@@ -3,6 +3,9 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { useStockIntegration } from "@/lib/hooks/useStockIntegration"
+import { useBusinessRules } from "@/lib/hooks/useBusinessRules"
+import { useToast } from "@/hooks/use-toast"
 import { calculateCartSubtotal, calculateCartTotal, calculateItemTotal, formatCurrency, formatCurrencyFixed } from "@/lib/utils/price-calculations"
 import { getTodayISO, ROOM_STATUS } from "@/lib/utils/constants"
 import { formatDateTime } from "@/lib/utils/date-formatting"
@@ -48,9 +51,12 @@ export function POSTab() {
   const {
     posProducts, posSales, rooms, stockItems,
     addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
-    addConsumptionItem, addStockMovement, updateStockItem,
+    addConsumptionItem,
   } = useApp()
   const { username, role } = useAuth()
+  const { processStockForSale, validateStockAvailability } = useStockIntegration()
+  const { checkCashPayment, checkChangeAmount } = useBusinessRules()
+  const { toast } = useToast()
 
   // Cart state
   const [cart, setCart] = useState<POSCartItem[]>([])
@@ -220,9 +226,29 @@ export function POSTab() {
     return Math.max(0, paid - total)
   }
 
-  function finalizeSale() {
+  async function finalizeSale() {
     const paid = Number(amountPaid) || total
     if (paymentMethod === "dinheiro" && paid < total) return
+
+    // Validate stock availability before processing
+    const stockValidation = validateStockAvailability(cart)
+    if (!stockValidation.valid) {
+      toast({
+        title: "Estoque Insuficiente",
+        description: stockValidation.errors.join("; "),
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check business rules for payment
+    if (paymentMethod === "dinheiro") {
+      checkCashPayment(paid)
+      const change = calculateChange()
+      if (change > 0) {
+        checkChangeAmount(change)
+      }
+    }
 
     const sale: POSSale = {
       id: `V${String(posSales.length + 1).padStart(3, "0")}`,
@@ -239,6 +265,19 @@ export function POSTab() {
       status: "concluida",
     }
 
+    // Process stock deduction with rollback capability
+    const stockResult = await processStockForSale(cart, username || "sistema")
+    
+    if (!stockResult.success) {
+      toast({
+        title: "Erro ao Processar Estoque",
+        description: stockResult.error || "Erro desconhecido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Stock processed successfully, now save the sale
     addPOSSale(sale)
 
     // Add transaction
@@ -283,43 +322,19 @@ export function POSTab() {
       }
     }
 
-    // Process stock movements for products with trackStock enabled
-    let stockItemsProcessed = 0
-    cart.forEach(cartItem => {
-      if (cartItem.product.trackStock) {
-        const stockItem = stockItems.find(s => s.productId === cartItem.product.id)
-        if (stockItem) {
-          // Create stock movement (saida)
-          addStockMovement({
-            id: `SM-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            type: "saida",
-            productId: stockItem.productId,
-            productName: stockItem.productName,
-            quantity: cartItem.quantity,
-            unit: stockItem.unit,
-            reason: `Venda PDV ${sale.id}`,
-            timestamp: new Date().toISOString(),
-            registeredBy: username || "sistema",
-          })
-
-          // Update stock quantity
-          updateStockItem(stockItem.id, {
-            currentStock: stockItem.currentStock - cartItem.quantity,
-          })
-
-          stockItemsProcessed++
-        }
-      }
-    })
-
     // Add audit entry for stock movements
-    if (stockItemsProcessed > 0) {
+    if (stockResult.movementIds && stockResult.movementIds.length > 0) {
       addAuditEntry({
         user: username || "sistema",
         action: `Baixa automatica de estoque`,
-        reference: `PDV ${sale.id} - ${stockItemsProcessed} ${stockItemsProcessed === 1 ? "item" : "itens"}`,
+        reference: `PDV ${sale.id} - ${stockResult.movementIds.length} ${stockResult.movementIds.length === 1 ? "item" : "itens"}`,
       })
     }
+
+    toast({
+      title: "Venda Finalizada",
+      description: `${sale.id} - ${formatCurrency(total)}`,
+    })
 
     setLastSale(sale)
     setPaymentOpen(false)

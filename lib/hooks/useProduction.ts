@@ -2,6 +2,8 @@ import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { Recipe, Production, RecipeIngredient } from "../store"
 import { useStockControl } from "./useStockControl"
+import { useStockIntegration } from "./useStockIntegration"
+import { useBusinessRules } from "./useBusinessRules"
 import { generateProductionId } from "../utils/id-generators"
 
 /**
@@ -18,7 +20,9 @@ export function useProduction() {
     posProducts,
   } = useApp()
 
-  const { hasStock, registerMovement, getStockByProduct } = useStockControl()
+  const { hasStock, getStockByProduct } = useStockControl()
+  const { processStockForProduction } = useStockIntegration()
+  const { checkProductionYield } = useBusinessRules()
 
   // Get active recipes
   const activeRecipes = useMemo(() => {
@@ -54,13 +58,13 @@ export function useProduction() {
   }, [recipes, hasStock])
 
   // Register production and deduct ingredients from stock
-  const registerProduction = useCallback((
+  const registerProduction = useCallback(async (
     recipeId: string,
     plannedQuantity: number,
     producedQuantity: number,
     producedBy: string,
     notes?: string
-  ): { success: boolean; error?: string } => {
+  ): Promise<{ success: boolean; error?: string }> => {
     const recipe = recipes.find(r => r.id === recipeId)
     if (!recipe) {
       return { success: false, error: "Receita não encontrada" }
@@ -80,7 +84,24 @@ export function useProduction() {
     const unitCost = producedQuantity > 0 ? totalCost / producedQuantity : 0
     const yieldPercentage = (producedQuantity / (recipe.expectedYield * plannedQuantity)) * 100
 
-    // Create production record
+    // Prepare ingredients with scaled quantities
+    const scaledIngredients = recipe.ingredients.map(ing => ({
+      ...ing,
+      quantity: ing.quantity * plannedQuantity,
+    }))
+
+    // Process stock deduction with rollback capability
+    const stockResult = await processStockForProduction(
+      scaledIngredients,
+      recipe.name,
+      producedBy
+    )
+
+    if (!stockResult.success) {
+      return { success: false, error: stockResult.error }
+    }
+
+    // Stock processed successfully, now create production record
     const production: Production = {
       id: generateProductionId(),
       recipeId,
@@ -97,24 +118,11 @@ export function useProduction() {
 
     addProduction(production)
 
-    // Deduct ingredients from stock
-    for (const ingredient of recipe.ingredients) {
-      const quantityToDeduct = ingredient.quantity * plannedQuantity
-      registerMovement(
-        "saida",
-        ingredient.productId,
-        quantityToDeduct,
-        `Produção: ${recipe.name}`,
-        producedBy,
-        undefined,
-        undefined,
-        undefined,
-        `Produção ID: ${production.id}`
-      )
-    }
+    // Check yield and alert if below threshold
+    checkProductionYield(plannedQuantity * recipe.expectedYield, producedQuantity, recipe.name)
 
     return { success: true }
-  }, [recipes, checkIngredientsAvailability, calculateRecipeCost, addProduction, registerMovement])
+  }, [recipes, checkIngredientsAvailability, calculateRecipeCost, addProduction, processStockForProduction, checkProductionYield])
 
   // Get production history
   const getProductionHistory = useCallback((limit?: number) => {
