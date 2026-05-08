@@ -54,4 +54,36 @@ export class AuditRepository extends BaseRepository<AuditEntry> {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, limit)
   }
+
+  /**
+   * Audit entries are immutable and cannot be modified
+   * @throws Error always - audit entries cannot be updated
+   */
+  async update(id: string | number, data: Partial<AuditEntry>): Promise<AuditEntry> {
+    throw new Error('Audit entries are immutable and cannot be modified')
+  }
+
+  /**
+   * Audit entries are immutable and cannot be deleted
+   * @throws Error always - audit entries cannot be deleted
+   */
+  async delete(id: string | number): Promise<void> {
+    throw new Error('Audit entries are immutable and cannot be deleted')
+  }
+
+  /**
+   * Audit log cannot be cleared in production
+   * Only allowed for testing/development with explicit force flag
+   * @throws Error if force flag is not provided
+   */
+  async clear(options?: { force?: boolean }): Promise<void> {
+    if (!options?.force) {
+      throw new Error('Audit log cannot be cleared. Use clear({ force: true }) only in development.')
+    }
+    
+    // Log warning when force clearing
+    console.warn('⚠️ AUDIT LOG CLEARED - This should only happen in development!')
+    
+    await super.clear()
+  }
 }

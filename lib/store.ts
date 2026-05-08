@@ -57,6 +57,18 @@ export interface SeedAuditEntry {
   user: string
   action: string
   reference: string
+  // Campos opcionais para logs detalhados (versão híbrida)
+  entityType?: string
+  entityId?: string | number
+  operation?: "create" | "update" | "delete" | "action"
+  metadata?: {
+    before?: Record<string, any>
+    after?: Record<string, any>
+    ip?: string
+    userAgent?: string
+    duration?: number
+    [key: string]: any
+  }
 }
 
 export interface SeedCashClose {
@@ -230,6 +242,18 @@ export interface AuditEntry {
   user: string
   action: string
   reference: string
+  // Campos opcionais para logs detalhados (versão híbrida)
+  entityType?: string        // Tipo da entidade: "Room", "Reservation", "Transaction", etc.
+  entityId?: string | number // ID da entidade afetada
+  operation?: "create" | "update" | "delete" | "action" // Tipo de operação
+  metadata?: {
+    before?: Record<string, any>  // Estado anterior (para updates/deletes)
+    after?: Record<string, any>   // Estado posterior (para creates/updates)
+    ip?: string                   // IP do usuário (se disponível)
+    userAgent?: string            // User agent (se disponível)
+    duration?: number             // Duração da operação em ms
+    [key: string]: any            // Campos customizados adicionais
+  }
 }
 
 export interface CashClose {
