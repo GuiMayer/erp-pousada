@@ -27,6 +27,10 @@ import {
   exportDailySummaryToCSV, 
   exportTopProductsToCSV,
   exportSalesByCategoryToCSV,
+  exportPaymentMethodToCSV,
+  exportRevenueTrendToCSV,
+  exportStockAlertsToCSV,
+  exportCompleteReport,
 } from "@/lib/utils/csv-export"
 import { getTodayISO } from "@/lib/utils/constants"
 
@@ -109,6 +113,31 @@ export function ReportsTab() {
     exportSalesByCategoryToCSV(salesByCategory, dateLabel)
   }
 
+  const handleExportPaymentMethod = () => {
+    const dateLabel = isMultiDay ? `${startDate}_${endDate}` : startDate
+    exportPaymentMethodToCSV(salesByPaymentMethod, dateLabel)
+  }
+
+  const handleExportRevenueTrend = () => {
+    const dateLabel = `${startDate}_${endDate}`
+    exportRevenueTrendToCSV(revenueTrend, dateLabel)
+  }
+
+  const handleExportStockAlerts = () => {
+    exportStockAlertsToCSV(stockAlerts)
+  }
+
+  const handleExportCompleteReport = () => {
+    const dateLabel = isMultiDay ? `${startDate}_${endDate}` : startDate
+    exportCompleteReport(
+      dailySummary,
+      salesByCategory,
+      salesByPaymentMethod,
+      topProducts,
+      dateLabel
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with period selector */}
@@ -120,10 +149,16 @@ export function ReportsTab() {
               Análise de vendas, estoque e desempenho
             </p>
           </div>
-          <Button variant="outline" onClick={handleExportDailySummary}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExportCompleteReport}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar Completo
+            </Button>
+            <Button variant="outline" onClick={handleExportDailySummary}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar Resumo
+            </Button>
+          </div>
         </div>
         
         <PeriodSelector
@@ -186,7 +221,15 @@ export function ReportsTab() {
 
           {/* Revenue Trend (only for multi-day periods) */}
           {isMultiDay && revenueTrend.length > 0 && (
-            <RevenueTrendChart data={revenueTrend} />
+            <div className="space-y-2">
+              <RevenueTrendChart data={revenueTrend} />
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={handleExportRevenueTrend}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar Tendência
+                </Button>
+              </div>
+            </div>
           )}
 
           {/* Charts Row 1 */}
@@ -230,7 +273,11 @@ export function ReportsTab() {
             <HourlySalesChart data={hourlySales} />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleExportPaymentMethod}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar Formas de Pagamento
+            </Button>
             <Button variant="outline" onClick={handleExportSalesByCategory}>
               <Download className="h-4 w-4 mr-2" />
               Exportar Vendas por Categoria
@@ -276,6 +323,13 @@ export function ReportsTab() {
           </div>
 
           <StockAlertsCard data={stockAlerts} />
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={handleExportStockAlerts}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar Alertas de Estoque
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
