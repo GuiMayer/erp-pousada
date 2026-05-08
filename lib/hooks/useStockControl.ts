@@ -149,7 +149,7 @@ export function useStockControl() {
       console.error(`Stock movement failed: ${errorMessage}`, error)
       return { success: false, error: errorMessage }
     }
-  }, [posProducts, stockItems, addStockMovement, updateStockItem, getStockByProduct, validateMovement])
+  }, [posProducts, stockItems, addStockMovement, updateStockItem, getStockByProduct])
 
   // Get movements by product
   const getMovementsByProduct = useCallback((productId: string) => {
