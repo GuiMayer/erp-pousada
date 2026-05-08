@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Shield, Save, RotateCcw, Building2, Clock, Percent, Phone } from "lucide-react"
+import { Shield, Save, RotateCcw, Building2, Clock, Percent, Phone, Bell } from "lucide-react"
 import { toast } from "sonner"
 import type { SystemSettings } from "@/lib/store"
 import { initialSystemSettings } from "@/lib/store"
@@ -379,6 +380,76 @@ export function AdminTab() {
             <p className="text-sm text-muted-foreground">
               Desconto máximo permitido sem aprovação de supervisor
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Configurações de Notificações */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="size-4" />
+            Notificações
+          </CardTitle>
+          <CardDescription>
+            Configure alertas e lembretes automáticos
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="notifyCheckInReminder">Lembrete de Check-in</Label>
+              <p className="text-sm text-muted-foreground">
+                Notificar sobre check-ins programados para hoje
+              </p>
+            </div>
+            <Switch
+              id="notifyCheckInReminder"
+              checked={formData.notifyCheckInReminder ?? true}
+              onCheckedChange={(checked) => handleFieldChange("notifyCheckInReminder", checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="notifyCheckOutReminder">Lembrete de Check-out</Label>
+              <p className="text-sm text-muted-foreground">
+                Notificar sobre check-outs programados para hoje
+              </p>
+            </div>
+            <Switch
+              id="notifyCheckOutReminder"
+              checked={formData.notifyCheckOutReminder ?? true}
+              onCheckedChange={(checked) => handleFieldChange("notifyCheckOutReminder", checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="notifyLowStock">Estoque Baixo</Label>
+              <p className="text-sm text-muted-foreground">
+                Alertar quando produtos estiverem com estoque baixo
+              </p>
+            </div>
+            <Switch
+              id="notifyLowStock"
+              checked={formData.notifyLowStock ?? true}
+              onCheckedChange={(checked) => handleFieldChange("notifyLowStock", checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="notifyPendingPayments">Pagamentos Pendentes</Label>
+              <p className="text-sm text-muted-foreground">
+                Notificar sobre reservas com pagamentos pendentes
+              </p>
+            </div>
+            <Switch
+              id="notifyPendingPayments"
+              checked={formData.notifyPendingPayments ?? true}
+              onCheckedChange={(checked) => handleFieldChange("notifyPendingPayments", checked)}
+            />
           </div>
         </CardContent>
       </Card>

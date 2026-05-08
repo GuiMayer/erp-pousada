@@ -457,6 +457,10 @@ export interface SystemSettings {
   contactPhone?: string
   contactEmail?: string
   address?: string
+  notifyCheckInReminder?: boolean
+  notifyCheckOutReminder?: boolean
+  notifyLowStock?: boolean
+  notifyPendingPayments?: boolean
 }
 
 export interface EmployeeConsumptionItem {
@@ -743,6 +747,10 @@ export const initialSystemSettings: SystemSettings = {
   contactPhone: "(11) 98765-4321",
   contactEmail: "contato@pousadasolemar.com.br",
   address: "Rua das Praias, 123 - Praia Grande, SP",
+  notifyCheckInReminder: true,
+  notifyCheckOutReminder: true,
+  notifyLowStock: true,
+  notifyPendingPayments: true,
 }
 
 // ─── Restaurant Config Constants ───────────────────────────────────────
