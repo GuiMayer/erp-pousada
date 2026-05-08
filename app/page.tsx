@@ -7,6 +7,7 @@ import { NotificationProvider } from "@/lib/notification-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LoginScreen } from "@/components/login-screen"
 import { DashboardShell } from "@/components/dashboard-shell"
+import { DynamicTitle } from "@/components/dynamic-title"
 import { Toaster } from "@/components/ui/toaster"
 
 function AppContent() {
@@ -17,12 +18,11 @@ function AppContent() {
   return (
     <NotificationProvider>
       <AlertProvider>
-        <AppProvider>
-          <main className="min-h-screen bg-background">
-            <DashboardShell />
-          </main>
-          <Toaster />
-        </AppProvider>
+        <DynamicTitle />
+        <main className="min-h-screen bg-background">
+          <DashboardShell />
+        </main>
+        <Toaster />
       </AlertProvider>
     </NotificationProvider>
   )
@@ -32,7 +32,9 @@ export default function Page() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
-        <AppContent />
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
       </AuthProvider>
     </ThemeProvider>
   )

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { useApp } from "@/lib/app-context"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,7 @@ import { BedDouble, LogIn } from "lucide-react"
 
 export function LoginScreen() {
   const { login } = useAuth()
+  const { systemSettings } = useApp()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -28,7 +30,7 @@ export function LoginScreen() {
           <div className="flex size-14 items-center justify-center rounded-2xl bg-primary">
             <BedDouble className="size-7 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">Pousada Sol & Mar</h1>
+          <h1 className="text-xl font-bold text-foreground">{systemSettings.pousadaName}</h1>
           <p className="text-sm text-muted-foreground">Acesse o painel de gerenciamento</p>
         </CardHeader>
         <CardContent className="pt-4">

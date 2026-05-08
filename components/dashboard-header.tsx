@@ -3,6 +3,7 @@
 import { BedDouble, CheckCircle2, Users, SprayCan, Lock, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
+import { useApp } from "@/lib/app-context"
 import { AlertBadge } from "@/components/alert-badge"
 import { NotificationCenter } from "@/components/notification-center"
 import type { Room, RoomStatus } from "@/lib/store"
@@ -29,6 +30,7 @@ function countStatuses(rooms: Room[]): StatusCount {
 export function DashboardHeader({ rooms }: { rooms: Room[] }) {
   const counts = countStatuses(rooms)
   const { username, role, logout } = useAuth()
+  const { systemSettings } = useApp()
   const today = new Date()
   const formatted = today.toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -46,7 +48,7 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
               <BedDouble className="size-5 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Pousada Sol & Mar
+              {systemSettings.pousadaName}
             </h1>
           </div>
           <p className="mt-1.5 text-sm capitalize text-muted-foreground">
