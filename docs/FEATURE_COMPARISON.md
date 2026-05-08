@@ -132,16 +132,16 @@ Este documento compara as funcionalidades implementadas no sistema atual (focado
 
 | Requisito | Status | Notas |
 |-----------|--------|-------|
-| Relatório Diário completo | ❌ | Dados existem mas UI não implementada |
-| Relatório Mensal completo | ❌ | Dados existem mas UI não implementada |
-| Filtros por período | ❌ | Não há interface |
-| Filtros por categoria | ❌ | Não há interface |
-| Exportação PDF/Excel | ❌ | Não implementado |
-| Gráficos visuais | ❌ | Não há biblioteca |
+| Relatório Diário completo | ✅ | Dashboard com métricas diárias |
+| Relatório Mensal completo | ⚠️ | Dados existem mas filtro mensal não implementado |
+| Filtros por período | ⚠️ | Filtro diário implementado |
+| Filtros por categoria | ✅ | Gráfico por categoria |
+| Exportação PDF/Excel | ⚠️ | Exportação CSV implementada |
+| Gráficos visuais | ✅ | 4 gráficos interativos (Recharts) |
 | Impressão direta | ❌ | Não implementado |
 | Envio por email | ❌ | Não implementado |
 
-**Score: 0/8 completo, 0/8 parcial, 8/8 não implementado**
+**Score: 3/8 completo, 4/8 parcial, 1/8 não implementado**
 
 ---
 
@@ -178,20 +178,20 @@ Este documento compara as funcionalidades implementadas no sistema atual (focado
 | Cadastro com unidade de medida | ✅ | StockItem completo |
 | Registro de entrada | ✅ | StockMovement tipo 'entrada' |
 | Registro de saída | ✅ | StockMovement tipo 'saida' |
-| Baixa automática em vendas | ⚠️ | Estrutura existe mas não automático |
-| Estoque mínimo com alertas | ⚠️ | minimumStock existe mas sem alertas |
+| Baixa automática em vendas | ✅ | useStockIntegration com rollback |
+| Estoque mínimo com alertas | ✅ | Sistema de alertas em tempo real |
 | Controle de validade | ✅ | expirationDate em StockMovement |
 | Inventário com ajustes | ✅ | StockMovement tipo 'ajuste' |
-| Relatório de movimentação | ⚠️ | Dados existem mas UI não implementada |
+| Relatório de movimentação | ✅ | Dashboard de relatórios completo |
 | Relatório próximo vencimento | ❌ | Não há relatório |
 | Custo médio ponderado (CMV) | ✅ | averageCost em StockItem |
-| RN-EST-001: Estoque não negativo | ⚠️ | Não há validação |
-| RN-EST-002: Alerta estoque mínimo | ❌ | Não há alertas |
+| RN-EST-001: Estoque não negativo | ✅ | Validação no carrinho PDV |
+| RN-EST-002: Alerta estoque mínimo | ✅ | Alertas crítico/baixo configuráveis |
 | RN-EST-003: Bloquear vencidos | ❌ | Não há validação |
 | RN-EST-004: Ajuste com justificativa | ✅ | Campo reason obrigatório |
 | RN-EST-005: Entrada com nota fiscal | ⚠️ | Campo existe mas não obrigatório |
 
-**Score: 6/15 completo, 6/15 parcial, 3/15 não implementado**
+**Score: 11/15 completo, 1/15 parcial, 3/15 não implementado**
 
 ---
 
@@ -202,19 +202,19 @@ Este documento compara as funcionalidades implementadas no sistema atual (focado
 | Cadastro de receitas | ✅ | Recipe completo |
 | Cálculo automático de custo | ✅ | Soma de ingredientes |
 | Registro de produção | ✅ | Production repository |
-| Baixa automática de ingredientes | ⚠️ | Estrutura existe mas não automático |
+| Baixa automática de ingredientes | ✅ | useStockIntegration com rollback |
 | Controle de rendimento | ✅ | yield calculado |
 | Ficha técnica | ✅ | Recipe com ingredients |
 | Cálculo de margem | ⚠️ | Dados existem mas não calculado |
-| Relatório de produção | ⚠️ | Dados existem mas UI não implementada |
+| Relatório de produção | ✅ | Dashboard de relatórios completo |
 | Análise de desperdício | ❌ | Não implementado |
-| RN-PRO-001: Baixa automática | ⚠️ | Não automático |
+| RN-PRO-001: Baixa automática | ✅ | Implementado com rollback |
 | RN-PRO-002: Alerta rendimento <90% | ❌ | Não há alertas |
 | RN-PRO-003: Atualizar custo | ⚠️ | Não automático |
 | RN-PRO-004: Margem mínima 60% | ❌ | Não há validação |
 | RN-PRO-005: Versão de receita | ✅ | Campo version em Recipe |
 
-**Score: 6/14 completo, 5/14 parcial, 3/14 não implementado**
+**Score: 9/14 completo, 2/14 parcial, 3/14 não implementado**
 
 ---
 
@@ -340,10 +340,10 @@ Todas as integrações listadas (máquina de cartão, NF-e, delivery, ERP) estã
 | PDV - Comandas | 5 | 3 | 4 | 42% |
 | Caixa - Fechamento | 7 | 3 | 3 | 54% |
 | Caixa - Pagamentos | 3 | 2 | 7 | 25% |
-| Caixa - Relatórios | 0 | 0 | 8 | 0% |
+| Caixa - Relatórios | 3 | 4 | 1 | 38% |
 | Consumo Funcionários | 5 | 6 | 2 | 38% |
-| Estoque | 6 | 6 | 3 | 40% |
-| Produção | 6 | 5 | 3 | 43% |
+| Estoque | 11 | 1 | 3 | 73% |
+| Produção | 9 | 2 | 3 | 64% |
 | B2B Empresas | 0 | 0 | 8 | 0% |
 | RNF - Performance | 1 | 2 | 1 | 25% |
 | RNF - Usabilidade | 2 | 1 | 2 | 40% |
@@ -355,11 +355,11 @@ Todas as integrações listadas (máquina de cartão, NF-e, delivery, ERP) estã
 
 ### Total Geral
 
-- ✅ **Completo**: 53 requisitos (36%)
-- ⚠️ **Parcial**: 36 requisitos (24%)
-- ❌ **Não Implementado**: 59 requisitos (40%)
+- ✅ **Completo**: 64 requisitos (43%)
+- ⚠️ **Parcial**: 32 requisitos (22%)
+- ❌ **Não Implementado**: 52 requisitos (35%)
 
-**Score Total: ~36% completo, ~60% com implementação parcial**
+**Score Total: ~43% completo, ~65% com implementação parcial**
 
 ---
 
@@ -367,27 +367,27 @@ Todas as integrações listadas (máquina de cartão, NF-e, delivery, ERP) estã
 
 ### Críticos (Bloqueadores para Restaurante)
 
-1. ❌ **Relatórios Diários/Mensais** - Essencial para gestão
-2. ❌ **Categorias Específicas de Restaurante** - almoço, jantar, marmita, bebidas, café
-3. ❌ **Gestão B2B** - Vendas para empresas
-4. ❌ **Modo Escuro** - Redução de fadiga visual
-5. ❌ **Atalhos de Teclado** - Velocidade em horário de pico
+1. ❌ **Categorias Específicas de Restaurante** - almoço, jantar, marmita, bebidas, café
+2. ❌ **Gestão B2B** - Vendas para empresas
+3. ❌ **Modo Escuro** - Redução de fadiga visual
+4. ❌ **Atalhos de Teclado** - Velocidade em horário de pico
+5. ❌ **Pagamento Misto** - Apenas um método por venda
 
 ### Importantes (Impactam Operação)
 
-6. ⚠️ **Baixa Automática de Estoque** - Existe estrutura mas não automático
-7. ⚠️ **Alertas de Estoque Mínimo** - Dados existem mas sem alertas
-8. ⚠️ **Validações de Regras de Negócio** - Muitas RNs não validadas
-9. ❌ **Pagamento Misto** - Apenas um método por venda
-10. ❌ **Impressão de Comprovantes** - Não há integração
+6. ❌ **Impressão de Comprovantes** - Não há integração
+7. ⚠️ **Validações de Regras de Negócio** - Muitas RNs não validadas
+8. ❌ **Dividir Conta** - Não implementado
+9. ❌ **Transferência entre Comandas** - Não implementado
+10. ⚠️ **Relatórios Mensais** - Filtro mensal não implementado
 
 ### Desejáveis (Melhorias)
 
 11. ❌ **Testes Automatizados** - Não há cobertura de testes
 12. ❌ **Backup Automático** - Não implementado
-13. ❌ **Dividir Conta** - Não implementado
-14. ❌ **Transferência entre Comandas** - Não implementado
-15. ❌ **Análise de Desperdício** - Não implementado
+13. ❌ **Análise de Desperdício** - Não implementado
+14. ❌ **Bloquear Produtos Vencidos** - Não há validação
+15. ❌ **Integração Máquina de Cartão** - Futuro
 
 ---
 
@@ -395,19 +395,19 @@ Todas as integrações listadas (máquina de cartão, NF-e, delivery, ERP) estã
 
 ### Se o objetivo é adaptar para RESTAURANTE
 
-#### Fase 1 - Essenciais (2-3 semanas)
+#### Fase 1 - Essenciais (1-2 semanas)
 
 1. Implementar categorias específicas (almoço, jantar, marmita, bebidas, café)
-2. Criar módulo de relatórios diários/mensais
-3. Adicionar atalhos de teclado para produtos mais vendidos
-4. Implementar alertas automáticos (estoque, caixa, comandas)
+2. Adicionar atalhos de teclado para produtos mais vendidos
+3. Implementar filtros mensais nos relatórios
+4. Adicionar impressão de comprovantes
 
-#### Fase 2 - Operacionais (2-3 semanas)
+#### Fase 2 - Operacionais (1-2 semanas)
 
-5. Baixa automática de estoque em vendas
-6. Pagamento misto (múltiplas formas)
-7. Impressão de comprovantes
-8. Validações de regras de negócio
+5. Pagamento misto (múltiplas formas)
+6. Dividir conta entre clientes
+7. Transferência entre comandas
+8. Validações de regras de negócio restantes
 
 #### Fase 3 - B2B (2 semanas)
 
@@ -422,12 +422,12 @@ Todas as integrações listadas (máquina de cartão, NF-e, delivery, ERP) estã
 
 ### Se o objetivo é manter POUSADA + Restaurante
 
-O sistema atual já está **bem estruturado** para uma pousada com restaurante integrado. Os gaps são principalmente:
+O sistema atual já está **bem estruturado** para uma pousada com restaurante integrado. Com as implementações recentes, os principais gaps restantes são:
 
-- Relatórios gerenciais
-- Automações (baixa de estoque, alertas)
-- Validações de regras de negócio
 - Funcionalidades B2B
+- Pagamento misto
+- Impressão de comprovantes
+- Algumas validações de regras de negócio específicas
 
 ---
 
@@ -441,18 +441,63 @@ O sistema atual já está **bem estruturado** para uma pousada com restaurante i
 6. ✅ **Preparado para Backend** - Arquitetura permite migração fácil
 7. ✅ **UI Moderna** - shadcn/ui + Tailwind CSS
 8. ✅ **Gestão de Funcionários** - Completa com consumo e limites
+9. ✅ **Sistema de Alertas de Estoque** - Monitoramento automático em tempo real
+10. ✅ **Baixa Automática de Estoque** - Integração com PDV e produção com rollback
+11. ✅ **Dashboard de Relatórios** - Métricas, gráficos e exportação CSV
+12. ✅ **Validação de Estoque no PDV** - Prevenção de vendas sem estoque
+
+---
+
+## MELHORIAS RECENTES IMPLEMENTADAS (Maio 2026)
+
+### Sistema de Alertas de Estoque
+- Monitoramento automático de níveis críticos e baixos
+- Notificações toast em tempo real
+- Configuração de thresholds personalizados por item
+- Interface de gerenciamento de alertas
+
+### Integração Automática de Baixa de Estoque
+- Baixa automática em vendas PDV
+- Baixa automática em produção de receitas
+- Sistema de rollback em caso de erro
+- Auditoria completa de movimentações
+- Validação de estoque disponível antes de vender
+
+### Dashboard de Relatórios e Analytics
+- Métricas diárias com comparação ao dia anterior
+- 4 gráficos interativos (Recharts):
+  - Vendas por categoria
+  - Vendas por forma de pagamento
+  - Vendas por horário
+  - Top 10 produtos mais vendidos
+- Exportação de relatórios em CSV
+- Tabela de produtos mais vendidos
+
+### Validação e Feedback Visual no PDV
+- Validação de estoque ao adicionar produtos no carrinho
+- Bloqueio de vendas quando estoque esgotado
+- Indicador visual de estoque disponível em cada item
+- Alertas quando estoque insuficiente
+- Notificação ao adicionar último item disponível
+
+### Configuração de Thresholds
+- Interface para configurar estoque mínimo por item
+- Visualização de status (crítico/baixo/ok)
+- Preview dos níveis de alerta ao editar
+- Ordenação por criticidade
+- Auditoria de alterações
 
 ---
 
 ## CONCLUSÃO
 
-O sistema atual é uma **base sólida** que cobre ~60% dos requisitos de um restaurante (considerando implementações parciais). Os principais gaps são:
+O sistema atual é uma **base sólida** que cobre ~65% dos requisitos de um restaurante (considerando implementações parciais). Com as implementações recentes de alertas, baixa automática e relatórios, os principais gaps restantes são:
 
-- **Relatórios e Analytics** (0% implementado)
 - **Gestão B2B** (0% implementado)
-- **Automações e Alertas** (estrutura existe mas não ativo)
-- **Validações de Regras de Negócio** (muitas não aplicadas)
+- **Pagamento Misto** (apenas um método por venda)
+- **Impressão de Comprovantes** (não há integração)
+- **Algumas Validações de Regras de Negócio** (muitas já implementadas)
 
-Para transformar em um sistema de restaurante completo, estima-se **6-8 semanas** de desenvolvimento focado nos gaps críticos e importantes.
+Para transformar em um sistema de restaurante completo, estima-se **4-6 semanas** de desenvolvimento focado nos gaps críticos e importantes.
 
-Para manter como sistema de pousada com restaurante integrado, o sistema já está **funcional e pronto para produção**, necessitando apenas melhorias incrementais em relatórios e automações.
+Para manter como sistema de pousada com restaurante integrado, o sistema já está **funcional e pronto para produção**, com controle robusto de estoque, alertas automáticos, relatórios gerenciais e integração completa entre módulos.

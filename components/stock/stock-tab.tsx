@@ -23,6 +23,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state"
 import { StockMovementModal } from "./stock-movement-modal"
 import { ProductsManagementTab } from "./products-management-tab"
+import { StockThresholdConfig } from "./stock-threshold-config"
 import { useStockControl } from "@/lib/hooks/useStockControl"
 import type { StockItem } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -87,6 +88,7 @@ export function StockTab() {
         <TabsList>
           <TabsTrigger value="products">Produtos</TabsTrigger>
           <TabsTrigger value="movements">Movimentações</TabsTrigger>
+          <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
         {/* Products Tab */}
@@ -185,6 +187,11 @@ export function StockTab() {
           </Table>
         </div>
       )}
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          <StockThresholdConfig />
         </TabsContent>
       </Tabs>
 

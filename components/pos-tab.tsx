@@ -152,6 +152,40 @@ export function POSTab() {
   }
 
   function addToCart(product: POSProduct) {
+    // Check stock availability before adding
+    const stockItem = stockItems.find(s => s.productId === product.id)
+    const currentInCart = cart.find(item => item.product.id === product.id)?.quantity || 0
+    const newQuantity = currentInCart + 1
+
+    if (stockItem) {
+      if (stockItem.currentStock <= 0) {
+        toast({
+          title: "Estoque Esgotado",
+          description: `${product.name} está sem estoque disponível`,
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (newQuantity > stockItem.currentStock) {
+        toast({
+          title: "Estoque Insuficiente",
+          description: `${product.name}: apenas ${stockItem.currentStock} ${stockItem.unit} disponível(is)`,
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Warning when approaching stock limit
+      if (newQuantity === stockItem.currentStock) {
+        toast({
+          title: "Último Item",
+          description: `Você está adicionando o último ${product.name} disponível em estoque`,
+          variant: "default",
+        })
+      }
+    }
+
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id)
       if (existing) {
@@ -171,15 +205,32 @@ export function POSTab() {
   }
 
   function updateQuantity(itemId: string, delta: number) {
-    setCart(prev =>
-      prev.map(item => {
-        if (item.id === itemId) {
-          const newQty = Math.max(0, item.quantity + delta)
-          return { ...item, quantity: newQty }
+    setCart(prev => {
+      const item = prev.find(i => i.id === itemId)
+      if (!item) return prev
+
+      const newQty = Math.max(0, item.quantity + delta)
+
+      // If increasing quantity, check stock availability
+      if (delta > 0) {
+        const stockItem = stockItems.find(s => s.productId === item.product.id)
+        if (stockItem && newQty > stockItem.currentStock) {
+          toast({
+            title: "Estoque Insuficiente",
+            description: `${item.product.name}: apenas ${stockItem.currentStock} ${stockItem.unit} disponível(is)`,
+            variant: "destructive",
+          })
+          return prev
         }
-        return item
-      }).filter(item => item.quantity > 0)
-    )
+      }
+
+      return prev.map(i => {
+        if (i.id === itemId) {
+          return { ...i, quantity: newQty }
+        }
+        return i
+      }).filter(i => i.quantity > 0)
+    })
   }
 
   function removeFromCart(itemId: string) {
@@ -537,26 +588,47 @@ export function POSTab() {
                 <span className="text-sm">Carrinho vazio</span>
               </div>
             ) : (
-              cart.map(item => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 animate-fade-in"
-                >
-                  <div className="flex flex-1 flex-col gap-0.5 min-w-0">
-                    <span className="text-sm font-medium text-foreground truncate">
-                      {item.product.name}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {formatCurrency(item.product.price)} x {item.quantity}
+              cart.map(item => {
+                const stockItem = stockItems.find(s => s.productId === item.product.id)
+                const availableStock = stockItem?.currentStock || 0
+                const stockStatus = !stockItem ? 'unknown' :
+                  availableStock <= 0 ? 'critical' :
+                  item.quantity >= availableStock ? 'warning' :
+                  availableStock <= (stockItem.minimumStock * 1.5) ? 'low' : 'ok'
+
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 animate-fade-in"
+                  >
+                    <div className="flex flex-1 flex-col gap-0.5 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {item.product.name}
                       </span>
-                      {item.discount > 0 && (
-                        <Badge variant="secondary" className="h-4 px-1 text-[10px] text-success">
-                          -{item.discount}%
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {formatCurrency(item.product.price)} x {item.quantity}
+                        </span>
+                        {item.discount > 0 && (
+                          <Badge variant="secondary" className="h-4 px-1 text-[10px] text-success">
+                            -{item.discount}%
+                          </Badge>
+                        )}
+                        {stockItem && (
+                          <div className="flex items-center gap-1">
+                            <Package className="size-3 text-muted-foreground" />
+                            <span className={`text-[10px] font-medium ${
+                              stockStatus === 'critical' ? 'text-destructive' :
+                              stockStatus === 'warning' ? 'text-warning' :
+                              stockStatus === 'low' ? 'text-warning' :
+                              'text-muted-foreground'
+                            }`}>
+                              {availableStock} {stockItem.unit}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
                   <div className="flex items-center gap-1">
                     <Button
@@ -580,31 +652,54 @@ export function POSTab() {
                     </Button>
                   </div>
 
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-sm font-semibold tabular-nums text-foreground">
-                      {formatCurrency(calculateItemTotal(item.product.price, item.quantity, item.discount))}
-                    </span>
-                    <div className="flex gap-0.5">
+                    <div className="flex items-center gap-1">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="size-6 text-muted-foreground hover:text-primary"
-                        onClick={() => openItemDiscount(item)}
+                        className="size-7"
+                        onClick={() => updateQuantity(item.id, -1)}
                       >
-                        <Percent className="size-3" />
+                        <Minus className="size-3" />
                       </Button>
+                      <span className="w-6 text-center text-sm font-medium tabular-nums">
+                        {item.quantity}
+                      </span>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="size-6 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeFromCart(item.id)}
+                        className="size-7"
+                        onClick={() => updateQuantity(item.id, 1)}
                       >
-                        <Trash2 className="size-3" />
+                        <Plus className="size-3" />
                       </Button>
                     </div>
+
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-sm font-semibold tabular-nums text-foreground">
+                        {formatCurrency(calculateItemTotal(item.product.price, item.quantity, item.discount))}
+                      </span>
+                      <div className="flex gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 text-muted-foreground hover:text-primary"
+                          onClick={() => openItemDiscount(item)}
+                        >
+                          <Percent className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </CardContent>
 

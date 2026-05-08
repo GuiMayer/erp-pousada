@@ -1,0 +1,286 @@
+"use client"
+
+import { useState } from "react"
+import { useApp } from "@/lib/app-context"
+import { useToast } from "@/hooks/use-toast"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { AlertTriangle, Package, Save, Settings } from "lucide-react"
+import type { StockItem } from "@/lib/store"
+
+export function StockThresholdConfig() {
+  const { stockItems, updateStockItem, addAuditEntry } = useApp()
+  const { toast } = useToast()
+  const [editingItem, setEditingItem] = useState<StockItem | null>(null)
+  const [minimumStock, setMinimumStock] = useState("")
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  function openEditDialog(item: StockItem) {
+    setEditingItem(item)
+    setMinimumStock(String(item.minimumStock))
+    setDialogOpen(true)
+  }
+
+  function closeDialog() {
+    setEditingItem(null)
+    setMinimumStock("")
+    setDialogOpen(false)
+  }
+
+  function handleSave() {
+    if (!editingItem) return
+
+    const newMinimum = Number(minimumStock)
+    if (isNaN(newMinimum) || newMinimum < 0) {
+      toast({
+        title: "Valor Inválido",
+        description: "O estoque mínimo deve ser um número positivo",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const oldMinimum = editingItem.minimumStock
+
+    updateStockItem(editingItem.id, {
+      minimumStock: newMinimum,
+    })
+
+    addAuditEntry({
+      action: "atualizar_threshold",
+      entity: "estoque",
+      entityId: editingItem.id,
+      details: `Estoque mínimo alterado de ${oldMinimum} para ${newMinimum} ${editingItem.unit}`,
+      metadata: {
+        itemName: editingItem.name,
+        oldMinimum,
+        newMinimum,
+        unit: editingItem.unit,
+      },
+    })
+
+    toast({
+      title: "Threshold Atualizado",
+      description: `Estoque mínimo de ${editingItem.name} atualizado para ${newMinimum} ${editingItem.unit}`,
+    })
+
+    closeDialog()
+  }
+
+  function getStockStatus(item: StockItem): "critical" | "low" | "ok" {
+    if (item.currentStock <= 0 || item.currentStock <= item.minimumStock) {
+      return "critical"
+    }
+    if (item.currentStock <= item.minimumStock * 1.5) {
+      return "low"
+    }
+    return "ok"
+  }
+
+  function getStatusBadge(status: "critical" | "low" | "ok") {
+    switch (status) {
+      case "critical":
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Crítico
+          </Badge>
+        )
+      case "low":
+        return (
+          <Badge variant="secondary" className="gap-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-500">
+            <AlertTriangle className="h-3 w-3" />
+            Baixo
+          </Badge>
+        )
+      case "ok":
+        return (
+          <Badge variant="secondary" className="gap-1 bg-green-500/10 text-green-600 dark:text-green-500">
+            OK
+          </Badge>
+        )
+    }
+  }
+
+  const sortedItems = [...stockItems].sort((a, b) => {
+    const statusOrder = { critical: 0, low: 1, ok: 2 }
+    const statusA = getStockStatus(a)
+    const statusB = getStockStatus(b)
+    
+    if (statusOrder[statusA] !== statusOrder[statusB]) {
+      return statusOrder[statusA] - statusOrder[statusB]
+    }
+    
+    return a.name.localeCompare(b.name)
+  })
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Configuração de Thresholds
+              </CardTitle>
+              <CardDescription>
+                Defina os níveis mínimos de estoque para cada item
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead className="text-right">Estoque Atual</TableHead>
+                  <TableHead className="text-right">Estoque Mínimo</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      Nenhum item de estoque cadastrado
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedItems.map(item => {
+                    const status = getStockStatus(item)
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            {item.name}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {item.category}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {item.currentStock} {item.unit}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {item.minimumStock} {item.unit}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {getStatusBadge(status)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(item)}
+                          >
+                            Editar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar Estoque Mínimo</DialogTitle>
+            <DialogDescription>
+              Defina o nível mínimo de estoque para {editingItem?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Item</Label>
+              <div className="text-sm font-medium">{editingItem?.name}</div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Estoque Atual</Label>
+              <div className="text-sm text-muted-foreground">
+                {editingItem?.currentStock} {editingItem?.unit}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="minimum-stock">
+                Estoque Mínimo ({editingItem?.unit})
+              </Label>
+              <Input
+                id="minimum-stock"
+                type="number"
+                min="0"
+                step="1"
+                value={minimumStock}
+                onChange={e => setMinimumStock(e.target.value)}
+                placeholder="Ex: 10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Você receberá alertas quando o estoque atingir este nível
+              </p>
+            </div>
+
+            {editingItem && Number(minimumStock) > 0 && (
+              <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+                <div className="text-sm font-medium">Níveis de Alerta:</div>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive" className="h-5">Crítico</Badge>
+                    <span>≤ {minimumStock} {editingItem.unit}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="h-5 bg-yellow-500/10 text-yellow-600">
+                      Baixo
+                    </Badge>
+                    <span>≤ {Math.ceil(Number(minimumStock) * 1.5)} {editingItem.unit}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>
+              <Save className="h-4 w-4 mr-2" />
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
