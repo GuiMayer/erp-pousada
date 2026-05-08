@@ -119,6 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   })
 
   // Local state for data (synced with repositories)
+  const [isInitialized, setIsInitialized] = useState(false)
   const [rooms, setRooms] = useState<Room[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [guests, setGuests] = useState<GuestProfile[]>([])
@@ -211,6 +212,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Initial data load and seed if empty
   useEffect(() => {
+    if (isInitialized) return // Guard: prevent re-initialization
+    
     const initializeData = async () => {
       // Check if we have any data in storage
       const roomCount = await dataStore.rooms.count()
@@ -250,17 +253,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       // Load all data into state
       await loadAllData()
+      
+      // Mark as initialized
+      setIsInitialized(true)
     }
 
     initializeData()
-  }, [dataStore, loadAllData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataStore])
 
   // Reload data when syncing from another tab
   useEffect(() => {
     if (isSyncing) {
       loadAllData()
     }
-  }, [isSyncing, loadAllData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSyncing])
 
   // Audit methods - MUST be defined before other callbacks that use it
   const addAuditEntry = useCallback(async (entry: Omit<AuditEntry, "id" | "date">) => {
