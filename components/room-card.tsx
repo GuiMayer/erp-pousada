@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -92,8 +92,11 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
     ? consumption.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
     : 0
 
-  // Calculate dynamic timeline based on selected date
-  const timeline = getRoomTimeline(room.id, selectedDate, 7)
+  // Calculate dynamic timeline based on selected date (memoized for performance)
+  const timeline = useMemo(
+    () => getRoomTimeline(room.id, selectedDate, 7),
+    [room.id, selectedDate, getRoomTimeline]
+  )
 
   function handleCheckOut() {
     updateRoom(room.id, {
