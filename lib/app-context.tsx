@@ -236,8 +236,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...initialRecipes.map(r => dataStore.recipes.create(r)),
           ...initialProductions.map(p => dataStore.productions.create(p)),
           ...initialEmployees.map(e => dataStore.employees.create(e)),
-          ...initialEmployeeConsumptions.map(c => dataStore.employeeConsumptions.create(c))
+          ...initialEmployeeConsumptions.map(c => dataStore.employeeConsumptions.create(c)),
+          dataStore.systemSettings.create(initialSystemSettings)
         ])
+      }
+      
+      // Ensure system settings exist (for existing installations)
+      const settingsCount = await dataStore.systemSettings.count()
+      if (settingsCount === 0) {
+        console.log('[AppContext] Initializing system settings...')
+        await dataStore.systemSettings.create(initialSystemSettings)
       }
       
       // Load all data into state
@@ -529,12 +537,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // System Settings methods
   const updateSystemSettings = useCallback(async (data: Partial<SystemSettings>) => {
-    if (systemSettings.id) {
-      await dataStore.systemSettings.update(systemSettings.id, data)
+    try {
+      // Check if settings exist in database
+      const existing = await dataStore.systemSettings.getAll()
+      
+      if (existing.length > 0) {
+        // Update existing settings
+        await dataStore.systemSettings.update(existing[0].id, data)
+      } else {
+        // Create new settings if they don't exist
+        await dataStore.systemSettings.create({ ...initialSystemSettings, ...data })
+      }
+      
+      // Reload settings
       const updated = await dataStore.systemSettings.getAll()
       setSystemSettings(updated[0] || initialSystemSettings)
+    } catch (error) {
+      console.error('[AppContext] Error updating system settings:', error)
+      throw error
     }
-  }, [dataStore, systemSettings])
+  }, [dataStore])
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
