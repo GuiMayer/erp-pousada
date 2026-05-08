@@ -174,3 +174,57 @@ export function validateCPF(cpf: string): { valid: boolean; error?: string } {
   
   return { valid: true }
 }
+
+/**
+ * Helper function that returns boolean for CPF validation
+ */
+export function isValidCPF(cpf: string): boolean {
+  return validateCPF(cpf).valid
+}
+
+/**
+ * Validates supervisor password
+ */
+export function validateSupervisorPassword(password: string): boolean {
+  const SUPERVISOR_PASSWORD = process.env.NEXT_PUBLIC_SUPERVISOR_PASSWORD || "admin"
+  return password === SUPERVISOR_PASSWORD
+}
+
+/**
+ * Validates discount value against ceiling
+ */
+export function validateDiscount(discountValue: number, discountCeiling: number): boolean {
+  return discountValue >= 0 && discountValue <= discountCeiling
+}
+
+/**
+ * Checks if discount requires supervisor approval
+ */
+export function requiresSupervisorApproval(discountValue: number, discountCeiling: number): boolean {
+  return discountValue > discountCeiling
+}
+
+/**
+ * Validates payment amount is sufficient
+ */
+export function validatePaymentAmount(amountPaid: number, total: number): boolean {
+  return amountPaid >= total
+}
+
+/**
+ * Validates ISO date string format
+ */
+export function validateISODate(dateString: string): boolean {
+  if (!dateString) return false
+  const date = new Date(dateString)
+  return !isNaN(date.getTime()) && dateString.includes('-')
+}
+
+/**
+ * Validates check-out date is after check-in date
+ */
+export function validateCheckInOutDates(checkIn: string, checkOut: string): boolean {
+  const checkInDate = new Date(checkIn)
+  const checkOutDate = new Date(checkOut)
+  return checkOutDate > checkInDate
+}
