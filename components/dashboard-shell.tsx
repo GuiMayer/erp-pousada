@@ -12,6 +12,7 @@ import { POSTab } from "./pos-tab"
 import { RestaurantTab } from "./restaurant/restaurant-tab"
 import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
+import { SettingsTab } from "./settings-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
 
@@ -88,7 +89,7 @@ export function DashboardShell() {
         </TabsContent>
         {isSupervisor && (
           <TabsContent value="configuracoes">
-            <div className="text-muted-foreground">Configurações em desenvolvimento...</div>
+            <SettingsTab />
           </TabsContent>
         )}
         <TabsContent value="auditoria">
