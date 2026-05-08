@@ -244,6 +244,62 @@ export function AdminTab() {
         </CardContent>
       </Card>
 
+      {/* Informações de Contato */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="size-4" />
+            Informações de Contato
+          </CardTitle>
+          <CardDescription>
+            Dados de contato da pousada para comunicação com hóspedes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="contactPhone">
+              Telefone
+            </Label>
+            <Input
+              id="contactPhone"
+              value={formData.contactPhone || ""}
+              onChange={(e) => handleFieldChange("contactPhone", e.target.value)}
+              placeholder="Ex: (11) 98765-4321"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="contactEmail">
+              E-mail
+            </Label>
+            <Input
+              id="contactEmail"
+              type="email"
+              value={formData.contactEmail || ""}
+              onChange={(e) => handleFieldChange("contactEmail", e.target.value)}
+              placeholder="Ex: contato@pousada.com.br"
+              className={errors.contactEmail ? "border-destructive" : ""}
+            />
+            {errors.contactEmail && (
+              <p className="text-sm text-destructive">{errors.contactEmail}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">
+              Endereço
+            </Label>
+            <Textarea
+              id="address"
+              value={formData.address || ""}
+              onChange={(e) => handleFieldChange("address", e.target.value)}
+              placeholder="Ex: Rua das Praias, 123 - Praia Grande, SP"
+              rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Horários de Check-in/Check-out */}
       <Card>
         <CardHeader>
@@ -323,57 +379,6 @@ export function AdminTab() {
             <p className="text-sm text-muted-foreground">
               Desconto máximo permitido sem aprovação de supervisor
             </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Dados de Contato */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Phone className="size-4" />
-            Dados de Contato
-          </CardTitle>
-          <CardDescription>
-            Informações de contato da pousada
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="contactPhone">Telefone</Label>
-            <Input
-              id="contactPhone"
-              type="tel"
-              value={formData.contactPhone || ""}
-              onChange={(e) => handleFieldChange("contactPhone", e.target.value)}
-              placeholder="(11) 98765-4321"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contactEmail">Email</Label>
-            <Input
-              id="contactEmail"
-              type="email"
-              value={formData.contactEmail || ""}
-              onChange={(e) => handleFieldChange("contactEmail", e.target.value)}
-              placeholder="contato@pousada.com.br"
-              className={errors.contactEmail ? "border-destructive" : ""}
-            />
-            {errors.contactEmail && (
-              <p className="text-sm text-destructive">{errors.contactEmail}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Endereço</Label>
-            <Textarea
-              id="address"
-              value={formData.address || ""}
-              onChange={(e) => handleFieldChange("address", e.target.value)}
-              placeholder="Rua das Praias, 123 - Praia Grande, SP"
-              rows={3}
-            />
           </div>
         </CardContent>
       </Card>
