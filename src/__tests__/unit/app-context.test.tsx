@@ -489,7 +489,7 @@ describe('AppContext', () => {
         expect(result.current.auditLog).toHaveLength(initialCount + 1)
       })
       
-      const latestEntry = result.current.auditLog[0]
+      const latestEntry = result.current.auditLog[result.current.auditLog.length - 1]
       expect(latestEntry.user).toBe('test-user')
       expect(latestEntry.action).toBe('test-action')
       expect(latestEntry.reference).toBe('test-reference')
