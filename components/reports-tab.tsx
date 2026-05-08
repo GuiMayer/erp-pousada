@@ -21,6 +21,7 @@ import { PaymentMethodChart } from "./reports/payment-method-chart"
 import { HourlySalesChart } from "./reports/hourly-sales-chart"
 import { TopProductsTable } from "./reports/top-products-table"
 import { StockAlertsCard } from "./reports/stock-alerts-card"
+import { PeriodSelector } from "./reports/period-selector"
 import { 
   exportDailySummaryToCSV, 
   exportTopProductsToCSV,
@@ -29,7 +30,9 @@ import {
 import { getTodayISO } from "@/lib/utils/constants"
 
 export function ReportsTab() {
-  const [selectedDate, setSelectedDate] = useState(getTodayISO())
+  const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today')
+  const [startDate, setStartDate] = useState(getTodayISO())
+  const [endDate, setEndDate] = useState(getTodayISO())
   
   const {
     getDailySummary,
@@ -38,54 +41,96 @@ export function ReportsTab() {
     getTopProducts,
     getHourlySales,
     getStockAlerts,
+    getPeriodSummary,
+    getPeriodSalesByCategory,
+    getPeriodSalesByPaymentMethod,
+    getPeriodTopProducts,
   } = useReports()
 
-  // Get data for selected date
-  const dailySummary = getDailySummary(selectedDate)
-  const salesByCategory = getSalesByCategory(selectedDate)
-  const salesByPaymentMethod = getSalesByPaymentMethod(selectedDate)
-  const topProducts = getTopProducts(selectedDate, 10)
-  const hourlySales = getHourlySales(selectedDate)
+  // Handle period changes
+  const handlePeriodChange = (period: 'today' | 'week' | 'month' | 'custom') => {
+    setSelectedPeriod(period)
+    const today = new Date()
+    
+    if (period === 'today') {
+      const todayStr = getTodayISO()
+      setStartDate(todayStr)
+      setEndDate(todayStr)
+    } else if (period === 'week') {
+      const weekAgo = new Date(today)
+      weekAgo.setDate(weekAgo.getDate() - 6)
+      setStartDate(weekAgo.toISOString().split('T')[0])
+      setEndDate(today.toISOString().split('T')[0])
+    } else if (period === 'month') {
+      const monthAgo = new Date(today)
+      monthAgo.setDate(monthAgo.getDate() - 29)
+      setStartDate(monthAgo.toISOString().split('T')[0])
+      setEndDate(today.toISOString().split('T')[0])
+    }
+  }
+
+  // Get data based on selected period
+  const isMultiDay = selectedPeriod !== 'today' || startDate !== endDate
+  
+  const dailySummary = isMultiDay 
+    ? getPeriodSummary(startDate, endDate)
+    : getDailySummary(startDate)
+  
+  const salesByCategory = isMultiDay
+    ? getPeriodSalesByCategory(startDate, endDate)
+    : getSalesByCategory(startDate)
+  
+  const salesByPaymentMethod = isMultiDay
+    ? getPeriodSalesByPaymentMethod(startDate, endDate)
+    : getSalesByPaymentMethod(startDate)
+  
+  const topProducts = isMultiDay
+    ? getPeriodTopProducts(startDate, endDate, 10)
+    : getTopProducts(startDate, 10)
+  
+  const hourlySales = getHourlySales(startDate)
   const stockAlerts = getStockAlerts()
 
   const handleExportDailySummary = () => {
-    exportDailySummaryToCSV(dailySummary, selectedDate)
+    const dateLabel = isMultiDay ? `${startDate}_${endDate}` : startDate
+    exportDailySummaryToCSV(dailySummary, dateLabel)
   }
 
   const handleExportTopProducts = () => {
-    exportTopProductsToCSV(topProducts, selectedDate)
+    const dateLabel = isMultiDay ? `${startDate}_${endDate}` : startDate
+    exportTopProductsToCSV(topProducts, dateLabel)
   }
 
   const handleExportSalesByCategory = () => {
-    exportSalesByCategoryToCSV(salesByCategory, selectedDate)
+    const dateLabel = isMultiDay ? `${startDate}_${endDate}` : startDate
+    exportSalesByCategoryToCSV(salesByCategory, dateLabel)
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with date selector */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Relatórios</h2>
-          <p className="text-muted-foreground">
-            Análise de vendas, estoque e desempenho
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="report-date">Data:</Label>
-            <Input
-              id="report-date"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-[180px]"
-            />
+      {/* Header with period selector */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Relatórios</h2>
+            <p className="text-muted-foreground">
+              Análise de vendas, estoque e desempenho
+            </p>
           </div>
           <Button variant="outline" onClick={handleExportDailySummary}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
           </Button>
         </div>
+        
+        <PeriodSelector
+          selectedPeriod={selectedPeriod}
+          startDate={startDate}
+          endDate={endDate}
+          onPeriodChange={handlePeriodChange}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+        />
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">

@@ -305,6 +305,204 @@ export function useReports() {
     }
   }, [cashCloses, transactions])
 
+  /**
+   * Get period summary for a date range
+   */
+  const getPeriodSummary = useCallback((startDate: string, endDate: string): DailySummary => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    // Filter sales for the date range
+    const periodSales = posSales.filter(s => {
+      const saleDate = new Date(s.date.split('T')[0])
+      return saleDate >= start && saleDate <= end && s.status === "concluida"
+    })
+
+    const totalRevenue = periodSales.reduce((sum, s) => sum + s.total, 0)
+    const transactionCount = periodSales.length
+    const averageTicket = transactionCount > 0 ? totalRevenue / transactionCount : 0
+
+    // Revenue by payment method
+    const cashRevenue = periodSales
+      .filter(s => s.paymentMethod === "Dinheiro")
+      .reduce((sum, s) => sum + s.total, 0)
+    
+    const debitRevenue = periodSales
+      .filter(s => s.paymentMethod === "Cartao Debito")
+      .reduce((sum, s) => sum + s.total, 0)
+    
+    const creditRevenue = periodSales
+      .filter(s => s.paymentMethod === "Cartao Credito")
+      .reduce((sum, s) => sum + s.total, 0)
+    
+    const pixRevenue = periodSales
+      .filter(s => s.paymentMethod === "PIX")
+      .reduce((sum, s) => sum + s.total, 0)
+
+    // Calculate previous period for comparison
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    const prevStart = new Date(start)
+    prevStart.setDate(prevStart.getDate() - daysDiff)
+    const prevEnd = new Date(end)
+    prevEnd.setDate(prevEnd.getDate() - daysDiff)
+    
+    const prevPeriodSales = posSales.filter(s => {
+      const saleDate = new Date(s.date.split('T')[0])
+      return saleDate >= prevStart && saleDate <= prevEnd && s.status === "concluida"
+    })
+    const previousPeriodRevenue = prevPeriodSales.reduce((sum, s) => sum + s.total, 0)
+    
+    const revenueChange = previousPeriodRevenue > 0
+      ? ((totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100
+      : 0
+
+    return {
+      date: `${startDate} - ${endDate}`,
+      totalSales: periodSales.length,
+      totalRevenue,
+      averageTicket,
+      transactionCount,
+      cashRevenue,
+      debitRevenue,
+      creditRevenue,
+      pixRevenue,
+      previousDayRevenue: previousPeriodRevenue,
+      revenueChange,
+    }
+  }, [posSales])
+
+  /**
+   * Get sales by category for a date range
+   */
+  const getPeriodSalesByCategory = useCallback((startDate: string, endDate: string): SalesByCategory[] => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    const periodSales = posSales.filter(s => {
+      const saleDate = new Date(s.date.split('T')[0])
+      return saleDate >= start && saleDate <= end && s.status === "concluida"
+    })
+
+    const categoryMap = new Map<string, { revenue: number; quantity: number }>()
+
+    periodSales.forEach(sale => {
+      sale.items.forEach(item => {
+        const category = item.product.category
+        const existing = categoryMap.get(category) || { revenue: 0, quantity: 0 }
+        
+        categoryMap.set(category, {
+          revenue: existing.revenue + (item.product.price * item.quantity),
+          quantity: existing.quantity + item.quantity,
+        })
+      })
+    })
+
+    const totalRevenue = Array.from(categoryMap.values())
+      .reduce((sum, cat) => sum + cat.revenue, 0)
+
+    return Array.from(categoryMap.entries())
+      .map(([category, data]) => ({
+        category,
+        revenue: data.revenue,
+        quantity: data.quantity,
+        percentage: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+  }, [posSales])
+
+  /**
+   * Get sales by payment method for a date range
+   */
+  const getPeriodSalesByPaymentMethod = useCallback((startDate: string, endDate: string): SalesByPaymentMethod[] => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    const periodSales = posSales.filter(s => {
+      const saleDate = new Date(s.date.split('T')[0])
+      return saleDate >= start && saleDate <= end && s.status === "concluida"
+    })
+
+    const methodMap = new Map<string, { revenue: number; count: number }>()
+
+    periodSales.forEach(sale => {
+      const method = sale.paymentMethod
+      const existing = methodMap.get(method) || { revenue: 0, count: 0 }
+      
+      methodMap.set(method, {
+        revenue: existing.revenue + sale.total,
+        count: existing.count + 1,
+      })
+    })
+
+    const totalRevenue = Array.from(methodMap.values())
+      .reduce((sum, m) => sum + m.revenue, 0)
+
+    return Array.from(methodMap.entries())
+      .map(([method, data]) => ({
+        method,
+        revenue: data.revenue,
+        count: data.count,
+        percentage: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+  }, [posSales])
+
+  /**
+   * Get top products for a date range
+   */
+  const getPeriodTopProducts = useCallback((startDate: string, endDate: string, limit: number = 10): TopProduct[] => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    const periodSales = posSales.filter(s => {
+      const saleDate = new Date(s.date.split('T')[0])
+      return saleDate >= start && saleDate <= end && s.status === "concluida"
+    })
+
+    const productMap = new Map<string, { 
+      name: string
+      category: string
+      quantity: number
+      revenue: number
+      totalPrice: number
+    }>()
+
+    periodSales.forEach(sale => {
+      sale.items.forEach(item => {
+        const productId = item.product.id
+        const existing = productMap.get(productId) || {
+          name: item.product.name,
+          category: item.product.category,
+          quantity: 0,
+          revenue: 0,
+          totalPrice: 0,
+        }
+        
+        const itemRevenue = item.product.price * item.quantity
+        
+        productMap.set(productId, {
+          name: existing.name,
+          category: existing.category,
+          quantity: existing.quantity + item.quantity,
+          revenue: existing.revenue + itemRevenue,
+          totalPrice: existing.totalPrice + (item.product.price * item.quantity),
+        })
+      })
+    })
+
+    return Array.from(productMap.entries())
+      .map(([productId, data]) => ({
+        productId,
+        productName: data.name,
+        category: data.category,
+        quantity: data.quantity,
+        revenue: data.revenue,
+        averagePrice: data.quantity > 0 ? data.totalPrice / data.quantity : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit)
+  }, [posSales])
+
   return {
     getDailySummary,
     getSalesByCategory,
@@ -313,5 +511,9 @@ export function useReports() {
     getHourlySales,
     getStockAlerts,
     getCashFlowSummary,
+    getPeriodSummary,
+    getPeriodSalesByCategory,
+    getPeriodSalesByPaymentMethod,
+    getPeriodTopProducts,
   }
 }
