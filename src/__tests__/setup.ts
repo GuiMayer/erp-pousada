@@ -59,30 +59,49 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
   
   // Export reset function for beforeEach hook
   resetSharedState = () => {
-    sharedState = {
-      rooms: [...store.initialRooms],
-      reservations: [...store.initialReservations],
-      guests: [...store.initialGuests],
-      expenses: [...store.initialExpenses],
-      transactions: [...store.initialTransactions],
-      auditLog: [...store.initialAuditLog],
-      categories: [...store.initialCategories],
-      cashCloses: [...store.initialCashCloses],
-      consumptions: [] as any[],
-      posProducts: [...store.initialPOSProducts],
-      posSales: [...store.initialPOSSales],
-      productCategories: [] as any[],
-      restaurantTables: [...store.initialRestaurantTables],
-      restaurantOrders: [...store.initialRestaurantOrders],
-      stockItems: [...store.initialStockItems],
-      stockMovements: [...store.initialStockMovements],
-      recipes: [...store.initialRecipes],
-      productions: [...store.initialProductions],
-      employees: [...store.initialEmployees],
-      employeeConsumptions: [...store.initialEmployeeConsumptions],
-      users: [...store.initialUsers],
-      userSessions: [...store.initialUserSessions],
-    }
+    // Clear and repopulate arrays instead of reassigning to preserve references
+    sharedState.rooms.length = 0
+    sharedState.rooms.push(...store.initialRooms)
+    sharedState.reservations.length = 0
+    sharedState.reservations.push(...store.initialReservations)
+    sharedState.guests.length = 0
+    sharedState.guests.push(...store.initialGuests)
+    sharedState.expenses.length = 0
+    sharedState.expenses.push(...store.initialExpenses)
+    sharedState.transactions.length = 0
+    sharedState.transactions.push(...store.initialTransactions)
+    sharedState.auditLog.length = 0
+    sharedState.auditLog.push(...store.initialAuditLog)
+    sharedState.categories.length = 0
+    sharedState.categories.push(...store.initialCategories)
+    sharedState.cashCloses.length = 0
+    sharedState.cashCloses.push(...store.initialCashCloses)
+    sharedState.consumptions.length = 0
+    sharedState.posProducts.length = 0
+    sharedState.posProducts.push(...store.initialPOSProducts)
+    sharedState.posSales.length = 0
+    sharedState.posSales.push(...store.initialPOSSales)
+    sharedState.productCategories.length = 0
+    sharedState.restaurantTables.length = 0
+    sharedState.restaurantTables.push(...store.initialRestaurantTables)
+    sharedState.restaurantOrders.length = 0
+    sharedState.restaurantOrders.push(...store.initialRestaurantOrders)
+    sharedState.stockItems.length = 0
+    sharedState.stockItems.push(...store.initialStockItems)
+    sharedState.stockMovements.length = 0
+    sharedState.stockMovements.push(...store.initialStockMovements)
+    sharedState.recipes.length = 0
+    sharedState.recipes.push(...store.initialRecipes)
+    sharedState.productions.length = 0
+    sharedState.productions.push(...store.initialProductions)
+    sharedState.employees.length = 0
+    sharedState.employees.push(...store.initialEmployees)
+    sharedState.employeeConsumptions.length = 0
+    sharedState.employeeConsumptions.push(...store.initialEmployeeConsumptions)
+    sharedState.users.length = 0
+    sharedState.users.push(...store.initialUsers)
+    sharedState.userSessions.length = 0
+    sharedState.userSessions.push(...store.initialUserSessions)
   }
   
   const createMockRepo = (dataKey: keyof typeof sharedState) => {
@@ -125,7 +144,16 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
     useDataStore: () => ({
       dataStore: {
         rooms: createMockRepo('rooms'),
-        reservations: createMockRepo('reservations'),
+        reservations: {
+          ...createMockRepo('reservations'),
+          create: vi.fn(async (item) => {
+            const data = sharedState.reservations
+            // Only check for duplicate id, not cpf (guests can have multiple reservations)
+            const exists = data.some((existing: any) => item.id && existing.id === item.id)
+            if (!exists) data.push(item)
+            return item
+          }),
+        },
         guests: createMockRepo('guests'),
         expenses: createMockRepo('expenses'),
         transactions: createMockRepo('transactions'),
