@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -33,14 +33,18 @@ export function AdminTab() {
   const [isSaving, setIsSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showRestoreDialog, setShowRestoreDialog] = useState(false)
+  
+  // Use ref to track if we should sync with context
+  const shouldSyncRef = useRef(true)
 
   // Sync with context when systemSettings changes (only if not currently editing)
   useEffect(() => {
-    // Only reset if we're not in the middle of editing
-    if (!isDirty) {
+    // Only sync if we're not in the middle of editing
+    if (shouldSyncRef.current) {
       setFormData(systemSettings)
+      setIsDirty(false)
     }
-  }, [systemSettings, isDirty])
+  }, [systemSettings])
 
   // Validation functions
   const validatePousadaName = (value: string): string | null => {
@@ -102,6 +106,9 @@ export function AdminTab() {
   }
 
   const handleFieldChange = (field: keyof SystemSettings, value: string | number) => {
+    // Prevent syncing with context while editing
+    shouldSyncRef.current = false
+    
     setFormData(prev => ({ ...prev, [field]: value }))
     setIsDirty(true)
     
@@ -160,6 +167,8 @@ export function AdminTab() {
 
       toast.success("Configurações salvas com sucesso")
       setIsDirty(false)
+      // Re-enable syncing after successful save
+      shouldSyncRef.current = true
     } catch (error) {
       console.error("Error saving settings:", error)
       toast.error("Erro ao salvar configurações")
@@ -173,6 +182,8 @@ export function AdminTab() {
     setIsSaving(true)
     
     try {
+      // Re-enable syncing before restoring
+      shouldSyncRef.current = true
       await updateSystemSettings(initialSystemSettings)
       
       await addAuditEntry({
@@ -372,7 +383,7 @@ export function AdminTab() {
       {/* Action Buttons */}
       <div className="flex gap-3">
         <Button 
-          onClick={handleSave} 
+          onClick={handleSave}
           disabled={!isDirty || isSaving || Object.keys(errors).length > 0}
           className="gap-2"
         >
