@@ -22,6 +22,8 @@ import {
   type Employee, type EmployeeConsumption,
   type ProductCategory,
   type User, type UserSession, type SystemSettings,
+  type TimelineDay,
+  calculateRoomTimeline,
 } from "./store"
 import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
@@ -56,6 +58,7 @@ type AppContextType = {
   updateRoom: (id: number, data: Partial<Room>) => Promise<void>
   addRoom: (room: Room) => Promise<void>
   removeRoom: (id: number) => Promise<void>
+  getRoomTimeline: (roomId: number, startDate: string, days?: number) => TimelineDay[]
   addReservation: (r: Reservation) => Promise<void>
   updateReservation: (id: string, data: Partial<Reservation>) => Promise<void>
   addExpense: (e: Expense) => Promise<void>
@@ -296,6 +299,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await dataStore.rooms.delete(id)
     setRooms(await dataStore.rooms.getAll())
   }, [dataStore])
+
+  const getRoomTimeline = useCallback((roomId: number, startDate: string, days: number = 7): TimelineDay[] => {
+    const room = rooms.find(r => r.id === roomId)
+    if (!room) {
+      return []
+    }
+    return calculateRoomTimeline(room, reservations, startDate, days)
+  }, [rooms, reservations])
 
   // Reservation methods
   const addReservation = useCallback(async (r: Reservation) => {
@@ -804,7 +815,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     employees, employeeConsumptions,
     users, userSessions, systemSettings,
     isLoading, isHydrated,
-    updateRoom, addRoom, removeRoom,
+    updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
     addExpense, updateExpense, addTransaction, addAuditEntry,
     addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
@@ -827,7 +838,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     employees, employeeConsumptions,
     users, userSessions, systemSettings,
     isLoading, isHydrated,
-    updateRoom, addRoom, removeRoom,
+    updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
     addExpense, updateExpense, addTransaction, addAuditEntry,
     addCategory, addCashClose, findGuest, addGuest,

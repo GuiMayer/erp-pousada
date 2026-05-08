@@ -777,6 +777,86 @@ export const initialSystemSettings: SystemSettings = {
   notifyPendingPayments: true,
 }
 
+// ─── Dynamic Timeline Calculation ──────────────────────────────────────
+/**
+ * Calculates the timeline for a room based on its current state, reservations, and blocks.
+ * This function dynamically generates the timeline for a given date range.
+ * 
+ * @param room - The room to calculate timeline for
+ * @param reservations - All reservations in the system
+ * @param startDate - Start date in ISO format (YYYY-MM-DD)
+ * @param days - Number of days to calculate (default: 7)
+ * @returns Array of TimelineDay objects
+ */
+export function calculateRoomTimeline(
+  room: Room,
+  reservations: Reservation[],
+  startDate: string,
+  days: number = 7
+): TimelineDay[] {
+  const timeline: TimelineDay[] = []
+  const start = new Date(startDate + "T00:00:00")
+  
+  // Get reservations for this room that are confirmed or checked-in
+  const roomReservations = reservations.filter(
+    r => r.roomId === room.id && (r.status === "confirmada" || r.status === "checkin")
+  )
+
+  for (let i = 0; i < days; i++) {
+    const currentDate = new Date(start)
+    currentDate.setDate(currentDate.getDate() + i)
+    const dateISO = currentDate.toISOString().split("T")[0]
+    
+    // Format label
+    const day = currentDate.getDate()
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+    const label = `${day} ${months[currentDate.getMonth()]}`
+    
+    // Determine status for this date
+    let status: RoomStatus = "disponivel"
+    
+    // Check if room is blocked on this date
+    if (room.status === "bloqueado" && room.blockEndDate) {
+      const blockEnd = new Date(room.blockEndDate + "T23:59:59")
+      if (currentDate <= blockEnd) {
+        status = "bloqueado"
+      }
+    }
+    
+    // Check if there's a reservation covering this date
+    if (status !== "bloqueado") {
+      for (const reservation of roomReservations) {
+        const checkIn = new Date(reservation.checkIn + "T00:00:00")
+        const checkOut = new Date(reservation.checkOut + "T23:59:59")
+        
+        if (currentDate >= checkIn && currentDate <= checkOut) {
+          status = "ocupado"
+          break
+        }
+      }
+    }
+    
+    // If it's today and room is currently in limpeza, show limpeza
+    const today = new Date().toISOString().split("T")[0]
+    if (dateISO === today && room.status === "limpeza") {
+      status = "limpeza"
+    }
+    
+    // If it's today, use the current room status (unless overridden by reservation/block)
+    if (dateISO === today && status === "disponivel") {
+      status = room.status
+    }
+    
+    timeline.push({
+      date: dateISO,
+      label,
+      status,
+    })
+  }
+  
+  return timeline
+}
+
 // ─── Restaurant Config Constants ───────────────────────────────────────
 export const TABLE_STATUSES: TableStatus[] = ["livre", "ocupada", "reservada"]
 export const ORDER_STATUSES: OrderStatus[] = ["aberta", "fechada", "cancelada"]
