@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { AuthProvider, useAuth } from '../../../lib/auth-context'
 import { AppProvider, useApp } from '../../../lib/app-context'
 import type { Room, Reservation } from '../../../lib/store'
@@ -15,12 +15,17 @@ function AllProviders({ children }: { children: React.ReactNode }) {
 
 describe('Integration Tests', () => {
   describe('Complete Check-in Flow', () => {
-    it('should complete a full check-in process', () => {
+    it('should complete a full check-in process', async () => {
       const { result: authResult } = renderHook(() => useAuth(), {
         wrapper: AllProviders,
       })
       const { result: appResult } = renderHook(() => useApp(), {
         wrapper: AllProviders,
+      })
+
+      // Wait for app data to load
+      await waitFor(() => {
+        expect(appResult.current.rooms.length).toBeGreaterThan(0)
       })
 
       // Step 1: Login as operador
@@ -35,8 +40,8 @@ describe('Integration Tests', () => {
       expect(availableRoom).toBeDefined()
 
       // Step 3: Add a guest
-      act(() => {
-        appResult.current.addGuest({
+      await act(async () => {
+        await appResult.current.addGuest({
           cpf: '000.111.222-99',
           name: 'Integration Test Guest',
           totalStays: 0,
@@ -58,13 +63,13 @@ describe('Integration Tests', () => {
         totalValue: 900,
       }
 
-      act(() => {
-        appResult.current.addReservation(newReservation)
+      await act(async () => {
+        await appResult.current.addReservation(newReservation)
       })
 
       // Step 5: Update room status to occupied
-      act(() => {
-        appResult.current.updateRoom(availableRoom!.id, {
+      await act(async () => {
+        await appResult.current.updateRoom(availableRoom!.id, {
           status: 'ocupado',
           guest: 'Integration Test Guest',
           guestCpf: '000.111.222-99',
@@ -74,15 +79,15 @@ describe('Integration Tests', () => {
       })
 
       // Step 6: Update reservation status to checked-in
-      act(() => {
-        appResult.current.updateReservation('INT_TEST_001', {
+      await act(async () => {
+        await appResult.current.updateReservation('INT_TEST_001', {
           status: 'checkin',
         })
       })
 
       // Step 7: Add audit log entry
-      act(() => {
-        appResult.current.addAuditEntry({
+      await act(async () => {
+        await appResult.current.addAuditEntry({
           user: 'operador',
           action: 'check-in',
           reference: `Quarto ${availableRoom!.number} - Integration Test Guest`,
@@ -90,9 +95,11 @@ describe('Integration Tests', () => {
       })
 
       // Verify final state
-      const updatedRoom = appResult.current.rooms.find(r => r.id === availableRoom!.id)
-      expect(updatedRoom?.status).toBe('ocupado')
-      expect(updatedRoom?.guest).toBe('Integration Test Guest')
+      await waitFor(() => {
+        const updatedRoom = appResult.current.rooms.find(r => r.id === availableRoom!.id)
+        expect(updatedRoom?.status).toBe('ocupado')
+        expect(updatedRoom?.guest).toBe('Integration Test Guest')
+      })
 
       const updatedReservation = appResult.current.reservations.find(r => r.id === 'INT_TEST_001')
       expect(updatedReservation?.status).toBe('checkin')
@@ -103,12 +110,17 @@ describe('Integration Tests', () => {
   })
 
   describe('Complete Check-out Flow with Consumption', () => {
-    it('should complete a full check-out process with room consumption', () => {
+    it('should complete a full check-out process with room consumption', async () => {
       const { result: authResult } = renderHook(() => useAuth(), {
         wrapper: AllProviders,
       })
       const { result: appResult } = renderHook(() => useApp(), {
         wrapper: AllProviders,
+      })
+
+      // Wait for app data to load
+      await waitFor(() => {
+        expect(appResult.current.rooms.length).toBeGreaterThan(0)
       })
 
       // Step 1: Login as operador
@@ -121,14 +133,14 @@ describe('Integration Tests', () => {
       expect(occupiedRoom).toBeDefined()
 
       // Step 3: Add consumption items
-      act(() => {
-        appResult.current.addConsumptionItem(occupiedRoom!.id, {
+      await act(async () => {
+        await appResult.current.addConsumptionItem(occupiedRoom!.id, {
           id: 'CONS_001',
           label: 'Água Mineral',
           unitPrice: 5,
           quantity: 2,
         })
-        appResult.current.addConsumptionItem(occupiedRoom!.id, {
+        await appResult.current.addConsumptionItem(occupiedRoom!.id, {
           id: 'CONS_002',
           label: 'Refrigerante',
           unitPrice: 8,
@@ -137,9 +149,12 @@ describe('Integration Tests', () => {
       })
 
       // Step 4: Verify consumption
-      const consumption = appResult.current.getConsumption(occupiedRoom!.id)
-      expect(consumption?.items).toHaveLength(2)
+      await waitFor(() => {
+        const consumption = appResult.current.getConsumption(occupiedRoom!.id)
+        expect(consumption?.items).toHaveLength(2)
+      })
 
+      const consumption = appResult.current.getConsumption(occupiedRoom!.id)
       const totalConsumption = consumption!.items.reduce(
         (sum, item) => sum + item.unitPrice * item.quantity,
         0
@@ -147,8 +162,8 @@ describe('Integration Tests', () => {
       expect(totalConsumption).toBe(34) // (5 * 2) + (8 * 3)
 
       // Step 5: Add transaction for consumption
-      act(() => {
-        appResult.current.addTransaction({
+      await act(async () => {
+        await appResult.current.addTransaction({
           id: 'TRANS_CONS_001',
           date: '2026-05-07',
           description: 'Consumo Quarto ' + occupiedRoom!.number,
@@ -159,13 +174,13 @@ describe('Integration Tests', () => {
       })
 
       // Step 6: Clear consumption
-      act(() => {
-        appResult.current.clearConsumption(occupiedRoom!.id)
+      await act(async () => {
+        await appResult.current.clearConsumption(occupiedRoom!.id)
       })
 
       // Step 7: Update room to cleaning status
-      act(() => {
-        appResult.current.updateRoom(occupiedRoom!.id, {
+      await act(async () => {
+        await appResult.current.updateRoom(occupiedRoom!.id, {
           status: 'limpeza',
           guest: undefined,
           guestCpf: undefined,
@@ -175,8 +190,8 @@ describe('Integration Tests', () => {
       })
 
       // Step 8: Add audit log
-      act(() => {
-        appResult.current.addAuditEntry({
+      await act(async () => {
+        await appResult.current.addAuditEntry({
           user: 'operador',
           action: 'check-out',
           reference: `Quarto ${occupiedRoom!.number}`,
@@ -184,9 +199,11 @@ describe('Integration Tests', () => {
       })
 
       // Verify final state
-      const updatedRoom = appResult.current.rooms.find(r => r.id === occupiedRoom!.id)
-      expect(updatedRoom?.status).toBe('limpeza')
-      expect(updatedRoom?.guest).toBeUndefined()
+      await waitFor(() => {
+        const updatedRoom = appResult.current.rooms.find(r => r.id === occupiedRoom!.id)
+        expect(updatedRoom?.status).toBe('limpeza')
+        expect(updatedRoom?.guest).toBeUndefined()
+      })
 
       const clearedConsumption = appResult.current.getConsumption(occupiedRoom!.id)
       expect(clearedConsumption).toBeUndefined()
@@ -194,12 +211,18 @@ describe('Integration Tests', () => {
   })
 
   describe('POS Sale Flow', () => {
-    it('should complete a full POS sale transaction', () => {
+    it('should complete a full POS sale transaction', async () => {
       const { result: authResult } = renderHook(() => useAuth(), {
         wrapper: AllProviders,
       })
       const { result: appResult } = renderHook(() => useApp(), {
         wrapper: AllProviders,
+      })
+
+      // Wait for app data to load
+      await waitFor(() => {
+        expect(appResult.current.rooms.length).toBeGreaterThan(0)
+        expect(appResult.current.posProducts.length).toBeGreaterThan(0)
       })
 
       // Step 1: Login as operador
@@ -234,8 +257,8 @@ describe('Integration Tests', () => {
       const discount = 5
       const total = subtotal - discount
 
-      act(() => {
-        appResult.current.addPOSSale({
+      await act(async () => {
+        await appResult.current.addPOSSale({
           id: 'SALE_001',
           date: new Date().toISOString(),
           items: saleItems,
@@ -251,8 +274,8 @@ describe('Integration Tests', () => {
       })
 
       // Step 4: Add transaction
-      act(() => {
-        appResult.current.addTransaction({
+      await act(async () => {
+        await appResult.current.addTransaction({
           id: 'TRANS_SALE_001',
           date: '2026-05-07',
           description: 'Venda POS',
@@ -263,8 +286,8 @@ describe('Integration Tests', () => {
       })
 
       // Step 5: Add audit log
-      act(() => {
-        appResult.current.addAuditEntry({
+      await act(async () => {
+        await appResult.current.addAuditEntry({
           user: 'operador',
           action: 'venda-pos',
           reference: `Venda SALE_001 - R$ ${total.toFixed(2)}`,
@@ -272,15 +295,17 @@ describe('Integration Tests', () => {
       })
 
       // Verify final state
-      const sale = appResult.current.posSales.find(s => s.id === 'SALE_001')
-      expect(sale).toBeDefined()
-      expect(sale?.status).toBe('concluida')
-      expect(sale?.total).toBe(total)
+      await waitFor(() => {
+        const sale = appResult.current.posSales.find(s => s.id === 'SALE_001')
+        expect(sale).toBeDefined()
+        expect(sale?.status).toBe('concluida')
+        expect(sale?.total).toBe(total)
+      })
     })
   })
 
   describe('Supervisor Operations', () => {
-    it('should allow supervisor to perform privileged operations', () => {
+    it('should allow supervisor to perform privileged operations', async () => {
       const { result: authResult } = renderHook(() => useAuth(), {
         wrapper: AllProviders,
       })
@@ -288,9 +313,14 @@ describe('Integration Tests', () => {
         wrapper: AllProviders,
       })
 
+      // Wait for app data to load
+      await waitFor(() => {
+        expect(appResult.current.rooms.length).toBeGreaterThan(0)
+      })
+
       // Step 1: Login as supervisor
       act(() => {
-        authResult.current.login('supervisor', 'admin')
+        authResult.current.login('supervisor', 'adm123')
       })
 
       expect(authResult.current.isSupervisor).toBe(true)
@@ -304,8 +334,8 @@ describe('Integration Tests', () => {
         timeline: [],
       }
 
-      act(() => {
-        appResult.current.addRoom(newRoom)
+      await act(async () => {
+        await appResult.current.addRoom(newRoom)
       })
 
       // Step 3: Update discount ceiling (supervisor privilege)
@@ -316,13 +346,13 @@ describe('Integration Tests', () => {
       expect(appResult.current.discountCeiling).toBe(15)
 
       // Step 4: Add expense category
-      act(() => {
-        appResult.current.addCategory('Nova Categoria')
+      await act(async () => {
+        await appResult.current.addCategory('Nova Categoria')
       })
 
       // Step 5: Add audit log
-      act(() => {
-        appResult.current.addAuditEntry({
+      await act(async () => {
+        await appResult.current.addAuditEntry({
           user: 'supervisor',
           action: 'configuração',
           reference: 'Alteração de teto de desconto para 15%',
@@ -330,14 +360,17 @@ describe('Integration Tests', () => {
       })
 
       // Verify final state
-      const addedRoom = appResult.current.rooms.find(r => r.id === 9999)
-      expect(addedRoom).toBeDefined()
+      await waitFor(() => {
+        const addedRoom = appResult.current.rooms.find(r => r.id === 9999)
+        expect(addedRoom).toBeDefined()
+      })
+      
       expect(appResult.current.discountCeiling).toBe(15)
     })
   })
 
   describe('Room Blocking Flow', () => {
-    it('should block and unblock a room', () => {
+    it('should block and unblock a room', async () => {
       const { result: authResult } = renderHook(() => useAuth(), {
         wrapper: AllProviders,
       })
@@ -345,9 +378,14 @@ describe('Integration Tests', () => {
         wrapper: AllProviders,
       })
 
+      // Wait for app data to load
+      await waitFor(() => {
+        expect(appResult.current.rooms.length).toBeGreaterThan(0)
+      })
+
       // Step 1: Login as supervisor
       act(() => {
-        authResult.current.login('supervisor', 'admin')
+        authResult.current.login('supervisor', 'adm123')
       })
 
       // Step 2: Find an available room
@@ -355,8 +393,8 @@ describe('Integration Tests', () => {
       expect(availableRoom).toBeDefined()
 
       // Step 3: Block the room
-      act(() => {
-        appResult.current.updateRoom(availableRoom!.id, {
+      await act(async () => {
+        await appResult.current.updateRoom(availableRoom!.id, {
           status: 'bloqueado',
           blockReason: 'Manutenção preventiva',
           blockEndDate: '2026-05-15',
@@ -365,8 +403,8 @@ describe('Integration Tests', () => {
       })
 
       // Step 4: Add audit log
-      act(() => {
-        appResult.current.addAuditEntry({
+      await act(async () => {
+        await appResult.current.addAuditEntry({
           user: 'supervisor',
           action: 'bloqueio-quarto',
           reference: `Quarto ${availableRoom!.number} - Manutenção preventiva`,
@@ -374,13 +412,15 @@ describe('Integration Tests', () => {
       })
 
       // Verify blocked state
-      let updatedRoom = appResult.current.rooms.find(r => r.id === availableRoom!.id)
-      expect(updatedRoom?.status).toBe('bloqueado')
-      expect(updatedRoom?.blockReason).toBe('Manutenção preventiva')
+      await waitFor(() => {
+        let updatedRoom = appResult.current.rooms.find(r => r.id === availableRoom!.id)
+        expect(updatedRoom?.status).toBe('bloqueado')
+        expect(updatedRoom?.blockReason).toBe('Manutenção preventiva')
+      })
 
       // Step 5: Unblock the room
-      act(() => {
-        appResult.current.updateRoom(availableRoom!.id, {
+      await act(async () => {
+        await appResult.current.updateRoom(availableRoom!.id, {
           status: 'disponivel',
           blockReason: undefined,
           blockEndDate: undefined,
@@ -389,8 +429,8 @@ describe('Integration Tests', () => {
       })
 
       // Step 6: Add audit log
-      act(() => {
-        appResult.current.addAuditEntry({
+      await act(async () => {
+        await appResult.current.addAuditEntry({
           user: 'supervisor',
           action: 'desbloqueio-quarto',
           reference: `Quarto ${availableRoom!.number}`,
@@ -398,9 +438,11 @@ describe('Integration Tests', () => {
       })
 
       // Verify unblocked state
-      updatedRoom = appResult.current.rooms.find(r => r.id === availableRoom!.id)
-      expect(updatedRoom?.status).toBe('disponivel')
-      expect(updatedRoom?.blockReason).toBeUndefined()
+      await waitFor(() => {
+        let updatedRoom = appResult.current.rooms.find(r => r.id === availableRoom!.id)
+        expect(updatedRoom?.status).toBe('disponivel')
+        expect(updatedRoom?.blockReason).toBeUndefined()
+      })
     })
   })
 })

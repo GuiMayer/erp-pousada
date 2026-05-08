@@ -62,7 +62,7 @@ describe('AuthContext', () => {
     })
 
     act(() => {
-      const success = result.current.login('supervisor', 'admin')
+      const success = result.current.login('supervisor', 'adm123')
       expect(success).toBe(true)
     })
 
@@ -112,7 +112,7 @@ describe('AuthContext', () => {
     })
 
     act(() => {
-      result.current.login('supervisor', 'admin')
+      result.current.login('supervisor', 'adm123')
     })
 
     const stored = localStorageMock.getItem('pousada_auth')

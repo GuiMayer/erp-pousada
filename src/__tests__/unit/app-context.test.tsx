@@ -1,12 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { AppProvider, useApp } from '../../../lib/app-context'
+import { renderHook, act, waitFor } from '@testing-library/react'
+import { useApp } from '../../../lib/app-context'
+import { TestWrapper } from '../utils/test-helpers'
 import type { Room, Reservation, GuestProfile, POSProduct } from '../../../lib/store'
 
 describe('AppContext', () => {
-  it('should initialize with default data', () => {
+  it('should initialize with default data', async () => {
     const { result } = renderHook(() => useApp(), {
-      wrapper: AppProvider,
+      wrapper: TestWrapper,
+    })
+
+    // Wait for data to load
+    await waitFor(() => {
+      expect(result.current.rooms.length).toBeGreaterThan(0)
     })
 
     expect(result.current.rooms).toBeDefined()
@@ -20,9 +26,14 @@ describe('AppContext', () => {
   })
 
   describe('Room Management', () => {
-    it('should add a new room', () => {
+    it('should add a new room', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const initialCount = result.current.rooms.length
@@ -35,50 +46,73 @@ describe('AppContext', () => {
         timeline: [],
       }
 
-      act(() => {
-        result.current.addRoom(newRoom)
+      await act(async () => {
+        await result.current.addRoom(newRoom)
       })
 
-      expect(result.current.rooms).toHaveLength(initialCount + 1)
+      await waitFor(() => {
+        expect(result.current.rooms).toHaveLength(initialCount + 1)
+      })
+      
       expect(result.current.rooms.find(r => r.id === 999)).toEqual(newRoom)
     })
 
-    it('should update a room', () => {
+    it('should update a room', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const firstRoom = result.current.rooms[0]
 
-      act(() => {
-        result.current.updateRoom(firstRoom.id, { status: 'limpeza' })
+      await act(async () => {
+        await result.current.updateRoom(firstRoom.id, { status: 'limpeza' })
       })
 
-      const updatedRoom = result.current.rooms.find(r => r.id === firstRoom.id)
-      expect(updatedRoom?.status).toBe('limpeza')
+      await waitFor(() => {
+        const updatedRoom = result.current.rooms.find(r => r.id === firstRoom.id)
+        expect(updatedRoom?.status).toBe('limpeza')
+      })
     })
 
-    it('should remove a room', () => {
+    it('should remove a room', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const firstRoom = result.current.rooms[0]
       const initialCount = result.current.rooms.length
 
-      act(() => {
-        result.current.removeRoom(firstRoom.id)
+      await act(async () => {
+        await result.current.removeRoom(firstRoom.id)
       })
 
-      expect(result.current.rooms).toHaveLength(initialCount - 1)
+      await waitFor(() => {
+        expect(result.current.rooms).toHaveLength(initialCount - 1)
+      })
+      
       expect(result.current.rooms.find(r => r.id === firstRoom.id)).toBeUndefined()
     })
   })
 
   describe('Guest Management', () => {
-    it('should add a new guest', () => {
+    it('should add a new guest', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const newGuest: GuestProfile = {
@@ -89,17 +123,24 @@ describe('AppContext', () => {
         noShows: 0,
       }
 
-      act(() => {
-        result.current.addGuest(newGuest)
+      await act(async () => {
+        await result.current.addGuest(newGuest)
       })
 
-      const foundGuest = result.current.findGuest('000.111.222-33')
-      expect(foundGuest).toEqual(newGuest)
+      await waitFor(() => {
+        const foundGuest = result.current.findGuest('000.111.222-33')
+        expect(foundGuest).toEqual(newGuest)
+      })
     })
 
-    it('should not add duplicate guest with same CPF', () => {
+    it('should not add duplicate guest with same CPF', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const newGuest: GuestProfile = {
@@ -110,22 +151,27 @@ describe('AppContext', () => {
         noShows: 0,
       }
 
-      act(() => {
-        result.current.addGuest(newGuest)
+      await act(async () => {
+        await result.current.addGuest(newGuest)
       })
 
       const countAfterFirst = result.current.guests.length
 
-      act(() => {
-        result.current.addGuest(newGuest)
+      await act(async () => {
+        await result.current.addGuest(newGuest)
       })
 
       expect(result.current.guests).toHaveLength(countAfterFirst)
     })
 
-    it('should find guest by CPF', () => {
+    it('should find guest by CPF', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const newGuest: GuestProfile = {
@@ -136,19 +182,26 @@ describe('AppContext', () => {
         noShows: 0,
       }
 
-      act(() => {
-        result.current.addGuest(newGuest)
+      await act(async () => {
+        await result.current.addGuest(newGuest)
       })
 
-      const found = result.current.findGuest('000.333.444-55')
-      expect(found).toEqual(newGuest)
+      await waitFor(() => {
+        const found = result.current.findGuest('000.333.444-55')
+        expect(found).toEqual(newGuest)
+      })
     })
   })
 
   describe('Reservation Management', () => {
-    it('should add a new reservation', () => {
+    it('should add a new reservation', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const initialCount = result.current.reservations.length
@@ -165,17 +218,25 @@ describe('AppContext', () => {
         totalValue: 1000,
       }
 
-      act(() => {
-        result.current.addReservation(newReservation)
+      await act(async () => {
+        await result.current.addReservation(newReservation)
       })
 
-      expect(result.current.reservations).toHaveLength(initialCount + 1)
+      await waitFor(() => {
+        expect(result.current.reservations).toHaveLength(initialCount + 1)
+      })
+      
       expect(result.current.reservations.find(r => r.id === 'TEST001')).toEqual(newReservation)
     })
 
-    it('should update a reservation', () => {
+    it('should update a reservation', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const newReservation: Reservation = {
@@ -190,23 +251,30 @@ describe('AppContext', () => {
         totalValue: 1000,
       }
 
-      act(() => {
-        result.current.addReservation(newReservation)
+      await act(async () => {
+        await result.current.addReservation(newReservation)
       })
 
-      act(() => {
-        result.current.updateReservation('TEST002', { status: 'checkin' })
+      await act(async () => {
+        await result.current.updateReservation('TEST002', { status: 'checkin' })
       })
 
-      const updated = result.current.reservations.find(r => r.id === 'TEST002')
-      expect(updated?.status).toBe('checkin')
+      await waitFor(() => {
+        const updated = result.current.reservations.find(r => r.id === 'TEST002')
+        expect(updated?.status).toBe('checkin')
+      })
     })
   })
 
   describe('POS Product Management', () => {
-    it('should add a new POS product', () => {
+    it('should add a new POS product', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const initialCount = result.current.posProducts.length
@@ -218,17 +286,25 @@ describe('AppContext', () => {
         price: 10,
       }
 
-      act(() => {
-        result.current.addPOSProduct(newProduct)
+      await act(async () => {
+        await result.current.addPOSProduct(newProduct)
       })
 
-      expect(result.current.posProducts).toHaveLength(initialCount + 1)
+      await waitFor(() => {
+        expect(result.current.posProducts).toHaveLength(initialCount + 1)
+      })
+      
       expect(result.current.posProducts.find(p => p.id === 'TEST_PROD')).toEqual(newProduct)
     })
 
-    it('should update a POS product', () => {
+    it('should update a POS product', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const newProduct: POSProduct = {
@@ -238,21 +314,28 @@ describe('AppContext', () => {
         price: 10,
       }
 
-      act(() => {
-        result.current.addPOSProduct(newProduct)
+      await act(async () => {
+        await result.current.addPOSProduct(newProduct)
       })
 
-      act(() => {
-        result.current.updatePOSProduct('TEST_PROD2', { price: 15 })
+      await act(async () => {
+        await result.current.updatePOSProduct('TEST_PROD2', { price: 15 })
       })
 
-      const updated = result.current.posProducts.find(p => p.id === 'TEST_PROD2')
-      expect(updated?.price).toBe(15)
+      await waitFor(() => {
+        const updated = result.current.posProducts.find(p => p.id === 'TEST_PROD2')
+        expect(updated?.price).toBe(15)
+      })
     })
 
-    it('should remove a POS product', () => {
+    it('should remove a POS product', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const newProduct: POSProduct = {
@@ -262,25 +345,33 @@ describe('AppContext', () => {
         price: 10,
       }
 
-      act(() => {
-        result.current.addPOSProduct(newProduct)
+      await act(async () => {
+        await result.current.addPOSProduct(newProduct)
       })
 
       const countAfterAdd = result.current.posProducts.length
 
-      act(() => {
-        result.current.removePOSProduct('TEST_PROD3')
+      await act(async () => {
+        await result.current.removePOSProduct('TEST_PROD3')
       })
 
-      expect(result.current.posProducts).toHaveLength(countAfterAdd - 1)
+      await waitFor(() => {
+        expect(result.current.posProducts).toHaveLength(countAfterAdd - 1)
+      })
+      
       expect(result.current.posProducts.find(p => p.id === 'TEST_PROD3')).toBeUndefined()
     })
   })
 
   describe('Consumption Management', () => {
-    it('should add consumption item to room', () => {
+    it('should add consumption item to room', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const item = {
@@ -290,19 +381,26 @@ describe('AppContext', () => {
         quantity: 2,
       }
 
-      act(() => {
-        result.current.addConsumptionItem(1, item)
+      await act(async () => {
+        await result.current.addConsumptionItem(1, item)
       })
 
-      const consumption = result.current.getConsumption(1)
-      expect(consumption).toBeDefined()
-      expect(consumption?.items).toHaveLength(1)
-      expect(consumption?.items[0]).toEqual(item)
+      await waitFor(() => {
+        const consumption = result.current.getConsumption(1)
+        expect(consumption).toBeDefined()
+        expect(consumption?.items).toHaveLength(1)
+        expect(consumption?.items[0]).toEqual(item)
+      })
     })
 
-    it('should remove consumption item from room', () => {
+    it('should remove consumption item from room', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const item = {
@@ -312,21 +410,28 @@ describe('AppContext', () => {
         quantity: 2,
       }
 
-      act(() => {
-        result.current.addConsumptionItem(1, item)
+      await act(async () => {
+        await result.current.addConsumptionItem(1, item)
       })
 
-      act(() => {
-        result.current.removeConsumptionItem(1, 'ITEM002')
+      await act(async () => {
+        await result.current.removeConsumptionItem(1, 'ITEM002')
       })
 
-      const consumption = result.current.getConsumption(1)
-      expect(consumption?.items).toHaveLength(0)
+      await waitFor(() => {
+        const consumption = result.current.getConsumption(1)
+        expect(consumption?.items).toHaveLength(0)
+      })
     })
 
-    it('should clear all consumption for a room', () => {
+    it('should clear all consumption for a room', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const item1 = {
@@ -343,37 +448,46 @@ describe('AppContext', () => {
         quantity: 2,
       }
 
-      act(() => {
-        result.current.addConsumptionItem(1, item1)
-        result.current.addConsumptionItem(1, item2)
+      await act(async () => {
+        await result.current.addConsumptionItem(1, item1)
+        await result.current.addConsumptionItem(1, item2)
       })
 
-      act(() => {
-        result.current.clearConsumption(1)
+      await act(async () => {
+        await result.current.clearConsumption(1)
       })
 
-      const consumption = result.current.getConsumption(1)
-      expect(consumption).toBeUndefined()
+      await waitFor(() => {
+        const consumption = result.current.getConsumption(1)
+        expect(consumption).toBeUndefined()
+      })
     })
   })
 
   describe('Audit Log', () => {
-    it('should add audit entry', () => {
+    it('should add audit entry', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       const initialCount = result.current.auditLog.length
 
-      act(() => {
-        result.current.addAuditEntry({
+      await act(async () => {
+        await result.current.addAuditEntry({
           user: 'test-user',
           action: 'test-action',
           reference: 'test-reference',
         })
       })
 
-      expect(result.current.auditLog).toHaveLength(initialCount + 1)
+      await waitFor(() => {
+        expect(result.current.auditLog).toHaveLength(initialCount + 1)
+      })
       
       const latestEntry = result.current.auditLog[0]
       expect(latestEntry.user).toBe('test-user')
@@ -385,9 +499,14 @@ describe('AppContext', () => {
   })
 
   describe('Discount Ceiling', () => {
-    it('should update discount ceiling', () => {
+    it('should update discount ceiling', async () => {
       const { result } = renderHook(() => useApp(), {
-        wrapper: AppProvider,
+        wrapper: TestWrapper,
+      })
+
+      // Wait for initial data to load
+      await waitFor(() => {
+        expect(result.current.rooms.length).toBeGreaterThan(0)
       })
 
       expect(result.current.discountCeiling).toBe(5)
