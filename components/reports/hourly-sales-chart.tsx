@@ -29,21 +29,26 @@ export function HourlySalesChart({ data }: HourlySalesChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke="hsl(var(--border))"
+              opacity={0.3}
+            />
             <XAxis 
               dataKey="hour" 
-              className="text-xs"
               tick={{ fill: 'hsl(var(--muted-foreground))' }}
               tickFormatter={(hour) => `${hour}h`}
+              stroke="hsl(var(--border))"
             />
             <YAxis 
-              className="text-xs"
               tick={{ fill: 'hsl(var(--muted-foreground))' }}
               tickFormatter={(value) => formatCurrency(value)}
+              stroke="hsl(var(--border))"
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
+                color: 'hsl(var(--popover-foreground))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
               }}
@@ -52,6 +57,7 @@ export function HourlySalesChart({ data }: HourlySalesChartProps) {
                 return value
               }}
               labelFormatter={(hour) => `${hour}:00`}
+              labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
             />
             <Line 
               type="monotone" 

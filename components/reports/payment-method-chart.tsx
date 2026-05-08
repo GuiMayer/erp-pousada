@@ -54,12 +54,16 @@ export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
+                color: 'hsl(var(--popover-foreground))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
               }}
               formatter={(value: number) => formatCurrency(value)}
+              labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
             />
-            <Legend />
+            <Legend 
+              wrapperStyle={{ color: 'hsl(var(--foreground))' }}
+            />
           </PieChart>
         </ResponsiveContainer>
       </CardContent>

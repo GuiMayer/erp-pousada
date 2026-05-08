@@ -31,26 +31,34 @@ export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke="hsl(var(--border))"
+              opacity={0.3}
+            />
             <XAxis 
               dataKey="category" 
-              className="text-xs"
               tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              stroke="hsl(var(--border))"
             />
             <YAxis 
-              className="text-xs"
               tick={{ fill: 'hsl(var(--muted-foreground))' }}
               tickFormatter={(value) => formatCurrency(value)}
+              stroke="hsl(var(--border))"
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
+                color: 'hsl(var(--popover-foreground))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
               }}
               formatter={(value: number) => formatCurrency(value)}
+              labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
             />
-            <Legend />
+            <Legend 
+              wrapperStyle={{ color: 'hsl(var(--foreground))' }}
+            />
             <Bar 
               dataKey="revenue" 
               fill="hsl(var(--primary))" 
