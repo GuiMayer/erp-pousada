@@ -487,6 +487,30 @@ O sistema atual já está **bem estruturado** para uma pousada com restaurante i
 - Ordenação por criticidade
 - Auditoria de alterações
 
+### Sistema de Gerenciamento de Usuários e Configurações (Maio 2026)
+- **User Repository**: Gerenciamento completo de usuários do sistema
+  - Método `findByUsername()` para busca por nome de usuário
+  - Suporte a operações CRUD completas
+  - Integração com sistema de autenticação
+- **User Session Repository**: Rastreamento de sessões de usuários
+  - Método `getByUserId()` para buscar sessões por ID de usuário
+  - Método `getActiveSessions()` para listar sessões ativas
+  - Rastreamento de login, logout e expiração de sessões
+  - Auditoria completa de acessos ao sistema
+- **System Settings Repository**: Configurações globais do sistema
+  - Armazena configurações como nome da pousada, moeda, idioma
+  - Singleton pattern (apenas uma instância de configurações)
+  - Configurações de timezone, formato de data/hora
+  - Configurações de impostos e taxas
+- **Integração com AppContext**: Métodos de gerenciamento no contexto global
+  - `addUser()`, `updateUser()`, `findUser()` para gerenciamento de usuários
+  - `addUserSession()` para rastreamento de sessões
+  - `updateSystemSettings()` para configurações do sistema
+- **Correções no LocalStorageAdapter**: Métodos assíncronos corrigidos
+  - Método `keys()` agora retorna Promise corretamente
+  - Métodos `export()`, `clear()`, `getUsage()` atualizados para usar await
+  - Método `cleanupOldData()` convertido para async
+
 ---
 
 ## CONCLUSÃO
