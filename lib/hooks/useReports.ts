@@ -272,6 +272,39 @@ export function useReports() {
   }, [stockItems])
 
   /**
+   * Get revenue trend for a date range
+   */
+  const getRevenueTrend = useCallback((startDate: string, endDate: string): Array<{
+    date: string
+    revenue: number
+    transactionCount: number
+  }> => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const trendData: Array<{ date: string; revenue: number; transactionCount: number }> = []
+    
+    // Generate data for each day in the range
+    const currentDate = new Date(start)
+    while (currentDate <= end) {
+      const dateStr = currentDate.toISOString().split('T')[0]
+      
+      const daySales = posSales.filter(s => 
+        s.date.startsWith(dateStr) && s.status === "concluida"
+      )
+      
+      trendData.push({
+        date: dateStr,
+        revenue: daySales.reduce((sum, s) => sum + s.total, 0),
+        transactionCount: daySales.length,
+      })
+      
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+    
+    return trendData
+  }, [posSales])
+
+  /**
    * Get cash flow summary for a specific date
    */
   const getCashFlowSummary = useCallback((date: string): CashFlowSummary | null => {
@@ -515,5 +548,6 @@ export function useReports() {
     getPeriodSalesByCategory,
     getPeriodSalesByPaymentMethod,
     getPeriodTopProducts,
+    getRevenueTrend,
   }
 }

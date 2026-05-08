@@ -22,6 +22,7 @@ import { HourlySalesChart } from "./reports/hourly-sales-chart"
 import { TopProductsTable } from "./reports/top-products-table"
 import { StockAlertsCard } from "./reports/stock-alerts-card"
 import { PeriodSelector } from "./reports/period-selector"
+import { RevenueTrendChart } from "./reports/revenue-trend-chart"
 import { 
   exportDailySummaryToCSV, 
   exportTopProductsToCSV,
@@ -45,6 +46,7 @@ export function ReportsTab() {
     getPeriodSalesByCategory,
     getPeriodSalesByPaymentMethod,
     getPeriodTopProducts,
+    getRevenueTrend,
   } = useReports()
 
   // Handle period changes
@@ -90,6 +92,7 @@ export function ReportsTab() {
   
   const hourlySales = getHourlySales(startDate)
   const stockAlerts = getStockAlerts()
+  const revenueTrend = isMultiDay ? getRevenueTrend(startDate, endDate) : []
 
   const handleExportDailySummary = () => {
     const dateLabel = isMultiDay ? `${startDate}_${endDate}` : startDate
@@ -180,6 +183,11 @@ export function ReportsTab() {
               subtitle={`${stockAlerts.filter(a => a.status === 'critical').length} críticos`}
             />
           </div>
+
+          {/* Revenue Trend (only for multi-day periods) */}
+          {isMultiDay && revenueTrend.length > 0 && (
+            <RevenueTrendChart data={revenueTrend} />
+          )}
 
           {/* Charts Row 1 */}
           <div className="grid gap-4 md:grid-cols-2">
