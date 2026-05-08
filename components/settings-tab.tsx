@@ -2,55 +2,23 @@
 
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
+import { useNotifications } from "@/lib/notification-context"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Settings, Moon, Sun, Monitor, Bell } from "lucide-react"
-
-type UserPreferences = {
-  notifications: boolean
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  notifications: true,
-}
+import { Separator } from "@/components/ui/separator"
+import { Settings, Moon, Sun, Monitor, Bell, BellOff } from "lucide-react"
 
 export function SettingsTab() {
-  const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES)
   const { theme, setTheme } = useTheme()
+  const { preferences: notificationPrefs, updatePreferences } = useNotifications()
   const [mounted, setMounted] = useState(false)
 
   // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  // Load preferences from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user_preferences")
-      if (saved) {
-        const parsed = JSON.parse(saved) as UserPreferences
-        setPreferences(parsed)
-      }
-    } catch (error) {
-      console.error("Error loading preferences:", error)
-    }
-  }, [])
-
-  // Save preferences to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem("user_preferences", JSON.stringify(preferences))
-    } catch (error) {
-      console.error("Error saving preferences:", error)
-    }
-  }, [preferences])
-
-  const handleNotificationsChange = (checked: boolean) => {
-    setPreferences(prev => ({ ...prev, notifications: checked }))
-  }
 
   if (!mounted) {
     return null
@@ -116,27 +84,123 @@ export function SettingsTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bell className="size-4" />
+            {notificationPrefs.enabled ? <Bell className="size-4" /> : <BellOff className="size-4" />}
             Notificações
           </CardTitle>
           <CardDescription>
-            Configure alertas e avisos
+            Configure alertas e avisos do sistema
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="notifications">Notificações do Sistema</Label>
+              <Label htmlFor="notifications-enabled">Notificações do Sistema</Label>
               <p className="text-sm text-muted-foreground">
-                Receber alertas de eventos importantes (em breve)
+                Ativar/desativar todas as notificações
               </p>
             </div>
             <Switch
-              id="notifications"
-              checked={preferences.notifications}
-              onCheckedChange={handleNotificationsChange}
+              id="notifications-enabled"
+              checked={notificationPrefs.enabled}
+              onCheckedChange={(checked) => updatePreferences({ enabled: checked })}
             />
           </div>
+
+          {notificationPrefs.enabled && (
+            <>
+              <Separator />
+              
+              <div className="space-y-4">
+                <p className="text-sm font-medium">Tipos de Notificações</p>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="notif-checkinout">Check-in e Check-out</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Alertas de entrada e saída de hóspedes
+                    </p>
+                  </div>
+                  <Switch
+                    id="notif-checkinout"
+                    checked={notificationPrefs.checkInOut}
+                    onCheckedChange={(checked) => updatePreferences({ checkInOut: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="notif-payments">Pagamentos</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Alertas de pagamentos recebidos
+                    </p>
+                  </div>
+                  <Switch
+                    id="notif-payments"
+                    checked={notificationPrefs.payments}
+                    onCheckedChange={(checked) => updatePreferences({ payments: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="notif-reservations">Reservas</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Alertas de novas reservas
+                    </p>
+                  </div>
+                  <Switch
+                    id="notif-reservations"
+                    checked={notificationPrefs.reservations}
+                    onCheckedChange={(checked) => updatePreferences({ reservations: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="notif-cleaning">Limpeza</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Alertas de status de limpeza
+                    </p>
+                  </div>
+                  <Switch
+                    id="notif-cleaning"
+                    checked={notificationPrefs.cleaning}
+                    onCheckedChange={(checked) => updatePreferences({ cleaning: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="notif-pos">PDV e Restaurante</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Alertas de vendas e pedidos
+                    </p>
+                  </div>
+                  <Switch
+                    id="notif-pos"
+                    checked={notificationPrefs.posRestaurant}
+                    onCheckedChange={(checked) => updatePreferences({ posRestaurant: checked })}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="browser-notifications">Notificações do Navegador</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Receber notificações mesmo com a aba em segundo plano
+                  </p>
+                </div>
+                <Switch
+                  id="browser-notifications"
+                  checked={notificationPrefs.browserNotifications}
+                  onCheckedChange={(checked) => updatePreferences({ browserNotifications: checked })}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

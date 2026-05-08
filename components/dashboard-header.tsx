@@ -4,6 +4,7 @@ import { BedDouble, CheckCircle2, Users, SprayCan, Lock, LogOut } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { AlertBadge } from "@/components/alert-badge"
+import { NotificationCenter } from "@/components/notification-center"
 import type { Room, RoomStatus } from "@/lib/store"
 
 type StatusCount = {
@@ -54,6 +55,7 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
         </div>
         <div className="flex items-center gap-3">
           <AlertBadge />
+          <NotificationCenter />
           <div className="rounded-lg bg-secondary px-3 py-1.5 text-xs">
             <span className="text-muted-foreground">Logado como </span>
             <span className="font-semibold capitalize text-foreground">{username}</span>
