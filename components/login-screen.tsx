@@ -64,7 +64,7 @@ export function LoginScreen() {
             <div className="rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">Credenciais de teste:</p>
               <p className="mt-1">Operador: <span className="font-mono">operador / 1234</span></p>
-              <p>Supervisor: <span className="font-mono">supervisor / admin</span></p>
+              <p>Supervisor: <span className="font-mono">supervisor / adm123</span></p>
             </div>
           </form>
         </CardContent>

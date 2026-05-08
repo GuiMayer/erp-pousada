@@ -15,11 +15,9 @@ type AuthContextType = AuthState & {
   isSupervisor: boolean
 }
 
-const SUPERVISOR_PASSWORD = process.env.NEXT_PUBLIC_SUPERVISOR_PASSWORD || "1234"
-
 const MOCK_USERS: Record<string, { password: string; role: UserRole }> = {
   operador: { password: "1234", role: "operador" },
-  supervisor: { password: SUPERVISOR_PASSWORD, role: "supervisor" },
+  supervisor: { password: "adm123", role: "supervisor" },
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
