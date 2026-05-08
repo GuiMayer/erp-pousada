@@ -67,7 +67,7 @@ describe('useGuestSearch', () => {
     const { result } = renderHook(() => useGuestSearch(mockFindGuest))
     
     act(() => {
-      result.current.setCpf('123.456.789-00')
+      result.current.setCpf('111.444.777-35')
     })
 
     expect(result.current.isValidCPF).toBe(true)
@@ -77,7 +77,7 @@ describe('useGuestSearch', () => {
     const { result } = renderHook(() => useGuestSearch(mockFindGuest))
     
     act(() => {
-      result.current.setCpf('987.654.321-00')
+      result.current.setCpf('123.456.789-09')
     })
 
     expect(result.current.isNewGuest).toBe(true)

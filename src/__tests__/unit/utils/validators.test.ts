@@ -33,8 +33,8 @@ describe('Validators', () => {
 
   describe('isValidCPF', () => {
     it('should validate CPF with correct format', () => {
-      expect(isValidCPF('191.000.000-43')).toBe(true)
-      expect(isValidCPF('19100000043')).toBe(true)
+      expect(isValidCPF('111.444.777-35')).toBe(true)
+      expect(isValidCPF('11144477735')).toBe(true)
     })
 
     it('should reject CPF with invalid format', () => {
