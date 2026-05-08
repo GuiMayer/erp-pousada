@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react"
 import type { GuestProfile } from "../store"
-import { validateCPF } from "../utils/validators"
+import { isValidCPF } from "../utils/validators"
 
 /**
  * Hook for searching guests by CPF
@@ -31,7 +31,7 @@ export function useGuestSearch(findGuest: (cpf: string) => GuestProfile | undefi
     setFoundGuest(undefined)
   }, [])
 
-  const isValidCPF = validateCPF(cpf)
+  const cpfIsValid = isValidCPF(cpf)
 
   return {
     cpf,
@@ -39,8 +39,8 @@ export function useGuestSearch(findGuest: (cpf: string) => GuestProfile | undefi
     guestName,
     setGuestName,
     foundGuest,
-    isValidCPF,
-    isNewGuest: !foundGuest && isValidCPF,
+    isValidCPF: cpfIsValid,
+    isNewGuest: !foundGuest && cpfIsValid,
     reset,
   }
 }
