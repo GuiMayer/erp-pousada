@@ -15,7 +15,7 @@ const statusLabels: Record<RoomStatus, string> = {
   bloqueado: "Bloqueado",
 }
 
-export function MiniTimeline({ days, startIndex = 0 }: { days: TimelineDay[]; startIndex?: number }) {
+export function MiniTimeline({ days, startIndex = 0, highlightDate }: { days: TimelineDay[]; startIndex?: number; highlightDate?: string }) {
   const todayISO = new Date().toISOString().split("T")[0]
 
   return (
@@ -29,6 +29,7 @@ export function MiniTimeline({ days, startIndex = 0 }: { days: TimelineDay[]; st
         <div className="grid grid-cols-7 gap-1 w-full">
           {days.map((day, i) => {
             const isToday = day.date === todayISO
+            const isHighlighted = highlightDate && day.date === highlightDate
             const isEdge = (i === 0 || i === days.length - 1) && day.status === "ocupado"
 
             return (
@@ -37,11 +38,13 @@ export function MiniTimeline({ days, startIndex = 0 }: { days: TimelineDay[]; st
                   <div className="flex flex-col items-center gap-1">
                     <div
                       className={`h-2 w-full rounded-full transition-all ${statusColors[day.status]} ${
+                        isHighlighted ? "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110" : 
                         isToday ? "ring-2 ring-foreground/20 ring-offset-1 ring-offset-card" : ""
                       } ${isEdge ? "opacity-60" : ""}`}
                     />
                     <span
                       className={`text-[9px] tabular-nums ${
+                        isHighlighted ? "font-bold text-primary" :
                         isToday ? "font-bold text-foreground" : "text-muted-foreground"
                       }`}
                     >

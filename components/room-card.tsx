@@ -77,10 +77,10 @@ function isOverdue(room: Room): boolean {
   return now > checkoutDate
 }
 
-export function RoomCard({ room }: { room: Room }) {
+export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: string }) {
   const config = statusConfig[room.status]
   const overdue = isOverdue(room)
-  const { updateRoom, addAuditEntry, getConsumption, clearConsumption } = useApp()
+  const { updateRoom, addAuditEntry, getConsumption, clearConsumption, getRoomTimeline } = useApp()
   const { username } = useAuth()
   const { sendNotification } = useNotifications()
   const [blockModalOpen, setBlockModalOpen] = useState(false)
@@ -91,6 +91,9 @@ export function RoomCard({ room }: { room: Room }) {
   const consumptionTotal = consumption
     ? consumption.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
     : 0
+
+  // Calculate dynamic timeline based on selected date
+  const timeline = getRoomTimeline(room.id, selectedDate, 7)
 
   function handleCheckOut() {
     updateRoom(room.id, {
@@ -298,7 +301,7 @@ export function RoomCard({ room }: { room: Room }) {
 
         <CardFooter className="flex-col items-stretch gap-0 pb-4 pt-0">
           <Separator className="mb-3 mt-3" />
-          <MiniTimeline days={room.timeline} />
+          <MiniTimeline days={timeline} highlightDate={selectedDate} />
         </CardFooter>
       </Card>
 
