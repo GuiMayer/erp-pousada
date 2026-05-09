@@ -40,6 +40,8 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
 
   // Form fields
   const [categoryName, setCategoryName] = useState("")
+  const [categoryColor, setCategoryColor] = useState("#6b7280")
+  const [categoryIcon, setCategoryIcon] = useState("Package")
   const [formError, setFormError] = useState("")
 
   // Calculate product count by category dynamically
@@ -65,6 +67,8 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
 
   function resetForm() {
     setCategoryName("")
+    setCategoryColor("#6b7280")
+    setCategoryIcon("Package")
     setFormError("")
     setEditingCategory(null)
   }
@@ -88,8 +92,8 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
     const newCategory: ProductCategory = {
       id: `pcat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: categoryName.trim(),
-      color: "#6b7280", // Default gray color
-      icon: "Package", // Default icon
+      color: categoryColor,
+      icon: categoryIcon,
       active: true,
       isRestaurant: activeTab === "restaurant",
     }
@@ -118,7 +122,11 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
       return
     }
     
-    await updateProductCategory(editingCategory.id, { name: categoryName.trim() })
+    await updateProductCategory(editingCategory.id, { 
+      name: categoryName.trim(),
+      color: categoryColor,
+      icon: categoryIcon
+    })
     addAuditEntry({ 
       user: username || "sistema", 
       action: "Categoria editada", 
@@ -160,6 +168,8 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
   function openEdit(category: ProductCategory) {
     setEditingCategory(category)
     setCategoryName(category.name)
+    setCategoryColor(category.color)
+    setCategoryIcon(category.icon)
     setFormError("")
     setMode("edit")
   }
@@ -219,6 +229,10 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
                             className="flex items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2.5"
                           >
                             <div className="flex flex-1 items-center gap-3 min-w-0">
+                              <div 
+                                className="size-4 rounded-full shrink-0 border border-border" 
+                                style={{ backgroundColor: category.color }}
+                              />
                               <div className="flex flex-col gap-0.5 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-foreground">{category.name}</span>
@@ -260,6 +274,10 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
                             className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2.5 opacity-60"
                           >
                             <div className="flex flex-1 items-center gap-3 min-w-0">
+                              <div 
+                                className="size-4 rounded-full shrink-0 border border-border" 
+                                style={{ backgroundColor: category.color }}
+                              />
                               <div className="flex flex-col gap-0.5 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-foreground">{category.name}</span>
@@ -303,6 +321,38 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
                       autoFocus
                     />
                   </div>
+                  
+                  <div className="flex gap-4">
+                    <div className="flex flex-col gap-2 flex-1">
+                      <Label htmlFor="categoryColor">Cor</Label>
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          id="categoryColor"
+                          type="color"
+                          value={categoryColor}
+                          onChange={e => setCategoryColor(e.target.value)}
+                          className="w-20 h-10 cursor-pointer"
+                        />
+                        <Input
+                          value={categoryColor}
+                          onChange={e => setCategoryColor(e.target.value)}
+                          placeholder="#6b7280"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 flex-1">
+                      <Label htmlFor="categoryIcon">Ícone</Label>
+                      <Input
+                        id="categoryIcon"
+                        value={categoryIcon}
+                        onChange={e => setCategoryIcon(e.target.value)}
+                        placeholder="Package"
+                      />
+                    </div>
+                  </div>
+                  
                   {formError && (
                     <p className="text-sm text-destructive">{formError}</p>
                   )}
