@@ -22,6 +22,7 @@ import {
   type Employee, type EmployeeConsumption,
   type ProductCategory,
   type User, type UserSession, type SystemSettings,
+  type Supplier, type Customer, type AccountReceivable,
   type TimelineDay,
   calculateRoomTimeline,
 } from "./store"
@@ -53,6 +54,9 @@ type AppContextType = {
   users: User[]
   userSessions: UserSession[]
   systemSettings: SystemSettings
+  suppliers: Supplier[]
+  customers: Customer[]
+  accountsReceivable: AccountReceivable[]
   isLoading: boolean
   isHydrated: boolean
   updateRoom: (id: number, data: Partial<Room>) => Promise<void>
@@ -104,6 +108,15 @@ type AppContextType = {
   findUser: (username: string) => User | undefined
   addUserSession: (s: UserSession) => Promise<void>
   updateSystemSettings: (data: Partial<SystemSettings>) => Promise<void>
+  addSupplier: (s: Supplier) => Promise<void>
+  updateSupplier: (id: string, data: Partial<Supplier>) => Promise<void>
+  removeSupplier: (id: string) => Promise<void>
+  addCustomer: (c: Customer) => Promise<void>
+  updateCustomer: (id: string, data: Partial<Customer>) => Promise<void>
+  removeCustomer: (id: string) => Promise<void>
+  addAccountReceivable: (ar: AccountReceivable) => Promise<void>
+  updateAccountReceivable: (id: string, data: Partial<AccountReceivable>) => Promise<void>
+  removeAccountReceivable: (id: string) => Promise<void>
   exportData: () => Promise<string>
   importData: (json: string) => Promise<void>
   clearAllData: () => Promise<void>
@@ -148,6 +161,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([])
   const [userSessions, setUserSessions] = useState<UserSession[]>([])
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(initialSystemSettings)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [accountsReceivable, setAccountsReceivable] = useState<AccountReceivable[]>([])
 
   // Load data from repositories on mount and when syncing
   const loadAllData = useCallback(async () => {
@@ -159,7 +175,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         restaurantTablesData, restaurantOrdersData,
         stockItemsData, stockMovementsData, recipesData, productionsData,
         employeesData, employeeConsumptionsData,
-        usersData, userSessionsData, systemSettingsData
+        usersData, userSessionsData, systemSettingsData,
+        suppliersData, customersData, accountsReceivableData
       ] = await Promise.all([
         dataStore.rooms.getAll(),
         dataStore.reservations.getAll(),
@@ -183,7 +200,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dataStore.employeeConsumptions.getAll(),
         dataStore.users.getAll(),
         dataStore.userSessions.getAll(),
-        dataStore.systemSettings.getAll()
+        dataStore.systemSettings.getAll(),
+        dataStore.suppliers.getAll(),
+        dataStore.customers.getAll(),
+        dataStore.accountsReceivable.getAll()
       ])
 
       setRooms(roomsData)
@@ -209,6 +229,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUsers(usersData)
       setUserSessions(userSessionsData)
       setSystemSettings(systemSettingsData[0] || initialSystemSettings)
+      setSuppliers(suppliersData)
+      setCustomers(customersData)
+      setAccountsReceivable(accountsReceivableData)
     } catch (error) {
       console.error('[AppContext] Error loading data:', error)
     }
@@ -812,6 +835,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [dataStore])
 
+  // Supplier methods
+  const addSupplier = useCallback(async (s: Supplier) => {
+    await dataStore.suppliers.create(s)
+    setSuppliers(await dataStore.suppliers.getAll())
+  }, [dataStore])
+
+  const updateSupplier = useCallback(async (id: string, data: Partial<Supplier>) => {
+    await dataStore.suppliers.update(id, data)
+    setSuppliers(await dataStore.suppliers.getAll())
+  }, [dataStore])
+
+  const removeSupplier = useCallback(async (id: string) => {
+    await dataStore.suppliers.delete(id)
+    setSuppliers(await dataStore.suppliers.getAll())
+  }, [dataStore])
+
+  // Customer methods
+  const addCustomer = useCallback(async (c: Customer) => {
+    await dataStore.customers.create(c)
+    setCustomers(await dataStore.customers.getAll())
+  }, [dataStore])
+
+  const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
+    await dataStore.customers.update(id, data)
+    setCustomers(await dataStore.customers.getAll())
+  }, [dataStore])
+
+  const removeCustomer = useCallback(async (id: string) => {
+    await dataStore.customers.delete(id)
+    setCustomers(await dataStore.customers.getAll())
+  }, [dataStore])
+
+  // Account Receivable methods
+  const addAccountReceivable = useCallback(async (ar: AccountReceivable) => {
+    await dataStore.accountsReceivable.create(ar)
+    setAccountsReceivable(await dataStore.accountsReceivable.getAll())
+  }, [dataStore])
+
+  const updateAccountReceivable = useCallback(async (id: string, data: Partial<AccountReceivable>) => {
+    await dataStore.accountsReceivable.update(id, data)
+    setAccountsReceivable(await dataStore.accountsReceivable.getAll())
+  }, [dataStore])
+
+  const removeAccountReceivable = useCallback(async (id: string) => {
+    await dataStore.accountsReceivable.delete(id)
+    setAccountsReceivable(await dataStore.accountsReceivable.getAll())
+  }, [dataStore])
+
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     rooms, reservations, guests, expenses, transactions,
@@ -821,6 +892,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     stockItems, stockMovements, recipes, productions,
     employees, employeeConsumptions,
     users, userSessions, systemSettings,
+    suppliers, customers, accountsReceivable,
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
@@ -835,6 +907,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRecipe, updateRecipe, addProduction,
     addEmployee, updateEmployee, addEmployeeConsumption,
     addUser, updateUser, findUser, addUserSession, updateSystemSettings,
+    addSupplier, updateSupplier, removeSupplier,
+    addCustomer, updateCustomer, removeCustomer,
+    addAccountReceivable, updateAccountReceivable, removeAccountReceivable,
     exportData, importData, clearAllData, getStorageUsage,
   }), [
     rooms, reservations, guests, expenses, transactions,
@@ -844,6 +919,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     stockItems, stockMovements, recipes, productions,
     employees, employeeConsumptions,
     users, userSessions, systemSettings,
+    suppliers, customers, accountsReceivable,
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
@@ -858,6 +934,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRecipe, updateRecipe, addProduction,
     addEmployee, updateEmployee, addEmployeeConsumption,
     addUser, updateUser, findUser, addUserSession, updateSystemSettings,
+    addSupplier, updateSupplier, removeSupplier,
+    addCustomer, updateCustomer, removeCustomer,
+    addAccountReceivable, updateAccountReceivable, removeAccountReceivable,
     exportData, importData, clearAllData, getStorageUsage,
   ])
 

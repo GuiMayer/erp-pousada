@@ -218,9 +218,21 @@ export interface Expense {
   id: string
   description: string
   category: string
+  supplierId?: string // Vincula a fornecedor
   value: number
   dueDate: string
   paid: boolean
+  paymentDate?: string
+  installments?: ExpenseInstallment[]
+}
+
+export interface ExpenseInstallment {
+  id: string
+  installmentNumber: number
+  value: number
+  dueDate: string
+  paid: boolean
+  paymentDate?: string
 }
 
 export interface Transaction {
@@ -234,6 +246,11 @@ export interface Transaction {
   paymentMethod?: string
   responsible?: string
   notes?: string
+  accountId?: string // Vincula a conta bancária
+  costCenterId?: string // Vincula a centro de custo
+  taxAmount?: number // Valor de imposto
+  taxType?: string // Tipo de imposto
+  grossAmount?: number // Valor bruto antes de impostos
 }
 
 export interface AuditEntry {
@@ -268,6 +285,117 @@ export interface CashClose {
 export interface ExpenseCategory {
   id: string
   label: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  cnpj?: string
+  email?: string
+  phone?: string
+  address?: string
+  paymentTerms?: string
+  notes?: string
+  active: boolean
+}
+
+export interface Customer {
+  id: string
+  name: string
+  cpfCnpj: string
+  email?: string
+  phone?: string
+  address?: string
+  notes?: string
+  active: boolean
+}
+
+export interface AccountReceivable {
+  id: string
+  customerId?: string
+  customerName: string
+  description: string
+  value: number
+  issueDate: string
+  dueDate: string
+  status: "pendente" | "pago" | "vencido" | "cancelado"
+  paymentDate?: string
+  category?: string
+  invoiceNumber?: string
+  notes?: string
+  installments?: AccountReceivableInstallment[]
+}
+
+export interface AccountReceivableInstallment {
+  id: string
+  installmentNumber: number
+  value: number
+  dueDate: string
+  status: "pendente" | "pago" | "vencido"
+  paymentDate?: string
+}
+
+export interface BankAccount {
+  id: string
+  name: string
+  type: "caixa" | "conta_corrente" | "poupanca" | "cartao"
+  bank?: string
+  agency?: string
+  accountNumber?: string
+  initialBalance: number
+  currentBalance: number
+  active: boolean
+}
+
+export interface BankTransfer {
+  id: string
+  date: string
+  fromAccountId: string
+  toAccountId: string
+  value: number
+  description: string
+  responsible: string
+}
+
+export interface CostCenter {
+  id: string
+  name: string
+  description?: string
+  active: boolean
+}
+
+export interface Budget {
+  id: string
+  name: string
+  year: number
+  month?: number
+  categories: BudgetCategory[]
+  status: "ativo" | "arquivado"
+}
+
+export interface BudgetCategory {
+  categoryId: string
+  categoryName: string
+  plannedAmount: number
+  spentAmount: number
+  variance: number
+  variancePercent: number
+}
+
+export interface RecurringTransaction {
+  id: string
+  description: string
+  value: number
+  type: "receita" | "despesa"
+  category: string
+  accountId?: string
+  frequency: "diaria" | "semanal" | "mensal" | "anual"
+  dayOfMonth?: number
+  dayOfWeek?: number
+  startDate: string
+  endDate?: string
+  active: boolean
+  lastGenerated?: string
 }
 
 export interface ConsumptionItem {

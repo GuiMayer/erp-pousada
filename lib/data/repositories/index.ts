@@ -32,6 +32,9 @@ import { EmployeeConsumptionRepository } from "./employee-consumption-repository
 import { UserRepository } from "./user-repository"
 import { UserSessionRepository } from "./user-session-repository"
 import { SystemSettingsRepository } from "./system-settings-repository"
+import { SupplierRepository } from "./supplier-repository"
+import { CustomerRepository } from "./customer-repository"
+import { AccountReceivableRepository } from "./account-receivable-repository"
 
 /**
  * Create a complete DataStore with all repositories
@@ -77,6 +80,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
   const users = new UserRepository(adapter, userId)
   const userSessions = new UserSessionRepository(adapter, userId)
   const systemSettings = new SystemSettingsRepository(adapter, userId)
+  const suppliers = new SupplierRepository(adapter, userId)
+  const customers = new CustomerRepository(adapter, userId)
+  const accountsReceivable = new AccountReceivableRepository(adapter, userId)
 
   // Return DataStore interface
   return {
@@ -115,6 +121,11 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
     userSessions,
     systemSettings,
 
+    // Financial entities
+    suppliers,
+    customers,
+    accountsReceivable,
+
     // Utility methods
     async exportAll(): Promise<string> {
       return adapter.export()
@@ -149,6 +160,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
         users.clear(),
         userSessions.clear(),
         systemSettings.clear(),
+        suppliers.clear(),
+        customers.clear(),
+        accountsReceivable.clear(),
       ])
     },
 
@@ -182,4 +196,7 @@ export * from "./employee-consumption-repository"
 export * from "./user-repository"
 export * from "./user-session-repository"
 export * from "./system-settings-repository"
+export * from "./supplier-repository"
+export * from "./customer-repository"
+export * from "./account-receivable-repository"
 export * from "./base-repository"

@@ -82,6 +82,69 @@ export function generateCategoryId(count: number): string {
 }
 
 /**
+ * Generates a supplier ID
+ * @param count - Current count of suppliers
+ * @returns Formatted supplier ID (e.g., "SUP0001")
+ */
+export function generateSupplierId(count: number): string {
+  return `SUP${String(count + 1).padStart(4, "0")}`
+}
+
+/**
+ * Generates a customer ID
+ * @param count - Current count of customers
+ * @returns Formatted customer ID (e.g., "CLI0001")
+ */
+export function generateCustomerId(count: number): string {
+  return `CLI${String(count + 1).padStart(4, "0")}`
+}
+
+/**
+ * Generates an account receivable ID
+ * @param count - Current count of accounts receivable
+ * @returns Formatted account receivable ID (e.g., "AR0001")
+ */
+export function generateAccountReceivableId(count: number): string {
+  return `AR${String(count + 1).padStart(4, "0")}`
+}
+
+/**
+ * Generates a bank account ID
+ * @param count - Current count of bank accounts
+ * @returns Formatted bank account ID (e.g., "BA001")
+ */
+export function generateBankAccountId(count: number): string {
+  return `BA${String(count + 1).padStart(3, "0")}`
+}
+
+/**
+ * Generates a cost center ID
+ * @param count - Current count of cost centers
+ * @returns Formatted cost center ID (e.g., "CC001")
+ */
+export function generateCostCenterId(count: number): string {
+  return `CC${String(count + 1).padStart(3, "0")}`
+}
+
+/**
+ * Generates a budget ID
+ * @param count - Current count of budgets
+ * @returns Formatted budget ID (e.g., "BUD001")
+ */
+export function generateBudgetId(count: number): string {
+  return `BUD${String(count + 1).padStart(3, "0")}`
+}
+
+/**
+ * Generates a recurring transaction ID
+ * @param count - Current count of recurring transactions
+ * @returns Formatted recurring transaction ID (e.g., "REC0001")
+ */
+export function generateRecurringTransactionId(count: number): string {
+  return `REC${String(count + 1).padStart(4, "0")}`
+}
+
+/**
  * Generates a cart item ID for POS
  * @returns Unique cart item ID (e.g., "CI-1714989600000-a1b2")
  */

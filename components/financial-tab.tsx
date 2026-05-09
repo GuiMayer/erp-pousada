@@ -31,6 +31,8 @@ import {
 } from "lucide-react"
 import type { Transaction, Expense } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils/formatters"
+import { SuppliersManagement } from "@/components/suppliers-management"
+import { AccountsReceivableManagement } from "@/components/accounts-receivable-management"
 
 function formatDateBR(iso: string) {
   const d = new Date(iso.includes("T") ? iso : iso + "T12:00:00")
@@ -254,6 +256,8 @@ export function FinancialTab() {
         <TabsList>
           <TabsTrigger value="vencimentos">Vencimentos</TabsTrigger>
           <TabsTrigger value="transacoes">Transacoes</TabsTrigger>
+          <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
+          <TabsTrigger value="contas-receber">Contas a Receber</TabsTrigger>
           <TabsTrigger value="fechar-turno">Fechar Turno</TabsTrigger>
         </TabsList>
 
@@ -484,6 +488,16 @@ export function FinancialTab() {
               {filteredTransactions.length} transacao(oes) encontrada(s)
             </p>
           </div>
+        </TabsContent>
+
+        {/* Suppliers */}
+        <TabsContent value="fornecedores">
+          <SuppliersManagement />
+        </TabsContent>
+
+        {/* Accounts Receivable */}
+        <TabsContent value="contas-receber">
+          <AccountsReceivableManagement />
         </TabsContent>
 
         {/* Cash close */}
