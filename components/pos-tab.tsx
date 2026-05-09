@@ -51,7 +51,7 @@ export function POSTab() {
   const {
     posProducts, posSales, rooms, stockItems,
     addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
-    addConsumptionItem, getCategoryName,
+    addConsumptionItem, getCategoryName, productCategories,
   } = useApp()
   const { username, role } = useAuth()
   const { processStockForSale, validateStockAvailability } = useStockIntegration()
@@ -62,7 +62,7 @@ export function POSTab() {
   const [cart, setCart] = useState<POSCartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [barcodeInput, setBarcodeInput] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("Todos")
+  const [categoryFilter, setCategoryFilter] = useState("all")
   const [globalDiscount, setGlobalDiscount] = useState(0)
   const [customer, setCustomer] = useState("")
 
@@ -94,19 +94,25 @@ export function POSTab() {
 
   // Categories
   const categories = useMemo(() => {
-    const cats = new Set(posProducts.map(p => getCategoryName(p.categoryId)))
-    return ["Todos", ...Array.from(cats)]
-  }, [posProducts, getCategoryName])
+    const uniqueCategoryIds = new Set(posProducts.map(p => p.categoryId))
+    const categoryObjects = Array.from(uniqueCategoryIds)
+      .map(id => productCategories.find(c => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined && c.active && !c.isRestaurant)
+    return [
+      { id: "all", name: "Todos" },
+      ...categoryObjects
+    ]
+  }, [posProducts, productCategories])
 
   // Filtered products
   const filteredProducts = useMemo(() => {
     return posProducts.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.barcode && p.barcode.includes(searchQuery))
-      const matchesCategory = categoryFilter === "Todos" || getCategoryName(p.categoryId) === categoryFilter
+      const matchesCategory = categoryFilter === "all" || p.categoryId === categoryFilter
       return matchesSearch && matchesCategory
     })
-  }, [posProducts, searchQuery, categoryFilter, getCategoryName])
+  }, [posProducts, searchQuery, categoryFilter])
 
   // Cart calculations
   const subtotal = useMemo(() => calculateCartSubtotal(cart), [cart])
@@ -493,11 +499,11 @@ export function POSTab() {
                 <TabsList className="h-auto flex-wrap gap-1 bg-transparent p-0">
                   {categories.map(cat => (
                     <TabsTrigger
-                      key={cat}
-                      value={cat}
+                      key={cat.id}
+                      value={cat.id}
                       className="rounded-full border border-transparent bg-secondary/50 px-3 py-1.5 text-xs data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
-                      {cat}
+                      {cat.name}
                     </TabsTrigger>
                   ))}
                 </TabsList>
