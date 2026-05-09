@@ -138,7 +138,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
               </SelectTrigger>
               <SelectContent>
                 {posCategories.length === 0 ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="no-category" disabled>
                     Nenhuma categoria disponível
                   </SelectItem>
                 ) : (
