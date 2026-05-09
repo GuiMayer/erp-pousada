@@ -2,14 +2,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts"
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
 import { formatCurrency } from "@/lib/utils/price-calculations"
 
 interface HourlySalesChartProps {
@@ -18,57 +18,84 @@ interface HourlySalesChartProps {
     revenue: number
     transactionCount: number
   }>
+  enableAnimations?: boolean
 }
 
-export function HourlySalesChart({ data }: HourlySalesChartProps) {
+const chartConfig = {
+  revenue: {
+    label: "Receita",
+    color: "var(--chart-1)",
+  },
+  transactionCount: {
+    label: "Transações",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig
+
+export function HourlySalesChart({ data, enableAnimations = true }: HourlySalesChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Vendas por Hora do Dia</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[300px]">
+          <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Vendas por Hora do Dia</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="hsl(var(--border))"
-              opacity={0.3}
-            />
-            <XAxis 
-              dataKey="hour" 
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+        <ChartContainer config={chartConfig}>
+          <LineChart 
+            data={data}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis
+              dataKey="hour"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
               tickFormatter={(hour) => `${hour}h`}
-              stroke="hsl(var(--border))"
             />
-            <YAxis 
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
               tickFormatter={(value) => formatCurrency(value)}
-              stroke="hsl(var(--border))"
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                color: 'hsl(var(--popover-foreground))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-              formatter={(value: number, name: string) => {
-                if (name === 'revenue') return formatCurrency(value)
-                return value
-              }}
-              labelFormatter={(hour) => `${hour}:00`}
-              labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(value) => `${value}:00`}
+                  formatter={(value, name) => {
+                    if (name === "revenue") {
+                      return [formatCurrency(value as number), "Receita"]
+                    }
+                    return [value, "Transações"]
+                  }}
+                />
+              }
             />
-            <Line 
-              type="monotone" 
-              dataKey="revenue" 
-              stroke="hsl(var(--primary))" 
+            <ChartLegend content={<ChartLegendContent />} />
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke="var(--color-revenue)"
               strokeWidth={2}
-              name="Receita"
-              dot={{ fill: 'hsl(var(--primary))' }}
+              dot={{ fill: "var(--color-revenue)", r: 4 }}
+              activeDot={{ r: 6 }}
+              isAnimationActive={enableAnimations}
             />
           </LineChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   )

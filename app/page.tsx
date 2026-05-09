@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { AppProvider } from "@/lib/app-context"
 import { AlertProvider } from "@/lib/alert-context"
 import { NotificationProvider } from "@/lib/notification-context"
+import { UserPreferencesProvider } from "@/contexts/user-preferences-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LoginScreen } from "@/components/login-screen"
 import { DashboardShell } from "@/components/dashboard-shell"
@@ -31,11 +32,13 @@ function AppContent() {
 export default function Page() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <AuthProvider>
-        <AppProvider>
-          <AppContent />
-        </AppProvider>
-      </AuthProvider>
+      <UserPreferencesProvider>
+        <AuthProvider>
+          <AppProvider>
+            <AppContent />
+          </AppProvider>
+        </AuthProvider>
+      </UserPreferencesProvider>
     </ThemeProvider>
   )
 }

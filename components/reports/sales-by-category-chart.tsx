@@ -2,15 +2,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts"
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
 import { formatCurrency } from "@/lib/utils/price-calculations"
 
 interface SalesByCategoryChartProps {
@@ -20,53 +19,78 @@ interface SalesByCategoryChartProps {
     quantity: number
     percentage: number
   }>
+  enableAnimations?: boolean
 }
 
-export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
+const chartConfig = {
+  revenue: {
+    label: "Receita",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig
+
+export function SalesByCategoryChart({ data, enableAnimations = true }: SalesByCategoryChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Vendas por Categoria</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[300px]">
+          <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Vendas por Categoria</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="hsl(var(--border))"
-              opacity={0.3}
+        <ChartContainer config={chartConfig}>
+          <BarChart 
+            data={data}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis
+              dataKey="category"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              angle={-45}
+              textAnchor="end"
+              height={80}
             />
-            <XAxis 
-              dataKey="category" 
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
-              stroke="hsl(var(--border))"
-            />
-            <YAxis 
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
               tickFormatter={(value) => formatCurrency(value)}
-              stroke="hsl(var(--border))"
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                color: 'hsl(var(--popover-foreground))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-              formatter={(value: number) => formatCurrency(value)}
-              labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name) => {
+                    if (name === "revenue") {
+                      return [formatCurrency(value as number), "Receita"]
+                    }
+                    return [value, name]
+                  }}
+                />
+              }
             />
-            <Legend 
-              wrapperStyle={{ color: 'hsl(var(--foreground))' }}
-            />
-            <Bar 
-              dataKey="revenue" 
-              fill="hsl(var(--primary))" 
-              name="Receita"
-              radius={[4, 4, 0, 0]}
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar
+              dataKey="revenue"
+              fill="var(--color-revenue)"
+              radius={[8, 8, 0, 0]}
+              isAnimationActive={enableAnimations}
             />
           </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   )

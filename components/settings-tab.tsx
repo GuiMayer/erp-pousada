@@ -3,16 +3,18 @@
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
 import { useNotifications } from "@/lib/notification-context"
+import { useUserPreferences } from "@/contexts/user-preferences-context"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Settings, Moon, Sun, Monitor, Bell, BellOff } from "lucide-react"
+import { Settings, Moon, Sun, Monitor, Bell, BellOff, BarChart3 } from "lucide-react"
 
 export function SettingsTab() {
   const { theme, setTheme } = useTheme()
   const { preferences: notificationPrefs, updatePreferences } = useNotifications()
+  const { preferences: userPrefs, updatePreference } = useUserPreferences()
   const [mounted, setMounted] = useState(false)
 
   // Prevent hydration mismatch
@@ -76,6 +78,34 @@ export function SettingsTab() {
             <p className="text-sm text-muted-foreground">
               Escolha entre tema claro, escuro ou seguir as preferências do sistema
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Gráficos e Visualizações */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="size-4" />
+            Gráficos e Visualizações
+          </CardTitle>
+          <CardDescription>
+            Configure o comportamento dos gráficos e relatórios
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="chart-animations">Animações dos Gráficos</Label>
+              <p className="text-sm text-muted-foreground">
+                Ativar/desativar animações ao carregar gráficos
+              </p>
+            </div>
+            <Switch
+              id="chart-animations"
+              checked={userPrefs.enableChartAnimations}
+              onCheckedChange={(checked) => updatePreference('enableChartAnimations', checked)}
+            />
           </div>
         </CardContent>
       </Card>

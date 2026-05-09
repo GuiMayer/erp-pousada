@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useReports } from "@/lib/hooks/useReports"
+import { useUserPreferences } from "@/contexts/user-preferences-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +37,7 @@ import {
 import { getTodayISO } from "@/lib/utils/constants"
 
 export function ReportsTab() {
+  const { preferences } = useUserPreferences()
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today')
   const [startDate, setStartDate] = useState(getTodayISO())
   const [endDate, setEndDate] = useState(getTodayISO())
@@ -261,7 +263,7 @@ export function ReportsTab() {
           {/* Revenue Trend (only for multi-day periods) */}
           {isMultiDay && revenueTrend.length > 0 && (
             <div className="space-y-2">
-              <RevenueTrendChart data={revenueTrend} />
+              <RevenueTrendChart data={revenueTrend} enableAnimations={preferences.enableChartAnimations} />
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" onClick={handleExportRevenueTrend}>
                   <Download className="h-4 w-4 mr-2" />
@@ -273,12 +275,12 @@ export function ReportsTab() {
 
           {/* Charts Row 1 */}
           <div className="grid gap-4 md:grid-cols-2">
-            <SalesByCategoryChart data={salesByCategory} />
-            <PaymentMethodChart data={salesByPaymentMethod} />
+            <SalesByCategoryChart data={salesByCategory} enableAnimations={preferences.enableChartAnimations} />
+            <PaymentMethodChart data={salesByPaymentMethod} enableAnimations={preferences.enableChartAnimations} />
           </div>
 
           {/* Charts Row 2 */}
-          <HourlySalesChart data={hourlySales} />
+          <HourlySalesChart data={hourlySales} enableAnimations={preferences.enableChartAnimations} />
         </TabsContent>
 
         {/* Sales Tab */}
@@ -308,8 +310,8 @@ export function ReportsTab() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <PaymentMethodChart data={salesByPaymentMethod} />
-            <HourlySalesChart data={hourlySales} />
+            <PaymentMethodChart data={salesByPaymentMethod} enableAnimations={preferences.enableChartAnimations} />
+            <HourlySalesChart data={hourlySales} enableAnimations={preferences.enableChartAnimations} />
           </div>
 
           <div className="flex justify-end gap-2">
@@ -326,7 +328,7 @@ export function ReportsTab() {
 
         {/* Products Tab */}
         <TabsContent value="products" className="space-y-6">
-          <SalesByCategoryChart data={salesByCategory} />
+          <SalesByCategoryChart data={salesByCategory} enableAnimations={preferences.enableChartAnimations} />
           
           <TopProductsTable data={topProducts} limit={10} />
 

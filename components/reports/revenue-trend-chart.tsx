@@ -2,15 +2,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts"
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
 import { formatCurrency } from "@/lib/utils/price-calculations"
 
 interface RevenueTrendChartProps {
@@ -19,83 +18,121 @@ interface RevenueTrendChartProps {
     revenue: number
     transactionCount: number
   }>
+  enableAnimations?: boolean
 }
 
-export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
+const chartConfig = {
+  revenue: {
+    label: "Receita",
+    color: "var(--chart-1)",
+  },
+  transactionCount: {
+    label: "Transações",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig
+
+export function RevenueTrendChart({ data, enableAnimations = true }: RevenueTrendChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Tendência de Receita</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[350px]">
+          <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Format data for display
+  const formattedData = data.map(item => ({
+    ...item,
+    displayDate: new Date(item.date).toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit' 
+    }),
+  }))
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Tendência de Receita</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="hsl(var(--border))"
-              opacity={0.3}
+        <ChartContainer config={chartConfig}>
+          <LineChart 
+            data={formattedData}
+            margin={{ top: 20, right: 60, bottom: 20, left: 20 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis
+              dataKey="displayDate"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
             />
-            <XAxis 
-              dataKey="date" 
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
-              stroke="hsl(var(--border))"
-              tickFormatter={(date) => {
-                const d = new Date(date)
-                return `${d.getDate()}/${d.getMonth() + 1}`
-              }}
-            />
-            <YAxis 
+            <YAxis
               yAxisId="left"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
               tickFormatter={(value) => formatCurrency(value)}
-              stroke="hsl(var(--border))"
             />
-            <YAxis 
+            <YAxis
               yAxisId="right"
               orientation="right"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
-              stroke="hsl(var(--border))"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                color: 'hsl(var(--popover-foreground))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-              formatter={(value: number, name: string) => {
-                if (name === 'Receita') return formatCurrency(value)
-                return value
-              }}
-              labelFormatter={(date) => {
-                const d = new Date(date)
-                return d.toLocaleDateString('pt-BR')
-              }}
-              labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(value, payload) => {
+                    if (payload && payload[0]) {
+                      const date = new Date(payload[0].payload.date)
+                      return date.toLocaleDateString('pt-BR', { 
+                        day: '2-digit', 
+                        month: 'long',
+                        year: 'numeric'
+                      })
+                    }
+                    return value
+                  }}
+                  formatter={(value, name) => {
+                    if (name === "revenue") {
+                      return [formatCurrency(value as number), "Receita"]
+                    }
+                    return [value, "Transações"]
+                  }}
+                />
+              }
             />
-            <Legend 
-              wrapperStyle={{ color: 'hsl(var(--foreground))' }}
-            />
-            <Line 
+            <ChartLegend content={<ChartLegendContent />} />
+            <Line
               yAxisId="left"
-              type="monotone" 
-              dataKey="revenue" 
-              stroke="hsl(var(--primary))" 
+              type="monotone"
+              dataKey="revenue"
+              stroke="var(--color-revenue)"
               strokeWidth={2}
-              name="Receita"
-              dot={{ fill: 'hsl(var(--primary))' }}
+              dot={{ fill: "var(--color-revenue)", r: 4 }}
+              activeDot={{ r: 6 }}
+              isAnimationActive={enableAnimations}
             />
-            <Line 
+            <Line
               yAxisId="right"
-              type="monotone" 
-              dataKey="transactionCount" 
-              stroke="hsl(var(--chart-2))" 
+              type="monotone"
+              dataKey="transactionCount"
+              stroke="var(--color-transactionCount)"
               strokeWidth={2}
-              name="Transações"
-              dot={{ fill: 'hsl(var(--chart-2))' }}
+              dot={{ fill: "var(--color-transactionCount)", r: 4 }}
+              activeDot={{ r: 6 }}
+              isAnimationActive={enableAnimations}
             />
           </LineChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   )
