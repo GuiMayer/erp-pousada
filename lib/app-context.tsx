@@ -126,6 +126,9 @@ type AppContextType = {
 
 const AppContext = createContext<AppContextType | null>(null)
 
+// Export for testing
+export { AppContext }
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   

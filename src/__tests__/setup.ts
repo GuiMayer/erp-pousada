@@ -44,7 +44,7 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
     consumptions: [] as any[],
     posProducts: [...store.initialPOSProducts],
     posSales: [...store.initialPOSSales],
-    productCategories: [] as any[],
+    productCategories: [...store.initialProductCategories],
     restaurantTables: [...store.initialRestaurantTables],
     restaurantOrders: [...store.initialRestaurantOrders],
     stockItems: [...store.initialStockItems],
@@ -55,6 +55,9 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
     employeeConsumptions: [...store.initialEmployeeConsumptions],
     users: [...store.initialUsers],
     userSessions: [...store.initialUserSessions],
+    suppliers: [] as any[],
+    customers: [] as any[],
+    accountsReceivable: [] as any[],
   }
   
   // Export reset function for beforeEach hook
@@ -102,6 +105,9 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
     sharedState.users.push(...store.initialUsers)
     sharedState.userSessions.length = 0
     sharedState.userSessions.push(...store.initialUserSessions)
+    sharedState.suppliers.length = 0
+    sharedState.customers.length = 0
+    sharedState.accountsReceivable.length = 0
   }
   
   const createMockRepo = (dataKey: keyof typeof sharedState) => {
@@ -193,6 +199,9 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
         employeeConsumptions: createMockRepo('employeeConsumptions'),
         users: createMockRepo('users'),
         userSessions: createMockRepo('userSessions'),
+        suppliers: createMockRepo('suppliers'),
+        customers: createMockRepo('customers'),
+        accountsReceivable: createMockRepo('accountsReceivable'),
         systemSettings: {
           getAll: vi.fn(async () => [store.initialSystemSettings]),
           create: vi.fn(async () => undefined),
