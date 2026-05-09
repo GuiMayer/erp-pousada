@@ -4,14 +4,17 @@ import type { POSProduct } from "../store"
 /**
  * Hook for searching and filtering products
  */
-export function useProductSearch(products: POSProduct[]) {
+export function useProductSearch(
+  products: POSProduct[], 
+  getCategoryName: (categoryId: string) => string
+) {
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("Todos")
 
   const categories = useMemo(() => {
-    const cats = new Set(products.map(p => p.category))
+    const cats = new Set(products.map(p => getCategoryName(p.categoryId)))
     return ["Todos", ...Array.from(cats)]
-  }, [products])
+  }, [products, getCategoryName])
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -19,10 +22,10 @@ export function useProductSearch(products: POSProduct[]) {
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.barcode?.includes(searchQuery)
       const matchesCategory = 
-        categoryFilter === "Todos" || p.category === categoryFilter
+        categoryFilter === "Todos" || getCategoryName(p.categoryId) === categoryFilter
       return matchesSearch && matchesCategory
     })
-  }, [products, searchQuery, categoryFilter])
+  }, [products, searchQuery, categoryFilter, getCategoryName])
 
   const findByBarcode = (barcode: string): POSProduct | undefined => {
     return products.find(p => p.barcode === barcode)

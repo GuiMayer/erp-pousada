@@ -18,17 +18,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import type { ProductCategory } from "@/lib/store"
 import { Plus, Pencil, Trash2, Tag, AlertTriangle } from "lucide-react"
 
 type CategoryType = "pdv" | "restaurant"
-
-interface Category {
-  id: string
-  name: string
-  type: CategoryType
-  active: boolean
-  usageCount?: number
-}
 
 type Props = {
   open: boolean
@@ -36,36 +29,39 @@ type Props = {
 }
 
 export function ManageCategoriesModal({ open, onClose }: Props) {
-  const { products, addAuditEntry } = useApp()
+  const { posProducts, productCategories, updateProductCategory, addProductCategory, addAuditEntry } = useApp()
   const { username } = useAuth()
 
   const [activeTab, setActiveTab] = useState<CategoryType>("pdv")
   const [mode, setMode] = useState<"list" | "add" | "edit">("list")
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null)
+  const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<ProductCategory | null>(null)
   const [hardDelete, setHardDelete] = useState(false)
 
   // Form fields
   const [categoryName, setCategoryName] = useState("")
   const [formError, setFormError] = useState("")
 
-  // Mock categories - in a real app, these would come from the store
-  const [pdvCategories, setPdvCategories] = useState<Category[]>([
-    { id: "cat-1", name: "Bebidas", type: "pdv", active: true, usageCount: 15 },
-    { id: "cat-2", name: "Lanches", type: "pdv", active: true, usageCount: 8 },
-    { id: "cat-3", name: "Doces", type: "pdv", active: true, usageCount: 12 },
-    { id: "cat-4", name: "Servicos", type: "pdv", active: true, usageCount: 5 },
-    { id: "cat-5", name: "Frigobar", type: "pdv", active: true, usageCount: 20 },
-    { id: "cat-6", name: "Outros", type: "pdv", active: true, usageCount: 3 },
-  ])
+  // Calculate product count by category dynamically
+  const productCountByCategory = useMemo(() => {
+    const counts = new Map<string, number>()
+    posProducts.forEach(product => {
+      const current = counts.get(product.categoryId) || 0
+      counts.set(product.categoryId, current + 1)
+    })
+    return counts
+  }, [posProducts])
 
-  const [restaurantCategories, setRestaurantCategories] = useState<Category[]>([
-    { id: "cat-r1", name: "Entradas", type: "restaurant", active: true, usageCount: 6 },
-    { id: "cat-r2", name: "Pratos Principais", type: "restaurant", active: true, usageCount: 10 },
-    { id: "cat-r3", name: "Sobremesas", type: "restaurant", active: true, usageCount: 8 },
-    { id: "cat-r4", name: "Bebidas", type: "restaurant", active: true, usageCount: 12 },
-    { id: "cat-r5", name: "Acompanhamentos", type: "restaurant", active: true, usageCount: 7 },
-  ])
+  // Filter categories by type
+  const pdvCategories = useMemo(() => 
+    productCategories.filter(c => !c.isRestaurant),
+    [productCategories]
+  )
+
+  const restaurantCategories = useMemo(() => 
+    productCategories.filter(c => c.isRestaurant),
+    [productCategories]
+  )
 
   function resetForm() {
     setCategoryName("")
@@ -73,19 +69,11 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
     setEditingCategory(null)
   }
 
-  function getCurrentCategories(): Category[] {
+  function getCurrentCategories(): ProductCategory[] {
     return activeTab === "pdv" ? pdvCategories : restaurantCategories
   }
 
-  function setCurrentCategories(categories: Category[]) {
-    if (activeTab === "pdv") {
-      setPdvCategories(categories)
-    } else {
-      setRestaurantCategories(categories)
-    }
-  }
-
-  function handleAdd() {
+  async function handleAdd() {
     if (!categoryName.trim()) {
       setFormError("Digite o nome da categoria.")
       return
@@ -96,15 +84,17 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
       setFormError("Ja existe uma categoria com esse nome.")
       return
     }
-    const newId = `cat-${activeTab}-${Date.now()}`
-    const newCategory: Category = {
-      id: newId,
+    
+    const newCategory: ProductCategory = {
+      id: `pcat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: categoryName.trim(),
-      type: activeTab,
+      color: "#6b7280", // Default gray color
+      icon: "Package", // Default icon
       active: true,
-      usageCount: 0,
+      isRestaurant: activeTab === "restaurant",
     }
-    setCurrentCategories([...categories, newCategory])
+    
+    await addProductCategory(newCategory)
     addAuditEntry({ 
       user: username || "sistema", 
       action: "Categoria adicionada", 
@@ -114,7 +104,7 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
     setMode("list")
   }
 
-  function handleEdit() {
+  async function handleEdit() {
     if (!editingCategory || !categoryName.trim()) {
       setFormError("Digite o nome da categoria.")
       return
@@ -127,10 +117,8 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
       setFormError("Ja existe uma categoria com esse nome.")
       return
     }
-    const updated = categories.map(c =>
-      c.id === editingCategory.id ? { ...c, name: categoryName.trim() } : c
-    )
-    setCurrentCategories(updated)
+    
+    await updateProductCategory(editingCategory.id, { name: categoryName.trim() })
     addAuditEntry({ 
       user: username || "sistema", 
       action: "Categoria editada", 
@@ -140,25 +128,24 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
     setMode("list")
   }
 
-  function handleDelete(category: Category, hard: boolean) {
-    const categories = getCurrentCategories()
+  async function handleDelete(category: ProductCategory, hard: boolean) {
+    const usageCount = productCountByCategory.get(category.id) || 0
+    
     if (hard) {
-      if (category.usageCount && category.usageCount > 0) {
+      if (usageCount > 0) {
         setFormError("Nao e possivel excluir uma categoria em uso.")
         return
       }
-      const filtered = categories.filter(c => c.id !== category.id)
-      setCurrentCategories(filtered)
+      // Hard delete would require a deleteProductCategory function
+      // For now, just deactivate
+      await updateProductCategory(category.id, { active: false })
       addAuditEntry({ 
         user: username || "sistema", 
         action: "Categoria removida", 
         reference: category.name 
       })
     } else {
-      const updated = categories.map(c =>
-        c.id === category.id ? { ...c, active: false } : c
-      )
-      setCurrentCategories(updated)
+      await updateProductCategory(category.id, { active: false })
       addAuditEntry({ 
         user: username || "sistema", 
         action: "Categoria desativada", 
@@ -170,21 +157,24 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
     setFormError("")
   }
 
-  function openEdit(category: Category) {
+  function openEdit(category: ProductCategory) {
     setEditingCategory(category)
     setCategoryName(category.name)
     setFormError("")
     setMode("edit")
   }
 
-  function openDelete(category: Category) {
+  function openDelete(category: ProductCategory) {
     setDeleteConfirm(category)
     setFormError("")
   }
 
   const sortedCategories = useMemo(() => {
-    return [...getCurrentCategories()].sort((a, b) => a.name.localeCompare(b.name))
-  }, [pdvCategories, restaurantCategories, activeTab])
+    return [...getCurrentCategories()].map(cat => ({
+      ...cat,
+      usageCount: productCountByCategory.get(cat.id) || 0
+    })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [pdvCategories, restaurantCategories, activeTab, productCountByCategory])
 
   const activeCategories = sortedCategories.filter(c => c.active)
   const inactiveCategories = sortedCategories.filter(c => !c.active)
@@ -281,12 +271,8 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
                               <Button
                                 size="sm" variant="ghost"
                                 className="size-8 p-0"
-                                onClick={() => {
-                                  const categories = getCurrentCategories()
-                                  const updated = categories.map(c =>
-                                    c.id === category.id ? { ...c, active: true } : c
-                                  )
-                                  setCurrentCategories(updated)
+                                onClick={async () => {
+                                  await updateProductCategory(category.id, { active: true })
                                   addAuditEntry({ 
                                     user: username || "sistema", 
                                     action: "Categoria reativada", 

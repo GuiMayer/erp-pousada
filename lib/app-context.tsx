@@ -5,7 +5,7 @@ import {
   initialRooms, initialReservations, initialGuests,
   initialExpenses, initialTransactions, initialAuditLog,
   initialCategories, initialCashCloses,
-  initialPOSProducts, initialPOSSales,
+  initialPOSProducts, initialPOSSales, initialProductCategories,
   initialRestaurantTables, initialRestaurantOrders,
   initialStockItems, initialStockMovements,
   initialRecipes, initialProductions,
@@ -82,6 +82,7 @@ type AppContextType = {
   addProductCategory: (c: ProductCategory) => Promise<void>
   updateProductCategory: (id: string, data: Partial<ProductCategory>) => Promise<void>
   removeProductCategory: (id: string) => Promise<void>
+  getCategoryName: (categoryId: string) => string
   addRestaurantTable: (t: RestaurantTable) => Promise<void>
   updateRestaurantTable: (id: number, data: Partial<RestaurantTable>) => Promise<void>
   removeRestaurantTable: (id: number) => Promise<void>
@@ -233,6 +234,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...initialAuditLog.map(a => dataStore.auditLog.create(a)),
           ...initialCategories.map(c => dataStore.categories.create(c)),
           ...initialCashCloses.map(c => dataStore.cashCloses.create(c)),
+          ...initialProductCategories.map(c => dataStore.productCategories.create(c)),
           ...initialPOSProducts.map(p => dataStore.posProducts.create(p)),
           ...initialPOSSales.map(s => dataStore.posSales.create(s)),
           ...initialRestaurantTables.map(t => dataStore.restaurantTables.create(t)),
@@ -580,6 +582,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProductCategories(await dataStore.productCategories.getAll())
   }, [dataStore])
 
+  const getCategoryName = useCallback((categoryId: string): string => {
+    const category = productCategories.find(c => c.id === categoryId)
+    return category?.name || categoryId
+  }, [productCategories])
+
   // Restaurant Table methods
   const addRestaurantTable = useCallback(async (t: RestaurantTable) => {
     await dataStore.restaurantTables.create(t)
@@ -821,7 +828,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
-    addProductCategory, updateProductCategory, removeProductCategory,
+    addProductCategory, updateProductCategory, removeProductCategory, getCategoryName,
     addRestaurantTable, updateRestaurantTable, removeRestaurantTable,
     addRestaurantOrder, updateRestaurantOrder, addOrderItem, removeOrderItem,
     addStockItem, updateStockItem, addStockMovement,
@@ -844,7 +851,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addCategory, addCashClose, findGuest, addGuest,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
-    addProductCategory, updateProductCategory, removeProductCategory,
+    addProductCategory, updateProductCategory, removeProductCategory, getCategoryName,
     addRestaurantTable, updateRestaurantTable, removeRestaurantTable,
     addRestaurantOrder, updateRestaurantOrder, addOrderItem, removeOrderItem,
     addStockItem, updateStockItem, addStockMovement,

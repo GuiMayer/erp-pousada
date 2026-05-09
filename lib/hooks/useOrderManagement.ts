@@ -15,6 +15,7 @@ export function useOrderManagement(orderId?: string) {
     addOrderItem,
     removeOrderItem,
     posProducts,
+    getCategoryName,
   } = useApp()
 
   const [discount, setDiscount] = useState(0)
@@ -47,11 +48,11 @@ export function useOrderManagement(orderId?: string) {
       quantity,
       unitPrice: product.price,
       subtotal: product.price * quantity,
-      category: product.category,
+      category: getCategoryName(product.categoryId),
     }
 
     addOrderItem(orderId, item)
-  }, [orderId, addOrderItem])
+  }, [orderId, addOrderItem, getCategoryName])
 
   // Remove item from order
   const removeItem = useCallback((itemId: string) => {

@@ -285,7 +285,7 @@ export interface RoomConsumption {
 export interface POSProduct {
   id: string
   name: string
-  category: string
+  categoryId: string // References ProductCategory.id
   price: number
   barcode?: string
   trackStock: boolean // Controls stock integration - if true, requires StockItem
@@ -709,8 +709,27 @@ export const initialTransactions: Transaction[] = (seedData.transactions as Seed
 export const initialAuditLog: AuditEntry[] = (seedData.auditLog as SeedAuditEntry[]).map(transformAuditEntry)
 export const initialCategories: ExpenseCategory[] = seedData.expenseCategories as ExpenseCategory[]
 export const initialCashCloses: CashClose[] = (seedData.cashCloses as SeedCashClose[]).map(transformCashClose)
+
+// Helper function to migrate old category names to new categoryIds
+function migrateCategoryToId(oldCategory: string): string {
+  const categoryMap: Record<string, string> = {
+    'Bebidas': 'pcat-bebidas',
+    'Lanches': 'pcat-lanches',
+    'Doces': 'pcat-doces',
+    'Servicos': 'pcat-servicos',
+    'Frigobar': 'pcat-frigobar',
+    'Outros': 'pcat-outros',
+    'Entradas': 'pcat-entradas',
+    'Pratos Principais': 'pcat-pratos',
+    'Sobremesas': 'pcat-sobremesas',
+    'Acompanhamentos': 'pcat-acompanhamentos',
+  }
+  return categoryMap[oldCategory] || 'pcat-sem-categoria'
+}
+
 export const initialPOSProducts: POSProduct[] = (seedData.posProducts as any[]).map(p => ({
   ...p,
+  categoryId: migrateCategoryToId(p.category),
   trackStock: false // Default: products don't require stock tracking
 }))
 export const initialPOSSales: POSSale[] = (seedData.posSales as SeedPOSSale[]).map(s => transformPOSSale(s, initialPOSProducts))
@@ -723,6 +742,25 @@ export const RESERVATION_STATUSES = seedData.reservationStatuses as ReservationS
 export const ROOM_STATUSES = seedData.roomStatuses as RoomStatus[]
 export const TRANSACTION_TYPES = seedData.transactionTypes as TransactionType[]
 export const CANCEL_TREATMENTS = seedData.cancelTreatments as CancelTreatment[]
+
+// ─── Product Categories Initial Data ───────────────────────────────────
+export const initialProductCategories: ProductCategory[] = [
+  // PDV Categories
+  { id: "pcat-bebidas", name: "Bebidas", color: "#3b82f6", icon: "Coffee", active: true, isRestaurant: false },
+  { id: "pcat-lanches", name: "Lanches", color: "#f59e0b", icon: "Sandwich", active: true, isRestaurant: false },
+  { id: "pcat-doces", name: "Doces", color: "#ec4899", icon: "Cake", active: true, isRestaurant: false },
+  { id: "pcat-servicos", name: "Servicos", color: "#8b5cf6", icon: "Wrench", active: true, isRestaurant: false },
+  { id: "pcat-frigobar", name: "Frigobar", color: "#06b6d4", icon: "Refrigerator", active: true, isRestaurant: false },
+  { id: "pcat-outros", name: "Outros", color: "#6b7280", icon: "Package", active: true, isRestaurant: false },
+  // Restaurant Categories
+  { id: "pcat-entradas", name: "Entradas", color: "#10b981", icon: "Salad", active: true, isRestaurant: true },
+  { id: "pcat-pratos", name: "Pratos Principais", color: "#ef4444", icon: "UtensilsCrossed", active: true, isRestaurant: true },
+  { id: "pcat-sobremesas", name: "Sobremesas", color: "#f97316", icon: "IceCream", active: true, isRestaurant: true },
+  { id: "pcat-bebidas-rest", name: "Bebidas", color: "#3b82f6", icon: "GlassWater", active: true, isRestaurant: true },
+  { id: "pcat-acompanhamentos", name: "Acompanhamentos", color: "#84cc16", icon: "Soup", active: true, isRestaurant: true },
+  // Fallback category
+  { id: "pcat-sem-categoria", name: "Sem Categoria", color: "#9ca3af", icon: "HelpCircle", active: true, isRestaurant: false },
+]
 
 // ─── Restaurant Initial Data ───────────────────────────────────────────
 export const initialRestaurantTables: RestaurantTable[] = (seedData.restaurantTables as SeedRestaurantTable[] || []).map(transformRestaurantTable)

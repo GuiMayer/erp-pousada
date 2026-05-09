@@ -51,7 +51,7 @@ export function POSTab() {
   const {
     posProducts, posSales, rooms, stockItems,
     addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
-    addConsumptionItem,
+    addConsumptionItem, getCategoryName,
   } = useApp()
   const { username, role } = useAuth()
   const { processStockForSale, validateStockAvailability } = useStockIntegration()
@@ -94,19 +94,19 @@ export function POSTab() {
 
   // Categories
   const categories = useMemo(() => {
-    const cats = new Set(posProducts.map(p => p.category))
+    const cats = new Set(posProducts.map(p => getCategoryName(p.categoryId)))
     return ["Todos", ...Array.from(cats)]
-  }, [posProducts])
+  }, [posProducts, getCategoryName])
 
   // Filtered products
   const filteredProducts = useMemo(() => {
     return posProducts.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.barcode && p.barcode.includes(searchQuery))
-      const matchesCategory = categoryFilter === "Todos" || p.category === categoryFilter
+      const matchesCategory = categoryFilter === "Todos" || getCategoryName(p.categoryId) === categoryFilter
       return matchesSearch && matchesCategory
     })
-  }, [posProducts, searchQuery, categoryFilter])
+  }, [posProducts, searchQuery, categoryFilter, getCategoryName])
 
   // Cart calculations
   const subtotal = useMemo(() => calculateCartSubtotal(cart), [cart])
@@ -520,7 +520,7 @@ export function POSTab() {
                     <Package className="size-4 shrink-0 text-muted-foreground" />
                   </div>
                   <Badge variant="secondary" className="text-[10px]">
-                    {product.category}
+                    {getCategoryName(product.categoryId)}
                   </Badge>
                   <span className="mt-auto text-base font-bold tabular-nums text-primary">
                     {formatCurrency(product.price)}

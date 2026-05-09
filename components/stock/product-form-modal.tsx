@@ -21,18 +21,21 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
   
   const [formData, setFormData] = useState({
     name: "",
-    category: "",
+    categoryId: "",
     price: "",
     barcode: "",
     trackStock: false
   })
   const [error, setError] = useState("")
 
+  // Filter only active POS categories (not restaurant)
+  const posCategories = productCategories.filter(c => c.active && !c.isRestaurant)
+
   useEffect(() => {
     if (product) {
       setFormData({
         name: product.name,
-        category: product.category,
+        categoryId: product.categoryId,
         price: product.price.toString(),
         barcode: product.barcode || "",
         trackStock: product.trackStock
@@ -40,7 +43,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
     } else {
       setFormData({
         name: "",
-        category: "",
+        categoryId: "",
         price: "",
         barcode: "",
         trackStock: false
@@ -59,7 +62,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
       return
     }
 
-    if (!formData.category) {
+    if (!formData.categoryId) {
       setError("Categoria é obrigatória")
       return
     }
@@ -83,7 +86,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
 
     const productData: Partial<POSProduct> = {
       name: formData.name.trim(),
-      category: formData.category,
+      categoryId: formData.categoryId,
       price: price,
       barcode: formData.barcode.trim() || undefined,
       trackStock: formData.trackStock
@@ -127,19 +130,24 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
           <div className="space-y-2">
             <Label htmlFor="category">Categoria *</Label>
             <Select
-              value={formData.category}
-              onValueChange={(value) => setFormData({ ...formData, category: value })}
+              value={formData.categoryId}
+              onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
             >
               <SelectTrigger id="category">
                 <SelectValue placeholder="Selecione uma categoria..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Bebidas">Bebidas</SelectItem>
-                <SelectItem value="Lanches">Lanches</SelectItem>
-                <SelectItem value="Doces">Doces</SelectItem>
-                <SelectItem value="Servicos">Serviços</SelectItem>
-                <SelectItem value="Frigobar">Frigobar</SelectItem>
-                <SelectItem value="Outros">Outros</SelectItem>
+                {posCategories.length === 0 ? (
+                  <SelectItem value="" disabled>
+                    Nenhuma categoria disponível
+                  </SelectItem>
+                ) : (
+                  posCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

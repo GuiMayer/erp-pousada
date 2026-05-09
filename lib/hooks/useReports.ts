@@ -23,6 +23,7 @@ export function useReports() {
     cashCloses,
     stockItems,
     posProducts,
+    getCategoryName,
   } = useApp()
 
   /**
@@ -100,7 +101,7 @@ export function useReports() {
 
     daySales.forEach(sale => {
       sale.items.forEach(item => {
-        const category = item.product.category
+        const category = getCategoryName(item.product.categoryId)
         const existing = categoryMap.get(category) || { revenue: 0, quantity: 0 }
         
         categoryMap.set(category, {
@@ -181,7 +182,7 @@ export function useReports() {
         const productId = item.product.id
         const existing = productMap.get(productId) || {
           name: item.product.name,
-          category: item.product.category,
+          category: getCategoryName(item.product.categoryId),
           quantity: 0,
           revenue: 0,
           totalPrice: 0,
@@ -420,7 +421,7 @@ export function useReports() {
 
     periodSales.forEach(sale => {
       sale.items.forEach(item => {
-        const category = item.product.category
+        const category = getCategoryName(item.product.categoryId)
         const existing = categoryMap.get(category) || { revenue: 0, quantity: 0 }
         
         categoryMap.set(category, {
@@ -505,7 +506,7 @@ export function useReports() {
         const productId = item.product.id
         const existing = productMap.get(productId) || {
           name: item.product.name,
-          category: item.product.category,
+          category: getCategoryName(item.product.categoryId),
           quantity: 0,
           revenue: 0,
           totalPrice: 0,

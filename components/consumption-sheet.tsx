@@ -29,7 +29,8 @@ type Props = {
 export function ConsumptionSheet({ room, open, onClose }: Props) {
   const { 
     addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry,
-    posProducts 
+    posProducts,
+    getCategoryName,
   } = useApp()
   const { username } = useAuth()
   const { sendNotification } = useNotifications()
@@ -49,7 +50,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     setCategoryFilter,
     categories,
     filteredProducts 
-  } = useProductSearch(posProducts)
+  } = useProductSearch(posProducts, getCategoryName)
 
   const { 
     total,
