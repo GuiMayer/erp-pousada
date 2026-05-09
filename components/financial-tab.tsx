@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import type { Transaction, Expense } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils/formatters"
+import { generateInstallments } from "@/lib/utils/installment-generator"
 import { SuppliersManagement } from "@/components/suppliers-management"
 import { AccountsReceivableManagement } from "@/components/accounts-receivable-management"
 
@@ -50,7 +51,7 @@ type DueFilter = "todos" | "pendentes" | "pagos" | "vencidos"
 export function FinancialTab() {
   const {
     expenses, transactions, categories, cashCloses,
-    discountCeiling, addExpense, updateExpense, addTransaction,
+    discountCeiling, addExpense, updateExpense, markInstallmentAsPaid, addTransaction,
     addAuditEntry, addCategory, addCashClose, setDiscountCeiling,
   } = useApp()
   const { isSupervisor, username } = useAuth()
@@ -61,6 +62,8 @@ export function FinancialTab() {
   const [expCategory, setExpCategory] = useState("")
   const [expValue, setExpValue] = useState("")
   const [expDueDate, setExpDueDate] = useState("")
+  const [expInstallments, setExpInstallments] = useState("1")
+  const [expInstallmentInterval, setExpInstallmentInterval] = useState("30")
   const [showNewCategory, setShowNewCategory] = useState(false)
   const [newCategoryLabel, setNewCategoryLabel] = useState("")
 
@@ -104,9 +107,60 @@ export function FinancialTab() {
     .filter(t => t.date === todayISO)
     .reduce((a, t) => a + (t.type === "receita" ? t.value : -t.value), 0)
 
+  // Expand expenses with installments into individual rows
+  type ExpenseRow = {
+    id: string
+    description: string
+    category: string
+    value: number
+    dueDate: string
+    paid: boolean
+    expenseId: string
+    installmentId?: string
+    installmentNumber?: number
+    totalInstallments?: number
+  }
+
+  const expandedExpenses = useMemo(() => {
+    const rows: ExpenseRow[] = []
+    
+    expenses.forEach(expense => {
+      if (expense.installments && expense.installments.length > 0) {
+        // Expand each installment as a separate row
+        expense.installments.forEach(installment => {
+          rows.push({
+            id: `${expense.id}-${installment.id}`,
+            description: expense.description,
+            category: expense.category,
+            value: installment.value,
+            dueDate: installment.dueDate,
+            paid: installment.paid,
+            expenseId: expense.id,
+            installmentId: installment.id,
+            installmentNumber: installment.installmentNumber,
+            totalInstallments: expense.installments!.length
+          })
+        })
+      } else {
+        // Single expense without installments
+        rows.push({
+          id: expense.id,
+          description: expense.description,
+          category: expense.category,
+          value: expense.value,
+          dueDate: expense.dueDate,
+          paid: expense.paid,
+          expenseId: expense.id
+        })
+      }
+    })
+    
+    return rows
+  }, [expenses])
+
   // Filtered expenses based on toggle group
   const filteredExpenses = useMemo(() => {
-    let result = [...expenses]
+    let result = [...expandedExpenses]
     switch (dueFilter) {
       case "pendentes":
         result = result.filter(e => !e.paid && daysUntilDue(e.dueDate) >= 0)
@@ -119,7 +173,7 @@ export function FinancialTab() {
         break
     }
     return result.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-  }, [expenses, dueFilter])
+  }, [expandedExpenses, dueFilter])
 
   // Filtered transactions based on date range and type
   const filteredTransactions = useMemo(() => {
@@ -138,34 +192,59 @@ export function FinancialTab() {
 
   function handleCreateExpense() {
     if (!expDesc || !expCategory || !expValue || !expDueDate) return
+    
+    const totalValue = Number(expValue)
+    const numInstallments = Number(expInstallments)
+    const intervalDays = Number(expInstallmentInterval)
+    
+    // Generate installments if more than 1
+    const installments = numInstallments > 1 
+      ? generateInstallments({
+          totalValue,
+          numberOfInstallments: numInstallments,
+          firstDueDate: expDueDate,
+          intervalDays
+        })
+      : undefined
+    
     const e = {
       id: `E${String(expenses.length + 1).padStart(3, "0")}`,
       description: expDesc,
       category: expCategory,
-      value: Number(expValue),
+      value: totalValue,
       dueDate: expDueDate,
       paid: false,
+      installments,
     }
     addExpense(e)
     addTransaction({
       id: `T${String(transactions.length + 1).padStart(3, "0")}`,
       date: expDueDate,
-      description: expDesc,
-      value: Number(expValue),
+      description: numInstallments > 1 ? `${expDesc} (${numInstallments}x)` : expDesc,
+      value: totalValue,
       type: "despesa",
       category: expCategory,
       responsible: username || "operador",
     })
     setExpDesc(""); setExpCategory(""); setExpValue(""); setExpDueDate("")
+    setExpInstallments("1"); setExpInstallmentInterval("30")
     setShowNewExpense(false)
   }
 
-  function handleMarkPaid(expense: Expense) {
-    updateExpense(expense.id, { paid: true })
+  function handleMarkPaid(expenseRow: ExpenseRow) {
+    if (expenseRow.installmentId) {
+      // Mark individual installment as paid
+      markInstallmentAsPaid(expenseRow.expenseId, expenseRow.installmentId)
+    } else {
+      // Mark entire expense as paid (legacy single expense)
+      updateExpense(expenseRow.expenseId, { paid: true })
+    }
     addAuditEntry({
       user: username || "sistema",
       action: "Pagamento registrado",
-      reference: `${expense.id} - ${expense.description}`,
+      reference: expenseRow.installmentNumber 
+        ? `${expenseRow.expenseId} - ${expenseRow.description} (${expenseRow.installmentNumber}/${expenseRow.totalInstallments})`
+        : `${expenseRow.expenseId} - ${expenseRow.description}`,
     })
   }
 
@@ -280,24 +359,24 @@ export function FinancialTab() {
             >
               <ToggleGroupItem value="todos" className="text-xs gap-1.5">
                 Todos
-                <Badge className="bg-secondary text-secondary-foreground border-transparent text-[10px] ml-1">{expenses.length}</Badge>
+                <Badge className="bg-secondary text-secondary-foreground border-transparent text-[10px] ml-1">{expandedExpenses.length}</Badge>
               </ToggleGroupItem>
               <ToggleGroupItem value="pendentes" className="text-xs gap-1.5">
                 Pendentes
                 <Badge className="bg-warning/15 text-warning-foreground border-transparent text-[10px] ml-1">
-                  {expenses.filter(e => !e.paid && daysUntilDue(e.dueDate) >= 0).length}
+                  {expandedExpenses.filter(e => !e.paid && daysUntilDue(e.dueDate) >= 0).length}
                 </Badge>
               </ToggleGroupItem>
               <ToggleGroupItem value="pagos" className="text-xs gap-1.5">
                 Pagos
                 <Badge className="bg-success/15 text-success border-transparent text-[10px] ml-1">
-                  {expenses.filter(e => e.paid).length}
+                  {expandedExpenses.filter(e => e.paid).length}
                 </Badge>
               </ToggleGroupItem>
               <ToggleGroupItem value="vencidos" className="text-xs gap-1.5">
                 Vencidos
                 <Badge className="bg-destructive/15 text-destructive border-transparent text-[10px] ml-1">
-                  {expenses.filter(e => !e.paid && daysUntilDue(e.dueDate) < 0).length}
+                  {expandedExpenses.filter(e => !e.paid && daysUntilDue(e.dueDate) < 0).length}
                 </Badge>
               </ToggleGroupItem>
             </ToggleGroup>
@@ -322,7 +401,14 @@ export function FinancialTab() {
                       const isOverdue = days < 0
                       return (
                         <TableRow key={e.id}>
-                          <TableCell className="font-medium">{e.description}</TableCell>
+                          <TableCell className="font-medium">
+                            {e.description}
+                            {e.installmentNumber && (
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({e.installmentNumber}/{e.totalInstallments})
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-xs">{e.category}</TableCell>
                           <TableCell className="tabular-nums text-xs">{formatCurrency(e.value)}</TableCell>
                           <TableCell className="text-xs">{formatDateBR(e.dueDate)}</TableCell>
@@ -668,12 +754,40 @@ export function FinancialTab() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <Label>Valor (R$)</Label>
+                <Label>Valor Total (R$)</Label>
                 <Input type="number" value={expValue} onChange={e => setExpValue(e.target.value)} placeholder="0,00" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Vencimento</Label>
+                <Label>Primeiro Vencimento</Label>
                 <Input type="date" value={expDueDate} onChange={e => setExpDueDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Número de Parcelas</Label>
+                <Input 
+                  type="number" 
+                  min="1" 
+                  value={expInstallments} 
+                  onChange={e => setExpInstallments(e.target.value)} 
+                  placeholder="1" 
+                />
+                {Number(expInstallments) > 1 && expValue && (
+                  <p className="text-xs text-muted-foreground">
+                    {Number(expInstallments)}x de {formatCurrency(Number(expValue) / Number(expInstallments))}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Intervalo (dias)</Label>
+                <Input 
+                  type="number" 
+                  min="1" 
+                  value={expInstallmentInterval} 
+                  onChange={e => setExpInstallmentInterval(e.target.value)} 
+                  placeholder="30"
+                  disabled={Number(expInstallments) <= 1}
+                />
               </div>
             </div>
           </div>

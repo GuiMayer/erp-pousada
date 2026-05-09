@@ -29,6 +29,14 @@ export function generateExpenseId(count: number): string {
 }
 
 /**
+ * Generates an expense installment ID
+ * @returns Unique installment ID (e.g., "EI-1714989600000-a1b2")
+ */
+export function generateExpenseInstallmentId(): string {
+  return `EI-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+}
+
+/**
  * Generates a consumption item ID
  * @returns Unique consumption item ID (e.g., "CI-1714989600000-a1b2")
  */

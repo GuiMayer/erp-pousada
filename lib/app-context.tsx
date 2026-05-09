@@ -67,6 +67,7 @@ type AppContextType = {
   updateReservation: (id: string, data: Partial<Reservation>) => Promise<void>
   addExpense: (e: Expense) => Promise<void>
   updateExpense: (id: string, data: Partial<Expense>) => Promise<void>
+  markInstallmentAsPaid: (expenseId: string, installmentId: string) => Promise<void>
   addTransaction: (t: Transaction) => Promise<void>
   addAuditEntry: (entry: Omit<AuditEntry, "id" | "date">) => Promise<void>
   addCategory: (label: string) => Promise<void>
@@ -443,6 +444,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
             value: after.value,
             paid: after.paid
           }
+        }
+      })
+    }
+  }, [dataStore, user?.username, addAuditEntry])
+
+  const markInstallmentAsPaid = useCallback(async (expenseId: string, installmentId: string) => {
+    const expense = await dataStore.expenses.getById(expenseId)
+    if (!expense) return
+
+    await dataStore.expenses.markInstallmentAsPaid(expenseId, installmentId)
+    setExpenses(await dataStore.expenses.getAll())
+    
+    // Audit trail
+    const installment = expense.installments?.find(i => i.id === installmentId)
+    if (installment) {
+      await addAuditEntry({
+        user: user?.username || "sistema",
+        action: `Parcela ${installment.installmentNumber} paga: ${expense.description}`,
+        reference: `Despesa #${expenseId}`,
+        entityType: 'Expense',
+        entityId: expenseId,
+        operation: 'update',
+        metadata: {
+          installmentId,
+          installmentNumber: installment.installmentNumber,
+          value: installment.value
         }
       })
     }
@@ -896,7 +923,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
-    addExpense, updateExpense, addTransaction, addAuditEntry,
+    addExpense, updateExpense, markInstallmentAsPaid, addTransaction, addAuditEntry,
     addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
@@ -923,7 +950,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
-    addExpense, updateExpense, addTransaction, addAuditEntry,
+    addExpense, updateExpense, markInstallmentAsPaid, addTransaction, addAuditEntry,
     addCategory, addCashClose, findGuest, addGuest,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
