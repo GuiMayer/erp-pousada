@@ -107,6 +107,22 @@ export function SettingsTab() {
               onCheckedChange={(checked) => updatePreference('enableChartAnimations', checked)}
             />
           </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="room-metrics">Métricas de Quartos no Dashboard</Label>
+              <p className="text-sm text-muted-foreground">
+                Exibir/ocultar as métricas de status dos quartos
+              </p>
+            </div>
+            <Switch
+              id="room-metrics"
+              checked={userPrefs.showRoomMetrics}
+              onCheckedChange={(checked) => updatePreference('showRoomMetrics', checked)}
+            />
+          </div>
         </CardContent>
       </Card>
 

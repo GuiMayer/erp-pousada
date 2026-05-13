@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 
 interface UserPreferences {
   enableChartAnimations: boolean
+  showRoomMetrics: boolean
 }
 
 interface UserPreferencesContextType {
@@ -16,6 +17,7 @@ interface UserPreferencesContextType {
 
 const defaultPreferences: UserPreferences = {
   enableChartAnimations: true,
+  showRoomMetrics: true,
 }
 
 const UserPreferencesContext = createContext<UserPreferencesContextType | undefined>(undefined)

@@ -4,6 +4,7 @@ import { BedDouble, CheckCircle2, Users, SprayCan, Lock, LogOut, UserCheck, User
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
+import { useUserPreferences } from "@/contexts/user-preferences-context"
 import { AlertBadge } from "@/components/alert-badge"
 import { NotificationCenter } from "@/components/notification-center"
 import type { Room, RoomStatus } from "@/lib/store"
@@ -31,6 +32,7 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
   const counts = countStatuses(rooms)
   const { username, role, logout } = useAuth()
   const { systemSettings, customers, accountsReceivable } = useApp()
+  const { preferences } = useUserPreferences()
   const today = new Date()
   const formatted = today.toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -79,13 +81,16 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <StatPill label="Total" value={counts.total} icon={<BedDouble className="size-4" />} variant="default" />
-        <StatPill label="Disponivel" value={counts.disponivel} icon={<CheckCircle2 className="size-4" />} variant="success" />
-        <StatPill label="Ocupados" value={counts.ocupado} icon={<Users className="size-4" />} variant="warning" />
-        <StatPill label="Limpeza" value={counts.limpeza} icon={<SprayCan className="size-4" />} variant="cleaning" />
-        <StatPill label="Bloqueado" value={counts.bloqueado} icon={<Lock className="size-4" />} variant="info" />
-      </div>
+      {/* Room Metrics - Can be hidden via settings */}
+      {preferences.showRoomMetrics && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <StatPill label="Total" value={counts.total} icon={<BedDouble className="size-4" />} variant="default" />
+          <StatPill label="Disponivel" value={counts.disponivel} icon={<CheckCircle2 className="size-4" />} variant="success" />
+          <StatPill label="Ocupados" value={counts.ocupado} icon={<Users className="size-4" />} variant="warning" />
+          <StatPill label="Limpeza" value={counts.limpeza} icon={<SprayCan className="size-4" />} variant="cleaning" />
+          <StatPill label="Bloqueado" value={counts.bloqueado} icon={<Lock className="size-4" />} variant="info" />
+        </div>
+      )}
 
       {/* Customer Metrics Section - Removed to reduce visual clutter */}
       {/* Uncomment below to restore customer metrics display */}
