@@ -8,6 +8,7 @@ import { BaseRepository } from "./base-repository"
 import type { Customer } from "../../store"
 import type { IStorageAdapter } from "../types"
 import { generateCustomerId } from "../../utils/id-generators"
+import { validateCpfCnpj } from "../../utils/cpf-cnpj-validator"
 
 export class CustomerRepository extends BaseRepository<Customer> {
   constructor(adapter: IStorageAdapter, userId?: string) {
@@ -22,10 +23,40 @@ export class CustomerRepository extends BaseRepository<Customer> {
     if (customer.name !== undefined && customer.name.trim() === "") {
       return { valid: false, error: "Nome do cliente é obrigatório" }
     }
-    if (customer.cpfCnpj !== undefined && customer.cpfCnpj.trim() === "") {
-      return { valid: false, error: "CPF/CNPJ é obrigatório" }
+    if (customer.cpfCnpj !== undefined) {
+      if (customer.cpfCnpj.trim() === "") {
+        return { valid: false, error: "CPF/CNPJ é obrigatório" }
+      }
+      if (!validateCpfCnpj(customer.cpfCnpj)) {
+        return { valid: false, error: "CPF/CNPJ inválido" }
+      }
     }
     return { valid: true }
+  }
+
+  /**
+   * Override create to add timestamps
+   */
+  async create(item: Partial<Customer>): Promise<Customer> {
+    const now = new Date().toISOString()
+    const itemWithTimestamps = {
+      ...item,
+      createdAt: now,
+      updatedAt: now,
+      active: item.active !== undefined ? item.active : true
+    }
+    return super.create(itemWithTimestamps as Customer)
+  }
+
+  /**
+   * Override update to update timestamp
+   */
+  async update(id: string, updates: Partial<Customer>): Promise<void> {
+    const updatesWithTimestamp = {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    }
+    return super.update(id, updatesWithTimestamp)
   }
 
   /**

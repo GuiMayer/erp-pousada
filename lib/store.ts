@@ -305,9 +305,17 @@ export interface Customer {
   cpfCnpj: string
   email?: string
   phone?: string
+  phone2?: string
   address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  country?: string
+  birthDate?: string
   notes?: string
   active: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export interface AccountReceivable {
