@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, createContext, useContext } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { DashboardHeader } from "./dashboard-header"
@@ -17,16 +17,35 @@ import { AdminTab } from "./admin-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
 
+type TabValue = "mapa" | "reservas" | "pdv" | "restaurante" | "estoque" | "financeiro" | "relatorios" | "configuracoes" | "administracao" | "auditoria"
+
+interface ActiveTabContextType {
+  activeTab: TabValue
+  setActiveTab: (tab: TabValue) => void
+}
+
+const ActiveTabContext = createContext<ActiveTabContextType | undefined>(undefined)
+
+export function useActiveTab() {
+  const context = useContext(ActiveTabContext)
+  if (!context) {
+    throw new Error("useActiveTab must be used within ActiveTabProvider")
+  }
+  return context
+}
+
 export function DashboardShell() {
   const { rooms } = useApp()
   const { isSupervisor } = useAuth()
+  const [activeTab, setActiveTab] = useState<TabValue>("mapa")
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
-      <DashboardHeader rooms={rooms} />
+    <ActiveTabContext.Provider value={{ activeTab, setActiveTab }}>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+        <DashboardHeader rooms={rooms} />
 
-      <Tabs defaultValue="mapa" className="flex flex-col gap-6">
-        <TabsList className="w-fit">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="flex flex-col gap-6">
+          <TabsList className="w-fit">
           <TabsTrigger value="mapa" className="gap-1.5">
             <Map className="size-3.5" />
             Mapa
@@ -103,7 +122,8 @@ export function DashboardShell() {
         <TabsContent value="auditoria">
           <AuditLogTab />
         </TabsContent>
-      </Tabs>
-    </div>
+        </Tabs>
+      </div>
+    </ActiveTabContext.Provider>
   )
 }
