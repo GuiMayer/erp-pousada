@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -71,7 +72,8 @@ const emptyForm: CustomerFormData = {
 }
 
 export default function CustomersManagement() {
-  const { customers, addCustomer, updateCustomer, accountsReceivable } = useApp()
+  const { customers, addCustomer, updateCustomer, accountsReceivable, addAuditEntry } = useApp()
+  const { user } = useAuth()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -172,10 +174,29 @@ export default function CustomersManagement() {
         notes: formData.notes || undefined,
       }
 
+      const username = user?.username || "sistema"
+
       if (editingId) {
         await updateCustomer(editingId, customerData)
+        
+        // Log audit entry for customer edit
+        const docType = getDocumentType(formData.cpfCnpj)
+        await addAuditEntry({
+          user: username,
+          action: "Cliente editado",
+          reference: `${formData.name} (${docType})`
+        })
       } else {
         await addCustomer(customerData as Customer)
+        
+        // Log audit entry for customer creation
+        const docType = getDocumentType(formData.cpfCnpj)
+        const formattedDoc = formatCpfCnpj(formData.cpfCnpj)
+        await addAuditEntry({
+          user: username,
+          action: "Cliente adicionado",
+          reference: `${formData.name} (${formattedDoc}) - ${docType}`
+        })
       }
 
       handleCloseDialog()
