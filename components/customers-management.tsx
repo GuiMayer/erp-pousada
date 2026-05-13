@@ -30,8 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Search, Building2, User } from "lucide-react"
-import type { Customer } from "@/lib/store"
+import { Plus, Pencil, Search, Building2, User, History, DollarSign, Calendar } from "lucide-react"
+import type { Customer, AccountReceivable } from "@/lib/store"
 import { 
   formatCpfCnpj, 
   validateCpfCnpj, 
@@ -71,8 +71,10 @@ const emptyForm: CustomerFormData = {
 }
 
 export default function CustomersManagement() {
-  const { customers, addCustomer, updateCustomer } = useApp()
+  const { customers, addCustomer, updateCustomer, accountsReceivable } = useApp()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CustomerFormData>(emptyForm)
   const [searchTerm, setSearchTerm] = useState("")
@@ -202,6 +204,37 @@ export default function CustomersManagement() {
     }
   }
 
+  const handleOpenHistory = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setIsHistoryDialogOpen(true)
+  }
+
+  const getCustomerAccountsReceivable = (customerId: string) => {
+    return accountsReceivable.filter(ar => ar.customerId === customerId)
+  }
+
+  const getStatusBadge = (status: AccountReceivable["status"]) => {
+    const variants = {
+      pendente: "default",
+      pago: "default",
+      vencido: "destructive",
+      cancelado: "secondary"
+    } as const
+
+    const labels = {
+      pendente: "Pendente",
+      pago: "Pago",
+      vencido: "Vencido",
+      cancelado: "Cancelado"
+    }
+
+    return (
+      <Badge variant={variants[status]} className={status === "pago" ? "bg-green-500" : ""}>
+        {labels[status]}
+      </Badge>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -287,13 +320,24 @@ export default function CustomersManagement() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenDialog(customer)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenHistory(customer)}
+                          title="Ver histórico"
+                        >
+                          <History className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenDialog(customer)}
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -487,6 +531,117 @@ export default function CustomersManagement() {
             </Button>
             <Button onClick={handleSubmit}>
               {editingId ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer History Dialog */}
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico do Cliente</DialogTitle>
+            <DialogDescription>
+              {selectedCustomer && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {getDocumentType(selectedCustomer.cpfCnpj) === "CPF" ? (
+                      <User className="h-4 w-4 text-blue-500" />
+                    ) : (
+                      <Building2 className="h-4 w-4 text-purple-500" />
+                    )}
+                    <span className="font-semibold">{selectedCustomer.name}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {formatCpfCnpj(selectedCustomer.cpfCnpj)}
+                  </div>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCustomer && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-lg border p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    Total de Contas
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {getCustomerAccountsReceivable(selectedCustomer.id).length}
+                  </div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    Valor Pendente
+                  </div>
+                  <div className="text-2xl font-bold">
+                    R$ {getCustomerAccountsReceivable(selectedCustomer.id)
+                      .filter(ar => ar.status === "pendente" || ar.status === "vencido")
+                      .reduce((sum, ar) => sum + ar.value, 0)
+                      .toFixed(2)}
+                  </div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    Total Pago
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">
+                    R$ {getCustomerAccountsReceivable(selectedCustomer.id)
+                      .filter(ar => ar.status === "pago")
+                      .reduce((sum, ar) => sum + ar.value, 0)
+                      .toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Contas a Receber</h3>
+                {getCustomerAccountsReceivable(selectedCustomer.id).length > 0 ? (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Descrição</TableHead>
+                          <TableHead>Valor</TableHead>
+                          <TableHead>Vencimento</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getCustomerAccountsReceivable(selectedCustomer.id)
+                          .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
+                          .map((ar) => (
+                            <TableRow key={ar.id}>
+                              <TableCell>{ar.description}</TableCell>
+                              <TableCell>R$ {ar.value.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  {new Date(ar.dueDate).toLocaleDateString("pt-BR")}
+                                </div>
+                              </TableCell>
+                              <TableCell>{getStatusBadge(ar.status)}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground border rounded-md">
+                    Nenhuma conta a receber encontrada para este cliente
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsHistoryDialogOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

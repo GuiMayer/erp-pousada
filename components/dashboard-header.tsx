@@ -1,6 +1,6 @@
 "use client"
 
-import { BedDouble, CheckCircle2, Users, SprayCan, Lock, LogOut } from "lucide-react"
+import { BedDouble, CheckCircle2, Users, SprayCan, Lock, LogOut, UserCheck, UserX, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
@@ -30,7 +30,7 @@ function countStatuses(rooms: Room[]): StatusCount {
 export function DashboardHeader({ rooms }: { rooms: Room[] }) {
   const counts = countStatuses(rooms)
   const { username, role, logout } = useAuth()
-  const { systemSettings } = useApp()
+  const { systemSettings, customers, accountsReceivable } = useApp()
   const today = new Date()
   const formatted = today.toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -38,6 +38,15 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
     month: "long",
     year: "numeric",
   })
+
+  // Customer metrics
+  const totalCustomers = customers.length
+  const activeCustomers = customers.filter(c => c.active).length
+  const customersWithPendingAccounts = new Set(
+    accountsReceivable
+      .filter(ar => ar.status === "pendente" || ar.status === "vencido")
+      .map(ar => ar.customerId)
+  ).size
 
   return (
     <header className="flex flex-col gap-6">
@@ -76,6 +85,28 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
         <StatPill label="Ocupados" value={counts.ocupado} icon={<Users className="size-4" />} variant="warning" />
         <StatPill label="Limpeza" value={counts.limpeza} icon={<SprayCan className="size-4" />} variant="cleaning" />
         <StatPill label="Bloqueado" value={counts.bloqueado} icon={<Lock className="size-4" />} variant="info" />
+      </div>
+
+      {/* Customer Metrics */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatPill 
+          label="Total de Clientes" 
+          value={totalCustomers} 
+          icon={<Users className="size-4" />} 
+          variant="default" 
+        />
+        <StatPill 
+          label="Clientes Ativos" 
+          value={activeCustomers} 
+          icon={<UserCheck className="size-4" />} 
+          variant="success" 
+        />
+        <StatPill 
+          label="Com Contas Pendentes" 
+          value={customersWithPendingAccounts} 
+          icon={<AlertCircle className="size-4" />} 
+          variant="warning" 
+        />
       </div>
     </header>
   )
