@@ -320,7 +320,7 @@ export interface Customer {
 
 export interface AccountReceivable {
   id: string
-  customerId?: string
+  customerId: string
   customerName: string
   description: string
   value: number
