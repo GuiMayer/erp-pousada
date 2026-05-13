@@ -6,8 +6,7 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 
 export const metadata: Metadata = {
-  title: 'Pousada Sol & Mar - Painel de Quartos',
-  description: 'Dashboard de gerenciamento de quartos da Pousada Sol & Mar',
+  description: 'Dashboard de gerenciamento de quartos',
   icons: {
     icon: [
       {
