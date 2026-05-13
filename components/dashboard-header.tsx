@@ -39,14 +39,14 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
     year: "numeric",
   })
 
-  // Customer metrics
-  const totalCustomers = customers.length
-  const activeCustomers = customers.filter(c => c.active).length
-  const customersWithPendingAccounts = new Set(
-    accountsReceivable
-      .filter(ar => ar.status === "pendente" || ar.status === "vencido")
-      .map(ar => ar.customerId)
-  ).size
+  // Customer metrics (commented out - kept for future reuse)
+  // const totalCustomers = customers.length
+  // const activeCustomers = customers.filter(c => c.active).length
+  // const customersWithPendingAccounts = new Set(
+  //   accountsReceivable
+  //     .filter(ar => ar.status === "pendente" || ar.status === "vencido")
+  //     .map(ar => ar.customerId)
+  // ).size
 
   return (
     <header className="flex flex-col gap-6">
@@ -87,8 +87,9 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
         <StatPill label="Bloqueado" value={counts.bloqueado} icon={<Lock className="size-4" />} variant="info" />
       </div>
 
-      {/* Customer Metrics */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Customer Metrics Section - Removed to reduce visual clutter */}
+      {/* Uncomment below to restore customer metrics display */}
+      {/* <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatPill 
           label="Total de Clientes" 
           value={totalCustomers} 
@@ -107,7 +108,7 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
           icon={<AlertCircle className="size-4" />} 
           variant="warning" 
         />
-      </div>
+      </div> */}
     </header>
   )
 }
