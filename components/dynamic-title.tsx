@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useApp } from "@/lib/app-context"
-import { useActiveTab } from "@/components/dashboard-shell"
+import { useActiveTab } from "@/contexts/active-tab-context"
 
 const TAB_NAMES: Record<string, string> = {
   mapa: "Mapa",
