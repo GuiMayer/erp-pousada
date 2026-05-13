@@ -177,15 +177,29 @@ export default function CustomersManagement() {
       const username = user?.username || "sistema"
 
       if (editingId) {
+        // Find original customer to detect status changes
+        const originalCustomer = customers.find(c => c.id === editingId)
+        const statusChanged = originalCustomer && originalCustomer.active !== formData.active
+        
         await updateCustomer(editingId, customerData)
         
-        // Log audit entry for customer edit
-        const docType = getDocumentType(formData.cpfCnpj)
-        await addAuditEntry({
-          user: username,
-          action: "Cliente editado",
-          reference: `${formData.name} (${docType})`
-        })
+        // Log specific audit entry based on what changed
+        if (statusChanged) {
+          const action = formData.active ? "Cliente ativado" : "Cliente desativado"
+          await addAuditEntry({
+            user: username,
+            action,
+            reference: formData.name
+          })
+        } else {
+          // Log generic edit if no status change
+          const docType = getDocumentType(formData.cpfCnpj)
+          await addAuditEntry({
+            user: username,
+            action: "Cliente editado",
+            reference: `${formData.name} (${docType})`
+          })
+        }
       } else {
         await addCustomer(customerData as Customer)
         
