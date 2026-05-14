@@ -446,7 +446,7 @@ export function POSTab() {
       </div>
 
       {/* Main POS Layout */}
-      <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         {/* Left: Product Selection */}
         <Card className="overflow-hidden">
           <CardHeader className="border-b border-border bg-muted/30 pb-4">
