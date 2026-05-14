@@ -82,6 +82,15 @@ export function AdminTab() {
     return null
   }
 
+  const validateCNPJ = (value: string): string | null => {
+    if (!value) return null // Optional field
+    const cnpjNumbers = value.replace(/\D/g, '')
+    if (cnpjNumbers.length > 0 && cnpjNumbers.length !== 14) {
+      return "CNPJ deve ter 14 dígitos"
+    }
+    return null
+  }
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
@@ -100,6 +109,11 @@ export function AdminTab() {
     if (formData.contactEmail) {
       const emailError = validateEmail(formData.contactEmail)
       if (emailError) newErrors.contactEmail = emailError
+    }
+
+    if (formData.cnpj) {
+      const cnpjError = validateCNPJ(formData.cnpj)
+      if (cnpjError) newErrors.cnpj = cnpjError
     }
 
     setErrors(newErrors)
@@ -133,6 +147,10 @@ export function AdminTab() {
       contactPhone: "Telefone",
       contactEmail: "Email",
       address: "Endereço",
+      cnpj: "CNPJ",
+      razaoSocial: "Razão Social",
+      inscricaoEstadual: "Inscrição Estadual",
+      logoUrl: "Logo",
     }
 
     Object.keys(fieldLabels).forEach(key => {
@@ -296,6 +314,60 @@ export function AdminTab() {
               onChange={(e) => handleFieldChange("address", e.target.value)}
               placeholder="Ex: Rua das Praias, 123 - Praia Grande, SP"
               rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Informações Fiscais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="size-4" />
+            Informações Fiscais
+          </CardTitle>
+          <CardDescription>
+            Dados fiscais para emissão de relatórios e documentos
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="razaoSocial">
+              Razão Social
+            </Label>
+            <Input
+              id="razaoSocial"
+              value={formData.razaoSocial || ""}
+              onChange={(e) => handleFieldChange("razaoSocial", e.target.value)}
+              placeholder="Ex: Pousada Sol & Mar Ltda"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cnpj">
+              CNPJ
+            </Label>
+            <Input
+              id="cnpj"
+              value={formData.cnpj || ""}
+              onChange={(e) => handleFieldChange("cnpj", e.target.value)}
+              placeholder="Ex: 12.345.678/0001-90"
+              className={errors.cnpj ? "border-destructive" : ""}
+            />
+            {errors.cnpj && (
+              <p className="text-sm text-destructive">{errors.cnpj}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="inscricaoEstadual">
+              Inscrição Estadual
+            </Label>
+            <Input
+              id="inscricaoEstadual"
+              value={formData.inscricaoEstadual || ""}
+              onChange={(e) => handleFieldChange("inscricaoEstadual", e.target.value)}
+              placeholder="Ex: 123.456.789.012"
             />
           </div>
         </CardContent>

@@ -37,7 +37,7 @@ import { useApp } from "@/lib/app-context"
 import type { POSProduct } from "@/lib/store"
 
 export function ProductsManagementTab() {
-  const { posProducts, stockItems, removePOSProduct } = useApp()
+  const { posProducts, stockItems, removePOSProduct, productCategories } = useApp()
   
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -47,15 +47,23 @@ export function ProductsManagementTab() {
   const [selectedProduct, setSelectedProduct] = useState<POSProduct | undefined>()
   const [deleteConfirm, setDeleteConfirm] = useState<POSProduct | null>(null)
 
-  // Get unique categories from products
-  const categories = useMemo(() => {
-    const cats = new Set(posProducts.map(p => p.category))
-    return Array.from(cats).sort()
-  }, [posProducts])
+  // Filter only PDV products (not restaurant)
+  const pdvProducts = useMemo(() => {
+    return posProducts.filter(product => {
+      const category = productCategories.find(c => c.id === product.categoryId)
+      return category?.isRestaurant !== true
+    })
+  }, [posProducts, productCategories])
+
+  // Get unique PDV categories
+  const pdvCategories = useMemo(() => {
+    const cats = productCategories.filter(c => !c.isRestaurant)
+    return cats.sort((a, b) => a.name.localeCompare(b.name))
+  }, [productCategories])
 
   // Filter products
   const filteredProducts = useMemo(() => {
-    return posProducts.filter(product => {
+    return pdvProducts.filter(product => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
@@ -65,7 +73,7 @@ export function ProductsManagementTab() {
       }
 
       // Category filter
-      if (categoryFilter !== "all" && product.category !== categoryFilter) {
+      if (categoryFilter !== "all" && product.categoryId !== categoryFilter) {
         return false
       }
 
@@ -78,7 +86,7 @@ export function ProductsManagementTab() {
 
       return true
     })
-  }, [posProducts, stockItems, searchQuery, categoryFilter, stockFilter])
+  }, [pdvProducts, stockItems, searchQuery, categoryFilter, stockFilter])
 
   function handleEdit(product: POSProduct) {
     setSelectedProduct(product)
@@ -103,6 +111,16 @@ export function ProductsManagementTab() {
 
   function hasStockItem(productId: string): boolean {
     return stockItems.some(s => s.productId === productId)
+  }
+
+  function getCategoryName(categoryId: string): string {
+    const category = productCategories.find(c => c.id === categoryId)
+    return category?.name || categoryId
+  }
+
+  function getCategoryColor(categoryId: string): string {
+    const category = productCategories.find(c => c.id === categoryId)
+    return category?.color || "#6b7280"
   }
 
   return (
@@ -134,18 +152,18 @@ export function ProductsManagementTab() {
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Total de Produtos</div>
-          <div className="text-2xl font-bold">{posProducts.length}</div>
+          <div className="text-2xl font-bold">{pdvProducts.length}</div>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Com Estoque</div>
           <div className="text-2xl font-bold text-green-600">
-            {posProducts.filter(p => hasStockItem(p.id)).length}
+            {pdvProducts.filter(p => hasStockItem(p.id)).length}
           </div>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Sem Estoque</div>
           <div className="text-2xl font-bold text-gray-600">
-            {posProducts.filter(p => !hasStockItem(p.id)).length}
+            {pdvProducts.filter(p => !hasStockItem(p.id)).length}
           </div>
         </div>
       </div>
@@ -167,8 +185,8 @@ export function ProductsManagementTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as categorias</SelectItem>
-            {categories.map(cat => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            {pdvCategories.map(cat => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -211,7 +229,16 @@ export function ProductsManagementTab() {
                 <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{product.category}</Badge>
+                    <Badge 
+                      variant="outline"
+                      style={{ 
+                        backgroundColor: `${getCategoryColor(product.categoryId)}20`,
+                        borderColor: getCategoryColor(product.categoryId),
+                        color: getCategoryColor(product.categoryId)
+                      }}
+                    >
+                      {getCategoryName(product.categoryId)}
+                    </Badge>
                   </TableCell>
                   <TableCell>R$ {product.price.toFixed(2)}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -258,12 +285,14 @@ export function ProductsManagementTab() {
         open={productFormOpen}
         onClose={() => setProductFormOpen(false)}
         product={selectedProduct}
+        categoryType="pdv"
       />
 
       {/* Categories Modal */}
       <ManageCategoriesModal
         open={categoriesModalOpen}
         onClose={() => setCategoriesModalOpen(false)}
+        defaultTab="pdv"
       />
 
       {/* Delete Confirmation */}

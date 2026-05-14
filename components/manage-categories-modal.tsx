@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -16,23 +16,96 @@ import {
   AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import type { ProductCategory } from "@/lib/store"
-import { Plus, Pencil, Trash2, Tag, AlertTriangle } from "lucide-react"
+import { 
+  Plus, Pencil, Trash2, Tag, AlertTriangle, Package, Coffee, 
+  UtensilsCrossed, Wine, Cake, Pizza, IceCream, Sandwich, 
+  Apple, Beef, Fish, Salad, Soup, Cookie, Croissant, Drumstick,
+  Milk, Beer, GlassWater, Martini, CupSoda, Candy, Popcorn,
+  ShoppingBag, ShoppingCart, Store, Sparkles, Star, Heart,
+  Flame, Zap, Crown, Gift, Palette, Check
+} from "lucide-react"
 
 type CategoryType = "pdv" | "restaurant"
 
 type Props = {
   open: boolean
   onClose: () => void
+  defaultTab?: CategoryType
 }
 
-export function ManageCategoriesModal({ open, onClose }: Props) {
+// Available icons for categories
+const AVAILABLE_ICONS = [
+  { name: "Package", icon: Package },
+  { name: "Coffee", icon: Coffee },
+  { name: "UtensilsCrossed", icon: UtensilsCrossed },
+  { name: "Wine", icon: Wine },
+  { name: "Cake", icon: Cake },
+  { name: "Pizza", icon: Pizza },
+  { name: "IceCream", icon: IceCream },
+  { name: "Sandwich", icon: Sandwich },
+  { name: "Apple", icon: Apple },
+  { name: "Beef", icon: Beef },
+  { name: "Fish", icon: Fish },
+  { name: "Salad", icon: Salad },
+  { name: "Soup", icon: Soup },
+  { name: "Cookie", icon: Cookie },
+  { name: "Croissant", icon: Croissant },
+  { name: "Drumstick", icon: Drumstick },
+  { name: "Milk", icon: Milk },
+  { name: "Beer", icon: Beer },
+  { name: "GlassWater", icon: GlassWater },
+  { name: "Martini", icon: Martini },
+  { name: "CupSoda", icon: CupSoda },
+  { name: "Candy", icon: Candy },
+  { name: "Popcorn", icon: Popcorn },
+  { name: "ShoppingBag", icon: ShoppingBag },
+  { name: "ShoppingCart", icon: ShoppingCart },
+  { name: "Store", icon: Store },
+  { name: "Sparkles", icon: Sparkles },
+  { name: "Star", icon: Star },
+  { name: "Heart", icon: Heart },
+  { name: "Flame", icon: Flame },
+  { name: "Zap", icon: Zap },
+  { name: "Crown", icon: Crown },
+  { name: "Gift", icon: Gift },
+  { name: "Palette", icon: Palette },
+]
+
+// Preset colors for quick selection
+const PRESET_COLORS = [
+  "#ef4444", // red
+  "#f97316", // orange
+  "#f59e0b", // amber
+  "#eab308", // yellow
+  "#84cc16", // lime
+  "#22c55e", // green
+  "#10b981", // emerald
+  "#14b8a6", // teal
+  "#06b6d4", // cyan
+  "#0ea5e9", // sky
+  "#3b82f6", // blue
+  "#6366f1", // indigo
+  "#8b5cf6", // violet
+  "#a855f7", // purple
+  "#d946ef", // fuchsia
+  "#ec4899", // pink
+  "#f43f5e", // rose
+  "#6b7280", // gray
+]
+
+export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Props) {
   const { posProducts, productCategories, updateProductCategory, addProductCategory, addAuditEntry } = useApp()
   const { username } = useAuth()
 
-  const [activeTab, setActiveTab] = useState<CategoryType>("pdv")
+  const [activeTab, setActiveTab] = useState<CategoryType>(defaultTab)
   const [mode, setMode] = useState<"list" | "add" | "edit">("list")
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<ProductCategory | null>(null)
@@ -43,6 +116,7 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
   const [categoryColor, setCategoryColor] = useState("#6b7280")
   const [categoryIcon, setCategoryIcon] = useState("Package")
   const [formError, setFormError] = useState("")
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   // Calculate product count by category dynamically
   const productCountByCategory = useMemo(() => {
@@ -64,6 +138,15 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
     productCategories.filter(c => c.isRestaurant),
     [productCategories]
   )
+
+  // Sync active tab with defaultTab when modal opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab(defaultTab)
+      setMode("list")
+      resetForm()
+    }
+  }, [open, defaultTab])
 
   function resetForm() {
     setCategoryName("")
@@ -324,32 +407,62 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
                   
                   <div className="flex gap-4">
                     <div className="flex flex-col gap-2 flex-1">
-                      <Label htmlFor="categoryColor">Cor</Label>
-                      <div className="flex gap-2 items-center">
-                        <Input
-                          id="categoryColor"
-                          type="color"
-                          value={categoryColor}
-                          onChange={e => setCategoryColor(e.target.value)}
-                          className="w-20 h-10 cursor-pointer"
-                        />
-                        <Input
-                          value={categoryColor}
-                          onChange={e => setCategoryColor(e.target.value)}
-                          placeholder="#6b7280"
-                          className="flex-1"
-                        />
+                      <Label>Cor</Label>
+                      <div className="grid grid-cols-9 gap-1.5">
+                        {PRESET_COLORS.map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            className="w-7 h-7 rounded border-2 border-border hover:border-foreground transition-colors relative"
+                            style={{ backgroundColor: color }}
+                            onClick={() => setCategoryColor(color)}
+                          >
+                            {categoryColor === color && (
+                              <Check className="absolute inset-0 m-auto size-4 text-white drop-shadow-md" />
+                            )}
+                          </button>
+                        ))}
                       </div>
                     </div>
                     
                     <div className="flex flex-col gap-2 flex-1">
-                      <Label htmlFor="categoryIcon">Ícone</Label>
-                      <Input
-                        id="categoryIcon"
-                        value={categoryIcon}
-                        onChange={e => setCategoryIcon(e.target.value)}
-                        placeholder="Package"
-                      />
+                      <Label>Ícone</Label>
+                      <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start gap-2 h-10"
+                          >
+                            {(() => {
+                              const IconComponent = AVAILABLE_ICONS.find(i => i.name === categoryIcon)?.icon || Package
+                              return <IconComponent className="size-4" style={{ color: categoryColor }} />
+                            })()}
+                            <span className="text-sm">{categoryIcon}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-3" align="start">
+                          <div className="grid grid-cols-6 gap-2">
+                            {AVAILABLE_ICONS.map(({ name, icon: Icon }) => (
+                              <button
+                                key={name}
+                                type="button"
+                                className={`
+                                  flex items-center justify-center w-full h-10 rounded border-2 
+                                  hover:border-foreground transition-colors
+                                  ${categoryIcon === name ? 'border-foreground bg-accent' : 'border-border'}
+                                `}
+                                onClick={() => {
+                                  setCategoryIcon(name)
+                                  setIconPickerOpen(false)
+                                }}
+                                title={name}
+                              >
+                                <Icon className="size-5" style={{ color: categoryColor }} />
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                   

@@ -31,8 +31,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
-import { RestaurantProductFormModal } from "./restaurant-product-form-modal"
-import { ManageRestaurantCategoriesModal } from "./manage-restaurant-categories-modal"
+import { ProductFormModal } from "./product-form-modal"
+import { ManageCategoriesModal } from "../manage-categories-modal"
 import { useApp } from "@/lib/app-context"
 import type { POSProduct } from "@/lib/store"
 
@@ -50,7 +50,7 @@ export function RestaurantProductsTab() {
   // Filter only restaurant products
   const restaurantProducts = useMemo(() => {
     return posProducts.filter(product => {
-      const category = productCategories.find(c => c.id === product.category)
+      const category = productCategories.find(c => c.id === product.categoryId)
       return category?.isRestaurant === true
     })
   }, [posProducts, productCategories])
@@ -73,7 +73,7 @@ export function RestaurantProductsTab() {
       }
 
       // Category filter
-      if (categoryFilter !== "all" && product.category !== categoryFilter) {
+      if (categoryFilter !== "all" && product.categoryId !== categoryFilter) {
         return false
       }
 
@@ -232,12 +232,12 @@ export function RestaurantProductsTab() {
                     <Badge 
                       variant="outline"
                       style={{ 
-                        backgroundColor: `${getCategoryColor(product.category)}15`,
-                        borderColor: getCategoryColor(product.category),
-                        color: getCategoryColor(product.category)
+                        backgroundColor: `${getCategoryColor(product.categoryId)}15`,
+                        borderColor: getCategoryColor(product.categoryId),
+                        color: getCategoryColor(product.categoryId)
                       }}
                     >
-                      {getCategoryName(product.category)}
+                      {getCategoryName(product.categoryId)}
                     </Badge>
                   </TableCell>
                   <TableCell>R$ {product.price.toFixed(2)}</TableCell>
@@ -281,16 +281,18 @@ export function RestaurantProductsTab() {
       )}
 
       {/* Product Form Modal */}
-      <RestaurantProductFormModal
+      <ProductFormModal
         open={productFormOpen}
         onClose={() => setProductFormOpen(false)}
         product={selectedProduct}
+        categoryType="restaurant"
       />
 
       {/* Categories Modal */}
-      <ManageRestaurantCategoriesModal
+      <ManageCategoriesModal
         open={categoriesModalOpen}
         onClose={() => setCategoriesModalOpen(false)}
+        defaultTab="restaurant"
       />
 
       {/* Delete Confirmation */}

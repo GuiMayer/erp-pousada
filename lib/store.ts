@@ -617,6 +617,10 @@ export interface SystemSettings {
   contactPhone?: string
   contactEmail?: string
   address?: string
+  cnpj?: string
+  razaoSocial?: string
+  inscricaoEstadual?: string
+  logoUrl?: string // URL ou base64 da logo
   notifyCheckInReminder?: boolean
   notifyCheckOutReminder?: boolean
   notifyLowStock?: boolean
@@ -945,6 +949,10 @@ export const initialSystemSettings: SystemSettings = {
   contactPhone: "(11) 98765-4321",
   contactEmail: "contato@pousadasolemar.com.br",
   address: "Rua das Praias, 123 - Praia Grande, SP",
+  cnpj: "",
+  razaoSocial: "",
+  inscricaoEstadual: "",
+  logoUrl: "",
   notifyCheckInReminder: true,
   notifyCheckOutReminder: true,
   notifyLowStock: true,

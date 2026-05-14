@@ -31,6 +31,13 @@ export class SystemSettingsRepository extends BaseRepository<SystemSettings> {
     if (settings.discountCeiling !== undefined && (settings.discountCeiling < 0 || settings.discountCeiling > 100)) {
       return { valid: false, error: "Teto de desconto deve estar entre 0 e 100" }
     }
+    if (settings.cnpj && settings.cnpj.trim().length > 0) {
+      // Remove non-numeric characters
+      const cnpjNumbers = settings.cnpj.replace(/\D/g, '')
+      if (cnpjNumbers.length !== 14) {
+        return { valid: false, error: "CNPJ deve ter 14 dígitos" }
+      }
+    }
     return { valid: true }
   }
 

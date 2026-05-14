@@ -14,9 +14,10 @@ interface ProductFormModalProps {
   open: boolean
   onClose: () => void
   product?: POSProduct
+  categoryType?: "pdv" | "restaurant"
 }
 
-export function ProductFormModal({ open, onClose, product }: ProductFormModalProps) {
+export function ProductFormModal({ open, onClose, product, categoryType = "pdv" }: ProductFormModalProps) {
   const { posProducts, addPOSProduct, updatePOSProduct, productCategories } = useApp()
   
   const [formData, setFormData] = useState({
@@ -28,8 +29,10 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
   })
   const [error, setError] = useState("")
 
-  // Filter only active POS categories (not restaurant)
-  const posCategories = productCategories.filter(c => c.active && !c.isRestaurant)
+  // Filter categories based on type
+  const filteredCategories = productCategories.filter(c => 
+    c.active && (categoryType === "restaurant" ? c.isRestaurant : !c.isRestaurant)
+  )
 
   useEffect(() => {
     if (product) {
@@ -137,12 +140,12 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
                 <SelectValue placeholder="Selecione uma categoria..." />
               </SelectTrigger>
               <SelectContent>
-                {posCategories.length === 0 ? (
+                {filteredCategories.length === 0 ? (
                   <SelectItem value="no-category" disabled>
                     Nenhuma categoria disponível
                   </SelectItem>
                 ) : (
-                  posCategories.map((category) => (
+                  filteredCategories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
