@@ -426,31 +426,101 @@ apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
 
 ## 🎯 RECOMENDAÇÕES PRIORITÁRIAS
 
-### **Prioridade 1 - Segurança (Imediato)**
+**Legenda:**
+- ✅ = Implementado completamente
+- ⚠️ = Parcialmente implementado
+- ❌ = Não implementado
 
-1. ✅ Implementar hashing de senhas (bcrypt/argon2)
-2. ✅ Remover senha hardcoded de supervisor
-3. ✅ Mover senha de supervisor para backend seguro
-4. ✅ Implementar rollback completo de estoque
+### **Prioridade 1 - Segurança (Imediato)** 🔴
 
-### **Prioridade 2 - Integridade de Dados (Curto Prazo)**
+1. ❌ **Implementar hashing de senhas (bcrypt/argon2)**
+   - Status: Senhas em texto plano em `lib/store.ts:916-939`
+   - Evidência: `password: "adm123"` e `password: "1234"` sem hashing
+   - Impacto: Comprometimento total do sistema de autenticação
 
-5. ✅ Adicionar validações de entrada em todos os pontos críticos
-6. ✅ Implementar transações atômicas para operações compostas
-7. ✅ Centralizar lógica de cálculo de preços
+2. ❌ **Remover senha hardcoded de supervisor**
+   - Status: Senha hardcoded com fallback "admin" em `lib/utils/validators.ts:189`
+   - Evidência: `const SUPERVISOR_PASSWORD = process.env.NEXT_PUBLIC_SUPERVISOR_PASSWORD || "admin"`
+   - Impacto: Acesso privilegiado trivial para qualquer usuário
 
-### **Prioridade 3 - Arquitetura (Médio Prazo)**
+3. ❌ **Mover senha de supervisor para backend seguro**
+   - Status: Senha exposta no bundle do cliente via `NEXT_PUBLIC_`
+   - Evidência: Variável de ambiente com prefixo público
+   - Impacto: Senha visível em código JavaScript do cliente
 
-8. ✅ Criar camada de serviços para regras de negócio
-9. ✅ Consolidar validações duplicadas
-10. ✅ Tornar thresholds configuráveis via SystemSettings
+4. ⚠️ **Implementar rollback completo de estoque**
+   - Status: Apenas stub com `console.warn` em `lib/hooks/useStockIntegration.ts:196-220`
+   - Evidência: Comentário "In a real implementation, we would fetch the original movements"
+   - Impacto: Inconsistências de dados em caso de erro
 
-### **Prioridade 4 - Qualidade (Longo Prazo)**
+### **Prioridade 2 - Integridade de Dados (Curto Prazo)** 🟠
 
-11. ✅ Implementar sistema de logging estruturado
-12. ✅ Adicionar testes unitários para regras críticas
-13. ✅ Documentar regras de negócio complexas
-14. ✅ Substituir strings literais por enums
+5. ⚠️ **Adicionar validações de entrada em todos os pontos críticos**
+   - Status: Validações parciais e inconsistentes
+   - Evidências:
+     - ✅ `useCart.ts`: Valida estoque e quantidade > 0
+     - ❌ `useOrderManagement.ts`: Não valida quantidade negativa/zero
+     - ❌ `useConsumption.ts`: Não valida preço negativo ou string vazia
+   - Impacto: Permite valores inválidos em pontos críticos
+
+6. ⚠️ **Implementar transações atômicas para operações compostas**
+   - Status: Padrão de compensação existe, mas sem atomicidade ACID
+   - Evidência: Rollback manual via try/catch, sem transações de banco
+   - Impacto: Operações podem falhar parcialmente deixando dados inconsistentes
+
+7. ⚠️ **Centralizar lógica de cálculo de preços**
+   - Status: Infraestrutura existe mas não é usada consistentemente
+   - Evidências:
+     - ✅ `lib/utils/price-calculations.ts`: Funções centralizadas disponíveis
+     - ❌ `lib/hooks/useCart.ts:80-93`: Duplica lógica de cálculo
+     - ❌ `lib/hooks/useOrderManagement.ts:50`: Cálculo inline
+   - Impacto: Risco de inconsistência se uma implementação for alterada
+
+### **Prioridade 3 - Arquitetura (Médio Prazo)** 🟡
+
+8. ❌ **Criar camada de serviços para regras de negócio**
+   - Status: Não existe `lib/services/` dedicado
+   - Evidência: Regras espalhadas em hooks individuais (useBusinessRules, useStockIntegration, etc.)
+   - Impacto: Dificulta manutenção e reutilização de lógica de negócio
+
+9. ⚠️ **Consolidar validações duplicadas**
+   - Status: Validações básicas centralizadas, validações de domínio duplicadas
+   - Evidências:
+     - ✅ `lib/utils/validators.ts`: Validações básicas centralizadas
+     - ❌ Validações de estoque duplicadas em: useCart, usePOSStockValidation, useStockIntegration
+   - Impacto: Manutenção complexa e risco de inconsistências
+
+10. ❌ **Tornar thresholds configuráveis via SystemSettings**
+    - Status: Thresholds hardcoded em `lib/types/alerts.ts`
+    - Evidência: `DEFAULT_THRESHOLDS` com valores fixos, não persistidos em SystemSettings
+    - Impacto: Impossível customizar thresholds por estabelecimento
+
+### **Prioridade 4 - Qualidade (Longo Prazo)** 🟢
+
+11. ❌ **Implementar sistema de logging estruturado**
+    - Status: Apenas console.log/warn/error sem biblioteca
+    - Evidência: 16.010+ ocorrências de console.* em todo o projeto
+    - Impacto: Dificulta debugging e não há rastreabilidade estruturada
+
+12. ⚠️ **Adicionar testes unitários para regras críticas**
+    - Status: Cobertura mínima em v0-agi-pousada
+    - Evidências:
+      - ✅ mm3e-builder: 17 arquivos de teste, 2.427+ casos
+      - ⚠️ v0-agi-pousada: Apenas 8 arquivos de teste básicos
+      - ❌ Faltam testes para: cálculos de estoque, validações de reserva, regras de negócio
+    - Impacto: Risco de regressões em mudanças futuras
+
+13. ⚠️ **Documentar regras de negócio complexas**
+    - Status: Documentação mínima com apenas 12 ocorrências de JSDoc
+    - Evidência: Código de aplicação sem documentação adequada
+    - Impacto: Dificulta onboarding e manutenção
+
+14. ⚠️ **Substituir strings literais por enums**
+    - Status: Schemas Zod existem, mas strings literais ainda presentes
+    - Evidências:
+      - ✅ mm3e-builder: Usa enums Zod (ComplicationTypeSchema, AbilityKeySchema)
+      - ❌ v0-agi-pousada: Usa `Record<string, string>` para categorias
+    - Impacto: Menor type-safety e risco de typos
 
 ---
 
@@ -465,18 +535,55 @@ A aplicação possui uma **arquitetura funcional** com separação de responsabi
 * ✅ Sistema de alertas configurável
 * ✅ Integração estoque-vendas implementada
 * ✅ Auditoria de operações
+* ✅ Infraestrutura de utilitários centralizados criada (price-calculations.ts, validators.ts, stock-validation.ts, date-formatting.ts)
 
 **Pontos Críticos:**
 
-* ❌ Segurança de autenticação comprometida
-* ❌ Rollback de estoque não implementado
-* ❌ Lógica duplicada em múltiplos lugares
-* ❌ Falta de validações em pontos críticos
-* ❌ Ausência de testes automatizados
+* ❌ **Segurança de autenticação comprometida** (senhas em texto plano, senha hardcoded)
+* ❌ **Rollback de estoque não implementado** (apenas stub com console.warn)
+* ⚠️ **Lógica duplicada em múltiplos lugares** (infraestrutura existe, mas não é usada consistentemente)
+* ⚠️ **Validações inconsistentes** (useCart valida, useConsumption não valida)
+* ⚠️ **Testes automatizados insuficientes** (mm3e-builder bem coberto, v0-agi-pousada cobertura mínima)
+* ❌ **Sistema de logging não estruturado** (16.010+ console.log/warn/error)
+* ❌ **Thresholds não configuráveis** (hardcoded em alerts.ts)
+* ❌ **Camada de serviços ausente** (regras espalhadas em hooks)
 
 **Próximos Passos Sugeridos:**
 
-1. Corrigir problemas críticos de segurança
-2. Implementar rollback completo de estoque
-3. Criar plano de refatoração para consolidar lógica duplicada
-4. Estabelecer camada de serviços para regras de negócio
+### Fase 1: Segurança Crítica (Imediato) 🔴
+1. Implementar hashing de senhas com bcrypt/argon2
+2. Remover senha hardcoded de supervisor
+3. Mover autenticação de supervisor para backend seguro
+4. Implementar rollback completo de estoque
+
+### Fase 2: Integridade de Dados (Curto Prazo) 🟠
+5. Adicionar validações de entrada em useConsumption e useOrderManagement
+6. Refatorar hooks para usar funções centralizadas de price-calculations.ts
+7. Implementar transações atômicas com rollback compensatório
+
+### Fase 3: Arquitetura (Médio Prazo) 🟡
+8. Criar camada lib/services/ para regras de negócio
+9. Consolidar validações de domínio duplicadas
+10. Tornar thresholds configuráveis via SystemSettings
+
+### Fase 4: Qualidade (Longo Prazo) 🟢
+11. Implementar sistema de logging estruturado (winston/pino)
+12. Expandir cobertura de testes em v0-agi-pousada
+13. Adicionar JSDoc em funções de regras de negócio
+14. Substituir strings literais por enums TypeScript
+
+---
+
+## 📊 RESUMO DO STATUS ATUAL
+
+| Categoria | Total | ✅ Implementado | ⚠️ Parcial | ❌ Não Implementado |
+|-----------|-------|----------------|-----------|---------------------|
+| **Prioridade 1 - Segurança** | 4 | 0 | 1 | 3 |
+| **Prioridade 2 - Integridade** | 3 | 0 | 3 | 0 |
+| **Prioridade 3 - Arquitetura** | 3 | 0 | 1 | 2 |
+| **Prioridade 4 - Qualidade** | 4 | 0 | 3 | 1 |
+| **TOTAL** | **14** | **0** | **8** | **6** |
+
+**Taxa de Implementação:** 0% completo, 57% parcial, 43% não iniciado
+
+**Recomendação:** Priorizar Fase 1 (Segurança Crítica) imediatamente, pois os 3 problemas críticos de segurança representam riscos graves para a aplicação em produção.
