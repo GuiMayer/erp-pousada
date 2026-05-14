@@ -23,6 +23,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state"
 import { StockMovementModal } from "./stock-movement-modal"
 import { ProductsManagementTab } from "./products-management-tab"
+import { RestaurantProductsTab } from "./restaurant-products-tab"
 import { StockThresholdConfig } from "./stock-threshold-config"
 import { useStockControl } from "@/lib/hooks/useStockControl"
 import type { StockItem } from "@/lib/store"
@@ -86,7 +87,8 @@ export function StockTab() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="products">Produtos</TabsTrigger>
+          <TabsTrigger value="products">Catálogo de Produtos</TabsTrigger>
+          <TabsTrigger value="restaurant">Cardápio do Restaurante</TabsTrigger>
           <TabsTrigger value="movements">Movimentações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
@@ -94,6 +96,11 @@ export function StockTab() {
         {/* Products Tab */}
         <TabsContent value="products" className="space-y-6">
           <ProductsManagementTab />
+        </TabsContent>
+
+        {/* Restaurant Products Tab */}
+        <TabsContent value="restaurant" className="space-y-6">
+          <RestaurantProductsTab />
         </TabsContent>
 
         {/* Movements Tab */}
