@@ -48,15 +48,38 @@ export function calculateTotal(items: CartItem[], globalDiscountAmount: number =
 }
 
 /**
- * Format currency value to BRL
+ * Format currency value to BRL with locale formatting
  */
 export function formatCurrency(value: number): string {
   return value.toLocaleString(LOCALE, CURRENCY_OPTIONS)
 }
 
 /**
- * Format currency value to fixed decimal string
+ * Format currency value to fixed decimal string (without currency symbol)
  */
 export function formatCurrencyFixed(value: number, decimals: number = 2): string {
   return value.toFixed(decimals)
+}
+
+/**
+ * Format currency value with "R$" prefix and fixed decimals
+ * Use this for displaying prices in the UI
+ */
+export function formatPrice(value: number, decimals: number = 2): string {
+  return `R$ ${value.toFixed(decimals)}`
+}
+
+/**
+ * Format percentage value with fixed decimals
+ */
+export function formatPercentage(value: number, decimals: number = 1): string {
+  return `${value.toFixed(decimals)}%`
+}
+
+/**
+ * Format percentage change with sign prefix
+ */
+export function formatPercentageChange(value: number, decimals: number = 1): string {
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(decimals)}%`
 }
