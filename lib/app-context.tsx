@@ -291,8 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     initializeData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataStore])
+  }, [dataStore, isInitialized, loadAllData])
 
   // Reload data when syncing from another tab
   useEffect(() => {
