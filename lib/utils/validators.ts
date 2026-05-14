@@ -183,11 +183,40 @@ export function isValidCPF(cpf: string): boolean {
 }
 
 /**
- * Validates supervisor password
+ * Validates supervisor password using secure server-side authentication
+ * @deprecated Use validateSupervisorPasswordAsync instead
+ * This function is kept for backward compatibility but always returns false
+ * to force migration to the secure API-based authentication
  */
 export function validateSupervisorPassword(password: string): boolean {
-  const SUPERVISOR_PASSWORD = process.env.NEXT_PUBLIC_SUPERVISOR_PASSWORD || "admin"
-  return password === SUPERVISOR_PASSWORD
+  console.warn('validateSupervisorPassword is deprecated. Use validateSupervisorPasswordAsync instead.')
+  return false
+}
+
+/**
+ * Validates supervisor password using secure server-side authentication
+ * Calls the /api/auth/supervisor endpoint which uses bcrypt hashing
+ */
+export async function validateSupervisorPasswordAsync(password: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/auth/supervisor', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password }),
+    })
+
+    if (!response.ok) {
+      return false
+    }
+
+    const data = await response.json()
+    return data.success === true
+  } catch (error) {
+    console.error('Error validating supervisor password:', error)
+    return false
+  }
 }
 
 /**

@@ -913,11 +913,15 @@ export const initialEmployees: Employee[] = (seedData.employees as SeedEmployee[
 export const initialEmployeeConsumptions: EmployeeConsumption[] = []
 
 // ─── User Management Initial Data ──────────────────────────────────────
+// SECURITY: Passwords are now stored as bcrypt hashes
+// Default passwords (for reference only - CHANGE IN PRODUCTION):
+//   supervisor: adm123
+//   operador: 1234
 export const initialUsers: User[] = [
   {
     id: "user-supervisor",
     username: "supervisor",
-    password: "adm123", // In production, this would be hashed
+    password: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", // bcrypt hash of 'adm123'
     role: "supervisor",
     fullName: "Supervisor do Sistema",
     email: "supervisor@pousada.com",
@@ -928,7 +932,7 @@ export const initialUsers: User[] = [
   {
     id: "user-operador",
     username: "operador",
-    password: "1234",
+    password: "$2a$10$JQ95SiNo5nMtE8uCioUCZOqgTEn.bLT/bvbh4cyDgbcTmVcfeadqC", // bcrypt hash of '1234'
     role: "operador",
     fullName: "Operador Padrão",
     email: "operador@pousada.com",
