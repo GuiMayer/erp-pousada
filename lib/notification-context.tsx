@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react"
 import type { Notification, NotificationPreferences, NotificationType, NotificationPriority } from "./types/notifications"
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "./types/notifications"
 
@@ -169,20 +169,33 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const contextValue = useMemo(
+    () => ({
+      notifications,
+      unreadCount,
+      preferences,
+      sendNotification,
+      markAsRead,
+      markAllAsRead,
+      clearNotification,
+      clearAllNotifications,
+      updatePreferences,
+    }),
+    [
+      notifications,
+      unreadCount,
+      preferences,
+      sendNotification,
+      markAsRead,
+      markAllAsRead,
+      clearNotification,
+      clearAllNotifications,
+      updatePreferences,
+    ]
+  )
+
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        preferences,
-        sendNotification,
-        markAsRead,
-        markAllAsRead,
-        clearNotification,
-        clearAllNotifications,
-        updatePreferences,
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
     </NotificationContext.Provider>
   )

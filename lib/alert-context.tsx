@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react"
 import type { Alert, AlertType, AlertPriority, AlertThresholds } from "./types/alerts"
 import { DEFAULT_THRESHOLDS } from "./types/alerts"
 import { useToast } from "@/hooks/use-toast"
@@ -121,19 +121,31 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   const activeAlertsCount = activeAlerts.length
   const criticalAlertsCount = activeAlerts.filter(a => a.priority === 'critical').length
 
+  const contextValue = useMemo(
+    () => ({
+      alerts: activeAlerts,
+      thresholds,
+      addAlert,
+      dismissAlert,
+      clearAlerts,
+      updateThresholds,
+      activeAlertsCount,
+      criticalAlertsCount,
+    }),
+    [
+      activeAlerts,
+      thresholds,
+      addAlert,
+      dismissAlert,
+      clearAlerts,
+      updateThresholds,
+      activeAlertsCount,
+      criticalAlertsCount,
+    ]
+  )
+
   return (
-    <AlertContext.Provider
-      value={{
-        alerts: activeAlerts,
-        thresholds,
-        addAlert,
-        dismissAlert,
-        clearAlerts,
-        updateThresholds,
-        activeAlertsCount,
-        criticalAlertsCount,
-      }}
-    >
+    <AlertContext.Provider value={contextValue}>
       {children}
     </AlertContext.Provider>
   )
