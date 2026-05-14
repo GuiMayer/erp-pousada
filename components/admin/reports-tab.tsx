@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FileText, Download } from "lucide-react"
-import { useStore } from "@/lib/store"
+import { useApp } from "@/lib/app-context"
 import { downloadReservationsReport } from "@/lib/reports/reservations-report"
 import { downloadStockReport } from "@/lib/reports/stock-report"
 import { downloadRestaurantReport } from "@/lib/reports/restaurant-report"
@@ -25,13 +25,13 @@ export function ReportsTab() {
   const { 
     reservations, 
     rooms, 
-    products, 
+    posProducts: products, 
     productCategories,
     restaurantOrders,
-    restaurantProducts,
-    restaurantProductCategories,
+    posProducts: restaurantProducts,
+    productCategories: restaurantProductCategories,
     systemSettings 
-  } = useStore()
+  } = useApp()
 
   // Reservations filters
   const [reservationStartDate, setReservationStartDate] = useState("")
