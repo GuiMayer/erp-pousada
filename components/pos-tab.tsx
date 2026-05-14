@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { calculateCartSubtotal, calculateCartTotal, calculateItemTotal, formatCurrency, formatCurrencyFixed } from "@/lib/utils/price-calculations"
 import { getTodayISO, ROOM_STATUS } from "@/lib/utils/constants"
 import { formatDateTime } from "@/lib/utils/date-formatting"
+import { validateStockAvailability } from "@/lib/utils/stock-validation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -163,33 +164,16 @@ export function POSTab() {
     const currentInCart = cart.find(item => item.product.id === product.id)?.quantity || 0
     const newQuantity = currentInCart + 1
 
-    if (stockItem) {
-      if (stockItem.currentStock <= 0) {
-        toast({
-          title: "Estoque Esgotado",
-          description: `${product.name} está sem estoque disponível`,
-          variant: "destructive",
-        })
-        return
-      }
+    // Use centralized stock validation
+    const validation = validateStockAvailability(stockItem, newQuantity, product.name)
+    
+    if (!validation.isValid && validation.error) {
+      toast(validation.error)
+      return
+    }
 
-      if (newQuantity > stockItem.currentStock) {
-        toast({
-          title: "Estoque Insuficiente",
-          description: `${product.name}: apenas ${stockItem.currentStock} ${stockItem.unit} disponível(is)`,
-          variant: "destructive",
-        })
-        return
-      }
-
-      // Warning when approaching stock limit
-      if (newQuantity === stockItem.currentStock) {
-        toast({
-          title: "Último Item",
-          description: `Você está adicionando o último ${product.name} disponível em estoque`,
-          variant: "default",
-        })
-      }
+    if (validation.warning) {
+      toast(validation.warning)
     }
 
     setCart(prev => {
@@ -220,12 +204,10 @@ export function POSTab() {
       // If increasing quantity, check stock availability
       if (delta > 0) {
         const stockItem = stockItems.find(s => s.productId === item.product.id)
-        if (stockItem && newQty > stockItem.currentStock) {
-          toast({
-            title: "Estoque Insuficiente",
-            description: `${item.product.name}: apenas ${stockItem.currentStock} ${stockItem.unit} disponível(is)`,
-            variant: "destructive",
-          })
+        const validation = validateStockAvailability(stockItem, newQty, item.product.name)
+        
+        if (!validation.isValid && validation.error) {
+          toast(validation.error)
           return prev
         }
       }
@@ -464,7 +446,7 @@ export function POSTab() {
       </div>
 
       {/* Main POS Layout */}
-      <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         {/* Left: Product Selection */}
         <Card className="overflow-hidden">
           <CardHeader className="border-b border-border bg-muted/30 pb-4">

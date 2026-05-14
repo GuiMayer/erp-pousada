@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { useToast } from "@/hooks/use-toast"
+import { getStockStatusLevel } from "@/lib/utils/stock-validation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -86,17 +87,7 @@ export function StockThresholdConfig() {
     closeDialog()
   }
 
-  function getStockStatus(item: StockItem): "critical" | "low" | "ok" {
-    if (item.currentStock <= 0 || item.currentStock <= item.minimumStock) {
-      return "critical"
-    }
-    if (item.currentStock <= item.minimumStock * 1.5) {
-      return "low"
-    }
-    return "ok"
-  }
-
-  function getStatusBadge(status: "critical" | "low" | "ok") {
+  function getStatusBadge(status: "critical" | "low" | "warning" | "normal") {
     switch (status) {
       case "critical":
         return (
@@ -112,19 +103,27 @@ export function StockThresholdConfig() {
             Baixo
           </Badge>
         )
-      case "ok":
+      case "warning":
         return (
-          <Badge variant="secondary" className="gap-1 bg-green-500/10 text-green-600 dark:text-green-500">
-            OK
+          <Badge variant="secondary" className="gap-1 bg-orange-500/10 text-orange-600 dark:text-orange-500">
+            <AlertTriangle className="h-3 w-3" />
+            Atenção
+          </Badge>
+        )
+      default:
+        return (
+          <Badge variant="outline" className="gap-1">
+            <Package className="h-3 w-3" />
+            Normal
           </Badge>
         )
     }
   }
 
   const sortedItems = [...stockItems].sort((a, b) => {
-    const statusOrder = { critical: 0, low: 1, ok: 2 }
-    const statusA = getStockStatus(a)
-    const statusB = getStockStatus(b)
+    const statusOrder = { critical: 0, low: 1, warning: 2, normal: 3 }
+    const statusA = getStockStatusLevel(a)
+    const statusB = getStockStatusLevel(b)
     
     if (statusOrder[statusA] !== statusOrder[statusB]) {
       return statusOrder[statusA] - statusOrder[statusB]
@@ -171,7 +170,7 @@ export function StockThresholdConfig() {
                   </TableRow>
                 ) : (
                   sortedItems.map(item => {
-                    const status = getStockStatus(item)
+                    const status = getStockStatusLevel(item)
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">

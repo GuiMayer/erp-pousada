@@ -1,7 +1,7 @@
 import { useCallback } from "react"
 import { useApp } from "../app-context"
 import { useAlerts } from "../alert-context"
-import type { POSCartItem, RecipeIngredient } from "../store"
+import type { POSCartItem, RecipeIngredient, StockMovement } from "../store"
 import { generateStockMovementId } from "../utils/id-generators"
 
 /**
@@ -13,6 +13,7 @@ import { generateStockMovementId } from "../utils/id-generators"
 export function useStockIntegration() {
   const {
     stockItems,
+    stockMovements,
     posProducts,
     addStockMovement,
     updateStockItem,
@@ -192,32 +193,113 @@ export function useStockIntegration() {
   /**
    * Rollback stock movements (compensating transaction)
    * Creates reverse movements to undo previous deductions
+   * 
+   * IMPLEMENTATION: This function now properly implements rollback by:
+   * 1. Fetching the original movements by their IDs
+   * 2. Creating compensating "entrada" movements for each "saida"
+   * 3. Restoring the stock quantities to their previous state
    */
   const rollbackStock = useCallback(async (
     movementIds: string[],
     registeredBy: string
   ): Promise<void> => {
+    if (movementIds.length === 0) {
+      console.warn('Rollback called with no movement IDs')
+      return
+    }
+
+    const rolledBackMovements: string[] = []
+    const failedRollbacks: string[] = []
+
     try {
-      // Note: In a real implementation, we would fetch the original movements
-      // and create compensating "entrada" movements. For now, we just log.
-      console.warn('Stock rollback requested for movements:', movementIds)
+      console.warn('Stock rollback initiated for movements:', movementIds)
       
-      addAlert({
-        type: 'error',
-        priority: 'high',
-        title: 'Erro no Processamento de Estoque',
-        message: 'Operação revertida. Verifique o estoque manualmente.',
-      })
+      // Fetch the original movements
+      const originalMovements = stockMovements.filter(m => movementIds.includes(m.id))
+      
+      if (originalMovements.length === 0) {
+        console.error('No movements found for rollback IDs:', movementIds)
+        addAlert({
+          type: 'error',
+          priority: 'critical',
+          title: 'Falha no Rollback de Estoque',
+          message: 'Movimentos originais não encontrados. Verifique o estoque manualmente!',
+        })
+        return
+      }
+
+      // Process each movement in reverse
+      for (const originalMovement of originalMovements) {
+        try {
+          // Only rollback "saida" movements
+          if (originalMovement.type !== 'saida') {
+            console.warn(`Skipping rollback for non-saida movement: ${originalMovement.id}`)
+            continue
+          }
+
+          const stockItem = stockItems.find(s => s.productId === originalMovement.productId)
+          if (!stockItem) {
+            console.error(`Stock item not found for product: ${originalMovement.productId}`)
+            failedRollbacks.push(originalMovement.productName)
+            continue
+          }
+
+          // Create compensating "entrada" movement
+          const compensatingMovementId = generateStockMovementId()
+          await addStockMovement({
+            id: compensatingMovementId,
+            type: 'entrada',
+            productId: originalMovement.productId,
+            productName: originalMovement.productName,
+            quantity: originalMovement.quantity,
+            unit: originalMovement.unit,
+            cost: originalMovement.cost,
+            reason: `Rollback: ${originalMovement.reason}`,
+            notes: `Compensação automática do movimento ${originalMovement.id}`,
+            timestamp: new Date().toISOString(),
+            registeredBy,
+          })
+
+          // Restore stock quantity
+          const restoredStock = stockItem.currentStock + originalMovement.quantity
+          await updateStockItem(stockItem.id, { currentStock: restoredStock })
+
+          rolledBackMovements.push(originalMovement.productName)
+          console.log(`Rolled back movement ${originalMovement.id}: restored ${originalMovement.quantity} ${originalMovement.unit} of ${originalMovement.productName}`)
+        } catch (error) {
+          console.error(`Failed to rollback movement ${originalMovement.id}:`, error)
+          failedRollbacks.push(originalMovement.productName)
+        }
+      }
+
+      // Report results
+      if (failedRollbacks.length === 0) {
+        addAlert({
+          type: 'warning',
+          priority: 'high',
+          title: 'Estoque Revertido com Sucesso',
+          message: `Rollback concluído: ${rolledBackMovements.length} item(ns) restaurado(s).`,
+        })
+        console.log('Stock rollback completed successfully:', rolledBackMovements)
+      } else {
+        addAlert({
+          type: 'error',
+          priority: 'critical',
+          title: 'Rollback Parcialmente Concluído',
+          message: `${rolledBackMovements.length} item(ns) revertido(s), ${failedRollbacks.length} falhou(aram). Verifique: ${failedRollbacks.join(', ')}`,
+        })
+        console.error('Stock rollback partially failed:', { rolledBackMovements, failedRollbacks })
+      }
     } catch (error) {
-      console.error('Failed to rollback stock:', error)
+      console.error('Critical failure during stock rollback:', error)
       addAlert({
         type: 'error',
         priority: 'critical',
-        title: 'Falha no Rollback de Estoque',
-        message: 'ATENÇÃO: Verifique o estoque imediatamente!',
+        title: 'Falha Crítica no Rollback de Estoque',
+        message: 'ATENÇÃO: Verifique o estoque imediatamente! Rollback não pôde ser concluído.',
       })
     }
-  }, [addAlert])
+  }, [stockMovements, stockItems, addStockMovement, updateStockItem, addAlert])
 
   /**
    * Validate stock availability for cart items
