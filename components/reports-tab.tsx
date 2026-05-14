@@ -292,24 +292,32 @@ export function ReportsTab() {
           </div>
         </div>
         
-        <PeriodSelector
-          selectedPeriod={selectedPeriod}
-          startDate={startDate}
-          endDate={endDate}
-          onPeriodChange={handlePeriodChange}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-        />
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-start gap-2 text-sm text-muted-foreground mb-3">
+            <div className="mt-0.5">💡</div>
+            <div>
+              <strong>Período compartilhado:</strong> O período selecionado abaixo é aplicado automaticamente aos gráficos de análise e aos relatórios PDF.
+            </div>
+          </div>
+          <PeriodSelector
+            selectedPeriod={selectedPeriod}
+            startDate={startDate}
+            endDate={endDate}
+            onPeriodChange={handlePeriodChange}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+          />
+        </div>
       </div>
 
       {/* Main Tabs: Analytics vs PDF Reports */}
       <Tabs defaultValue="analytics" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="analytics" className="gap-2">
+          <TabsTrigger value="analytics" className="gap-2" title="Visualize dados em tempo real com gráficos interativos">
             <BarChart3 className="h-4 w-4" />
             Análise
           </TabsTrigger>
-          <TabsTrigger value="pdf-reports" className="gap-2">
+          <TabsTrigger value="pdf-reports" className="gap-2" title="Gere documentos formais em PDF para impressão e arquivo">
             <FileText className="h-4 w-4" />
             Relatórios PDF
           </TabsTrigger>
@@ -501,8 +509,14 @@ export function ReportsTab() {
 
         {/* PDF Reports Tab */}
         <TabsContent value="pdf-reports" className="space-y-6">
-          <div className="text-sm text-muted-foreground mb-4">
-            Gere relatórios em PDF para documentação formal e arquivo. Os filtros de período acima são aplicados automaticamente.
+          <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <FileText className="h-4 w-4" />
+              Relatórios PDF - Documentação Formal
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Gere relatórios em PDF para documentação formal e arquivo. O período selecionado acima ({getPeriodLabel()}: {startDate === endDate ? startDate : `${startDate} a ${endDate}`}) será aplicado aos relatórios de Reservas e Restaurante.
+            </p>
           </div>
 
           {/* Reservations Report */}
