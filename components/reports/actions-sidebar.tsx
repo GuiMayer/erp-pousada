@@ -106,9 +106,9 @@ export function ActionsSidebar({
   ]
 
   return (
-    <div className="w-full lg:w-80 space-y-4">
+    <div className="w-full lg:w-80 xl:w-96 space-y-4 lg:sticky lg:top-6">
       {/* CSV Exports Section */}
-      <Card>
+      <Card className="transition-shadow hover:shadow-md">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Download className="h-4 w-4" />
@@ -192,7 +192,7 @@ export function ActionsSidebar({
       </Card>
 
       {/* PDF Reports Section */}
-      <Card>
+      <Card className="transition-shadow hover:shadow-md">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4" />

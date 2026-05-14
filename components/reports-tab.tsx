@@ -308,9 +308,9 @@ export function ReportsTab() {
       </div>
 
       {/* Main layout: Content + Sidebar */}
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Main content area */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 w-full">
           {/* Key Metrics - Always visible */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
             <MetricCard
