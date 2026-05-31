@@ -117,12 +117,9 @@ export function RestaurantTab() {
         operator: username || "operador",
       }
       await addRestaurantOrder(newOrder)
-      await openTable(table.id, orderId)
       setSelectedTable({
         ...table,
-        status: "ocupada",
         currentOrderId: orderId,
-        openedAt: newOrder.openedAt,
       })
     } else {
       const activeOrder = findActiveOrder(table)
@@ -154,6 +151,16 @@ export function RestaurantTab() {
   const handleOrderCanceled = async (table: RestaurantTable) => {
     await closeTable(table.id)
     handleOrderSheetClose()
+  }
+
+  const handleFirstItemAdded = async (table: RestaurantTable, orderId: string) => {
+    await openTable(table.id, orderId)
+    setSelectedTable({
+      ...table,
+      status: "ocupada",
+      currentOrderId: orderId,
+      openedAt: new Date().toISOString(),
+    })
   }
 
   return (
@@ -323,6 +330,7 @@ export function RestaurantTab() {
         onClose={handleOrderSheetClose}
         onPaid={handleOrderPaid}
         onCanceled={handleOrderCanceled}
+        onFirstItemAdded={handleFirstItemAdded}
       />
 
       {/* Manage Tables Modal */}

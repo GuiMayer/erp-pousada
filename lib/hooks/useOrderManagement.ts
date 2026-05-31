@@ -43,7 +43,7 @@ export function useOrderManagement(orderId?: string) {
   }, [order, discount])
 
   // Add item to order
-  const addItem = useCallback((product: POSProduct, quantity: number = 1) => {
+  const addItem = useCallback(async (product: POSProduct, quantity: number = 1) => {
     if (!order || !orderId || order.status !== "aberta") return
 
     const item: RestaurantOrderItem = {
@@ -57,18 +57,18 @@ export function useOrderManagement(orderId?: string) {
     }
 
     const items = [...order.items, item]
-    updateRestaurantOrder(orderId, {
+    await updateRestaurantOrder(orderId, {
       items,
       ...calculateTotals(items, discount),
     })
   }, [order, orderId, discount, updateRestaurantOrder, getCategoryName])
 
   // Remove item from order
-  const removeItem = useCallback((itemId: string) => {
+  const removeItem = useCallback(async (itemId: string) => {
     if (!order || !orderId || order.status !== "aberta") return
 
     const items = order.items.filter(item => item.id !== itemId)
-    updateRestaurantOrder(orderId, {
+    await updateRestaurantOrder(orderId, {
       items,
       ...calculateTotals(items, discount),
     })

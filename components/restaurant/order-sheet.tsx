@@ -40,9 +40,10 @@ interface OrderSheetProps {
   onClose: () => void
   onPaid: (table: RestaurantTable, orderId: string) => void | Promise<void>
   onCanceled: (table: RestaurantTable, orderId: string) => void | Promise<void>
+  onFirstItemAdded: (table: RestaurantTable, orderId: string) => void | Promise<void>
 }
 
-export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCanceled }: OrderSheetProps) {
+export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCanceled, onFirstItemAdded }: OrderSheetProps) {
   const { posProducts, productCategories } = useApp()
   const { username } = useAuth()
   const { toast } = useToast()
@@ -62,12 +63,16 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
 
   if (!table) return null
 
-  const handleAddItem = () => {
-    if (!selectedProduct) return
+  const handleAddItem = async () => {
+    if (!selectedProduct || !orderId) return
     const product = posProducts.find(p => p.id === selectedProduct)
     if (!product) return
 
-    addItem(product, quantity)
+    const wasEmpty = !order || order.items.length === 0
+    await addItem(product, quantity)
+    if (wasEmpty && table.status === "livre") {
+      await onFirstItemAdded(table, orderId)
+    }
     setSelectedProduct("")
     setQuantity(1)
   }
