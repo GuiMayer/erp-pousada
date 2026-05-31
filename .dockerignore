@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.env*.local
+config/app.config.json
+backups
+*.dump
+tsconfig.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
