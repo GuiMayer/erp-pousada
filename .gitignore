@@ -14,3 +14,8 @@ node_modules/
 *.db-journal
 *.sqlite
 *.sqlite-journal
+
+# Client deployment runtime files
+config/app.config.json
+backups/
+*.dump
