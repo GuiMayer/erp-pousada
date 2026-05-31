@@ -36,7 +36,9 @@ import { SupplierRepository } from "./supplier-repository"
 import { CustomerRepository } from "./customer-repository"
 import { AccountReceivableRepository } from "./account-receivable-repository"
 import { BankAccountRepository } from "./bank-account-repository"
+import { BankTransferRepository } from "./bank-transfer-repository"
 import { CostCenterRepository } from "./cost-center-repository"
+import { BudgetRepository } from "./budget-repository"
 import { RecurringTransactionRepository } from "./recurring-transaction-repository"
 
 /**
@@ -87,7 +89,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
   const customers = new CustomerRepository(adapter, userId)
   const accountsReceivable = new AccountReceivableRepository(adapter, userId)
   const bankAccounts = new BankAccountRepository(adapter, userId)
+  const bankTransfers = new BankTransferRepository(adapter, userId)
   const costCenters = new CostCenterRepository(adapter, userId)
+  const budgets = new BudgetRepository(adapter, userId)
   const recurringTransactions = new RecurringTransactionRepository(adapter, userId)
 
   // Return DataStore interface
@@ -132,7 +136,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
     customers,
     accountsReceivable,
     bankAccounts,
+    bankTransfers,
     costCenters,
+    budgets,
     recurringTransactions,
 
     // Utility methods
@@ -173,7 +179,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
         customers.clear(),
         accountsReceivable.clear(),
         bankAccounts.clear(),
+        bankTransfers.clear(),
         costCenters.clear(),
+        budgets.clear(),
         recurringTransactions.clear(),
       ])
     },
@@ -212,6 +220,8 @@ export * from "./supplier-repository"
 export * from "./customer-repository"
 export * from "./account-receivable-repository"
 export * from "./bank-account-repository"
+export * from "./bank-transfer-repository"
 export * from "./cost-center-repository"
+export * from "./budget-repository"
 export * from "./recurring-transaction-repository"
 export * from "./base-repository"

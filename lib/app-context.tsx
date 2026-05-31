@@ -10,7 +10,7 @@ import {
   initialStockItems, initialStockMovements,
   initialRecipes, initialProductions,
   initialEmployees, initialEmployeeConsumptions,
-  initialBankAccounts, initialCostCenters, initialRecurringTransactions,
+  initialBankAccounts, initialBankTransfers, initialCostCenters, initialBudgets, initialRecurringTransactions,
   initialUsers, initialUserSessions, initialSystemSettings,
   type Room, type Reservation, type GuestProfile,
   type Expense, type Transaction, type AuditEntry,
@@ -24,7 +24,7 @@ import {
   type ProductCategory,
   type User, type UserSession, type SystemSettings,
   type Supplier, type Customer, type AccountReceivable,
-  type BankAccount, type CostCenter, type RecurringTransaction,
+  type BankAccount, type BankTransfer, type CostCenter, type Budget, type RecurringTransaction,
   type TimelineDay,
   calculateRoomTimeline,
 } from "./store"
@@ -94,7 +94,9 @@ type AppContextType = {
   customers: Customer[]
   accountsReceivable: AccountReceivable[]
   bankAccounts: BankAccount[]
+  bankTransfers: BankTransfer[]
   costCenters: CostCenter[]
+  budgets: Budget[]
   recurringTransactions: RecurringTransaction[]
   isLoading: boolean
   isHydrated: boolean
@@ -162,9 +164,15 @@ type AppContextType = {
   addBankAccount: (account: BankAccount) => Promise<void>
   updateBankAccount: (id: string, data: Partial<BankAccount>) => Promise<void>
   removeBankAccount: (id: string) => Promise<void>
+  addBankTransfer: (transfer: BankTransfer) => Promise<void>
+  updateBankTransfer: (id: string, data: Partial<BankTransfer>) => Promise<void>
+  removeBankTransfer: (id: string) => Promise<void>
   addCostCenter: (costCenter: CostCenter) => Promise<void>
   updateCostCenter: (id: string, data: Partial<CostCenter>) => Promise<void>
   removeCostCenter: (id: string) => Promise<void>
+  addBudget: (budget: Budget) => Promise<void>
+  updateBudget: (id: string, data: Partial<Budget>) => Promise<void>
+  removeBudget: (id: string) => Promise<void>
   addRecurringTransaction: (transaction: RecurringTransaction) => Promise<void>
   updateRecurringTransaction: (id: string, data: Partial<RecurringTransaction>) => Promise<void>
   removeRecurringTransaction: (id: string) => Promise<void>
@@ -219,7 +227,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [accountsReceivable, setAccountsReceivable] = useState<AccountReceivable[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [bankTransfers, setBankTransfers] = useState<BankTransfer[]>([])
   const [costCenters, setCostCenters] = useState<CostCenter[]>([])
+  const [budgets, setBudgets] = useState<Budget[]>([])
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([])
 
   // Load data from repositories on mount and when syncing
@@ -234,7 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         employeesData, employeeConsumptionsData,
         usersData, userSessionsData, systemSettingsData,
         suppliersData, customersData, accountsReceivableData,
-        bankAccountsData, costCentersData, recurringTransactionsData
+        bankAccountsData, bankTransfersData, costCentersData, budgetsData, recurringTransactionsData
       ] = await Promise.all([
         dataStore.rooms.getAll(),
         dataStore.reservations.getAll(),
@@ -263,7 +273,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dataStore.customers.getAll(),
         dataStore.accountsReceivable.getAll(),
         dataStore.bankAccounts.getAll(),
+        dataStore.bankTransfers.getAll(),
         dataStore.costCenters.getAll(),
+        dataStore.budgets.getAll(),
         dataStore.recurringTransactions.getAll()
       ])
 
@@ -294,7 +306,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCustomers(customersData)
       setAccountsReceivable(accountsReceivableData)
       setBankAccounts(bankAccountsData)
+      setBankTransfers(bankTransfersData)
       setCostCenters(costCentersData)
+      setBudgets(budgetsData)
       setRecurringTransactions(recurringTransactionsData)
     } catch (error) {
       console.error('[AppContext] Error loading data:', error)
@@ -333,7 +347,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...initialEmployees.map(e => dataStore.employees.create(e)),
           ...initialEmployeeConsumptions.map(c => dataStore.employeeConsumptions.create(c)),
           ...initialBankAccounts.map(account => dataStore.bankAccounts.create(account)),
+          ...initialBankTransfers.map(transfer => dataStore.bankTransfers.create(transfer)),
           ...initialCostCenters.map(costCenter => dataStore.costCenters.create(costCenter)),
+          ...initialBudgets.map(budget => dataStore.budgets.create(budget)),
           ...initialRecurringTransactions.map(transaction => dataStore.recurringTransactions.create(transaction)),
           dataStore.systemSettings.create(initialSystemSettings)
         ])
@@ -1010,6 +1026,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBankAccounts(await dataStore.bankAccounts.getAll())
   }, [dataStore])
 
+  const addBankTransfer = useCallback(async (transfer: BankTransfer) => {
+    await dataStore.bankTransfers.create(transfer)
+    setBankTransfers(await dataStore.bankTransfers.getAll())
+  }, [dataStore])
+
+  const updateBankTransfer = useCallback(async (id: string, data: Partial<BankTransfer>) => {
+    await dataStore.bankTransfers.update(id, data)
+    setBankTransfers(await dataStore.bankTransfers.getAll())
+  }, [dataStore])
+
+  const removeBankTransfer = useCallback(async (id: string) => {
+    await dataStore.bankTransfers.delete(id)
+    setBankTransfers(await dataStore.bankTransfers.getAll())
+  }, [dataStore])
+
   const addCostCenter = useCallback(async (costCenter: CostCenter) => {
     await dataStore.costCenters.create(costCenter)
     setCostCenters(await dataStore.costCenters.getAll())
@@ -1023,6 +1054,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeCostCenter = useCallback(async (id: string) => {
     await dataStore.costCenters.delete(id)
     setCostCenters(await dataStore.costCenters.getAll())
+  }, [dataStore])
+
+  const addBudget = useCallback(async (budget: Budget) => {
+    await dataStore.budgets.create(budget)
+    setBudgets(await dataStore.budgets.getAll())
+  }, [dataStore])
+
+  const updateBudget = useCallback(async (id: string, data: Partial<Budget>) => {
+    await dataStore.budgets.update(id, data)
+    setBudgets(await dataStore.budgets.getAll())
+  }, [dataStore])
+
+  const removeBudget = useCallback(async (id: string) => {
+    await dataStore.budgets.delete(id)
+    setBudgets(await dataStore.budgets.getAll())
   }, [dataStore])
 
   const addRecurringTransaction = useCallback(async (transaction: RecurringTransaction) => {
@@ -1050,7 +1096,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     employees, employeeConsumptions,
     users, userSessions, systemSettings,
     suppliers, customers, accountsReceivable,
-    bankAccounts, costCenters, recurringTransactions,
+    bankAccounts, bankTransfers, costCenters, budgets, recurringTransactions,
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
@@ -1069,7 +1115,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addCustomer, updateCustomer, removeCustomer,
     addAccountReceivable, updateAccountReceivable, removeAccountReceivable,
     addBankAccount, updateBankAccount, removeBankAccount,
+    addBankTransfer, updateBankTransfer, removeBankTransfer,
     addCostCenter, updateCostCenter, removeCostCenter,
+    addBudget, updateBudget, removeBudget,
     addRecurringTransaction, updateRecurringTransaction, removeRecurringTransaction,
     exportData, importData, clearAllData, getStorageUsage,
   }), [
@@ -1081,7 +1129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     employees, employeeConsumptions,
     users, userSessions, systemSettings,
     suppliers, customers, accountsReceivable,
-    bankAccounts, costCenters, recurringTransactions,
+    bankAccounts, bankTransfers, costCenters, budgets, recurringTransactions,
     isLoading, isHydrated,
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
@@ -1100,7 +1148,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addCustomer, updateCustomer, removeCustomer,
     addAccountReceivable, updateAccountReceivable, removeAccountReceivable,
     addBankAccount, updateBankAccount, removeBankAccount,
+    addBankTransfer, updateBankTransfer, removeBankTransfer,
     addCostCenter, updateCostCenter, removeCostCenter,
+    addBudget, updateBudget, removeBudget,
     addRecurringTransaction, updateRecurringTransaction, removeRecurringTransaction,
     exportData, importData, clearAllData, getStorageUsage,
   ])

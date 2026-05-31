@@ -12,7 +12,7 @@ import type {
   RestaurantTable, RestaurantOrder, StockItem, StockMovement,
   Recipe, Production, Employee, EmployeeConsumption, ProductCategory,
   User, UserSession, SystemSettings, Supplier, Customer, AccountReceivable,
-  BankAccount, CostCenter, RecurringTransaction
+  BankAccount, BankTransfer, CostCenter, Budget, RecurringTransaction
 } from "../store"
 
 /**
@@ -182,7 +182,9 @@ export interface DataStore {
   customers: IDataRepository<Customer>
   accountsReceivable: IDataRepository<AccountReceivable>
   bankAccounts: IDataRepository<BankAccount>
+  bankTransfers: IDataRepository<BankTransfer>
   costCenters: IDataRepository<CostCenter>
+  budgets: IDataRepository<Budget>
   recurringTransactions: IDataRepository<RecurringTransaction>
   
   // Utility methods

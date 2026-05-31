@@ -912,7 +912,9 @@ export const initialProductions: Production[] = []
 export const initialEmployees: Employee[] = (seedData.employees as SeedEmployee[] || [])
 export const initialEmployeeConsumptions: EmployeeConsumption[] = []
 export const initialBankAccounts: BankAccount[] = []
+export const initialBankTransfers: BankTransfer[] = []
 export const initialCostCenters: CostCenter[] = []
+export const initialBudgets: Budget[] = []
 export const initialRecurringTransactions: RecurringTransaction[] = []
 
 // ─── User Management Initial Data ──────────────────────────────────────
