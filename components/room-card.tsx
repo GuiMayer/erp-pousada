@@ -14,6 +14,7 @@ import type { Room, RoomStatus } from "@/lib/store"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
+import { formatCurrency } from "@/lib/utils/formatters"
 import { MiniTimeline } from "./mini-timeline"
 import { BlockRoomModal } from "./block-room-modal"
 import { CheckinModal } from "./checkin-modal"
@@ -99,6 +100,17 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   )
 
   function handleCheckOut() {
+    if (consumptionTotal > 0) {
+      sendNotification(
+        'payment',
+        'Check-out bloqueado',
+        `Quarto ${room.number} possui ${formatCurrency(consumptionTotal)} em consumo pendente`,
+        'high',
+        String(room.id)
+      )
+      return
+    }
+
     updateRoom(room.id, {
       status: "limpeza",
       guest: undefined, guestCpf: undefined,
@@ -115,7 +127,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
       'Check-out Realizado',
       `Quarto ${room.number} - ${room.guest || 'Hóspede'} realizou check-out`,
       'medium',
-      room.id
+      String(room.id)
     )
   }
 
@@ -131,7 +143,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
       'Limpeza Concluída',
       `Quarto ${room.number} está disponível para nova reserva`,
       'low',
-      room.id
+      String(room.id)
     )
   }
 
@@ -150,7 +162,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
       'Quarto Bloqueado',
       `Quarto ${room.number} bloqueado até ${formatDateBR(endDate)} - ${reason}`,
       'high',
-      room.id
+      String(room.id)
     )
     setBlockModalOpen(false)
   }
@@ -170,7 +182,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
       'Quarto Desbloqueado',
       `Quarto ${room.number} está disponível novamente`,
       'medium',
-      room.id
+      String(room.id)
     )
     setBlockModalOpen(false)
   }
@@ -278,7 +290,14 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
             )}
             {room.status === "ocupado" && (
               <>
-                <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={handleCheckOut}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs flex-1"
+                  onClick={handleCheckOut}
+                  disabled={consumptionTotal > 0}
+                  title={consumptionTotal > 0 ? "Quite o consumo antes do check-out" : undefined}
+                >
                   <LogOutIcon className="size-3.5" /> Check-out
                 </Button>
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setConsumptionOpen(true)}>
