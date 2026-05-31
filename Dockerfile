@@ -36,4 +36,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["pnpm", "start", "--", "-H", "0.0.0.0"]
+CMD ["sh", "-c", "pnpm prisma migrate deploy && pnpm start -- -H 0.0.0.0"]
