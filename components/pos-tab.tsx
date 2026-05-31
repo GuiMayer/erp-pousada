@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { calculateCartSubtotal, calculateCartTotal, calculateItemTotal, formatCurrency, formatCurrencyFixed } from "@/lib/utils/price-calculations"
 import { getTodayISO, ROOM_STATUS } from "@/lib/utils/constants"
 import { formatDateTime } from "@/lib/utils/date-formatting"
-import { validateStockAvailability } from "@/lib/utils/stock-validation"
+import { validateStockAvailability as validateStockItemAvailability } from "@/lib/utils/stock-validation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,7 +55,11 @@ export function POSTab() {
     addConsumptionItem, getCategoryName, productCategories,
   } = useApp()
   const { username, role } = useAuth()
-  const { processStockForSale, validateStockAvailability } = useStockIntegration()
+  const {
+    processStockForSale,
+    restoreStockForSale,
+    validateStockAvailability,
+  } = useStockIntegration()
   const { checkCashPayment, checkChangeAmount } = useBusinessRules()
   const { toast } = useToast()
 
@@ -165,7 +169,7 @@ export function POSTab() {
     const newQuantity = currentInCart + 1
 
     // Use centralized stock validation
-    const validation = validateStockAvailability(stockItem, newQuantity, product.name)
+    const validation = validateStockItemAvailability(stockItem, newQuantity, product.name)
     
     if (!validation.isValid && validation.error) {
       toast(validation.error)
@@ -204,7 +208,7 @@ export function POSTab() {
       // If increasing quantity, check stock availability
       if (delta > 0) {
         const stockItem = stockItems.find(s => s.productId === item.product.id)
-        const validation = validateStockAvailability(stockItem, newQty, item.product.name)
+        const validation = validateStockItemAvailability(stockItem, newQty, item.product.name)
         
         if (!validation.isValid && validation.error) {
           toast(validation.error)
@@ -341,7 +345,7 @@ export function POSTab() {
     if (customer) {
       const roomMatch = customer.match(/^Quarto (\d+)/)
       if (roomMatch) {
-        const roomNumber = parseInt(roomMatch[1])
+        const roomNumber = roomMatch[1]
         const room = rooms.find(r => r.number === roomNumber)
         if (room) {
           cart.forEach(cartItem => {
@@ -388,9 +392,32 @@ export function POSTab() {
     setCancelOpen(true)
   }
 
-  function confirmCancelSale() {
+  async function confirmCancelSale() {
     if (!saleToCancel) return
     if (role !== "supervisor" && supervisorPassword !== SUPERVISOR_PASSWORD) return
+    if (saleToCancel.status !== "concluida") {
+      toast({
+        title: "Cancelamento bloqueado",
+        description: "Apenas vendas concluidas podem ser canceladas.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const stockResult = await restoreStockForSale(
+      saleToCancel.items,
+      username || "sistema",
+      `PDV ${saleToCancel.id} - ${cancelReason}`
+    )
+
+    if (!stockResult.success) {
+      toast({
+        title: "Erro ao Restaurar Estoque",
+        description: stockResult.error || "Erro desconhecido",
+        variant: "destructive",
+      })
+      return
+    }
 
     updatePOSSale(saleToCancel.id, {
       status: "cancelada",
@@ -413,6 +440,19 @@ export function POSTab() {
       user: username || "sistema",
       action: `Venda cancelada: ${formatCurrency(saleToCancel.total)}`,
       reference: `PDV ${saleToCancel.id} - ${cancelReason}`,
+    })
+
+    if (stockResult.movementIds && stockResult.movementIds.length > 0) {
+      addAuditEntry({
+        user: username || "sistema",
+        action: `Estoque restaurado por cancelamento`,
+        reference: `PDV ${saleToCancel.id} - ${stockResult.movementIds.length} ${stockResult.movementIds.length === 1 ? "item" : "itens"}`,
+      })
+    }
+
+    toast({
+      title: "Venda Cancelada",
+      description: `${saleToCancel.id} - ${formatCurrency(saleToCancel.total)}`,
     })
 
     setCancelOpen(false)

@@ -113,6 +113,57 @@ export function useStockIntegration() {
   }, [stockItems, posProducts, addStockMovement, updateStockItem, addAlert])
 
   /**
+   * Restore stock for a canceled sale using compensating entrada movements.
+   */
+  const restoreStockForSale = useCallback(async (
+    saleItems: POSCartItem[],
+    registeredBy: string,
+    reason: string
+  ): Promise<{ success: boolean; error?: string; movementIds?: string[] }> => {
+    const movementIds: string[] = []
+
+    try {
+      for (const item of saleItems) {
+        const product = posProducts.find(p => p.id === item.product.id)
+        if (!product || !product.trackStock) continue
+
+        const stockItem = stockItems.find(s => s.productId === product.id)
+        if (!stockItem) {
+          return {
+            success: false,
+            error: `Produto ${product.name} não tem controle de estoque configurado`,
+          }
+        }
+
+        const movementId = generateStockMovementId()
+        movementIds.push(movementId)
+
+        await addStockMovement({
+          id: movementId,
+          type: 'entrada',
+          productId: product.id,
+          productName: product.name,
+          quantity: item.quantity,
+          unit: stockItem.unit,
+          reason: `Cancelamento de venda: ${reason}`,
+          timestamp: new Date().toISOString(),
+          registeredBy,
+        })
+
+        await updateStockItem(stockItem.id, {
+          currentStock: stockItem.currentStock + item.quantity,
+        })
+      }
+
+      return { success: true, movementIds }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      console.error('Failed to restore stock for sale cancellation:', error)
+      return { success: false, error: `Erro ao restaurar estoque: ${errorMessage}` }
+    }
+  }, [stockItems, posProducts, addStockMovement, updateStockItem])
+
+  /**
    * Process stock deduction for production (recipe ingredients)
    */
   const processStockForProduction = useCallback(async (
@@ -334,6 +385,7 @@ export function useStockIntegration() {
 
   return {
     processStockForSale,
+    restoreStockForSale,
     processStockForProduction,
     rollbackStock,
     validateStockAvailability,
