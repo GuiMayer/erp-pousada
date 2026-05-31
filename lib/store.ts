@@ -1013,9 +1013,9 @@ export function calculateRoomTimeline(
     if (status !== "bloqueado") {
       for (const reservation of roomReservations) {
         const checkIn = new Date(reservation.checkIn + "T00:00:00")
-        const checkOut = new Date(reservation.checkOut + "T23:59:59")
+        const checkOut = new Date(reservation.checkOut + "T00:00:00")
         
-        if (currentDate >= checkIn && currentDate <= checkOut) {
+        if (currentDate >= checkIn && currentDate < checkOut) {
           status = "ocupado"
           break
         }
