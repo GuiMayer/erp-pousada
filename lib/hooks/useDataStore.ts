@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import type { DataStore } from "../data/types"
 import { createDataStore } from "../data/repositories"
+import { getDataConfig } from "../data/config"
 import { useStorageSync } from "./useStorageSync"
 
 export interface UseDataStoreOptions {
@@ -98,6 +99,11 @@ export function useDataStore(options: UseDataStoreOptions = {}): UseDataStoreRes
 
   // Create data store instance (memoized)
   const dataStore = useMemo(() => {
+    const dataConfig = getDataConfig()
+    if (dataConfig.adapter === "database") {
+      console.warn("[useDataStore] Database mode is configured, but the UI still uses the temporary client storage adapter until the server data API is enabled.")
+    }
+
     return createDataStore({
       prefix,
       userId,

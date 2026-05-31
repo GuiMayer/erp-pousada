@@ -291,7 +291,7 @@ Set environment variable to switch adapters:
 
 ```bash
 # .env.local
-NEXT_PUBLIC_DATA_ADAPTER=api
+NEXT_PUBLIC_DATA_ADAPTER=database
 NEXT_PUBLIC_API_URL=https://api.pousada.com
 NEXT_PUBLIC_API_TOKEN=your-token
 ```
