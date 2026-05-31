@@ -13,6 +13,7 @@ lib/data/
 ├── types.ts                    # TypeScript interfaces and types
 ├── config.ts                   # Configuration for adapter selection
 ├── storage-adapter.ts          # localStorage implementation
+├── local-database-adapter.ts   # Prisma/SQLite implementation for server-side use
 ├── api-adapter.ts              # API implementation (stub for future)
 ├── sync-manager.ts             # Multi-user synchronization
 └── repositories/
@@ -136,6 +137,40 @@ Data is stored in localStorage with the following characteristics:
 - **Debouncing**: Writes are debounced by 100ms to reduce I/O
 - **Quota Management**: Automatic cleanup when approaching 5MB limit
 - **Cross-tab Sync**: Storage events enable real-time sync between tabs
+
+### Local SQLite Strategy
+
+A local database adapter is available in parallel to the browser `localStorage` adapter. It implements the same `IStorageAdapter` contract by storing each repository key as JSON in SQLite through Prisma.
+
+- **Adapter**: `lib/data/local-database-adapter.ts`
+- **Client**: `lib/db/client.ts`
+- **Schema**: `prisma/schema.prisma`
+- **Storage table**: `local_data_entries`
+- **Default local URL**: `file:./dev.db`
+- **Runtime scope**: server-side Node.js only; do not import it in client components
+- **Activation status**: not wired into the UI by default; `LocalStorageAdapter` remains the active browser storage path
+- **Cloud path**: keep repository code unchanged, then swap the Prisma datasource/driver adapter later for a managed SQLite-compatible service or a relational database migration path
+
+Useful commands:
+
+```bash
+pnpm db:generate
+pnpm db:migrate -- --name your_migration_name
+pnpm db:studio
+pnpm db:seed
+pnpm db:reset
+```
+
+Direct server-side usage:
+
+```typescript
+import { LocalDatabaseAdapter } from "@/lib/data/local-database-adapter"
+
+const adapter = new LocalDatabaseAdapter()
+
+await adapter.set("pousada:rooms", [{ id: 101, number: "101" }])
+const rooms = await adapter.get("pousada:rooms")
+```
 
 ### Storage Limits
 
