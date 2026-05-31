@@ -25,6 +25,7 @@ import {
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useOrderManagement } from "@/lib/hooks/useOrderManagement"
+import { useStockIntegration } from "@/lib/hooks/useStockIntegration"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
@@ -47,6 +48,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
   const { toast } = useToast()
   const orderId = table?.currentOrderId
   const { order, totals, addItem, removeItem, updateItemQuantity, applyDiscount, closeOrder, cancelOrder } = useOrderManagement(orderId)
+  const { processStockForRestaurantOrder, rollbackStock } = useStockIntegration()
   
   const [selectedProduct, setSelectedProduct] = useState<string>("")
   const [quantity, setQuantity] = useState(1)
@@ -79,8 +81,28 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
     const paid = parseFloat(amountPaid)
     if (isNaN(paid) || paid < totals.total) return
 
-    const result = await closeOrder(paymentMethod, paid, customerName || undefined, username || "sistema")
+    if (!order) return
+
+    const operator = username || "sistema"
+    const stockResult = await processStockForRestaurantOrder(
+      order.items,
+      operator,
+      `Comanda restaurante ${order.id} - Mesa ${table.number}`
+    )
+    if (!stockResult.success) {
+      toast({
+        title: "Pagamento bloqueado",
+        description: stockResult.error || "Nao foi possivel baixar o estoque da comanda.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const result = await closeOrder(paymentMethod, paid, customerName || undefined, operator)
     if (!result.success) {
+      if (stockResult.movementIds?.length) {
+        await rollbackStock(stockResult.movementIds, operator)
+      }
       toast({
         title: "Pagamento bloqueado",
         description: result.error || "Nao foi possivel fechar a comanda.",

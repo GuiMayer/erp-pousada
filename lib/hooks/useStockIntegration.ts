@@ -1,7 +1,7 @@
 import { useCallback } from "react"
 import { useApp } from "../app-context"
 import { useAlerts } from "../alert-context"
-import type { POSCartItem, RecipeIngredient, StockMovement } from "../store"
+import type { POSCartItem, RecipeIngredient, RestaurantOrderItem, StockMovement } from "../store"
 import { generateStockMovementId } from "../utils/id-generators"
 
 /**
@@ -162,6 +162,89 @@ export function useStockIntegration() {
       return { success: false, error: `Erro ao restaurar estoque: ${errorMessage}` }
     }
   }, [stockItems, posProducts, addStockMovement, updateStockItem])
+
+  /**
+   * Process stock deduction for a restaurant order.
+   */
+  const processStockForRestaurantOrder = useCallback(async (
+    orderItems: RestaurantOrderItem[],
+    registeredBy: string,
+    reason: string
+  ): Promise<{ success: boolean; error?: string; movementIds?: string[] }> => {
+    const movementIds: string[] = []
+    const itemsToProcess: Array<{ productId: string; quantity: number; productName: string }> = []
+
+    for (const item of orderItems) {
+      const product = posProducts.find(p => p.id === item.productId)
+      if (!product) {
+        return { success: false, error: `Produto ${item.productName} não encontrado` }
+      }
+
+      if (!product.trackStock) continue
+
+      const stockItem = stockItems.find(s => s.productId === product.id)
+      if (!stockItem) {
+        return {
+          success: false,
+          error: `Produto ${product.name} não tem controle de estoque configurado`,
+        }
+      }
+
+      if (stockItem.currentStock < item.quantity) {
+        return {
+          success: false,
+          error: `Estoque insuficiente para ${product.name}. Disponível: ${stockItem.currentStock} ${stockItem.unit}`,
+        }
+      }
+
+      itemsToProcess.push({
+        productId: product.id,
+        quantity: item.quantity,
+        productName: product.name,
+      })
+    }
+
+    try {
+      for (const item of itemsToProcess) {
+        const stockItem = stockItems.find(s => s.productId === item.productId)
+        if (!stockItem) continue
+
+        const movementId = generateStockMovementId()
+        movementIds.push(movementId)
+
+        await addStockMovement({
+          id: movementId,
+          type: 'saida',
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unit: stockItem.unit,
+          reason,
+          timestamp: new Date().toISOString(),
+          registeredBy,
+        })
+
+        const newStock = Math.max(0, stockItem.currentStock - item.quantity)
+        await updateStockItem(stockItem.id, { currentStock: newStock })
+
+        if (newStock <= stockItem.minimumStock) {
+          addAlert({
+            type: 'warning',
+            priority: newStock === 0 ? 'critical' : 'high',
+            title: 'Estoque Baixo Após Comanda',
+            message: `${item.productName}: ${newStock} ${stockItem.unit} restante (mínimo: ${stockItem.minimumStock})`,
+          })
+        }
+      }
+
+      return { success: true, movementIds }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      console.error('Failed to process stock for restaurant order:', error)
+      await rollbackStock(movementIds, registeredBy)
+      return { success: false, error: `Erro ao processar estoque: ${errorMessage}` }
+    }
+  }, [stockItems, posProducts, addStockMovement, updateStockItem, addAlert])
 
   /**
    * Process stock deduction for production (recipe ingredients)
@@ -386,6 +469,7 @@ export function useStockIntegration() {
   return {
     processStockForSale,
     restoreStockForSale,
+    processStockForRestaurantOrder,
     processStockForProduction,
     rollbackStock,
     validateStockAvailability,
