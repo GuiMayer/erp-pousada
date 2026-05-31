@@ -35,6 +35,7 @@ import { generateInstallments } from "@/lib/utils/installment-generator"
 import { SuppliersManagement } from "@/components/suppliers-management"
 import { AccountsReceivableManagement } from "@/components/accounts-receivable-management"
 import CustomersManagement from "@/components/customers-management"
+import { FinancialCadastrosManagement } from "@/components/financial-cadastros-management"
 
 function formatDateBR(iso: string) {
   const d = new Date(iso.includes("T") ? iso : iso + "T12:00:00")
@@ -349,6 +350,7 @@ export function FinancialTab() {
           <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
           <TabsTrigger value="contas-receber">Contas a Receber</TabsTrigger>
+          <TabsTrigger value="cadastros">Cadastros</TabsTrigger>
           <TabsTrigger value="fechar-turno">Fechar Turno</TabsTrigger>
         </TabsList>
 
@@ -601,6 +603,10 @@ export function FinancialTab() {
         {/* Accounts Receivable */}
         <TabsContent value="contas-receber">
           <AccountsReceivableManagement />
+        </TabsContent>
+
+        <TabsContent value="cadastros">
+          <FinancialCadastrosManagement />
         </TabsContent>
 
         {/* Cash close */}

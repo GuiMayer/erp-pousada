@@ -35,6 +35,9 @@ import { SystemSettingsRepository } from "./system-settings-repository"
 import { SupplierRepository } from "./supplier-repository"
 import { CustomerRepository } from "./customer-repository"
 import { AccountReceivableRepository } from "./account-receivable-repository"
+import { BankAccountRepository } from "./bank-account-repository"
+import { CostCenterRepository } from "./cost-center-repository"
+import { RecurringTransactionRepository } from "./recurring-transaction-repository"
 
 /**
  * Create a complete DataStore with all repositories
@@ -83,6 +86,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
   const suppliers = new SupplierRepository(adapter, userId)
   const customers = new CustomerRepository(adapter, userId)
   const accountsReceivable = new AccountReceivableRepository(adapter, userId)
+  const bankAccounts = new BankAccountRepository(adapter, userId)
+  const costCenters = new CostCenterRepository(adapter, userId)
+  const recurringTransactions = new RecurringTransactionRepository(adapter, userId)
 
   // Return DataStore interface
   return {
@@ -125,6 +131,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
     suppliers,
     customers,
     accountsReceivable,
+    bankAccounts,
+    costCenters,
+    recurringTransactions,
 
     // Utility methods
     async exportAll(): Promise<string> {
@@ -163,6 +172,9 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
         suppliers.clear(),
         customers.clear(),
         accountsReceivable.clear(),
+        bankAccounts.clear(),
+        costCenters.clear(),
+        recurringTransactions.clear(),
       ])
     },
 
@@ -199,4 +211,7 @@ export * from "./system-settings-repository"
 export * from "./supplier-repository"
 export * from "./customer-repository"
 export * from "./account-receivable-repository"
+export * from "./bank-account-repository"
+export * from "./cost-center-repository"
+export * from "./recurring-transaction-repository"
 export * from "./base-repository"

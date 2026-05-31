@@ -11,7 +11,8 @@ import type {
   ExpenseCategory, CashClose, RoomConsumption, POSProduct, POSSale,
   RestaurantTable, RestaurantOrder, StockItem, StockMovement,
   Recipe, Production, Employee, EmployeeConsumption, ProductCategory,
-  User, UserSession, SystemSettings, Supplier, Customer, AccountReceivable
+  User, UserSession, SystemSettings, Supplier, Customer, AccountReceivable,
+  BankAccount, CostCenter, RecurringTransaction
 } from "../store"
 
 /**
@@ -180,6 +181,9 @@ export interface DataStore {
   suppliers: IDataRepository<Supplier>
   customers: IDataRepository<Customer>
   accountsReceivable: IDataRepository<AccountReceivable>
+  bankAccounts: IDataRepository<BankAccount>
+  costCenters: IDataRepository<CostCenter>
+  recurringTransactions: IDataRepository<RecurringTransaction>
   
   // Utility methods
   exportAll(): Promise<string>

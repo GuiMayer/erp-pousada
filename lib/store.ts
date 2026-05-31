@@ -911,6 +911,9 @@ export const initialRecipes: Recipe[] = []
 export const initialProductions: Production[] = []
 export const initialEmployees: Employee[] = (seedData.employees as SeedEmployee[] || [])
 export const initialEmployeeConsumptions: EmployeeConsumption[] = []
+export const initialBankAccounts: BankAccount[] = []
+export const initialCostCenters: CostCenter[] = []
+export const initialRecurringTransactions: RecurringTransaction[] = []
 
 // ─── User Management Initial Data ──────────────────────────────────────
 // SECURITY: Passwords are now stored as bcrypt hashes
