@@ -38,7 +38,7 @@ interface OrderSheetProps {
 }
 
 export function OrderSheet({ open, onOpenChange, table, onClose }: OrderSheetProps) {
-  const { posProducts } = useApp()
+  const { posProducts, productCategories } = useApp()
   const orderId = table?.currentOrderId
   const { order, totals, addItem, removeItem, updateItemQuantity, applyDiscount, closeOrder, cancelOrder } = useOrderManagement(orderId)
   
@@ -84,8 +84,14 @@ export function OrderSheet({ open, onOpenChange, table, onClose }: OrderSheetPro
     onClose()
   }
 
-  const restaurantProducts = posProducts.filter(p => 
-    ["Bebidas", "Lanches", "Doces", "Refeicoes"].includes(p.category)
+  const restaurantCategoryIds = new Set(
+    productCategories
+      .filter(category => category.active && category.isRestaurant)
+      .map(category => category.id)
+  )
+
+  const restaurantProducts = posProducts.filter(product =>
+    restaurantCategoryIds.has(product.categoryId)
   )
 
   return (
