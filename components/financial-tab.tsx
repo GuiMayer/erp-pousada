@@ -218,28 +218,38 @@ export function FinancialTab() {
       installments,
     }
     addExpense(e)
-    addTransaction({
-      id: `T${String(transactions.length + 1).padStart(3, "0")}`,
-      date: expDueDate,
-      description: numInstallments > 1 ? `${expDesc} (${numInstallments}x)` : expDesc,
-      value: totalValue,
-      type: "despesa",
-      category: expCategory,
-      responsible: username || "operador",
-    })
     setExpDesc(""); setExpCategory(""); setExpValue(""); setExpDueDate("")
     setExpInstallments("1"); setExpInstallmentInterval("30")
     setShowNewExpense(false)
   }
 
   function handleMarkPaid(expenseRow: ExpenseRow) {
+    if (expenseRow.paid) return
+
     if (expenseRow.installmentId) {
       // Mark individual installment as paid
       markInstallmentAsPaid(expenseRow.expenseId, expenseRow.installmentId)
     } else {
       // Mark entire expense as paid (legacy single expense)
-      updateExpense(expenseRow.expenseId, { paid: true })
+      updateExpense(expenseRow.expenseId, {
+        paid: true,
+        paymentDate: todayISO,
+      })
     }
+
+    addTransaction({
+      id: `T${String(transactions.length + 1).padStart(3, "0")}`,
+      date: todayISO,
+      description: expenseRow.installmentNumber
+        ? `Pagamento ${expenseRow.description} (${expenseRow.installmentNumber}/${expenseRow.totalInstallments})`
+        : `Pagamento ${expenseRow.description}`,
+      value: expenseRow.value,
+      type: "despesa",
+      refId: expenseRow.id,
+      category: expenseRow.category,
+      responsible: username || "operador",
+    })
+
     addAuditEntry({
       user: username || "sistema",
       action: "Pagamento registrado",
@@ -259,7 +269,7 @@ export function FinancialTab() {
       id: `T${String(transactions.length + 1).padStart(3, "0")}`,
       date: new Date().toISOString().split("T")[0],
       description: `Estorno: ${refundModal.description}`,
-      value: -refundModal.value,
+      value: Math.abs(refundModal.value),
       type: "estorno",
       refId: refundModal.id,
       responsible: username || "supervisor",
