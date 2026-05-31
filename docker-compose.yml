@@ -17,7 +17,7 @@ services:
       - "3000:3000"
     volumes:
       - ./config:/app/config
-      - ./backups:/app/backups
+      - ${BACKUP_HOST_DIR:-./backups}:/app/backups
 
   postgres:
     image: postgres:16-alpine
@@ -51,9 +51,9 @@ services:
       POSTGRES_USER: pousada
       POSTGRES_PASSWORD: pousada
       BACKUP_DIR: /backups
-      BACKUP_INTERVAL_MINUTES: 30
+      BACKUP_INTERVAL_MINUTES: ${BACKUP_INTERVAL_MINUTES:-30}
     volumes:
-      - ./backups:/backups
+      - ${BACKUP_HOST_DIR:-./backups}:/backups
       - ./scripts:/scripts:ro
     command: ["sh", "/scripts/backup-worker.sh"]
 
