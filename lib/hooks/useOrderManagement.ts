@@ -154,15 +154,30 @@ export function useOrderManagement(orderId?: string) {
   }, [order, orderId, totals, updateRestaurantOrder, addTransaction, addAuditEntry])
 
   // Cancel order
-  const cancelOrder = useCallback((reason: string) => {
-    if (!orderId) return
+  const cancelOrder = useCallback(async (
+    reason: string,
+    operator = "sistema"
+  ): Promise<OrderActionResult> => {
+    const trimmedReason = reason.trim()
 
-    updateRestaurantOrder(orderId, {
+    if (!order || !orderId) return { success: false, error: "Comanda nao encontrada" }
+    if (order.status !== "aberta") return { success: false, error: "Comanda nao esta aberta" }
+    if (!trimmedReason) return { success: false, error: "Informe o motivo do cancelamento" }
+
+    await updateRestaurantOrder(orderId, {
       status: "cancelada",
-      cancelReason: reason,
+      cancelReason: trimmedReason,
       closedAt: new Date().toISOString(),
     })
-  }, [orderId, updateRestaurantOrder])
+
+    await addAuditEntry({
+      user: operator,
+      action: "Comanda cancelada",
+      reference: `Mesa ${order.tableNumber} - ${order.id} - ${trimmedReason}`,
+    })
+
+    return { success: true }
+  }, [order, orderId, updateRestaurantOrder, addAuditEntry])
 
   // Get open orders
   const getOpenOrders = useCallback(() => {

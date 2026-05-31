@@ -56,6 +56,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
   const [paymentMethod, setPaymentMethod] = useState<string>("")
   const [amountPaid, setAmountPaid] = useState("")
   const [customerName, setCustomerName] = useState("")
+  const [cancelReason, setCancelReason] = useState("")
   const [showCloseDialog, setShowCloseDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
 
@@ -118,7 +119,17 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
   const handleCancelOrder = async () => {
     if (!table || !orderId) return
 
-    await cancelOrder("Cancelada pelo operador")
+    const result = await cancelOrder(cancelReason, username || "sistema")
+    if (!result.success) {
+      toast({
+        title: "Cancelamento bloqueado",
+        description: result.error || "Nao foi possivel cancelar a comanda.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setCancelReason("")
     setShowCancelDialog(false)
     await onCanceled(table, orderId)
   }
@@ -363,7 +374,22 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
         open={showCancelDialog}
         onOpenChange={setShowCancelDialog}
         title="Cancelar Comanda"
-        description="Tem certeza que deseja cancelar esta comanda? Esta ação não pode ser desfeita."
+        description={
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Informe o motivo do cancelamento. Esta ação não pode ser desfeita.
+            </p>
+            <div>
+              <Label htmlFor="cancel-reason">Motivo *</Label>
+              <Input
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(event) => setCancelReason(event.target.value)}
+                placeholder="Ex.: pedido lançado incorretamente"
+              />
+            </div>
+          </div>
+        }
         confirmLabel="Sim, Cancelar"
         variant="destructive"
         onConfirm={handleCancelOrder}
