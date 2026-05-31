@@ -10,6 +10,22 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,20 +36,42 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Shield, Save, RotateCcw, Building2, Clock, Percent, Phone, Bell } from "lucide-react"
+import { Shield, Save, RotateCcw, Building2, Clock, Percent, Phone, Bell, Plus, Pencil, UserCog } from "lucide-react"
 import { toast } from "sonner"
-import type { SystemSettings } from "@/lib/store"
+import type { SystemSettings, User, UserRole } from "@/lib/store"
 import { initialSystemSettings } from "@/lib/store"
 
+type UserFormData = {
+  username: string
+  password: string
+  role: UserRole
+  fullName: string
+  email: string
+  active: boolean
+}
+
+const emptyUserForm: UserFormData = {
+  username: "",
+  password: "",
+  role: "operador",
+  fullName: "",
+  email: "",
+  active: true,
+}
+
 export function AdminTab() {
-  const { systemSettings, updateSystemSettings, addAuditEntry } = useApp()
-  const { user } = useAuth()
+  const { systemSettings, updateSystemSettings, users, addUser, updateUser, addAuditEntry } = useApp()
+  const { username } = useAuth()
   
   const [formData, setFormData] = useState<SystemSettings>(systemSettings)
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showRestoreDialog, setShowRestoreDialog] = useState(false)
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [userForm, setUserForm] = useState<UserFormData>(emptyUserForm)
+  const [userErrors, setUserErrors] = useState<Record<string, string>>({})
   
   // Use ref to track if we should sync with context
   const shouldSyncRef = useRef(true)
@@ -120,7 +158,7 @@ export function AdminTab() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleFieldChange = (field: keyof SystemSettings, value: string | number) => {
+  const handleFieldChange = (field: keyof SystemSettings, value: string | number | boolean) => {
     // Prevent syncing with context while editing
     shouldSyncRef.current = false
     
@@ -178,7 +216,7 @@ export function AdminTab() {
       // Register audit entry
       if (changedFields.length > 0) {
         await addAuditEntry({
-          user: user?.username || "sistema",
+          user: username || "sistema",
           action: "Configurações atualizadas",
           reference: `Campos alterados: ${changedFields.join(", ")}`,
         })
@@ -206,7 +244,7 @@ export function AdminTab() {
       await updateSystemSettings(initialSystemSettings)
       
       await addAuditEntry({
-        user: user?.username || "sistema",
+        user: username || "sistema",
         action: "Configurações restauradas",
         reference: "Valores padrão restaurados",
       })
@@ -221,6 +259,100 @@ export function AdminTab() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const openUserDialog = (userToEdit?: User) => {
+    setEditingUser(userToEdit ?? null)
+    setUserForm(userToEdit ? {
+      username: userToEdit.username,
+      password: "",
+      role: userToEdit.role,
+      fullName: userToEdit.fullName,
+      email: userToEdit.email ?? "",
+      active: userToEdit.active,
+    } : emptyUserForm)
+    setUserErrors({})
+    setIsUserDialogOpen(true)
+  }
+
+  const closeUserDialog = () => {
+    setIsUserDialogOpen(false)
+    setEditingUser(null)
+    setUserForm(emptyUserForm)
+    setUserErrors({})
+  }
+
+  const validateUserForm = () => {
+    const nextErrors: Record<string, string> = {}
+    const trimmedUsername = userForm.username.trim()
+    const trimmedFullName = userForm.fullName.trim()
+
+    if (!trimmedUsername) nextErrors.username = "Usuario e obrigatorio"
+    if (!trimmedFullName) nextErrors.fullName = "Nome completo e obrigatorio"
+    if (!editingUser && !userForm.password.trim()) nextErrors.password = "Senha inicial e obrigatoria"
+    if (userForm.password && userForm.password.length < 4) nextErrors.password = "Senha deve ter pelo menos 4 caracteres"
+    if (userForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userForm.email)) nextErrors.email = "Email invalido"
+
+    const duplicate = users.find(userItem =>
+      userItem.username.toLowerCase() === trimmedUsername.toLowerCase() && userItem.id !== editingUser?.id
+    )
+    if (duplicate) nextErrors.username = "Usuario ja cadastrado"
+
+    setUserErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  const handleSaveUser = async () => {
+    if (!validateUserForm()) return
+
+    const auditUser = username || "sistema"
+    const userData = {
+      username: userForm.username.trim(),
+      role: userForm.role,
+      fullName: userForm.fullName.trim(),
+      email: userForm.email.trim() || undefined,
+      active: userForm.active,
+    }
+
+    if (editingUser) {
+      await updateUser(editingUser.id, userForm.password.trim()
+        ? { ...userData, password: userForm.password }
+        : userData
+      )
+      await addAuditEntry({
+        user: auditUser,
+        action: userForm.active ? "Usuario editado" : "Usuario desativado",
+        reference: userData.username,
+      })
+    } else {
+      await addUser({
+        id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        ...userData,
+        password: userForm.password,
+        createdAt: new Date().toISOString(),
+        createdBy: auditUser,
+      })
+      await addAuditEntry({
+        user: auditUser,
+        action: "Usuario criado",
+        reference: userData.username,
+      })
+    }
+
+    closeUserDialog()
+  }
+
+  const handleDeactivateUser = async (targetUser: User) => {
+    if (!targetUser.active) return
+    if (!confirm(`Desativar o usuario "${targetUser.username}"?`)) return
+
+    const auditUser = username || "sistema"
+    await updateUser(targetUser.id, { active: false })
+    await addAuditEntry({
+      user: auditUser,
+      action: "Usuario desativado",
+      reference: targetUser.username,
+    })
   }
 
   return (
@@ -526,6 +658,60 @@ export function AdminTab() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserCog className="size-4" />
+            Usuarios
+          </CardTitle>
+          <CardDescription>
+            Cadastre operadores e supervisores com registro no log de auditoria.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-end">
+            <Button size="sm" className="gap-2" onClick={() => openUserDialog()}>
+              <Plus className="size-4" />
+              Novo Usuario
+            </Button>
+          </div>
+
+          <div className="rounded-md border divide-y">
+            {users.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">Nenhum usuario cadastrado.</div>
+            ) : users.map(userItem => (
+              <div key={userItem.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{userItem.fullName}</span>
+                    <Badge variant={userItem.active ? "default" : "secondary"}>
+                      {userItem.active ? "Ativo" : "Inativo"}
+                    </Badge>
+                    <Badge variant="outline">{userItem.role}</Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {userItem.username}{userItem.email ? ` - ${userItem.email}` : ""}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => openUserDialog(userItem)}>
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={!userItem.active}
+                    onClick={() => handleDeactivateUser(userItem)}
+                  >
+                    Desativar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <Separator />
 
       {/* Action Buttons */}
@@ -568,6 +754,98 @@ export function AdminTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isUserDialogOpen} onOpenChange={(open) => { if (!open) closeUserDialog() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingUser ? "Editar Usuario" : "Novo Usuario"}</DialogTitle>
+            <DialogDescription>
+              Defina os dados de acesso e o perfil operacional.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="userUsername">Usuario</Label>
+                <Input
+                  id="userUsername"
+                  value={userForm.username}
+                  onChange={(event) => setUserForm(prev => ({ ...prev, username: event.target.value }))}
+                  className={userErrors.username ? "border-destructive" : ""}
+                />
+                {userErrors.username && <p className="text-sm text-destructive">{userErrors.username}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="userRole">Perfil</Label>
+                <Select value={userForm.role} onValueChange={(value) => setUserForm(prev => ({ ...prev, role: value as UserRole }))}>
+                  <SelectTrigger id="userRole">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="operador">Operador</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="userFullName">Nome completo</Label>
+              <Input
+                id="userFullName"
+                value={userForm.fullName}
+                onChange={(event) => setUserForm(prev => ({ ...prev, fullName: event.target.value }))}
+                className={userErrors.fullName ? "border-destructive" : ""}
+              />
+              {userErrors.fullName && <p className="text-sm text-destructive">{userErrors.fullName}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="userEmail">Email</Label>
+              <Input
+                id="userEmail"
+                type="email"
+                value={userForm.email}
+                onChange={(event) => setUserForm(prev => ({ ...prev, email: event.target.value }))}
+                className={userErrors.email ? "border-destructive" : ""}
+              />
+              {userErrors.email && <p className="text-sm text-destructive">{userErrors.email}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="userPassword">{editingUser ? "Nova senha" : "Senha inicial"}</Label>
+              <Input
+                id="userPassword"
+                type="password"
+                value={userForm.password}
+                onChange={(event) => setUserForm(prev => ({ ...prev, password: event.target.value }))}
+                placeholder={editingUser ? "Deixe em branco para manter" : "Senha inicial"}
+                className={userErrors.password ? "border-destructive" : ""}
+              />
+              {userErrors.password && <p className="text-sm text-destructive">{userErrors.password}</p>}
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label htmlFor="userActive">Usuario ativo</Label>
+                <p className="text-sm text-muted-foreground">Usuarios inativos nao devem acessar o sistema.</p>
+              </div>
+              <Switch
+                id="userActive"
+                checked={userForm.active}
+                onCheckedChange={(checked) => setUserForm(prev => ({ ...prev, active: checked }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeUserDialog}>Cancelar</Button>
+            <Button onClick={handleSaveUser}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
