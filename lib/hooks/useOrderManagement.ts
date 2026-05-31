@@ -3,6 +3,14 @@ import { useApp } from "../app-context"
 import type { RestaurantOrder, RestaurantOrderItem, POSProduct } from "../store"
 import { generateOrderItemId } from "../utils/id-generators"
 
+function calculateTotals(items: RestaurantOrderItem[], discountPercent: number) {
+  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
+  const discount = (subtotal * discountPercent) / 100
+  const total = subtotal - discount
+
+  return { subtotal, discount, total }
+}
+
 /**
  * Hook for managing restaurant orders (comandas)
  * Provides utilities for creating, updating, and managing order items
@@ -10,11 +18,7 @@ import { generateOrderItemId } from "../utils/id-generators"
 export function useOrderManagement(orderId?: string) {
   const {
     restaurantOrders,
-    addRestaurantOrder,
     updateRestaurantOrder,
-    addOrderItem,
-    removeOrderItem,
-    posProducts,
     getCategoryName,
   } = useApp()
 
@@ -30,16 +34,12 @@ export function useOrderManagement(orderId?: string) {
   const totals = useMemo(() => {
     if (!order) return { subtotal: 0, discount: 0, total: 0 }
 
-    const subtotal = order.items.reduce((sum, item) => sum + item.subtotal, 0)
-    const discountAmount = (subtotal * discount) / 100
-    const total = subtotal - discountAmount
-
-    return { subtotal, discount: discountAmount, total }
+    return calculateTotals(order.items, discount)
   }, [order, discount])
 
   // Add item to order
   const addItem = useCallback((product: POSProduct, quantity: number = 1) => {
-    if (!orderId) return
+    if (!order || !orderId || order.status !== "aberta") return
 
     const item: RestaurantOrderItem = {
       id: generateOrderItemId(),
@@ -51,18 +51,27 @@ export function useOrderManagement(orderId?: string) {
       category: getCategoryName(product.categoryId),
     }
 
-    addOrderItem(orderId, item)
-  }, [orderId, addOrderItem, getCategoryName])
+    const items = [...order.items, item]
+    updateRestaurantOrder(orderId, {
+      items,
+      ...calculateTotals(items, discount),
+    })
+  }, [order, orderId, discount, updateRestaurantOrder, getCategoryName])
 
   // Remove item from order
   const removeItem = useCallback((itemId: string) => {
-    if (!orderId) return
-    removeOrderItem(orderId, itemId)
-  }, [orderId, removeOrderItem])
+    if (!order || !orderId || order.status !== "aberta") return
+
+    const items = order.items.filter(item => item.id !== itemId)
+    updateRestaurantOrder(orderId, {
+      items,
+      ...calculateTotals(items, discount),
+    })
+  }, [order, orderId, discount, updateRestaurantOrder])
 
   // Update item quantity
   const updateItemQuantity = useCallback((itemId: string, quantity: number) => {
-    if (!order) return
+    if (!order || !orderId || order.status !== "aberta") return
 
     const updatedItems = order.items.map(item => {
       if (item.id === itemId) {
@@ -75,16 +84,19 @@ export function useOrderManagement(orderId?: string) {
       return item
     })
 
-    updateRestaurantOrder(orderId!, { items: updatedItems })
-  }, [order, orderId, updateRestaurantOrder])
+    updateRestaurantOrder(orderId, {
+      items: updatedItems,
+      ...calculateTotals(updatedItems, discount),
+    })
+  }, [order, orderId, discount, updateRestaurantOrder])
 
   // Apply discount to order
   const applyDiscount = useCallback((discountPercent: number) => {
     setDiscount(discountPercent)
-    if (orderId) {
-      updateRestaurantOrder(orderId, { discount: (totals.subtotal * discountPercent) / 100 })
+    if (order && orderId && order.status === "aberta") {
+      updateRestaurantOrder(orderId, calculateTotals(order.items, discountPercent))
     }
-  }, [orderId, totals.subtotal, updateRestaurantOrder])
+  }, [order, orderId, updateRestaurantOrder])
 
   // Close order (finalize payment)
   const closeOrder = useCallback((paymentMethod: string, amountPaid: number, customer?: string) => {

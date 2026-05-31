@@ -21,6 +21,7 @@ import { EmployeeConsumptionModal } from "./employee-consumption-modal"
 import { useTableManagement } from "@/lib/hooks/useTableManagement"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/hooks/use-toast"
 import type { RestaurantTable, RestaurantOrder, TableStatus } from "@/lib/store"
 import { generateOrderId } from "@/lib/utils/id-generators"
 import { formatCurrency } from "@/lib/utils/formatters"
@@ -31,8 +32,10 @@ export function RestaurantTab() {
     productions, updateProduction, removeProduction,
     employeeConsumptions, updateEmployeeConsumption, removeEmployeeConsumption,
     addAuditEntry,
+    restaurantOrders,
   } = useApp()
   const { username } = useAuth()
+  const { toast } = useToast()
   const {
     tables,
     filter,
@@ -109,6 +112,19 @@ export function RestaurantTab() {
       openTable(table.id, orderId)
       setSelectedTable({ ...table, currentOrderId: orderId })
     } else {
+      const activeOrder = restaurantOrders.find(order =>
+        order.id === table.currentOrderId && order.status === "aberta"
+      )
+
+      if (!activeOrder) {
+        toast({
+          title: "Mesa sem comanda ativa",
+          description: "Verifique a mesa em Gerenciar Mesas antes de abrir nova comanda.",
+          variant: "destructive",
+        })
+        return
+      }
+
       setSelectedTable(table)
     }
     setOrderSheetOpen(true)
