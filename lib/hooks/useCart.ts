@@ -11,7 +11,7 @@ export function useCart(stockItems?: StockItem[]) {
 
   const addToCart = useCallback((product: POSProduct, quantity: number = 1) => {
     // Validate stock if product has stock control enabled
-    if (product.stockControl && stockItems) {
+    if (product.trackStock && stockItems) {
       const stockItem = stockItems.find(s => s.productId === product.id)
       if (stockItem) {
         const currentInCart = cart.find(item => item.product.id === product.id)?.quantity || 0
@@ -53,7 +53,7 @@ export function useCart(stockItems?: StockItem[]) {
 
     // Validate stock if product has stock control enabled
     const cartItem = cart.find(item => item.id === itemId)
-    if (cartItem && cartItem.product.stockControl && stockItems) {
+    if (cartItem && cartItem.product.trackStock && stockItems) {
       const stockItem = stockItems.find(s => s.productId === cartItem.product.id)
       if (stockItem && stockItem.currentStock < quantity) {
         throw new Error(
@@ -103,7 +103,7 @@ export function useCart(stockItems?: StockItem[]) {
     }
 
     for (const item of cart) {
-      if (!item.product.stockControl) continue
+      if (!item.product.trackStock) continue
 
       const stockItem = stockItems.find(s => s.productId === item.product.id)
       if (!stockItem) {

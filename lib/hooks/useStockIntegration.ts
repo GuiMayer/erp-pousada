@@ -39,7 +39,7 @@ export function useStockIntegration() {
       }
 
       // Only check stock for products with stock control enabled
-      if (!product.stockControl) continue
+      if (!product.trackStock) continue
 
       const stockItem = stockItems.find(s => s.productId === product.id)
       if (!stockItem) {
@@ -311,7 +311,7 @@ export function useStockIntegration() {
 
     for (const item of cartItems) {
       const product = posProducts.find(p => p.id === item.product.id)
-      if (!product || !product.stockControl) continue
+      if (!product || !product.trackStock) continue
 
       const stockItem = stockItems.find(s => s.productId === product.id)
       if (!stockItem) {

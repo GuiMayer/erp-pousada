@@ -8,12 +8,12 @@ import type { Room, Reservation, Expense, Transaction, StockItem, Recipe, Employ
  * Validates room data before mutation
  */
 export function validateRoom(room: Partial<Room>): { valid: boolean; error?: string } {
-  if (room.number !== undefined && room.number <= 0) {
-    return { valid: false, error: "Room number must be positive" }
+  if (room.number !== undefined && room.number.trim() === "") {
+    return { valid: false, error: "Room number cannot be empty" }
   }
-  
-  if (room.price !== undefined && room.price < 0) {
-    return { valid: false, error: "Room price cannot be negative" }
+
+  if (room.number !== undefined && Number(room.number) <= 0) {
+    return { valid: false, error: "Room number must be positive" }
   }
   
   return { valid: true }
@@ -32,7 +32,7 @@ export function validateReservation(reservation: Partial<Reservation>): { valid:
     }
   }
   
-  if (reservation.totalPrice !== undefined && reservation.totalPrice < 0) {
+  if (reservation.totalValue !== undefined && reservation.totalValue < 0) {
     return { valid: false, error: "Total price cannot be negative" }
   }
   
@@ -43,7 +43,7 @@ export function validateReservation(reservation: Partial<Reservation>): { valid:
  * Validates expense data before mutation
  */
 export function validateExpense(expense: Partial<Expense>): { valid: boolean; error?: string } {
-  if (expense.amount !== undefined && expense.amount <= 0) {
+  if (expense.value !== undefined && expense.value <= 0) {
     return { valid: false, error: "Expense amount must be positive" }
   }
   
@@ -58,7 +58,7 @@ export function validateExpense(expense: Partial<Expense>): { valid: boolean; er
  * Validates transaction data before mutation
  */
 export function validateTransaction(transaction: Partial<Transaction>): { valid: boolean; error?: string } {
-  if (transaction.amount !== undefined && transaction.amount === 0) {
+  if (transaction.value !== undefined && transaction.value === 0) {
     return { valid: false, error: "Transaction amount cannot be zero" }
   }
   
@@ -69,19 +69,27 @@ export function validateTransaction(transaction: Partial<Transaction>): { valid:
  * Validates stock item data before mutation
  */
 export function validateStockItem(item: Partial<StockItem>): { valid: boolean; error?: string } {
-  if (item.quantity !== undefined && item.quantity < 0) {
+  if (item.currentStock !== undefined && item.currentStock < 0) {
     return { valid: false, error: "Stock quantity cannot be negative" }
   }
-  
-  if (item.minQuantity !== undefined && item.minQuantity < 0) {
+
+  if (item.minimumStock !== undefined && item.minimumStock < 0) {
     return { valid: false, error: "Minimum quantity cannot be negative" }
   }
-  
-  if (item.unitCost !== undefined && item.unitCost < 0) {
-    return { valid: false, error: "Unit cost cannot be negative" }
+
+  if (item.maximumStock !== undefined && item.maximumStock < 0) {
+    return { valid: false, error: "Maximum quantity cannot be negative" }
+  }
+
+  if (item.averageCost !== undefined && item.averageCost < 0) {
+    return { valid: false, error: "Average cost cannot be negative" }
+  }
+
+  if (item.lastPurchasePrice !== undefined && item.lastPurchasePrice < 0) {
+    return { valid: false, error: "Last purchase price cannot be negative" }
   }
   
-  if (item.name !== undefined && item.name.trim() === "") {
+  if (item.productName !== undefined && item.productName.trim() === "") {
     return { valid: false, error: "Stock item name cannot be empty" }
   }
   
@@ -96,7 +104,7 @@ export function validateRecipe(recipe: Partial<Recipe>): { valid: boolean; error
     return { valid: false, error: "Recipe name cannot be empty" }
   }
   
-  if (recipe.yield !== undefined && recipe.yield <= 0) {
+  if (recipe.expectedYield !== undefined && recipe.expectedYield <= 0) {
     return { valid: false, error: "Recipe yield must be positive" }
   }
   

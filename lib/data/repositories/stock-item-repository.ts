@@ -34,7 +34,7 @@ export class StockItemRepository extends BaseRepository<StockItem> {
    */
   async findLowStock(): Promise<StockItem[]> {
     const items = await this.getAll()
-    return items.filter(item => item.currentStock <= item.minStock)
+    return items.filter(item => item.currentStock <= item.minimumStock)
   }
 
   /**
@@ -44,7 +44,7 @@ export class StockItemRepository extends BaseRepository<StockItem> {
     const items = await this.getAll()
     const searchTerm = query.toLowerCase()
     return items.filter(item => 
-      item.name.toLowerCase().includes(searchTerm)
+      item.productName.toLowerCase().includes(searchTerm)
     )
   }
 }

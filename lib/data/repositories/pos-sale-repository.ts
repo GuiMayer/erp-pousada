@@ -58,7 +58,7 @@ export class POSSaleRepository extends BaseRepository<POSSale> {
   async getTotalSales(): Promise<number> {
     const sales = await this.getAll()
     return sales
-      .filter(s => s.status === "finalizada")
+      .filter(s => s.status === "concluida")
       .reduce((sum, s) => sum + s.total, 0)
   }
 

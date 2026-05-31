@@ -21,7 +21,7 @@ export class StockMovementRepository extends BaseRepository<StockMovement> {
    * Find movements by stock item ID
    */
   async findByStockItemId(stockItemId: string): Promise<StockMovement[]> {
-    return this.query({ stockItemId } as Partial<StockMovement>)
+    return this.query({ productId: stockItemId } as Partial<StockMovement>)
   }
 
   /**
@@ -40,7 +40,7 @@ export class StockMovementRepository extends BaseRepository<StockMovement> {
     const end = new Date(endDate)
     
     return movements.filter(m => {
-      const date = new Date(m.date)
+      const date = new Date(m.timestamp)
       return date >= start && date <= end
     })
   }

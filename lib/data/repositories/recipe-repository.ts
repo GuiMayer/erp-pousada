@@ -39,7 +39,7 @@ export class RecipeRepository extends BaseRepository<Recipe> {
   async findByIngredient(stockItemId: string): Promise<Recipe[]> {
     const recipes = await this.getAll()
     return recipes.filter(r => 
-      r.ingredients.some(ing => ing.stockItemId === stockItemId)
+      r.ingredients.some(ing => ing.productId === stockItemId)
     )
   }
 }
