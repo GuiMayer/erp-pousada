@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Search, Building2, User, History, DollarSign, Calendar } from "lucide-react"
+import { Plus, Pencil, Search, Building2, User, History, DollarSign, Calendar, Trash2 } from "lucide-react"
 import type { Customer, AccountReceivable } from "@/lib/store"
 import { 
   formatCpfCnpj, 
@@ -72,8 +72,8 @@ const emptyForm: CustomerFormData = {
 }
 
 export default function CustomersManagement() {
-  const { customers, addCustomer, updateCustomer, accountsReceivable, addAuditEntry } = useApp()
-  const { user } = useAuth()
+  const { customers, addCustomer, updateCustomer, removeCustomer, accountsReceivable, addAuditEntry } = useApp()
+  const { username } = useAuth()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -174,7 +174,7 @@ export default function CustomersManagement() {
         notes: formData.notes || undefined,
       }
 
-      const username = user?.username || "sistema"
+      const auditUser = username || "sistema"
 
       if (editingId) {
         // Find original customer to detect status changes
@@ -187,7 +187,7 @@ export default function CustomersManagement() {
         if (statusChanged) {
           const action = formData.active ? "Cliente ativado" : "Cliente desativado"
           await addAuditEntry({
-            user: username,
+            user: auditUser,
             action,
             reference: formData.name
           })
@@ -195,7 +195,7 @@ export default function CustomersManagement() {
           // Log generic edit if no status change
           const docType = getDocumentType(formData.cpfCnpj)
           await addAuditEntry({
-            user: username,
+            user: auditUser,
             action: "Cliente editado",
             reference: `${formData.name} (${docType})`
           })
@@ -207,7 +207,7 @@ export default function CustomersManagement() {
         const docType = getDocumentType(formData.cpfCnpj)
         const formattedDoc = formatCpfCnpj(formData.cpfCnpj)
         await addAuditEntry({
-          user: username,
+          user: auditUser,
           action: "Cliente adicionado",
           reference: `${formData.name} (${formattedDoc}) - ${docType}`
         })
@@ -246,6 +246,36 @@ export default function CustomersManagement() {
 
   const getCustomerAccountsReceivable = (customerId: string) => {
     return accountsReceivable.filter(ar => ar.customerId === customerId)
+  }
+
+  const handleDelete = async (customer: Customer) => {
+    const auditUser = username || "sistema"
+    const linkedAccounts = getCustomerAccountsReceivable(customer.id)
+
+    if (linkedAccounts.length > 0) {
+      if (!confirm(`Cliente possui ${linkedAccounts.length} conta(s) vinculada(s). Deseja desativar o cadastro?`)) {
+        return
+      }
+
+      await updateCustomer(customer.id, { active: false })
+      await addAuditEntry({
+        user: auditUser,
+        action: "Cliente desativado",
+        reference: `${customer.name} (${linkedAccounts.length} conta(s) vinculada(s))`,
+      })
+      return
+    }
+
+    if (!confirm(`Tem certeza que deseja excluir o cliente "${customer.name}"?`)) {
+      return
+    }
+
+    await removeCustomer(customer.id)
+    await addAuditEntry({
+      user: auditUser,
+      action: "Cliente removido",
+      reference: customer.name,
+    })
   }
 
   const getStatusBadge = (status: AccountReceivable["status"]) => {
@@ -371,6 +401,14 @@ export default function CustomersManagement() {
                           title="Editar"
                         >
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(customer)}
+                          title={getCustomerAccountsReceivable(customer.id).length > 0 ? "Desativar" : "Excluir"}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>

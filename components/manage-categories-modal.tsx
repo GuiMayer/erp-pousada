@@ -102,7 +102,7 @@ const PRESET_COLORS = [
 ]
 
 export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Props) {
-  const { posProducts, productCategories, updateProductCategory, addProductCategory, addAuditEntry } = useApp()
+  const { posProducts, productCategories, updateProductCategory, addProductCategory, removeProductCategory, addAuditEntry } = useApp()
   const { username } = useAuth()
 
   const [activeTab, setActiveTab] = useState<CategoryType>(defaultTab)
@@ -127,6 +127,8 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
     })
     return counts
   }, [posProducts])
+
+  const deleteConfirmUsageCount = deleteConfirm ? productCountByCategory.get(deleteConfirm.id) || 0 : 0
 
   // Filter categories by type
   const pdvCategories = useMemo(() => 
@@ -227,9 +229,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
         setFormError("Nao e possivel excluir uma categoria em uso.")
         return
       }
-      // Hard delete would require a deleteProductCategory function
-      // For now, just deactivate
-      await updateProductCategory(category.id, { active: false })
+      await removeProductCategory(category.id)
       addAuditEntry({ 
         user: username || "sistema", 
         action: "Categoria removida", 
@@ -286,7 +286,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={(v: string) => { setActiveTab(v); setMode("list"); resetForm() }}>
+          <Tabs value={activeTab} onValueChange={(v: string) => { setActiveTab(v as CategoryType); setMode("list"); resetForm() }}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="pdv">PDV</TabsTrigger>
               <TabsTrigger value="restaurant">Restaurante</TabsTrigger>
@@ -504,10 +504,10 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
             <AlertDialogTitle>Confirmar exclusao</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja {hardDelete ? "excluir permanentemente" : "desativar"} a categoria "{deleteConfirm?.name}"?
-              {deleteConfirm?.usageCount && deleteConfirm.usageCount > 0 && (
+              {deleteConfirmUsageCount > 0 && (
                 <span className="flex items-center gap-2 mt-2 text-orange-600">
                   <AlertTriangle className="size-4" />
-                  Esta categoria esta sendo usada por {deleteConfirm.usageCount} {deleteConfirm.usageCount === 1 ? "produto" : "produtos"}.
+                  Esta categoria esta sendo usada por {deleteConfirmUsageCount} {deleteConfirmUsageCount === 1 ? "produto" : "produtos"}.
                 </span>
               )}
             </AlertDialogDescription>
@@ -517,11 +517,11 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
               id="hardDelete"
               checked={hardDelete}
               onCheckedChange={(checked) => setHardDelete(checked === true)}
-              disabled={deleteConfirm?.usageCount ? deleteConfirm.usageCount > 0 : false}
+              disabled={deleteConfirmUsageCount > 0}
             />
             <Label 
               htmlFor="hardDelete" 
-              className={`text-sm cursor-pointer ${deleteConfirm?.usageCount && deleteConfirm.usageCount > 0 ? "opacity-50" : ""}`}
+              className={`text-sm cursor-pointer ${deleteConfirmUsageCount > 0 ? "opacity-50" : ""}`}
             >
               Excluir permanentemente (nao pode ser desfeito)
             </Label>
