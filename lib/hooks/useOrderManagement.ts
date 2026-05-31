@@ -2,6 +2,9 @@ import { useState, useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { RestaurantOrder, RestaurantOrderItem, POSProduct } from "../store"
 import { generateOrderItemId } from "../utils/id-generators"
+import { getTodayISO } from "../utils/constants"
+
+type OrderActionResult = { success: boolean; error?: string }
 
 function calculateTotals(items: RestaurantOrderItem[], discountPercent: number) {
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
@@ -19,6 +22,8 @@ export function useOrderManagement(orderId?: string) {
   const {
     restaurantOrders,
     updateRestaurantOrder,
+    addTransaction,
+    addAuditEntry,
     getCategoryName,
   } = useApp()
 
@@ -99,12 +104,23 @@ export function useOrderManagement(orderId?: string) {
   }, [order, orderId, updateRestaurantOrder])
 
   // Close order (finalize payment)
-  const closeOrder = useCallback((paymentMethod: string, amountPaid: number, customer?: string) => {
-    if (!orderId) return
+  const closeOrder = useCallback(async (
+    paymentMethod: string,
+    amountPaid: number,
+    customer?: string,
+    operator = "sistema"
+  ): Promise<OrderActionResult> => {
+    if (!order || !orderId) return { success: false, error: "Comanda nao encontrada" }
+    if (order.status !== "aberta") return { success: false, error: "Comanda nao esta aberta" }
+    if (order.items.length === 0) return { success: false, error: "Comanda sem itens" }
+    if (!paymentMethod) return { success: false, error: "Informe a forma de pagamento" }
+    if (!Number.isFinite(amountPaid) || amountPaid < totals.total) {
+      return { success: false, error: "Valor pago insuficiente" }
+    }
 
     const change = amountPaid - totals.total
 
-    updateRestaurantOrder(orderId, {
+    await updateRestaurantOrder(orderId, {
       status: "fechada",
       closedAt: new Date().toISOString(),
       paymentMethod,
@@ -115,7 +131,27 @@ export function useOrderManagement(orderId?: string) {
       subtotal: totals.subtotal,
       discount: totals.discount,
     })
-  }, [orderId, totals, updateRestaurantOrder])
+
+    await addTransaction({
+      id: `T${Date.now()}`,
+      date: getTodayISO(),
+      description: `Comanda Restaurante ${order.id} - Mesa ${order.tableNumber}`,
+      value: totals.total,
+      type: "receita",
+      refId: order.id,
+      category: "Restaurante",
+      paymentMethod,
+      responsible: operator,
+    })
+
+    await addAuditEntry({
+      user: operator,
+      action: "Comanda fechada",
+      reference: `Mesa ${order.tableNumber} - ${order.id} - R$ ${totals.total.toFixed(2)}`,
+    })
+
+    return { success: true }
+  }, [order, orderId, totals, updateRestaurantOrder, addTransaction, addAuditEntry])
 
   // Cancel order
   const cancelOrder = useCallback((reason: string) => {

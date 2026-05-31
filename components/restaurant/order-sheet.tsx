@@ -26,6 +26,8 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useOrderManagement } from "@/lib/hooks/useOrderManagement"
 import { useApp } from "@/lib/app-context"
+import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/hooks/use-toast"
 import { PAYMENT_METHODS } from "@/lib/store"
 import type { RestaurantTable, POSProduct } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -41,6 +43,8 @@ interface OrderSheetProps {
 
 export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCanceled }: OrderSheetProps) {
   const { posProducts, productCategories } = useApp()
+  const { username } = useAuth()
+  const { toast } = useToast()
   const orderId = table?.currentOrderId
   const { order, totals, addItem, removeItem, updateItemQuantity, applyDiscount, closeOrder, cancelOrder } = useOrderManagement(orderId)
   
@@ -75,7 +79,16 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
     const paid = parseFloat(amountPaid)
     if (isNaN(paid) || paid < totals.total) return
 
-    await closeOrder(paymentMethod, paid, customerName || undefined)
+    const result = await closeOrder(paymentMethod, paid, customerName || undefined, username || "sistema")
+    if (!result.success) {
+      toast({
+        title: "Pagamento bloqueado",
+        description: result.error || "Nao foi possivel fechar a comanda.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setShowCloseDialog(false)
     await onPaid(table, orderId)
   }
