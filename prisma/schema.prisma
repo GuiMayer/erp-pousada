@@ -82,3 +82,618 @@ model AuditEntry {
   @@index([entityType, entityId])
   @@map("audit_entries")
 }
+
+model Room {
+  id               Int       @id
+  number           String    @unique
+  type             String
+  status           String
+  guest            String?
+  guestCpf         String?
+  checkIn          DateTime?
+  checkOut         DateTime?
+  checkOutTime     String?
+  blockReason      String?
+  blockEndDate     DateTime?
+  blockResponsible String?
+  timeline         Json      @default("[]")
+
+  reservations Reservation[]
+  consumptions RoomConsumption[]
+  restaurantTables RestaurantTable[]
+
+  @@index([status])
+  @@map("rooms")
+}
+
+model GuestProfile {
+  cpf        String @id
+  name       String
+  totalStays Int    @default(0)
+  avgTicket  Decimal @default(0) @db.Decimal(12, 2)
+  noShows    Int    @default(0)
+
+  reservations Reservation[]
+
+  @@map("guest_profiles")
+}
+
+model Reservation {
+  id              String   @id
+  roomId          Int
+  roomNumber      String
+  guestName       String
+  cpf             String
+  checkIn         DateTime
+  checkOut        DateTime
+  status          String
+  totalValue      Decimal  @db.Decimal(12, 2)
+  cancelTreatment String?
+
+  room  Room         @relation(fields: [roomId], references: [id])
+  guest GuestProfile @relation(fields: [cpf], references: [cpf])
+
+  @@index([roomId, checkIn, checkOut, status])
+  @@index([cpf])
+  @@map("reservations")
+}
+
+model RoomConsumption {
+  id     String @id
+  roomId Int
+
+  room  Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  items RoomConsumptionItem[]
+
+  @@unique([roomId])
+  @@map("room_consumptions")
+}
+
+model RoomConsumptionItem {
+  id            String  @id
+  consumptionId String
+  label         String
+  unitPrice     Decimal @db.Decimal(12, 2)
+  quantity      Int
+
+  consumption RoomConsumption @relation(fields: [consumptionId], references: [id], onDelete: Cascade)
+
+  @@index([consumptionId])
+  @@map("room_consumption_items")
+}
+
+model ExpenseCategory {
+  id    String @id
+  label String @unique
+
+  @@map("expense_categories")
+}
+
+model Supplier {
+  id           String  @id
+  name         String
+  cnpj         String?
+  email        String?
+  phone        String?
+  address      String?
+  paymentTerms String?
+  notes        String?
+  active       Boolean @default(true)
+
+  expenses Expense[]
+
+  @@index([active])
+  @@map("suppliers")
+}
+
+model Customer {
+  id        String   @id
+  name      String
+  cpfCnpj   String
+  email     String?
+  phone     String?
+  phone2    String?
+  address   String?
+  city      String?
+  state     String?
+  zipCode   String?
+  country   String?
+  birthDate DateTime?
+  notes     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accountsReceivable AccountReceivable[]
+
+  @@index([cpfCnpj])
+  @@index([active])
+  @@map("customers")
+}
+
+model Expense {
+  id          String   @id
+  description String
+  category    String
+  supplierId  String?
+  value       Decimal  @db.Decimal(12, 2)
+  dueDate     DateTime
+  paid        Boolean  @default(false)
+  paymentDate DateTime?
+
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  installments ExpenseInstallment[]
+
+  @@index([dueDate, paid])
+  @@index([supplierId])
+  @@map("expenses")
+}
+
+model ExpenseInstallment {
+  id                String   @id
+  expenseId         String
+  installmentNumber Int
+  value             Decimal  @db.Decimal(12, 2)
+  dueDate           DateTime
+  paid              Boolean  @default(false)
+  paymentDate       DateTime?
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+  @@map("expense_installments")
+}
+
+model BankAccount {
+  id             String  @id
+  name           String
+  type           String
+  bank           String?
+  agency         String?
+  accountNumber  String?
+  initialBalance Decimal @db.Decimal(12, 2)
+  currentBalance Decimal @db.Decimal(12, 2)
+  active         Boolean @default(true)
+
+  transactions Transaction[]
+  outgoingTransfers BankTransfer[] @relation("BankTransferFromAccount")
+  incomingTransfers BankTransfer[] @relation("BankTransferToAccount")
+  recurringTransactions RecurringTransaction[]
+
+  @@index([active])
+  @@map("bank_accounts")
+}
+
+model CostCenter {
+  id          String  @id
+  name        String
+  description String?
+  active      Boolean @default(true)
+
+  transactions Transaction[]
+
+  @@index([active])
+  @@map("cost_centers")
+}
+
+model Transaction {
+  id           String   @id
+  date         DateTime
+  description  String
+  value        Decimal  @db.Decimal(12, 2)
+  type         String
+  refId        String?
+  category     String?
+  paymentMethod String?
+  responsible  String?
+  notes        String?
+  accountId    String?
+  costCenterId String?
+  taxAmount    Decimal? @db.Decimal(12, 2)
+  taxType      String?
+  grossAmount  Decimal? @db.Decimal(12, 2)
+
+  account    BankAccount? @relation(fields: [accountId], references: [id])
+  costCenter CostCenter?  @relation(fields: [costCenterId], references: [id])
+
+  @@index([date, type])
+  @@index([refId])
+  @@index([accountId])
+  @@index([costCenterId])
+  @@map("transactions")
+}
+
+model CashClose {
+  id            String   @id
+  date          DateTime
+  operator      String
+  physicalValue Decimal  @db.Decimal(12, 2)
+  expectedValue Decimal  @db.Decimal(12, 2)
+  divergence    Decimal  @db.Decimal(12, 2)
+
+  @@index([date])
+  @@map("cash_closes")
+}
+
+model AccountReceivable {
+  id            String   @id
+  customerId    String
+  customerName  String
+  description   String
+  value         Decimal  @db.Decimal(12, 2)
+  issueDate     DateTime
+  dueDate       DateTime
+  status        String
+  paymentDate   DateTime?
+  category      String?
+  invoiceNumber String?
+  notes         String?
+
+  customer     Customer @relation(fields: [customerId], references: [id])
+  installments AccountReceivableInstallment[]
+
+  @@index([customerId])
+  @@index([dueDate, status])
+  @@map("accounts_receivable")
+}
+
+model AccountReceivableInstallment {
+  id                  String   @id
+  accountReceivableId String
+  installmentNumber   Int
+  value               Decimal  @db.Decimal(12, 2)
+  dueDate             DateTime
+  status              String
+  paymentDate         DateTime?
+
+  accountReceivable AccountReceivable @relation(fields: [accountReceivableId], references: [id], onDelete: Cascade)
+
+  @@index([accountReceivableId])
+  @@map("account_receivable_installments")
+}
+
+model BankTransfer {
+  id            String   @id
+  date          DateTime
+  fromAccountId String
+  toAccountId   String
+  value         Decimal  @db.Decimal(12, 2)
+  description   String
+  responsible   String
+
+  fromAccount BankAccount @relation("BankTransferFromAccount", fields: [fromAccountId], references: [id])
+  toAccount   BankAccount @relation("BankTransferToAccount", fields: [toAccountId], references: [id])
+
+  @@index([date])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@map("bank_transfers")
+}
+
+model Budget {
+  id     String @id
+  name   String
+  year   Int
+  month  Int?
+  status String
+
+  categories BudgetCategory[]
+
+  @@index([year, month])
+  @@map("budgets")
+}
+
+model BudgetCategory {
+  id              String  @id
+  budgetId        String
+  categoryId      String
+  categoryName    String
+  plannedAmount   Decimal @db.Decimal(12, 2)
+  spentAmount     Decimal @db.Decimal(12, 2)
+  variance        Decimal @db.Decimal(12, 2)
+  variancePercent Decimal @db.Decimal(8, 2)
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+  @@map("budget_categories")
+}
+
+model RecurringTransaction {
+  id            String   @id
+  description   String
+  value         Decimal  @db.Decimal(12, 2)
+  type          String
+  category      String
+  accountId     String?
+  frequency     String
+  dayOfMonth    Int?
+  dayOfWeek     Int?
+  startDate     DateTime
+  endDate       DateTime?
+  active        Boolean  @default(true)
+  lastGenerated DateTime?
+
+  account BankAccount? @relation(fields: [accountId], references: [id])
+
+  @@index([active])
+  @@index([accountId])
+  @@map("recurring_transactions")
+}
+
+model ProductCategory {
+  id           String  @id
+  name         String
+  color        String
+  icon         String
+  active       Boolean @default(true)
+  isRestaurant Boolean @default(false)
+
+  products POSProduct[]
+
+  @@index([active, isRestaurant])
+  @@map("product_categories")
+}
+
+model POSProduct {
+  id         String  @id
+  name       String
+  categoryId String
+  price      Decimal @db.Decimal(12, 2)
+  barcode    String?
+  trackStock Boolean @default(false)
+
+  category ProductCategory @relation(fields: [categoryId], references: [id])
+  stockItems StockItem[]
+  posSaleItems POSSaleItem[]
+  restaurantOrderItems RestaurantOrderItem[]
+  stockMovements StockMovement[]
+  recipeIngredients RecipeIngredient[]
+  employeeConsumptionItems EmployeeConsumptionItem[]
+
+  @@index([categoryId])
+  @@index([trackStock])
+  @@map("pos_products")
+}
+
+model POSSale {
+  id            String   @id
+  date          DateTime
+  subtotal      Decimal  @db.Decimal(12, 2)
+  discount      Decimal  @db.Decimal(12, 2)
+  total         Decimal  @db.Decimal(12, 2)
+  paymentMethod String
+  amountPaid    Decimal  @db.Decimal(12, 2)
+  change        Decimal  @db.Decimal(12, 2)
+  customer      String?
+  operator      String
+  status        String
+  cancelReason  String?
+
+  items POSSaleItem[]
+
+  @@index([date, status])
+  @@map("pos_sales")
+}
+
+model POSSaleItem {
+  id        String  @id
+  saleId    String
+  productId String
+  quantity  Int
+  discount  Decimal @db.Decimal(12, 2)
+  unitPrice Decimal @db.Decimal(12, 2)
+  subtotal  Decimal @db.Decimal(12, 2)
+
+  sale    POSSale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product POSProduct @relation(fields: [productId], references: [id])
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("pos_sale_items")
+}
+
+model RestaurantTable {
+  id             Int       @id
+  number         String    @unique
+  capacity       Int
+  status         String
+  currentOrderId String?
+  openedAt       DateTime?
+  roomId         Int?
+
+  room   Room? @relation(fields: [roomId], references: [id])
+  orders RestaurantOrder[]
+
+  @@index([status])
+  @@map("restaurant_tables")
+}
+
+model RestaurantOrder {
+  id            String   @id
+  tableId       Int
+  tableNumber   String
+  subtotal      Decimal  @db.Decimal(12, 2)
+  discount      Decimal  @db.Decimal(12, 2)
+  total         Decimal  @db.Decimal(12, 2)
+  status        String
+  openedAt      DateTime
+  closedAt      DateTime?
+  paymentMethod String?
+  amountPaid    Decimal? @db.Decimal(12, 2)
+  change        Decimal? @db.Decimal(12, 2)
+  customer      String?
+  operator      String
+  cancelReason  String?
+
+  table RestaurantTable @relation(fields: [tableId], references: [id])
+  items RestaurantOrderItem[]
+
+  @@index([tableId, status])
+  @@index([openedAt])
+  @@map("restaurant_orders")
+}
+
+model RestaurantOrderItem {
+  id          String  @id
+  orderId     String
+  productId   String
+  productName String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(12, 2)
+  subtotal    Decimal @db.Decimal(12, 2)
+  category    String
+
+  order   RestaurantOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product POSProduct      @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("restaurant_order_items")
+}
+
+model StockItem {
+  id                String   @id
+  productId         String
+  productName       String
+  currentStock      Decimal  @db.Decimal(12, 3)
+  unit              String
+  minimumStock      Decimal  @db.Decimal(12, 3)
+  maximumStock      Decimal  @db.Decimal(12, 3)
+  averageCost       Decimal  @db.Decimal(12, 2)
+  lastPurchasePrice Decimal  @db.Decimal(12, 2)
+  lastPurchaseDate  DateTime?
+
+  product POSProduct @relation(fields: [productId], references: [id])
+
+  @@unique([productId])
+  @@map("stock_items")
+}
+
+model StockMovement {
+  id             String   @id
+  type           String
+  productId      String
+  productName    String
+  quantity       Decimal  @db.Decimal(12, 3)
+  unit           String
+  cost           Decimal? @db.Decimal(12, 2)
+  reason         String
+  timestamp      DateTime
+  registeredBy   String
+  invoiceNumber  String?
+  expirationDate DateTime?
+  notes          String?
+
+  product POSProduct @relation(fields: [productId], references: [id])
+
+  @@index([productId, timestamp])
+  @@map("stock_movements")
+}
+
+model Recipe {
+  id              String   @id
+  name            String
+  category        String
+  version         Int
+  expectedYield   Decimal  @db.Decimal(12, 3)
+  yieldUnit       String
+  preparationTime Int
+  instructions    String
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ingredients RecipeIngredient[]
+  productions Production[]
+
+  @@index([active])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id          String  @id
+  recipeId    String
+  productId   String
+  productName String
+  quantity    Decimal @db.Decimal(12, 3)
+  unit        String
+  cost        Decimal @db.Decimal(12, 2)
+
+  recipe  Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product POSProduct @relation(fields: [productId], references: [id])
+
+  @@index([recipeId])
+  @@index([productId])
+  @@map("recipe_ingredients")
+}
+
+model Production {
+  id               String   @id
+  recipeId         String
+  recipeName       String
+  plannedQuantity  Decimal  @db.Decimal(12, 3)
+  producedQuantity Decimal  @db.Decimal(12, 3)
+  yield            Decimal  @db.Decimal(12, 3)
+  totalCost        Decimal  @db.Decimal(12, 2)
+  unitCost         Decimal  @db.Decimal(12, 2)
+  timestamp        DateTime
+  producedBy       String
+  notes            String?
+
+  recipe Recipe @relation(fields: [recipeId], references: [id])
+
+  @@index([recipeId, timestamp])
+  @@map("productions")
+}
+
+model Employee {
+  id               String  @id
+  name             String
+  cpf              String  @unique
+  photo            String?
+  role             String
+  active           Boolean @default(true)
+  consumptionLimit Decimal @db.Decimal(12, 2)
+  mealBenefit      Json
+
+  consumptions EmployeeConsumption[]
+
+  @@index([active])
+  @@map("employees")
+}
+
+model EmployeeConsumption {
+  id          String   @id
+  employeeId  String
+  employeeName String
+  total       Decimal  @db.Decimal(12, 2)
+  category    String
+  timestamp   DateTime
+  registeredBy String
+  paymentType String
+  notes       String?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  items EmployeeConsumptionItem[]
+
+  @@index([employeeId, timestamp])
+  @@map("employee_consumptions")
+}
+
+model EmployeeConsumptionItem {
+  id            String  @id
+  consumptionId String
+  productId     String
+  productName   String
+  quantity      Int
+  unitPrice     Decimal @db.Decimal(12, 2)
+  subtotal      Decimal @db.Decimal(12, 2)
+
+  consumption EmployeeConsumption @relation(fields: [consumptionId], references: [id], onDelete: Cascade)
+  product     POSProduct          @relation(fields: [productId], references: [id])
+
+  @@index([consumptionId])
+  @@index([productId])
+  @@map("employee_consumption_items")
+}
