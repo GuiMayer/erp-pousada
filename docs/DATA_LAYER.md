@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the data persistence layer implemented for the Pousada management system. The architecture provides a clean abstraction over localStorage with the ability to migrate to a backend API in the future without changing application code.
+This document describes the data persistence layer implemented for the Pousada management system. Production mode now routes browser repositories through the internal `/api/data` API and persists mapped collections in PostgreSQL relational tables through Prisma.
 
 ## Architecture
 
@@ -13,8 +13,8 @@ lib/data/
 ├── types.ts                    # TypeScript interfaces and types
 ├── config.ts                   # Configuration for adapter selection
 ├── storage-adapter.ts          # localStorage implementation
-├── local-database-adapter.ts   # Prisma/PostgreSQL implementation for server-side use
-├── api-adapter.ts              # API implementation (stub for future)
+├── local-database-adapter.ts   # Legacy JSONB adapter for migration/fallback
+├── api-adapter.ts              # API implementation used by browser repositories
 ├── sync-manager.ts             # Multi-user synchronization
 └── repositories/
     ├── base-repository.ts      # Abstract base class
@@ -130,7 +130,9 @@ See individual repository files for complete method lists.
 
 ### localStorage Strategy
 
-Data is stored in localStorage with the following characteristics:
+`localStorage` is limited to demo/offline mode and UI preferences. It is not the normal production path.
+
+When `NEXT_PUBLIC_DATA_ADAPTER=demo-localStorage`, data is stored in localStorage with the following characteristics:
 
 - **Key Format**: `{prefix}:{entityName}` (e.g., `pousada:rooms`)
 - **Serialization**: JSON with automatic date handling
@@ -138,17 +140,20 @@ Data is stored in localStorage with the following characteristics:
 - **Quota Management**: Automatic cleanup when approaching 5MB limit
 - **Cross-tab Sync**: Storage events enable real-time sync between tabs
 
-### Local PostgreSQL Strategy
+### PostgreSQL Strategy
 
-A local PostgreSQL adapter is available in parallel to the browser `localStorage` adapter. It implements the same `IStorageAdapter` contract by storing each repository key as JSONB in PostgreSQL through Prisma.
+Production data uses PostgreSQL through Next.js API routes. Browser repositories still use the existing repository abstraction, but the `DatabaseApiAdapter` sends reads and writes to `/api/data`. The server maps each collection key to explicit Prisma tables.
 
-- **Adapter**: `lib/data/local-database-adapter.ts`
+- **Browser adapter**: `lib/data/database-api-adapter.ts`
+- **Server API**: `app/api/data/**`
+- **Relational service**: `lib/server/db/relational-data-service.ts`
+- **Mappers**: `lib/server/db/mappers.ts`
 - **Client**: `lib/db/client.ts`
 - **Schema**: `prisma/schema.prisma`
-- **Storage table**: `local_data_entries`
-- **Default local URL**: `postgresql://postgres:postgres@localhost:5432/pousada_dev`
-- **Runtime scope**: server-side Node.js only; do not import it in client components
-- **Activation status**: not wired into the UI by default; `LocalStorageAdapter` remains the active browser storage path
+- **Relational tables**: rooms, reservations, finance, POS, restaurant, stock, employees, users, settings, audit
+- **Legacy table**: `local_data_entries` remains only for fallback and migration compatibility
+- **Default local URL**: `postgresql://pousada:pousada@localhost:5432/pousada`
+- **Runtime scope**: Prisma stays server-side; do not import it in client components
 - **Cloud path**: keep repository code unchanged, then point `DATABASE_URL` to a managed PostgreSQL provider when needed
 
 Start a local database with Docker:
@@ -179,16 +184,31 @@ pnpm db:seed
 pnpm db:reset
 ```
 
-Direct server-side usage:
+Relational collection API examples:
 
 ```typescript
-import { LocalDatabaseAdapter } from "@/lib/data/local-database-adapter"
+// Browser-side repository calls use the same methods as before.
+await dataStore.rooms.create(room)
+await dataStore.rooms.update(room.id, { status: "ocupado" })
 
-const adapter = new LocalDatabaseAdapter()
+// Server-side collection access is available for tooling/migration.
+import { getCollection, replaceCollection } from "@/lib/server/db/relational-data-service"
 
-await adapter.set("pousada:rooms", [{ id: 101, number: "101" }])
-const rooms = await adapter.get("pousada:rooms")
+const rooms = await getCollection("rooms")
+await replaceCollection("rooms", rooms)
 ```
+
+### Legacy JSON Migration
+
+Older versions stored production collections in the `local_data_entries` JSONB table. Use the migration tool after applying relational migrations:
+
+```bash
+pnpm db:migrate-local-data
+```
+
+The Windows maintenance menu also exposes `Migrar dados legados para tabelas relacionais`. It creates a backup before running the migration.
+
+This migration copies recognized collection keys into relational tables. It does not delete `local_data_entries`; keep it until the converted data is verified.
 
 ### Storage Limits
 
