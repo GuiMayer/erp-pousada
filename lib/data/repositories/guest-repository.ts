@@ -1,51 +1,92 @@
 /**
  * Guest Repository
- * 
- * Manages guest profile data.
+ *
+ * Guest profiles use CPF as the natural key because GuestProfile has no id field.
  */
 
-import { BaseRepository } from "./base-repository"
 import type { GuestProfile } from "../../store"
-import type { IStorageAdapter } from "../types"
+import type { IDataRepository, IStorageAdapter } from "../types"
 
-export class GuestRepository extends BaseRepository<GuestProfile> {
-  constructor(adapter: IStorageAdapter, userId?: string) {
-    super(adapter, "guests", { cacheEnabled: true, userId })
+export class GuestRepository implements IDataRepository<GuestProfile> {
+  constructor(
+    private readonly adapter: IStorageAdapter,
+    private readonly userId?: string
+  ) {}
+
+  private getStorageKey(): string {
+    return "guests"
   }
 
-  protected generateId(items: GuestProfile[]): string {
-    return `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  private async loadFromStorage(): Promise<GuestProfile[]> {
+    return await this.adapter.get<GuestProfile[]>(this.getStorageKey()) ?? []
   }
 
-  /**
-   * Find guest by CPF
-   */
-  async findByCPF(cpf: string): Promise<GuestProfile | null> {
-    const guests = await this.getAll()
-    return guests.find(g => g.cpf === cpf) ?? null
+  private async saveToStorage(guests: GuestProfile[]): Promise<void> {
+    await this.adapter.set(this.getStorageKey(), guests)
   }
 
-  /**
-   * Find guests by name (partial match)
-   */
-  async findByName(name: string): Promise<GuestProfile[]> {
-    const guests = await this.getAll()
-    const searchTerm = name.toLowerCase()
-    return guests.filter(g => 
-      g.name.toLowerCase().includes(searchTerm)
+  async getAll(): Promise<GuestProfile[]> {
+    return this.loadFromStorage()
+  }
+
+  async getById(cpf: string | number): Promise<GuestProfile | null> {
+    return this.findByCPF(String(cpf))
+  }
+
+  async create(guest: GuestProfile): Promise<GuestProfile> {
+    const guests = await this.loadFromStorage()
+    const existing = guests.find(item => item.cpf === guest.cpf)
+    if (existing) {
+      throw new Error("Hospede ja cadastrado para este CPF")
+    }
+
+    guests.push(guest)
+    await this.saveToStorage(guests)
+    return guest
+  }
+
+  async update(cpf: string | number, data: Partial<GuestProfile>): Promise<GuestProfile> {
+    const guests = await this.loadFromStorage()
+    const index = guests.findIndex(item => item.cpf === String(cpf))
+    if (index === -1) {
+      throw new Error("Hospede nao encontrado")
+    }
+
+    const updated = { ...guests[index], ...data, cpf: guests[index].cpf }
+    guests[index] = updated
+    await this.saveToStorage(guests)
+    return updated
+  }
+
+  async delete(cpf: string | number): Promise<void> {
+    const guests = await this.loadFromStorage()
+    await this.saveToStorage(guests.filter(item => item.cpf !== String(cpf)))
+  }
+
+  async query(filter: Partial<GuestProfile>): Promise<GuestProfile[]> {
+    const guests = await this.loadFromStorage()
+    return guests.filter(guest =>
+      Object.entries(filter).every(([key, value]) => guest[key as keyof GuestProfile] === value)
     )
   }
 
-  /**
-   * Create or update guest (upsert by CPF)
-   */
-  async upsertByCPF(guest: Omit<GuestProfile, 'id'>): Promise<GuestProfile> {
+  async clear(): Promise<void> {
+    await this.saveToStorage([])
+  }
+
+  async findByCPF(cpf: string): Promise<GuestProfile | null> {
+    const guests = await this.loadFromStorage()
+    return guests.find(g => g.cpf === cpf) ?? null
+  }
+
+  async findByName(name: string): Promise<GuestProfile[]> {
+    const guests = await this.loadFromStorage()
+    const searchTerm = name.toLowerCase()
+    return guests.filter(g => g.name.toLowerCase().includes(searchTerm))
+  }
+
+  async upsertByCPF(guest: GuestProfile): Promise<GuestProfile> {
     const existing = await this.findByCPF(guest.cpf)
-    
-    if (existing) {
-      return this.update(existing.id, guest)
-    } else {
-      return this.create(guest)
-    }
+    return existing ? this.update(existing.cpf, guest) : this.create(guest)
   }
 }

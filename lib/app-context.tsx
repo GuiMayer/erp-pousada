@@ -113,6 +113,8 @@ type AppContextType = {
   addCashClose: (c: CashClose) => Promise<void>
   findGuest: (cpf: string) => GuestProfile | undefined
   addGuest: (g: GuestProfile) => Promise<void>
+  updateGuest: (cpf: string, data: Partial<GuestProfile>) => Promise<void>
+  removeGuest: (cpf: string) => Promise<void>
   setDiscountCeiling: (v: number) => void
   addConsumptionItem: (roomId: number, item: ConsumptionItem) => Promise<void>
   removeConsumptionItem: (roomId: number, itemId: string) => Promise<void>
@@ -629,6 +631,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [dataStore, user?.username, addAuditEntry])
 
+  const updateGuest = useCallback(async (cpf: string, data: Partial<GuestProfile>) => {
+    await dataStore.guests.update(cpf, data)
+    setGuests(await dataStore.guests.getAll())
+  }, [dataStore])
+
+  const removeGuest = useCallback(async (cpf: string) => {
+    await dataStore.guests.delete(cpf)
+    setGuests(await dataStore.guests.getAll())
+  }, [dataStore])
+
   // Consumption methods
   const addConsumptionItem = useCallback(async (roomId: number, item: ConsumptionItem) => {
     const existing = await dataStore.consumptions.getByRoomId(roomId)
@@ -1043,7 +1055,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
     addExpense, updateExpense, markInstallmentAsPaid, addTransaction, addAuditEntry,
-    addCategory, addCashClose, findGuest, addGuest, setDiscountCeiling,
+    addCategory, addCashClose, findGuest, addGuest, updateGuest, removeGuest, setDiscountCeiling,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
     addProductCategory, updateProductCategory, removeProductCategory, getCategoryName,
@@ -1074,7 +1086,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateRoom, addRoom, removeRoom, getRoomTimeline,
     addReservation, updateReservation,
     addExpense, updateExpense, markInstallmentAsPaid, addTransaction, addAuditEntry,
-    addCategory, addCashClose, findGuest, addGuest,
+    addCategory, addCashClose, findGuest, addGuest, updateGuest, removeGuest,
     addConsumptionItem, removeConsumptionItem, getConsumption, clearConsumption,
     addPOSProduct, updatePOSProduct, removePOSProduct, addPOSSale, updatePOSSale,
     addProductCategory, updateProductCategory, removeProductCategory, getCategoryName,

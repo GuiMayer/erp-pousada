@@ -36,6 +36,7 @@ import { SuppliersManagement } from "@/components/suppliers-management"
 import { AccountsReceivableManagement } from "@/components/accounts-receivable-management"
 import CustomersManagement from "@/components/customers-management"
 import { FinancialCadastrosManagement } from "@/components/financial-cadastros-management"
+import { GuestsManagement } from "@/components/guests-management"
 
 function formatDateBR(iso: string) {
   const d = new Date(iso.includes("T") ? iso : iso + "T12:00:00")
@@ -349,6 +350,7 @@ export function FinancialTab() {
           <TabsTrigger value="transacoes">Transacoes</TabsTrigger>
           <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
+          <TabsTrigger value="hospedes">Hospedes</TabsTrigger>
           <TabsTrigger value="contas-receber">Contas a Receber</TabsTrigger>
           <TabsTrigger value="cadastros">Cadastros</TabsTrigger>
           <TabsTrigger value="fechar-turno">Fechar Turno</TabsTrigger>
@@ -598,6 +600,10 @@ export function FinancialTab() {
         {/* Customers */}
         <TabsContent value="clientes">
           <CustomersManagement />
+        </TabsContent>
+
+        <TabsContent value="hospedes">
+          <GuestsManagement />
         </TabsContent>
 
         {/* Accounts Receivable */}
