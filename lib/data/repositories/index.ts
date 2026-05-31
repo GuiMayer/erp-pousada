@@ -7,6 +7,8 @@
 
 import type { DataStore, DataStoreConfig } from "../types"
 import { LocalStorageAdapter } from "../storage-adapter"
+import { DatabaseApiAdapter } from "../database-api-adapter"
+import { getDataConfig } from "../config"
 
 // Import all repositories
 import { RoomRepository } from "./room-repository"
@@ -57,8 +59,12 @@ import { RecurringTransactionRepository } from "./recurring-transaction-reposito
  * ```
  */
 export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
-  // Create adapter (default to LocalStorage)
-  const adapter = config?.adapter ?? new LocalStorageAdapter(config?.prefix ?? "pousada")
+  const dataConfig = getDataConfig()
+  const adapter = config?.adapter ?? (
+    dataConfig.adapter === "database"
+      ? new DatabaseApiAdapter()
+      : new LocalStorageAdapter(config?.prefix ?? "pousada")
+  )
   const userId = config?.userId
 
   // Create all repositories

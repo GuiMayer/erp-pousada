@@ -42,7 +42,7 @@ export class ApiAdapter implements IStorageAdapter {
    */
   async get<T>(key: string): Promise<T | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/${key}`, {
+      const response = await fetch(`${this.baseUrl}/${encodeURIComponent(key)}`, {
         method: 'GET',
         headers: this.getHeaders(),
         signal: AbortSignal.timeout(this.timeout)
@@ -67,7 +67,7 @@ export class ApiAdapter implements IStorageAdapter {
    */
   async set<T>(key: string, value: T): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/${key}`, {
+      const response = await fetch(`${this.baseUrl}/${encodeURIComponent(key)}`, {
         method: 'PUT',
         headers: this.getHeaders(),
         body: JSON.stringify(value),
@@ -88,7 +88,7 @@ export class ApiAdapter implements IStorageAdapter {
    */
   async remove(key: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/${key}`, {
+      const response = await fetch(`${this.baseUrl}/${encodeURIComponent(key)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
         signal: AbortSignal.timeout(this.timeout)
