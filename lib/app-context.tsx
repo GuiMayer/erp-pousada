@@ -29,6 +29,40 @@ import {
 import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
 
+const RESERVATION_BLOCKING_STATUSES = new Set<Reservation["status"]>(["confirmada", "checkin"])
+
+function assertReservationAvailability(
+  nextReservation: Reservation,
+  currentReservations: Reservation[],
+  ignoreReservationId?: string
+) {
+  if (!RESERVATION_BLOCKING_STATUSES.has(nextReservation.status)) {
+    return
+  }
+
+  const nextCheckIn = new Date(`${nextReservation.checkIn}T00:00:00`)
+  const nextCheckOut = new Date(`${nextReservation.checkOut}T00:00:00`)
+
+  if (nextCheckOut <= nextCheckIn) {
+    throw new Error("Check-out must be after check-in")
+  }
+
+  const conflicting = currentReservations.find((reservation) => {
+    if (reservation.id === ignoreReservationId) return false
+    if (reservation.roomId !== nextReservation.roomId) return false
+    if (!RESERVATION_BLOCKING_STATUSES.has(reservation.status)) return false
+
+    const checkIn = new Date(`${reservation.checkIn}T00:00:00`)
+    const checkOut = new Date(`${reservation.checkOut}T00:00:00`)
+
+    return nextCheckIn < checkOut && nextCheckOut > checkIn
+  })
+
+  if (conflicting) {
+    throw new Error(`Quarto ${nextReservation.roomNumber} ja possui reserva ativa no periodo selecionado`)
+  }
+}
+
 type AppContextType = {
   rooms: Room[]
   reservations: Reservation[]
@@ -338,6 +372,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Reservation methods
   const addReservation = useCallback(async (r: Reservation) => {
+    const currentReservations = await dataStore.reservations.getAll()
+    assertReservationAvailability(r, currentReservations)
+
     const created = await dataStore.reservations.create(r)
     setReservations(await dataStore.reservations.getAll())
     
@@ -365,6 +402,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateReservation = useCallback(async (id: string, data: Partial<Reservation>) => {
     const before = await dataStore.reservations.getById(id)
+    if (!before) return
+
+    const currentReservations = await dataStore.reservations.getAll()
+    const nextReservation = { ...before, ...data }
+    assertReservationAvailability(nextReservation, currentReservations, id)
+
     await dataStore.reservations.update(id, data)
     const after = await dataStore.reservations.getById(id)
     setReservations(await dataStore.reservations.getAll())
