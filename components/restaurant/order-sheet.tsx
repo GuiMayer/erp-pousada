@@ -35,9 +35,11 @@ interface OrderSheetProps {
   onOpenChange: (open: boolean) => void
   table: RestaurantTable | null
   onClose: () => void
+  onPaid: (table: RestaurantTable, orderId: string) => void | Promise<void>
+  onCanceled: (table: RestaurantTable, orderId: string) => void | Promise<void>
 }
 
-export function OrderSheet({ open, onOpenChange, table, onClose }: OrderSheetProps) {
+export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCanceled }: OrderSheetProps) {
   const { posProducts, productCategories } = useApp()
   const orderId = table?.currentOrderId
   const { order, totals, addItem, removeItem, updateItemQuantity, applyDiscount, closeOrder, cancelOrder } = useOrderManagement(orderId)
@@ -67,21 +69,23 @@ export function OrderSheet({ open, onOpenChange, table, onClose }: OrderSheetPro
     applyDiscount(discountPercent)
   }
 
-  const handleCloseOrder = () => {
-    if (!paymentMethod || !amountPaid) return
+  const handleCloseOrder = async () => {
+    if (!table || !orderId || !paymentMethod || !amountPaid) return
     
     const paid = parseFloat(amountPaid)
     if (isNaN(paid) || paid < totals.total) return
 
-    closeOrder(paymentMethod, paid, customerName || undefined)
+    await closeOrder(paymentMethod, paid, customerName || undefined)
     setShowCloseDialog(false)
-    onClose()
+    await onPaid(table, orderId)
   }
 
-  const handleCancelOrder = () => {
-    cancelOrder("Cancelada pelo operador")
+  const handleCancelOrder = async () => {
+    if (!table || !orderId) return
+
+    await cancelOrder("Cancelada pelo operador")
     setShowCancelDialog(false)
-    onClose()
+    await onCanceled(table, orderId)
   }
 
   const restaurantCategoryIds = new Set(

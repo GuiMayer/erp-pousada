@@ -116,10 +116,17 @@ export function RestaurantTab() {
 
   const handleOrderSheetClose = () => {
     setOrderSheetOpen(false)
-    if (selectedTable) {
-      closeTable(selectedTable.id)
-    }
     setSelectedTable(null)
+  }
+
+  const handleOrderPaid = async (table: RestaurantTable) => {
+    await closeTable(table.id)
+    handleOrderSheetClose()
+  }
+
+  const handleOrderCanceled = async (table: RestaurantTable) => {
+    await closeTable(table.id)
+    handleOrderSheetClose()
   }
 
   return (
@@ -277,9 +284,17 @@ export function RestaurantTab() {
       {/* Order Sheet */}
       <OrderSheet
         open={orderSheetOpen}
-        onOpenChange={setOrderSheetOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setOrderSheetOpen(true)
+          } else {
+            handleOrderSheetClose()
+          }
+        }}
         table={selectedTable}
         onClose={handleOrderSheetClose}
+        onPaid={handleOrderPaid}
+        onCanceled={handleOrderCanceled}
       />
 
       {/* Manage Tables Modal */}
