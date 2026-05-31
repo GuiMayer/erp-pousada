@@ -22,8 +22,8 @@ export function useTableManagement() {
   }, [restaurantTables])
 
   // Open a table (mark as occupied)
-  const openTable = useCallback((tableId: number, orderId: string) => {
-    updateRestaurantTable(tableId, {
+  const openTable = useCallback(async (tableId: number, orderId: string) => {
+    await updateRestaurantTable(tableId, {
       status: "ocupada",
       currentOrderId: orderId,
       openedAt: new Date().toISOString(),
@@ -31,8 +31,8 @@ export function useTableManagement() {
   }, [updateRestaurantTable])
 
   // Close a table (mark as free)
-  const closeTable = useCallback((tableId: number) => {
-    updateRestaurantTable(tableId, {
+  const closeTable = useCallback(async (tableId: number) => {
+    await updateRestaurantTable(tableId, {
       status: "livre",
       currentOrderId: undefined,
       openedAt: undefined,
@@ -40,15 +40,15 @@ export function useTableManagement() {
   }, [updateRestaurantTable])
 
   // Reserve a table
-  const reserveTable = useCallback((tableId: number) => {
-    updateRestaurantTable(tableId, {
+  const reserveTable = useCallback(async (tableId: number) => {
+    await updateRestaurantTable(tableId, {
       status: "reservada",
     })
   }, [updateRestaurantTable])
 
   // Cancel reservation
-  const cancelReservation = useCallback((tableId: number) => {
-    updateRestaurantTable(tableId, {
+  const cancelReservation = useCallback(async (tableId: number) => {
+    await updateRestaurantTable(tableId, {
       status: "livre",
     })
   }, [updateRestaurantTable])

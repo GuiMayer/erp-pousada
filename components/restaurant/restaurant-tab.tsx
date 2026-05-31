@@ -92,7 +92,15 @@ export function RestaurantTab() {
     await addAuditEntry({ user: username || "sistema", action: "Consumo de funcionario editado", reference: consumption.employeeName })
   }
 
-  const handleTableClick = (table: RestaurantTable) => {
+  const findActiveOrder = (table: RestaurantTable) => {
+    return restaurantOrders.find(order =>
+      order.status === "aberta" && (
+        order.id === table.currentOrderId || order.tableId === table.id
+      )
+    )
+  }
+
+  const handleTableClick = async (table: RestaurantTable) => {
     if (table.status === "livre") {
       // Open new order
       const orderId = generateOrderId()
@@ -106,15 +114,18 @@ export function RestaurantTab() {
         total: 0,
         status: "aberta",
         openedAt: new Date().toISOString(),
-        operator: "operador",
+        operator: username || "operador",
       }
-      addRestaurantOrder(newOrder)
-      openTable(table.id, orderId)
-      setSelectedTable({ ...table, currentOrderId: orderId })
+      await addRestaurantOrder(newOrder)
+      await openTable(table.id, orderId)
+      setSelectedTable({
+        ...table,
+        status: "ocupada",
+        currentOrderId: orderId,
+        openedAt: newOrder.openedAt,
+      })
     } else {
-      const activeOrder = restaurantOrders.find(order =>
-        order.id === table.currentOrderId && order.status === "aberta"
-      )
+      const activeOrder = findActiveOrder(table)
 
       if (!activeOrder) {
         toast({
@@ -125,7 +136,7 @@ export function RestaurantTab() {
         return
       }
 
-      setSelectedTable(table)
+      setSelectedTable({ ...table, currentOrderId: activeOrder.id })
     }
     setOrderSheetOpen(true)
   }
