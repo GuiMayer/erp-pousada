@@ -13,7 +13,7 @@ lib/data/
 ├── types.ts                    # TypeScript interfaces and types
 ├── config.ts                   # Configuration for adapter selection
 ├── storage-adapter.ts          # localStorage implementation
-├── local-database-adapter.ts   # Prisma/SQLite implementation for server-side use
+├── local-database-adapter.ts   # Prisma/PostgreSQL implementation for server-side use
 ├── api-adapter.ts              # API implementation (stub for future)
 ├── sync-manager.ts             # Multi-user synchronization
 └── repositories/
@@ -138,18 +138,36 @@ Data is stored in localStorage with the following characteristics:
 - **Quota Management**: Automatic cleanup when approaching 5MB limit
 - **Cross-tab Sync**: Storage events enable real-time sync between tabs
 
-### Local SQLite Strategy
+### Local PostgreSQL Strategy
 
-A local database adapter is available in parallel to the browser `localStorage` adapter. It implements the same `IStorageAdapter` contract by storing each repository key as JSON in SQLite through Prisma.
+A local PostgreSQL adapter is available in parallel to the browser `localStorage` adapter. It implements the same `IStorageAdapter` contract by storing each repository key as JSONB in PostgreSQL through Prisma.
 
 - **Adapter**: `lib/data/local-database-adapter.ts`
 - **Client**: `lib/db/client.ts`
 - **Schema**: `prisma/schema.prisma`
 - **Storage table**: `local_data_entries`
-- **Default local URL**: `file:./dev.db`
+- **Default local URL**: `postgresql://postgres:postgres@localhost:5432/pousada_dev`
 - **Runtime scope**: server-side Node.js only; do not import it in client components
 - **Activation status**: not wired into the UI by default; `LocalStorageAdapter` remains the active browser storage path
-- **Cloud path**: keep repository code unchanged, then swap the Prisma datasource/driver adapter later for a managed SQLite-compatible service or a relational database migration path
+- **Cloud path**: keep repository code unchanged, then point `DATABASE_URL` to a managed PostgreSQL provider when needed
+
+Start a local database with Docker:
+
+```bash
+docker compose up -d postgres
+pnpm db:migrate
+```
+
+Equivalent package scripts:
+
+```bash
+pnpm db:up
+pnpm db:migrate
+pnpm db:logs
+pnpm db:down
+```
+
+Docker Desktop or another Docker daemon must be running before `pnpm db:up` can start PostgreSQL.
 
 Useful commands:
 
