@@ -14,3 +14,71 @@ model LocalDataEntry {
 
   @@map("local_data_entries")
 }
+
+model User {
+  id        String   @id
+  username  String   @unique
+  password  String
+  role      String
+  fullName  String
+  email     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  createdBy String
+  lastLogin DateTime?
+
+  sessions UserSession[]
+
+  @@map("users")
+}
+
+model UserSession {
+  id         String    @id
+  userId     String
+  username   String
+  loginTime  DateTime  @default(now())
+  logoutTime DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+model SystemSettings {
+  id                       String  @id
+  pousadaName              String
+  checkInTime              String
+  checkOutTime             String
+  discountCeiling          Float
+  contactPhone             String?
+  contactEmail             String?
+  address                  String?
+  cnpj                     String?
+  razaoSocial              String?
+  inscricaoEstadual        String?
+  logoUrl                  String?
+  notifyCheckInReminder    Boolean @default(true)
+  notifyCheckOutReminder   Boolean @default(true)
+  notifyLowStock           Boolean @default(true)
+  notifyPendingPayments    Boolean @default(true)
+  updatedAt                DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model AuditEntry {
+  id         String   @id
+  date       DateTime @default(now())
+  user       String
+  action     String
+  reference  String
+  entityType String?
+  entityId   String?
+  operation  String?
+  metadata   Json?
+
+  @@index([date])
+  @@index([entityType, entityId])
+  @@map("audit_entries")
+}
