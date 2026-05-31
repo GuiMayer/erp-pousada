@@ -33,7 +33,7 @@ export class EmployeeConsumptionRepository extends BaseRepository<EmployeeConsum
     const end = new Date(endDate)
     
     return consumptions.filter(c => {
-      const date = new Date(c.date)
+      const date = new Date(c.timestamp)
       return date >= start && date <= end
     })
   }

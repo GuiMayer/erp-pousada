@@ -144,9 +144,13 @@ type AppContextType = {
   addRecipe: (r: Recipe) => Promise<void>
   updateRecipe: (id: string, data: Partial<Recipe>) => Promise<void>
   addProduction: (p: Production) => Promise<void>
+  updateProduction: (id: string, data: Partial<Production>) => Promise<void>
+  removeProduction: (id: string) => Promise<void>
   addEmployee: (e: Employee) => Promise<void>
   updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>
   addEmployeeConsumption: (c: EmployeeConsumption) => Promise<void>
+  updateEmployeeConsumption: (id: string, data: Partial<EmployeeConsumption>) => Promise<void>
+  removeEmployeeConsumption: (id: string) => Promise<void>
   addUser: (u: User) => Promise<void>
   updateUser: (id: string, data: Partial<User>) => Promise<void>
   findUser: (username: string) => User | undefined
@@ -901,6 +905,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [dataStore, user?.username, addAuditEntry])
 
+  const updateProduction = useCallback(async (id: string, data: Partial<Production>) => {
+    await dataStore.productions.update(id, data)
+    setProductions(await dataStore.productions.getAll())
+  }, [dataStore])
+
+  const removeProduction = useCallback(async (id: string) => {
+    await dataStore.productions.delete(id)
+    setProductions(await dataStore.productions.getAll())
+  }, [dataStore])
+
   // Employee methods
   const addEmployee = useCallback(async (e: Employee) => {
     await dataStore.employees.create(e)
@@ -915,6 +929,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Employee Consumption methods
   const addEmployeeConsumption = useCallback(async (c: EmployeeConsumption) => {
     await dataStore.employeeConsumptions.create(c)
+    setEmployeeConsumptions(await dataStore.employeeConsumptions.getAll())
+  }, [dataStore])
+
+  const updateEmployeeConsumption = useCallback(async (id: string, data: Partial<EmployeeConsumption>) => {
+    await dataStore.employeeConsumptions.update(id, data)
+    setEmployeeConsumptions(await dataStore.employeeConsumptions.getAll())
+  }, [dataStore])
+
+  const removeEmployeeConsumption = useCallback(async (id: string) => {
+    await dataStore.employeeConsumptions.delete(id)
     setEmployeeConsumptions(await dataStore.employeeConsumptions.getAll())
   }, [dataStore])
 
@@ -1108,8 +1132,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRestaurantTable, updateRestaurantTable, removeRestaurantTable,
     addRestaurantOrder, updateRestaurantOrder, addOrderItem, removeOrderItem,
     addStockItem, updateStockItem, addStockMovement,
-    addRecipe, updateRecipe, addProduction,
-    addEmployee, updateEmployee, addEmployeeConsumption,
+    addRecipe, updateRecipe, addProduction, updateProduction, removeProduction,
+    addEmployee, updateEmployee, addEmployeeConsumption, updateEmployeeConsumption, removeEmployeeConsumption,
     addUser, updateUser, findUser, addUserSession, updateSystemSettings,
     addSupplier, updateSupplier, removeSupplier,
     addCustomer, updateCustomer, removeCustomer,
@@ -1141,8 +1165,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRestaurantTable, updateRestaurantTable, removeRestaurantTable,
     addRestaurantOrder, updateRestaurantOrder, addOrderItem, removeOrderItem,
     addStockItem, updateStockItem, addStockMovement,
-    addRecipe, updateRecipe, addProduction,
-    addEmployee, updateEmployee, addEmployeeConsumption,
+    addRecipe, updateRecipe, addProduction, updateProduction, removeProduction,
+    addEmployee, updateEmployee, addEmployeeConsumption, updateEmployeeConsumption, removeEmployeeConsumption,
     addUser, updateUser, findUser, addUserSession, updateSystemSettings,
     addSupplier, updateSupplier, removeSupplier,
     addCustomer, updateCustomer, removeCustomer,

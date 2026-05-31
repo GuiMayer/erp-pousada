@@ -33,7 +33,7 @@ export class ProductionRepository extends BaseRepository<Production> {
     const end = new Date(endDate)
     
     return productions.filter(p => {
-      const date = new Date(p.date)
+      const date = new Date(p.timestamp)
       return date >= start && date <= end
     })
   }

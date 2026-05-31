@@ -17,6 +17,8 @@ export function useProduction() {
     addRecipe,
     updateRecipe,
     addProduction,
+    updateProduction,
+    removeProduction,
     posProducts,
   } = useApp()
 
@@ -176,5 +178,7 @@ export function useProduction() {
     stats,
     addRecipe,
     updateRecipe,
+    updateProduction,
+    removeProduction,
   }
 }
