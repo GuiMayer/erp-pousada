@@ -31,7 +31,8 @@ echo  8. Restaurar backup .dump
 echo  9. Listar backups
 echo 10. Ver logs
 echo 11. Configurar pasta/intervalo de backup
-echo 12. Sair
+echo 12. Migrar dados legados para tabelas relacionais
+echo 13. Sair
 echo.
 set /p "choice=Escolha uma opcao: "
 
@@ -46,7 +47,8 @@ if "%choice%"=="8" goto restore_backup
 if "%choice%"=="9" goto list_backups
 if "%choice%"=="10" goto logs
 if "%choice%"=="11" goto configure
-if "%choice%"=="12" exit /b 0
+if "%choice%"=="12" goto migrate_local_data
+if "%choice%"=="13" exit /b 0
 
 echo Opcao invalida.
 pause
@@ -194,6 +196,21 @@ if not "%new_interval%"=="" set "BACKUP_INTERVAL_MINUTES=%new_interval%"
 if not exist "%BACKUP_HOST_DIR%" mkdir "%BACKUP_HOST_DIR%"
 call :write_env
 echo Configuracao salva.
+pause
+goto menu
+
+:migrate_local_data
+call :require_docker || goto menu
+echo.
+echo Esta opcao copia dados antigos de local_data_entries para tabelas relacionais.
+echo Crie um backup antes de continuar.
+set /p "confirm=Digite MIGRAR para continuar: "
+if /i not "%confirm%"=="MIGRAR" goto menu
+docker compose up -d postgres
+docker compose stop app backup-worker
+docker compose run --rm backup-worker sh /scripts/db-backup.sh
+docker compose run --rm app pnpm db:migrate-local-data
+docker compose up -d app backup-worker
 pause
 goto menu
 
