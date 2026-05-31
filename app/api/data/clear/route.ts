@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server"
-import { LocalDatabaseAdapter } from "@/lib/data/local-database-adapter"
-
-const adapter = new LocalDatabaseAdapter()
+import { clearAllCollections } from "@/lib/server/db/relational-data-service"
 
 export async function POST() {
-  await adapter.clear()
+  await clearAllCollections()
 
   return NextResponse.json({ success: true })
 }

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { LocalDatabaseAdapter } from "@/lib/data/local-database-adapter"
-
-const adapter = new LocalDatabaseAdapter()
+import { getCollectionNames } from "@/lib/server/db/relational-data-service"
 
 export async function GET() {
-  return NextResponse.json(await adapter.keys())
+  return NextResponse.json(await getCollectionNames())
 }

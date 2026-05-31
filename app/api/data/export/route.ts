@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server"
-import { LocalDatabaseAdapter } from "@/lib/data/local-database-adapter"
-
-const adapter = new LocalDatabaseAdapter()
+import { exportAllCollections } from "@/lib/server/db/relational-data-service"
 
 export async function GET() {
-  return new NextResponse(await adapter.export(), {
+  return new NextResponse(await exportAllCollections(), {
     headers: {
       "Content-Type": "application/json",
     },

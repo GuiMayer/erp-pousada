@@ -7,6 +7,13 @@
 
 import type { IDataRepository, IStorageAdapter, EntityMetadata } from "../types"
 
+type ItemEndpointAdapter = IStorageAdapter & {
+  createItem<T>(key: string, value: T): Promise<T>
+  updateItem<T>(key: string, id: string | number, value: Partial<T>): Promise<T>
+  deleteItem(key: string, id: string | number): Promise<void>
+  hasItemEndpoints?(): boolean
+}
+
 /**
  * Event listener for repository changes
  */
@@ -61,6 +68,19 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
    */
   protected async saveToStorage(items: T[]): Promise<void> {
     await this.adapter.set(this.getStorageKey(), items)
+  }
+
+  protected getItemAdapter(): ItemEndpointAdapter | null {
+    const adapter = this.adapter as Partial<ItemEndpointAdapter>
+    if (typeof adapter.createItem !== "function" || typeof adapter.updateItem !== "function" || typeof adapter.deleteItem !== "function") {
+      return null
+    }
+
+    if (typeof adapter.hasItemEndpoints === "function" && !adapter.hasItemEndpoints()) {
+      return null
+    }
+
+    return this.adapter as ItemEndpointAdapter
   }
 
   /**
@@ -191,6 +211,14 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
       id
     } as T)
 
+    const itemAdapter = this.getItemAdapter()
+    if (itemAdapter) {
+      const created = await itemAdapter.createItem<T>(this.getStorageKey(), newItem)
+      this.invalidateCache()
+      this.emit({ action: 'create', id: created.id, data: created })
+      return created
+    }
+
     // Add to items
     items.push(newItem)
 
@@ -216,6 +244,14 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
     const validation = this.validate(data)
     if (!validation.valid) {
       throw new Error(`Validation failed: ${validation.error}`)
+    }
+
+    const itemAdapter = this.getItemAdapter()
+    if (itemAdapter) {
+      const updated = await itemAdapter.updateItem<T>(this.getStorageKey(), id, data)
+      this.invalidateCache()
+      this.emit({ action: 'update', id, data: updated })
+      return updated
     }
 
     // Load existing items
@@ -254,6 +290,14 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
    * Delete item
    */
   async delete(id: string | number): Promise<void> {
+    const itemAdapter = this.getItemAdapter()
+    if (itemAdapter) {
+      await itemAdapter.deleteItem(this.getStorageKey(), id)
+      this.invalidateCache()
+      this.emit({ action: 'delete', id })
+      return
+    }
+
     // Load existing items
     const items = await this.loadFromStorage()
 

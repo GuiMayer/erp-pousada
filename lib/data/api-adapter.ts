@@ -37,6 +37,10 @@ export class ApiAdapter implements IStorageAdapter {
     this.timeout = options.timeout || 5000
   }
 
+  hasItemEndpoints(): boolean {
+    return true
+  }
+
   /**
    * Get data from API
    */
@@ -80,6 +84,48 @@ export class ApiAdapter implements IStorageAdapter {
     } catch (error) {
       console.error(`[ApiAdapter] Error setting ${key}:`, error)
       throw error
+    }
+  }
+
+  async createItem<T>(key: string, value: T): Promise<T> {
+    const response = await fetch(`${this.baseUrl}/${encodeURIComponent(key)}/items`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(value),
+      signal: AbortSignal.timeout(this.timeout)
+    })
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    }
+
+    return await response.json()
+  }
+
+  async updateItem<T>(key: string, id: string | number, value: Partial<T>): Promise<T> {
+    const response = await fetch(`${this.baseUrl}/${encodeURIComponent(key)}/items/${encodeURIComponent(String(id))}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: JSON.stringify(value),
+      signal: AbortSignal.timeout(this.timeout)
+    })
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    }
+
+    return await response.json()
+  }
+
+  async deleteItem(key: string, id: string | number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${encodeURIComponent(key)}/items/${encodeURIComponent(String(id))}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      signal: AbortSignal.timeout(this.timeout)
+    })
+
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
     }
   }
 

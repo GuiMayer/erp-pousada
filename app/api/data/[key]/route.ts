@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { LocalDatabaseAdapter } from "@/lib/data/local-database-adapter"
+import { getCollection, removeCollection, replaceCollection } from "@/lib/server/db/relational-data-service"
 
 type RouteContext = {
   params: Promise<{ key: string }>
 }
 
-const adapter = new LocalDatabaseAdapter()
-
 export async function GET(_request: NextRequest, context: RouteContext) {
   const { key } = await context.params
-  const data = await adapter.get(decodeURIComponent(key))
+  const data = await getCollection(decodeURIComponent(key))
 
   if (data === null) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -22,7 +20,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   const { key } = await context.params
   const data = await request.json()
 
-  await adapter.set(decodeURIComponent(key), data)
+  await replaceCollection(decodeURIComponent(key), data)
 
   return NextResponse.json({ success: true })
 }
@@ -30,7 +28,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   const { key } = await context.params
 
-  await adapter.remove(decodeURIComponent(key))
+  await removeCollection(decodeURIComponent(key))
 
   return NextResponse.json({ success: true })
 }
