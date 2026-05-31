@@ -3,15 +3,16 @@
 import { TableCard } from "./table-card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { UtensilsCrossed } from "lucide-react"
-import type { RestaurantTable } from "@/lib/store"
+import type { RestaurantOrder, RestaurantTable } from "@/lib/store"
 
 interface TableGridProps {
   tables: RestaurantTable[]
+  orders: RestaurantOrder[]
   onTableClick: (table: RestaurantTable) => void
   getOccupiedTime: (table: RestaurantTable) => number
 }
 
-export function TableGrid({ tables, onTableClick, getOccupiedTime }: TableGridProps) {
+export function TableGrid({ tables, orders, onTableClick, getOccupiedTime }: TableGridProps) {
   if (tables.length === 0) {
     return (
       <EmptyState
@@ -28,6 +29,7 @@ export function TableGrid({ tables, onTableClick, getOccupiedTime }: TableGridPr
         <TableCard
           key={table.id}
           table={table}
+          activeOrder={orders.find(order => order.id === table.currentOrderId && order.status === "aberta")}
           occupiedTime={getOccupiedTime(table)}
           onClick={() => onTableClick(table)}
         />

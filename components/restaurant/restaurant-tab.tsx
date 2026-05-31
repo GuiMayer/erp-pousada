@@ -247,6 +247,7 @@ export function RestaurantTab() {
       {/* Tables Grid */}
       <TableGrid
         tables={tables}
+        orders={restaurantOrders}
         onTableClick={handleTableClick}
         getOccupiedTime={getOccupiedTime}
       />

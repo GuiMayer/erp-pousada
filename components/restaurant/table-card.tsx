@@ -1,13 +1,15 @@
 "use client"
 
-import { Clock, Users } from "lucide-react"
+import { Clock, Receipt, Users } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import type { RestaurantTable } from "@/lib/store"
+import type { RestaurantOrder, RestaurantTable } from "@/lib/store"
 import { cn } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils/formatters"
 
 interface TableCardProps {
   table: RestaurantTable
+  activeOrder?: RestaurantOrder
   occupiedTime?: number
   onClick?: () => void
 }
@@ -30,7 +32,7 @@ const statusConfig = {
   },
 }
 
-export function TableCard({ table, occupiedTime, onClick }: TableCardProps) {
+export function TableCard({ table, activeOrder, occupiedTime, onClick }: TableCardProps) {
   const config = statusConfig[table.status]
   const isOccupied = table.status === "ocupada"
   const isLongOccupied = occupiedTime && occupiedTime > 120
@@ -59,11 +61,25 @@ export function TableCard({ table, occupiedTime, onClick }: TableCardProps) {
         </div>
 
         {isOccupied && occupiedTime !== undefined && (
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className={cn("h-4 w-4", isLongOccupied && "text-red-500")} />
-            <span className={cn(isLongOccupied && "text-red-500 font-medium")}>
-              {Math.floor(occupiedTime / 60)}h {occupiedTime % 60}min
-            </span>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Clock className={cn("h-4 w-4", isLongOccupied && "text-red-500")} />
+              <span className={cn(isLongOccupied && "text-red-500 font-medium")}>
+                {Math.floor(occupiedTime / 60)}h {occupiedTime % 60}min
+              </span>
+            </div>
+            {activeOrder && (
+              <div className="rounded-md bg-muted p-2 text-xs">
+                <div className="mb-1 flex items-center gap-1 font-medium">
+                  <Receipt className="h-3 w-3" />
+                  <span>{activeOrder.id}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{activeOrder.items.length} item(ns)</span>
+                  <span>{formatCurrency(activeOrder.total)}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
