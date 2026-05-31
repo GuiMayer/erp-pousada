@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription,
@@ -33,7 +31,6 @@ export function ManageTablesModal({ open, onClose }: Props) {
   const [mode, setMode] = useState<"list" | "add" | "edit">("list")
   const [editingTable, setEditingTable] = useState<RestaurantTable | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<RestaurantTable | null>(null)
-  const [hardDelete, setHardDelete] = useState(false)
 
   // Form fields
   const [tableNumber, setTableNumber] = useState("")
@@ -96,16 +93,16 @@ export function ManageTablesModal({ open, onClose }: Props) {
     setMode("list")
   }
 
-  function handleDelete(table: RestaurantTable, hard: boolean) {
-    if (hard) {
-      removeRestaurantTable(table.id)
-      addAuditEntry({ user: username || "sistema", action: "Mesa removida", reference: `Mesa ${table.number}` })
-    } else {
-      updateRestaurantTable(table.id, { status: "livre" })
-      addAuditEntry({ user: username || "sistema", action: "Mesa desativada", reference: `Mesa ${table.number}` })
+  function handleDelete(table: RestaurantTable) {
+    if (table.status === "ocupada") {
+      setFormError("Nao e possivel remover uma mesa ocupada.")
+      setDeleteConfirm(null)
+      return
     }
+
+    removeRestaurantTable(table.id)
+    addAuditEntry({ user: username || "sistema", action: "Mesa removida", reference: `Mesa ${table.number}` })
     setDeleteConfirm(null)
-    setHardDelete(false)
   }
 
   function openEdit(table: RestaurantTable) {
@@ -264,31 +261,21 @@ export function ManageTablesModal({ open, onClose }: Props) {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteConfirm} onOpenChange={v => { if (!v) { setDeleteConfirm(null); setHardDelete(false) } }}>
+      <AlertDialog open={!!deleteConfirm} onOpenChange={v => { if (!v) setDeleteConfirm(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusao</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir a mesa {deleteConfirm?.number}?
+              Tem certeza que deseja remover a mesa {deleteConfirm?.number}? Mesas ocupadas nao podem ser removidas.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex items-center gap-2 py-2">
-            <Checkbox
-              id="hardDelete"
-              checked={hardDelete}
-              onCheckedChange={(checked) => setHardDelete(checked === true)}
-            />
-            <Label htmlFor="hardDelete" className="text-sm cursor-pointer">
-              Excluir permanentemente (nao pode ser desfeito)
-            </Label>
-          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setHardDelete(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteConfirm && handleDelete(deleteConfirm, hardDelete)}
+              onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Excluir
+              Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
