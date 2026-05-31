@@ -16,7 +16,15 @@ import type { AccountReceivable } from "@/lib/store"
 import { CustomerCombobox } from "@/components/customer-combobox"
 
 export function AccountsReceivableManagement() {
-  const { accountsReceivable, customers, addAccountReceivable, updateAccountReceivable, removeAccountReceivable } = useApp()
+  const {
+    accountsReceivable,
+    customers,
+    transactions,
+    addAccountReceivable,
+    updateAccountReceivable,
+    removeAccountReceivable,
+    addTransaction,
+  } = useApp()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingAR, setEditingAR] = useState<AccountReceivable | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>("all")
@@ -136,9 +144,25 @@ export function AccountsReceivableManagement() {
   }
 
   const handleMarkAsPaid = async (ar: AccountReceivable) => {
+    if (ar.status === "pago") return
+
+    const paymentDate = new Date().toISOString().split("T")[0]
+
     await updateAccountReceivable(ar.id, {
       status: "pago",
-      paymentDate: new Date().toISOString().split("T")[0]
+      paymentDate,
+    })
+
+    await addTransaction({
+      id: `T${String(transactions.length + 1).padStart(3, "0")}`,
+      date: paymentDate,
+      description: `Recebimento: ${ar.description}`,
+      value: ar.value,
+      type: "receita",
+      refId: ar.id,
+      category: ar.category || "Contas a Receber",
+      responsible: "sistema",
+      notes: ar.customerName,
     })
   }
 
