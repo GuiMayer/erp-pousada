@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useConsumption } from '@/lib/hooks/useConsumption'
 import type { ConsumptionItem } from '@/lib/store'

@@ -1,64 +1,34 @@
-/**
- * Room Consumption Repository
- * 
- * Manages room consumption items (minibar, room service, etc.).
- */
-
-import { BaseRepository } from "./base-repository"
 import type { RoomConsumption } from "../../store"
-import type { IStorageAdapter } from "../types"
-
-export class ConsumptionRepository extends BaseRepository<RoomConsumption> {
-  constructor(adapter: IStorageAdapter, userId?: string) {
-    super(adapter, "consumptions", { cacheEnabled: true, userId })
+import type { IDataRepository, IStorageAdapter } from "../types"
+export class ConsumptionRepository implements IDataRepository<RoomConsumption> {
+  constructor(private adapter: IStorageAdapter, _userId?: string) {}
+  async getAll() { return await this.adapter.get<RoomConsumption[]>("consumptions") ?? [] }
+  async count() { return (await this.getAll()).length }
+  async getById(id: string | number) { return this.getByRoomId(Number(id)) }
+  async getByRoomId(id: number) { return (await this.getAll()).find(c => c.roomId === id) ?? null }
+  async create(item: RoomConsumption) {
+    const adapter = this.adapter as IStorageAdapter & { createItem?: <T>(key: string, item: T) => Promise<T> }
+    if (adapter.createItem) return adapter.createItem("consumptions", item)
+    const all = await this.getAll()
+    if (all.some(c => c.roomId === item.roomId)) throw new Error("Consumo já cadastrado")
+    await this.adapter.set("consumptions", [...all, item]); return item
   }
-
-  protected generateId(items: RoomConsumption[]): number {
-    // Use roomId as the ID since each room has only one consumption record
-    return 0 // This will be overridden by roomId
+  async update(id: string | number, data: Partial<RoomConsumption>) {
+    const current = await this.getById(id)
+    if (!current) throw new Error("Consumo não encontrado")
+    const adapter = this.adapter as IStorageAdapter & { updateItem?: <T>(key: string, id: string | number, data: Partial<T>) => Promise<T> }
+    if (adapter.updateItem) return adapter.updateItem<RoomConsumption>("consumptions", id, data)
+    const updated = { ...current, ...data, roomId: Number(id) }
+    await this.adapter.set("consumptions", (await this.getAll()).map(c => c.roomId === Number(id) ? updated : c)); return updated
   }
-
-  /**
-   * Get consumption by room ID
-   */
-  async getByRoomId(roomId: number): Promise<RoomConsumption | null> {
-    const consumptions = await this.getAll()
-    return consumptions.find(c => c.roomId === roomId) ?? null
+  async delete(id: string | number) {
+    const adapter = this.adapter as IStorageAdapter & { deleteItem?: (key: string, id: string | number) => Promise<void> }
+    if (adapter.deleteItem) return adapter.deleteItem("consumptions", id)
+    await this.adapter.set("consumptions", (await this.getAll()).filter(c => c.roomId !== Number(id)))
   }
-
-  /**
-   * Create or update consumption for a room
-   */
-  async upsertByRoomId(consumption: RoomConsumption): Promise<RoomConsumption> {
-    const existing = await this.getByRoomId(consumption.roomId)
-    
-    if (existing) {
-      return this.update(existing.roomId, consumption)
-    } else {
-      // Override the ID with roomId
-      return this.create({ ...consumption, id: consumption.roomId } as any)
-    }
-  }
-
-  /**
-   * Clear consumption for a room
-   */
-  async clearByRoomId(roomId: number): Promise<void> {
-    const existing = await this.getByRoomId(roomId)
-    if (existing) {
-      await this.delete(roomId)
-    }
-  }
-
-  /**
-   * Get total consumption value for a room
-   */
-  async getTotalByRoomId(roomId: number): Promise<number> {
-    const consumption = await this.getByRoomId(roomId)
-    if (!consumption) return 0
-    
-    return consumption.items.reduce((sum, item) => 
-      sum + (item.unitPrice * item.quantity), 0
-    )
-  }
+  async clearByRoomId(id: number) { if (await this.getByRoomId(id)) await this.delete(id) }
+  async upsertByRoomId(item: RoomConsumption) { return await this.getByRoomId(item.roomId) ? this.update(item.roomId, item) : this.create(item) }
+  async query(filter: Partial<RoomConsumption>) { return (await this.getAll()).filter(c => Object.entries(filter).every(([k,v]) => c[k as keyof RoomConsumption] === v)) }
+  async clear() { await this.adapter.set("consumptions", []) }
+  async getTotalByRoomId(id: number) { return (await this.getByRoomId(id))?.items.reduce((sum,item) => sum + item.unitPrice * item.quantity,0) ?? 0 }
 }

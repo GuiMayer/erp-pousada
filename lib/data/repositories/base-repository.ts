@@ -1,6 +1,6 @@
 /**
  * Base Repository
- * 
+ *
  * Abstract base class that implements common CRUD operations for all repositories.
  * Handles caching, validation, event emission, and metadata management.
  */
@@ -44,7 +44,7 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
   ) {
     this.adapter = adapter
     this.entityName = entityName
-    this.cacheEnabled = options.cacheEnabled ?? true
+    this.cacheEnabled = typeof (adapter as { createItem?: unknown }).createItem === "function" ? false : options.cacheEnabled ?? true
     this.userId = options.userId
   }
 
@@ -95,7 +95,7 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
    */
   protected updateCache(items: T[]): void {
     if (!this.cacheEnabled) return
-    
+
     this.cache.clear()
     for (const item of items) {
       this.cache.set(item.id, item)
@@ -203,7 +203,7 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
     const items = await this.loadFromStorage()
 
     // Generate ID
-    const id = this.generateId(items)
+    const id = (item as Partial<T>).id || this.generateId(items)
 
     // Create new item with ID and metadata
     const newItem = this.addMetadata({
@@ -241,7 +241,9 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
    */
   async update(id: string | number, data: Partial<T>): Promise<T> {
     // Validate
-    const validation = this.validate(data)
+    const existing = await this.getById(id)
+    if (!existing) throw new Error(`Item with id ${id} not found`)
+    const validation = this.validate({ ...existing, ...data })
     if (!validation.valid) {
       throw new Error(`Validation failed: ${validation.error}`)
     }

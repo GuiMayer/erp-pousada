@@ -17,11 +17,13 @@ if [ ! -f "$BACKUP_FILE" ]; then
   exit 1
 fi
 
-PGPASSWORD="${POSTGRES_PASSWORD:-pousada}" pg_restore \
+PGPASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}" pg_restore \
   -h "$POSTGRES_HOST" \
   -p "$POSTGRES_PORT" \
   -U "$POSTGRES_USER" \
   -d "$POSTGRES_DB" \
+  --exit-on-error \
+  --single-transaction \
   --clean \
   --if-exists \
   --no-owner \

@@ -1,5 +1,7 @@
 "use client"
 
+import { getDataConfig } from "@/lib/data/config"
+
 import { useState } from "react"
 import { X, Plus, Minus, Trash2, DollarSign, Percent } from "lucide-react"
 import {
@@ -50,7 +52,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
   const orderId = table?.currentOrderId
   const { order, totals, addItem, removeItem, updateItemQuantity, applyDiscount, closeOrder, cancelOrder } = useOrderManagement(orderId)
   const { processStockForRestaurantOrder, rollbackStock } = useStockIntegration()
-  
+
   const [selectedProduct, setSelectedProduct] = useState<string>("")
   const [quantity, setQuantity] = useState(1)
   const [discountPercent, setDiscountPercent] = useState(0)
@@ -83,14 +85,14 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
 
   const handleCloseOrder = async () => {
     if (!table || !orderId || !paymentMethod || !amountPaid) return
-    
+
     const paid = parseFloat(amountPaid)
     if (isNaN(paid) || paid < totals.total) return
 
     if (!order) return
 
     const operator = username || "sistema"
-    const stockResult = await processStockForRestaurantOrder(
+    const stockResult = getDataConfig().adapter === "database" ? { success: true, movementIds: [] } : await processStockForRestaurantOrder(
       order.items,
       operator,
       `Comanda restaurante ${order.id} - Mesa ${table.number}`

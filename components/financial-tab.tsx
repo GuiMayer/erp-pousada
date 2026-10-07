@@ -1,5 +1,8 @@
 "use client"
 
+import { getDataConfig } from "@/lib/data/config"
+import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
+
 import { useState, useMemo } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -53,8 +56,8 @@ type DueFilter = "todos" | "pendentes" | "pagos" | "vencidos"
 
 export function FinancialTab() {
   const {
-    expenses, transactions, categories, cashCloses,
-    discountCeiling, addExpense, updateExpense, markInstallmentAsPaid, addTransaction,
+    expenses, transactions, categories, cashCloses, reservations, updateReservation,
+    runOperation, discountCeiling, addExpense, updateExpense, markInstallmentAsPaid, addTransaction,
     addAuditEntry, addCategory, addCashClose, setDiscountCeiling,
   } = useApp()
   const { isSupervisor, username } = useAuth()
@@ -81,10 +84,13 @@ export function FinancialTab() {
   const [discountValue, setDiscountValue] = useState("")
   const [discountUnlockPass, setDiscountUnlockPass] = useState("")
   const [discountUnlocked, setDiscountUnlocked] = useState(false)
+  const [discountReservationId, setDiscountReservationId] = useState("")
+  const [discountError, setDiscountError] = useState("")
 
   // Cash close
   const [showCashClose, setShowCashClose] = useState(false)
   const [cashPhysical, setCashPhysical] = useState("")
+  const [cashOpening, setCashOpening] = useState("0")
   const [cashConfirmed, setCashConfirmed] = useState(false)
 
   // Due filter (toggle group)
@@ -106,8 +112,8 @@ export function FinancialTab() {
   const netResult = totalReceitas - totalDespesas - totalEstornos
 
   const todayISO = new Date().toISOString().split("T")[0]
-  const expectedCash = transactions
-    .filter(t => t.date === todayISO)
+  const expectedCash = Number(cashOpening || 0) + transactions
+    .filter(t => t.date.split("T")[0] === todayISO && t.paymentMethod?.toLowerCase() === "dinheiro")
     .reduce((a, t) => a + (t.type === "receita" ? t.value : -t.value), 0)
 
   // Expand expenses with installments into individual rows
@@ -126,7 +132,7 @@ export function FinancialTab() {
 
   const expandedExpenses = useMemo(() => {
     const rows: ExpenseRow[] = []
-    
+
     expenses.forEach(expense => {
       if (expense.installments && expense.installments.length > 0) {
         // Expand each installment as a separate row
@@ -157,7 +163,7 @@ export function FinancialTab() {
         })
       }
     })
-    
+
     return rows
   }, [expenses])
 
@@ -193,15 +199,15 @@ export function FinancialTab() {
     return result.sort((a, b) => b.date.localeCompare(a.date))
   }, [transactions, dateFrom, dateTo, txTypeFilter])
 
-  function handleCreateExpense() {
+  async function handleCreateExpense() {
     if (!expDesc || !expCategory || !expValue || !expDueDate) return
-    
+
     const totalValue = Number(expValue)
     const numInstallments = Number(expInstallments)
     const intervalDays = Number(expInstallmentInterval)
-    
+
     // Generate installments if more than 1
-    const installments = numInstallments > 1 
+    const installments = numInstallments > 1
       ? generateInstallments({
           totalValue,
           numberOfInstallments: numInstallments,
@@ -209,7 +215,7 @@ export function FinancialTab() {
           intervalDays
         })
       : undefined
-    
+
     const e = {
       id: `E${String(expenses.length + 1).padStart(3, "0")}`,
       description: expDesc,
@@ -225,21 +231,26 @@ export function FinancialTab() {
     setShowNewExpense(false)
   }
 
-  function handleMarkPaid(expenseRow: ExpenseRow) {
+  async function handleMarkPaid(expenseRow: ExpenseRow) {
     if (expenseRow.paid) return
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("pay-expense", { expenseId: expenseRow.expenseId, installmentId: expenseRow.installmentId }) }
+      catch (error) { alert(error instanceof Error ? error.message : "Pagamento não concluído") }
+      return
+    }
 
     if (expenseRow.installmentId) {
       // Mark individual installment as paid
-      markInstallmentAsPaid(expenseRow.expenseId, expenseRow.installmentId)
+      await markInstallmentAsPaid(expenseRow.expenseId, expenseRow.installmentId)
     } else {
       // Mark entire expense as paid (legacy single expense)
-      updateExpense(expenseRow.expenseId, {
+      await updateExpense(expenseRow.expenseId, {
         paid: true,
         paymentDate: todayISO,
       })
     }
 
-    addTransaction({
+    await addTransaction({
       id: `T${String(transactions.length + 1).padStart(3, "0")}`,
       date: todayISO,
       description: expenseRow.installmentNumber
@@ -255,20 +266,25 @@ export function FinancialTab() {
     addAuditEntry({
       user: username || "sistema",
       action: "Pagamento registrado",
-      reference: expenseRow.installmentNumber 
+      reference: expenseRow.installmentNumber
         ? `${expenseRow.expenseId} - ${expenseRow.description} (${expenseRow.installmentNumber}/${expenseRow.totalInstallments})`
         : `${expenseRow.expenseId} - ${expenseRow.description}`,
     })
   }
 
-  function handleRefund() {
+  async function handleRefund() {
     if (!refundModal) return
-    if (supervisorPass !== "admin") {
+    if (!await validateSupervisorPasswordAsync(supervisorPass)) {
       setRefundError("Senha de supervisor incorreta")
       return
     }
-    addTransaction({
-      id: `T${String(transactions.length + 1).padStart(3, "0")}`,
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("refund-transaction", { transactionId: refundModal.id }); setRefundModal(null); setSupervisorPass("") }
+      catch (error) { setRefundError(error instanceof Error ? error.message : "Estorno não concluído") }
+      return
+    }
+    await addTransaction({
+      id: crypto.randomUUID(),
       date: new Date().toISOString().split("T")[0],
       description: `Estorno: ${refundModal.description}`,
       value: Math.abs(refundModal.value),
@@ -293,32 +309,40 @@ export function FinancialTab() {
     setShowNewCategory(false)
   }
 
-  function handleDiscountCheck() {
-    const pct = discountType === "percent" ? Number(discountValue) : 0
-    if (pct > discountCeiling && discountUnlockPass !== "admin") return
-    addAuditEntry({
-      user: username || "sistema",
-      action: `Desconto aplicado (${discountValue}${discountType === "percent" ? "%" : " R$"})`,
-      reference: "Fechamento de reserva",
-    })
-    setShowDiscountModal(false)
-    setDiscountValue("")
-    setDiscountUnlockPass("")
-    setDiscountUnlocked(false)
+  async function handleDiscountCheck() {
+    const reservation = reservations.find(r => r.id === discountReservationId)
+    if (!reservation) return
+    try {
+      const value = Number(discountValue)
+      if (!Number.isFinite(value) || value <= 0 || discountType === "percent" && value > 100) throw new Error("Desconto inválido")
+      if (getDataConfig().adapter === "database") await runOperation("reservation-discount", { reservationId: reservation.id, type: discountType, value })
+      else {
+        const amount = discountType === "percent" ? reservation.totalValue * value / 100 : value
+        if (amount > reservation.totalValue) throw new Error("Desconto excede o valor da reserva")
+        await updateReservation(reservation.id, { totalValue: reservation.totalValue - amount })
+      }
+      setShowDiscountModal(false); setDiscountValue(""); setDiscountUnlockPass(""); setDiscountUnlocked(false); setDiscountError("")
+    } catch (error) { setDiscountError(error instanceof Error ? error.message : "Desconto não aplicado") }
   }
 
-  function handleCashConfirm() {
+  async function handleCashConfirm() {
     const physical = Number(cashPhysical)
-    const divergence = physical - Math.abs(expectedCash)
+    if (!Number.isFinite(physical) || physical < 0) return
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("cash-close", { physicalValue: physical, openingValue: Number(cashOpening || 0) }); setCashConfirmed(true) }
+      catch (error) { alert(error instanceof Error ? error.message : "Fechamento não registrado") }
+      return
+    }
+    const divergence = physical - expectedCash
     const close = {
       id: `CC${String(cashCloses.length + 1).padStart(3, "0")}`,
       date: new Date().toISOString(),
       operator: username || "operador",
-      physicalValue: physical,
-      expectedValue: Math.abs(expectedCash),
+      openingValue: Number(cashOpening || 0), physicalValue: physical,
+      expectedValue: expectedCash,
       divergence,
     }
-    addCashClose(close)
+    await addCashClose(close)
     addAuditEntry({
       user: username || "sistema",
       action: `Diferenca de caixa: ${formatCurrency(divergence)}`,
@@ -328,7 +352,7 @@ export function FinancialTab() {
   }
 
   const discountNeedsSupervisor =
-    discountType === "percent" && Number(discountValue) > discountCeiling
+    !isSupervisor && (discountType === "percent" ? Number(discountValue) : Number(discountValue) / (reservations.find(r => r.id === discountReservationId)?.totalValue || 1) * 100) > discountCeiling
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -632,6 +656,7 @@ export function FinancialTab() {
                   </div>
                 ) : !cashConfirmed ? (
                   <div className="flex flex-col gap-4 max-w-sm mx-auto">
+                    <div className="flex flex-col gap-1.5"><Label>Saldo inicial em dinheiro (R$)</Label><Input type="number" min="0" value={cashOpening} onChange={e => setCashOpening(e.target.value)} /></div>
                     <div className="flex flex-col gap-1.5">
                       <Label>Valor Fisico em Caixa (R$)</Label>
                       <Input type="number" placeholder="0,00" value={cashPhysical} onChange={e => setCashPhysical(e.target.value)} autoFocus />
@@ -650,12 +675,12 @@ export function FinancialTab() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Valor esperado:</span>
-                        <span className="font-semibold">{formatCurrency(Math.abs(expectedCash))}</span>
+                        <span className="font-semibold">{formatCurrency(expectedCash)}</span>
                       </div>
                       <div className="border-t border-border mt-1 pt-2 flex justify-between text-sm">
                         <span className="text-muted-foreground">Divergencia:</span>
-                        <span className={`font-bold ${Number(cashPhysical) - Math.abs(expectedCash) >= 0 ? "text-success" : "text-destructive"}`}>
-                          {formatCurrency(Number(cashPhysical) - Math.abs(expectedCash))}
+                        <span className={`font-bold ${Number(cashPhysical) - expectedCash >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(Number(cashPhysical) - expectedCash)}
                         </span>
                       </div>
                     </div>
@@ -794,12 +819,12 @@ export function FinancialTab() {
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label>Número de Parcelas</Label>
-                <Input 
-                  type="number" 
-                  min="1" 
-                  value={expInstallments} 
-                  onChange={e => setExpInstallments(e.target.value)} 
-                  placeholder="1" 
+                <Input
+                  type="number"
+                  min="1"
+                  value={expInstallments}
+                  onChange={e => setExpInstallments(e.target.value)}
+                  placeholder="1"
                 />
                 {Number(expInstallments) > 1 && expValue && (
                   <p className="text-xs text-muted-foreground">
@@ -809,11 +834,11 @@ export function FinancialTab() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Intervalo (dias)</Label>
-                <Input 
-                  type="number" 
-                  min="1" 
-                  value={expInstallmentInterval} 
-                  onChange={e => setExpInstallmentInterval(e.target.value)} 
+                <Input
+                  type="number"
+                  min="1"
+                  value={expInstallmentInterval}
+                  onChange={e => setExpInstallmentInterval(e.target.value)}
                   placeholder="30"
                   disabled={Number(expInstallments) <= 1}
                 />
@@ -876,9 +901,15 @@ export function FinancialTab() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Aplicar Desconto</DialogTitle>
-            <DialogDescription>Teto do operador: {discountCeiling}%</DialogDescription>
+            <DialogDescription>Selecione a reserva. Teto do operador: {discountCeiling}%.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
+            <Label>Reserva</Label>
+            <select className="rounded-md border bg-background p-2" value={discountReservationId} onChange={e => { setDiscountReservationId(e.target.value); setDiscountUnlocked(false) }}>
+              <option value="">Selecione uma reserva</option>
+              {reservations.filter(r => r.status === "confirmada" || r.status === "checkin").map(r => <option key={r.id} value={r.id}>{r.guestName} — Quarto {r.roomNumber} — {formatCurrency(r.totalValue)}</option>)}
+            </select>
+            {discountError && <p role="alert" className="text-sm text-destructive">{discountError}</p>}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label>Tipo</Label>
@@ -907,14 +938,14 @@ export function FinancialTab() {
                 </div>
                 <div className="flex gap-2">
                   <Input type="password" value={discountUnlockPass} onChange={e => setDiscountUnlockPass(e.target.value)} placeholder="Senha do supervisor" />
-                  <Button size="sm" onClick={() => { if (discountUnlockPass === "admin") setDiscountUnlocked(true) }}>Liberar</Button>
+                  <Button size="sm" onClick={async () => { if (await validateSupervisorPasswordAsync(discountUnlockPass)) setDiscountUnlocked(true) }}>Liberar</Button>
                 </div>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDiscountModal(false)}>Cancelar</Button>
-            <Button disabled={!discountValue || (discountNeedsSupervisor && !discountUnlocked)} onClick={handleDiscountCheck}>Aplicar</Button>
+            <Button disabled={!discountReservationId || !discountValue || (discountNeedsSupervisor && !discountUnlocked)} onClick={handleDiscountCheck}>Aplicar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

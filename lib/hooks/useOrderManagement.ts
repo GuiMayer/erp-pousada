@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from "react"
+import { getDataConfig } from "../data/config"
+import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { RestaurantOrder, RestaurantOrderItem, POSProduct } from "../store"
 import { generateOrderItemId } from "../utils/id-generators"
@@ -20,20 +21,21 @@ function calculateTotals(items: RestaurantOrderItem[], discountPercent: number) 
  */
 export function useOrderManagement(orderId?: string) {
   const {
-    restaurantOrders,
+    runOperation, restaurantOrders,
     updateRestaurantOrder,
     addTransaction,
     addAuditEntry,
     getCategoryName,
   } = useApp()
 
-  const [discount, setDiscount] = useState(0)
 
   // Get current order
   const order = useMemo(() => {
     if (!orderId) return null
     return restaurantOrders.find(o => o.id === orderId) || null
   }, [restaurantOrders, orderId])
+
+  const discount = order && order.subtotal > 0 ? (order.discount / order.subtotal) * 100 : 0
 
   // Calculate order totals
   const totals = useMemo(() => {
@@ -75,7 +77,7 @@ export function useOrderManagement(orderId?: string) {
   }, [order, orderId, discount, updateRestaurantOrder])
 
   // Update item quantity
-  const updateItemQuantity = useCallback((itemId: string, quantity: number) => {
+  const updateItemQuantity = useCallback(async (itemId: string, quantity: number) => {
     if (!order || !orderId || order.status !== "aberta") return
 
     const updatedItems = order.items.map(item => {
@@ -89,17 +91,16 @@ export function useOrderManagement(orderId?: string) {
       return item
     })
 
-    updateRestaurantOrder(orderId, {
+    await updateRestaurantOrder(orderId, {
       items: updatedItems,
       ...calculateTotals(updatedItems, discount),
     })
   }, [order, orderId, discount, updateRestaurantOrder])
 
   // Apply discount to order
-  const applyDiscount = useCallback((discountPercent: number) => {
-    setDiscount(discountPercent)
+  const applyDiscount = useCallback(async (discountPercent: number) => {
     if (order && orderId && order.status === "aberta") {
-      updateRestaurantOrder(orderId, calculateTotals(order.items, discountPercent))
+      await updateRestaurantOrder(orderId, { items: order.items, ...calculateTotals(order.items, discountPercent) })
     }
   }, [order, orderId, updateRestaurantOrder])
 
@@ -118,6 +119,10 @@ export function useOrderManagement(orderId?: string) {
       return { success: false, error: "Valor pago insuficiente" }
     }
 
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("close-order", { orderId, paymentMethod, amountPaid, customer, discountPercent: discount }); return { success: true } }
+      catch (error) { return { success: false, error: error instanceof Error ? error.message : "Falha ao fechar comanda" } }
+    }
     const change = amountPaid - totals.total
 
     await updateRestaurantOrder(orderId, {
@@ -151,7 +156,7 @@ export function useOrderManagement(orderId?: string) {
     })
 
     return { success: true }
-  }, [order, orderId, totals, updateRestaurantOrder, addTransaction, addAuditEntry])
+  }, [discount, runOperation, order, orderId, totals, updateRestaurantOrder, addTransaction, addAuditEntry])
 
   // Cancel order
   const cancelOrder = useCallback(async (
@@ -164,6 +169,10 @@ export function useOrderManagement(orderId?: string) {
     if (order.status !== "aberta") return { success: false, error: "Comanda nao esta aberta" }
     if (!trimmedReason) return { success: false, error: "Informe o motivo do cancelamento" }
 
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("cancel-order", { orderId, reason: trimmedReason }); return { success: true } }
+      catch (error) { return { success: false, error: error instanceof Error ? error.message : "Falha ao cancelar comanda" } }
+    }
     await updateRestaurantOrder(orderId, {
       status: "cancelada",
       cancelReason: trimmedReason,
@@ -177,7 +186,7 @@ export function useOrderManagement(orderId?: string) {
     })
 
     return { success: true }
-  }, [order, orderId, updateRestaurantOrder, addAuditEntry])
+  }, [runOperation, order, orderId, updateRestaurantOrder, addAuditEntry])
 
   // Get open orders
   const getOpenOrders = useCallback(() => {

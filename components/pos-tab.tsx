@@ -1,5 +1,9 @@
 "use client"
 
+import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
+
+import { getDataConfig } from "@/lib/data/config"
+
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -39,7 +43,6 @@ import {
 } from "lucide-react"
 import { PRODUCT_CATEGORIES, type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
 
-const SUPERVISOR_PASSWORD = process.env.NEXT_PUBLIC_SUPERVISOR_PASSWORD || "1234"
 
 const PAYMENT_METHODS = [
   { id: "dinheiro", label: "Dinheiro", icon: Banknote },
@@ -51,7 +54,7 @@ const PAYMENT_METHODS = [
 export function POSTab() {
   const {
     posProducts, posSales, rooms, stockItems,
-    addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
+    runOperation, addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
     addConsumptionItem, getCategoryName, productCategories,
   } = useApp()
   const { username, role } = useAuth()
@@ -170,7 +173,7 @@ export function POSTab() {
 
     // Use centralized stock validation
     const validation = validateStockItemAvailability(stockItem, newQuantity, product.name)
-    
+
     if (!validation.isValid && validation.error) {
       toast(validation.error)
       return
@@ -209,7 +212,7 @@ export function POSTab() {
       if (delta > 0) {
         const stockItem = stockItems.find(s => s.productId === item.product.id)
         const validation = validateStockItemAvailability(stockItem, newQty, item.product.name)
-        
+
         if (!validation.isValid && validation.error) {
           toast(validation.error)
           return prev
@@ -257,6 +260,7 @@ export function POSTab() {
   }
 
   function openPayment() {
+    operationRef.current = crypto.randomUUID()
     if (cart.length === 0) return
     setPaymentMethod("dinheiro")
     setAmountPaid("")
@@ -269,7 +273,12 @@ export function POSTab() {
     return Math.max(0, paid - total)
   }
 
+  const [submitting, setSubmitting] = useState(false)
+  const operationRef = useRef<string | null>(null)
   async function finalizeSale() {
+    if (submitting) return
+    operationRef.current ??= crypto.randomUUID()
+
     const paid = Number(amountPaid) || total
     if (paymentMethod === "dinheiro" && paid < total) return
 
@@ -294,7 +303,7 @@ export function POSTab() {
     }
 
     const sale: POSSale = {
-      id: `V${String(posSales.length + 1).padStart(3, "0")}`,
+      id: operationRef.current,
       date: new Date().toISOString(),
       items: cart,
       subtotal,
@@ -308,9 +317,21 @@ export function POSTab() {
       status: "concluida",
     }
 
+    if (getDataConfig().adapter === "database") {
+      setSubmitting(true)
+      try {
+        const saved = await runOperation<POSSale>("sale", { sale, globalDiscount }, operationRef.current)
+        setLastSale(saved); setPaymentOpen(false); setCart([]); setGlobalDiscount(0); setCustomer("")
+        operationRef.current = null
+        toast({ title: "Venda finalizada", description: saved.id })
+      } catch (error) { toast({ title: "Venda não concluída", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
+      finally { setSubmitting(false) }
+      return
+    }
+
     // Process stock deduction with rollback capability
     const stockResult = await processStockForSale(cart, username || "sistema")
-    
+
     if (!stockResult.success) {
       toast({
         title: "Erro ao Processar Estoque",
@@ -321,10 +342,10 @@ export function POSTab() {
     }
 
     // Stock processed successfully, now save the sale
-    addPOSSale(sale)
+    await addPOSSale(sale)
 
     // Add transaction
-    addTransaction({
+    await addTransaction({
       id: `T${Date.now()}`,
       date: getTodayISO(),
       description: `Venda PDV ${sale.id}${customer ? ` - ${customer}` : ""}`,
@@ -335,39 +356,15 @@ export function POSTab() {
       responsible: username || "sistema",
     })
 
-    addAuditEntry({
+    await addAuditEntry({
       user: username || "sistema",
       action: `Venda finalizada: ${formatCurrency(total)}`,
       reference: `PDV ${sale.id} - ${sale.paymentMethod}`,
     })
 
-    // If sale is linked to a room, add items to room consumption
-    if (customer) {
-      const roomMatch = customer.match(/^Quarto (\d+)/)
-      if (roomMatch) {
-        const roomNumber = roomMatch[1]
-        const room = rooms.find(r => r.number === roomNumber)
-        if (room) {
-          cart.forEach(cartItem => {
-            addConsumptionItem(room.id, {
-              id: `CI-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              label: cartItem.product.name,
-              unitPrice: cartItem.product.price,
-              quantity: cartItem.quantity,
-            })
-          })
-          addAuditEntry({
-            user: username || "sistema",
-            action: `Consumo lancado via PDV`,
-            reference: `Quarto ${room.number} - ${cart.length} ${cart.length === 1 ? "item" : "itens"}`,
-          })
-        }
-      }
-    }
-
     // Add audit entry for stock movements
     if (stockResult.movementIds && stockResult.movementIds.length > 0) {
-      addAuditEntry({
+      await addAuditEntry({
         user: username || "sistema",
         action: `Baixa automatica de estoque`,
         reference: `PDV ${sale.id} - ${stockResult.movementIds.length} ${stockResult.movementIds.length === 1 ? "item" : "itens"}`,
@@ -394,7 +391,14 @@ export function POSTab() {
 
   async function confirmCancelSale() {
     if (!saleToCancel) return
-    if (role !== "supervisor" && supervisorPassword !== SUPERVISOR_PASSWORD) return
+    if (role !== "supervisor" && !await validateSupervisorPasswordAsync(supervisorPassword)) {
+      toast({ title: "Aprovação recusada", variant: "destructive" }); return
+    }
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("cancel-sale", { saleId: saleToCancel.id, reason: cancelReason }); setSaleToCancel(null); setCancelReason(""); setSupervisorPassword("") }
+      catch (error) { toast({ title: "Estorno não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
+      return
+    }
     if (saleToCancel.status !== "concluida") {
       toast({
         title: "Cancelamento bloqueado",
@@ -425,7 +429,7 @@ export function POSTab() {
     })
 
     // Add reversal transaction
-    addTransaction({
+    await addTransaction({
       id: `T${Date.now()}`,
       date: getTodayISO(),
       description: `Cancelamento Venda ${saleToCancel.id}`,
@@ -436,14 +440,14 @@ export function POSTab() {
       notes: cancelReason,
     })
 
-    addAuditEntry({
+    await addAuditEntry({
       user: username || "sistema",
       action: `Venda cancelada: ${formatCurrency(saleToCancel.total)}`,
       reference: `PDV ${saleToCancel.id} - ${cancelReason}`,
     })
 
     if (stockResult.movementIds && stockResult.movementIds.length > 0) {
-      addAuditEntry({
+      await addAuditEntry({
         user: username || "sistema",
         action: `Estoque restaurado por cancelamento`,
         reference: `PDV ${saleToCancel.id} - ${stockResult.movementIds.length} ${stockResult.movementIds.length === 1 ? "item" : "itens"}`,
@@ -886,7 +890,7 @@ export function POSTab() {
             </Button>
             <Button
               onClick={finalizeSale}
-              disabled={paymentMethod === "dinheiro" && (Number(amountPaid) || 0) < total}
+              disabled={submitting || paymentMethod === "dinheiro" && (Number(amountPaid) || 0) < total}
               className="gap-2"
             >
               <CheckCircle2 className="size-4" />
@@ -1165,7 +1169,7 @@ export function POSTab() {
             <Button
               variant="destructive"
               onClick={confirmCancelSale}
-              disabled={!cancelReason || (role !== "supervisor" && supervisorPassword !== SUPERVISOR_PASSWORD)}
+              disabled={!cancelReason || (role !== "supervisor" && !supervisorPassword)}
             >
               Confirmar Cancelamento
             </Button>

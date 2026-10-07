@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Download, 
-  TrendingUp, 
-  DollarSign, 
-  ShoppingCart, 
+import {
+  Download,
+  TrendingUp,
+  DollarSign,
+  ShoppingCart,
   Users,
   Package,
 } from "lucide-react"
@@ -25,8 +25,8 @@ import { StockAlertsCard } from "./reports/stock-alerts-card"
 import { PeriodSelector } from "./reports/period-selector"
 import { RevenueTrendChart } from "./reports/revenue-trend-chart"
 import { PeriodComparisonCard } from "./reports/period-comparison-card"
-import { 
-  exportDailySummaryToCSV, 
+import {
+  exportDailySummaryToCSV,
   exportTopProductsToCSV,
   exportSalesByCategoryToCSV,
   exportPaymentMethodToCSV,
@@ -41,7 +41,7 @@ export function AnalyticsTab() {
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today')
   const [startDate, setStartDate] = useState(getTodayISO())
   const [endDate, setEndDate] = useState(getTodayISO())
-  
+
   const {
     getDailySummary,
     getSalesByCategory,
@@ -60,7 +60,7 @@ export function AnalyticsTab() {
   const handlePeriodChange = (period: 'today' | 'week' | 'month' | 'custom') => {
     setSelectedPeriod(period)
     const today = new Date()
-    
+
     if (period === 'today') {
       const todayStr = getTodayISO()
       setStartDate(todayStr)
@@ -80,23 +80,23 @@ export function AnalyticsTab() {
 
   // Get data based on selected period
   const isMultiDay = selectedPeriod !== 'today' || startDate !== endDate
-  
-  const dailySummary = isMultiDay 
+
+  const dailySummary = isMultiDay
     ? getPeriodSummary(startDate, endDate)
     : getDailySummary(startDate)
-  
+
   const salesByCategory = isMultiDay
     ? getPeriodSalesByCategory(startDate, endDate)
     : getSalesByCategory(startDate)
-  
+
   const salesByPaymentMethod = isMultiDay
     ? getPeriodSalesByPaymentMethod(startDate, endDate)
     : getSalesByPaymentMethod(startDate)
-  
+
   const topProducts = isMultiDay
     ? getPeriodTopProducts(startDate, endDate, 10)
     : getTopProducts(startDate, 10)
-  
+
   const hourlySales = getHourlySales(startDate)
   const stockAlerts = getStockAlerts()
   const revenueTrend = isMultiDay ? getRevenueTrend(startDate, endDate) : []
@@ -125,7 +125,7 @@ export function AnalyticsTab() {
     },
     previousPeriod: {
       label: getPreviousPeriodLabel(),
-      revenue: dailySummary.previousDayRevenue,
+      revenue: dailySummary.previousDayRevenue ?? 0,
       transactions: 0, // Would need to calculate from previous period
       averageTicket: 0, // Would need to calculate from previous period
     },
@@ -193,7 +193,7 @@ export function AnalyticsTab() {
             </Button>
           </div>
         </div>
-        
+
         <PeriodSelector
           selectedPeriod={selectedPeriod}
           startDate={startDate}
@@ -329,7 +329,7 @@ export function AnalyticsTab() {
         {/* Products Tab */}
         <TabsContent value="products" className="space-y-6">
           <SalesByCategoryChart data={salesByCategory} enableAnimations={preferences.enableChartAnimations} />
-          
+
           <TopProductsTable data={topProducts} limit={10} />
 
           <div className="flex justify-end">

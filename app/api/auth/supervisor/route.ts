@@ -1,54 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { verifyPassword, DEFAULT_PASSWORD_HASHES } from '@/lib/utils/auth'
-
-/**
- * POST /api/auth/supervisor
- * Secure supervisor authentication endpoint
- * 
- * This replaces the client-side password validation with a secure server-side check
- */
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import bcrypt from "bcryptjs"
+import { prisma } from "@/lib/db/client"
+import { authorize, limitAuthentication } from "@/lib/server/auth"
+import { handleRoute, HttpError, readJson } from "@/lib/server/http"
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { password } = body
-
-    if (!password || typeof password !== 'string') {
-      return NextResponse.json(
-        { error: 'Password is required' },
-        { status: 400 }
-      )
-    }
-
-    // Verify password against hashed supervisor password
-    const isValid = await verifyPassword(password, DEFAULT_PASSWORD_HASHES.supervisor)
-
-    if (!isValid) {
-      // Add a small delay to prevent timing attacks
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      return NextResponse.json(
-        { error: 'Invalid password' },
-        { status: 401 }
-      )
-    }
-
-    // Return success with a token or session identifier
-    // In a production system, you would generate a JWT or session token here
-    return NextResponse.json(
-      { 
-        success: true,
-        message: 'Authentication successful',
-        // In production, return a secure token here
-        token: 'supervisor-authenticated'
-      },
-      { status: 200 }
-    )
-
-  } catch (error) {
-    console.error('Supervisor authentication error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+  return handleRoute(async () => {
+    const actor = await authorize(request)
+    await limitAuthentication(`approval:${actor.id}`)
+    const { password } = z.object({ password: z.string().min(1).max(128) }).strict().parse(await readJson(request, 4096))
+    const supervisors = await prisma.user.findMany({ where: { role: "supervisor", active: true } })
+    let approvedBy: string | null = null
+    for (const user of supervisors) { if (await bcrypt.compare(password, user.password)) approvedBy = user.username }
+    if (!approvedBy) throw new HttpError(401, "Senha inválida")
+    await prisma.authSession.update({ where: { id: actor.sessionId }, data: { approvedUntil: new Date(Date.now() + 5 * 60_000) } })
+    await prisma.auditEntry.create({ data: { id: crypto.randomUUID(), user: actor.username, action: "Aprovação de supervisor", reference: approvedBy } })
+    return NextResponse.json({ success: true })
+  })
 }

@@ -28,8 +28,37 @@ model User {
   lastLogin DateTime?
 
   sessions UserSession[]
+  authSessions AuthSession[]
 
   @@map("users")
+}
+
+model AuthSession {
+  id            String   @id @default(uuid())
+  tokenHash     String   @unique
+  userId        String
+  expiresAt     DateTime
+  approvedUntil DateTime?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model AuthRateLimit {
+  id       String   @id
+  attempts Int
+  resetAt  DateTime
+  @@index([resetAt])
+  @@map("auth_rate_limits")
+}
+
+model OperationReceipt {
+  id          String   @id
+  userId      String
+  requestHash String
+  result      Json
+  createdAt   DateTime @default(now())
+  @@map("operation_receipts")
 }
 
 model UserSession {
@@ -304,6 +333,7 @@ model Transaction {
 }
 
 model CashClose {
+  openingValue  Decimal @default(0) @db.Decimal(12, 2)
   id            String   @id
   date          DateTime
   operator      String
@@ -510,6 +540,7 @@ model RestaurantTable {
 }
 
 model RestaurantOrder {
+  version       Int      @default(0)
   id            String   @id
   tableId       Int
   tableNumber   String

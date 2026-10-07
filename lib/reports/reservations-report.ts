@@ -1,6 +1,6 @@
 /**
  * Reservations Report Generator
- * 
+ *
  * Generates PDF reports for reservations with filtering options.
  */
 
@@ -18,7 +18,7 @@ export interface ReservationReportFilters {
   startDate?: string
   endDate?: string
   status?: Reservation["status"] | "all"
-  roomId?: string | "all"
+  roomId?: number | "all"
 }
 
 export interface ReservationReportData {
@@ -30,9 +30,9 @@ export interface ReservationReportData {
 /**
  * Gets the room name by ID
  */
-function getRoomName(roomId: string, rooms: Room[]): string {
+function getRoomName(roomId: number, rooms: Room[]): string {
   const room = rooms.find(r => r.id === roomId)
-  return room?.name || "Quarto não encontrado"
+  return room?.number || "Quarto não encontrado"
 }
 
 /**
@@ -40,11 +40,11 @@ function getRoomName(roomId: string, rooms: Room[]): string {
  */
 function getStatusLabel(status: Reservation["status"]): string {
   const labels: Record<Reservation["status"], string> = {
-    pending: "Pendente",
-    confirmed: "Confirmada",
-    checkedIn: "Check-in",
-    checkedOut: "Check-out",
-    cancelled: "Cancelada",
+    confirmada: "Confirmada",
+    checkin: "Check-in",
+    checkout: "Check-out",
+    cancelada: "Cancelada",
+    noshow: "Não compareceu",
   }
   return labels[status] || status
 }
@@ -86,7 +86,7 @@ function filterReservations(
 
 /**
  * Generates a PDF report for reservations
- * 
+ *
  * @param data - Report data including reservations, rooms, and filters
  * @param systemSettings - System settings for header information
  * @returns Blob containing the PDF file
@@ -96,26 +96,26 @@ export function generateReservationsReport(
   systemSettings: SystemSettings
 ): Blob {
   const doc = createPDFDocument()
-  
+
   // Generate header
   let yPos = generatePDFHeader(doc, systemSettings, "Relatório de Reservas")
 
   // Add filter information
   doc.setFontSize(9)
   doc.setFont("helvetica", "normal")
-  
+
   const filterLines: string[] = []
-  
+
   if (data.filters.startDate || data.filters.endDate) {
     const start = data.filters.startDate ? formatDate(data.filters.startDate) : "Início"
     const end = data.filters.endDate ? formatDate(data.filters.endDate) : "Fim"
     filterLines.push(`Período: ${start} até ${end}`)
   }
-  
+
   if (data.filters.status && data.filters.status !== "all") {
     filterLines.push(`Status: ${getStatusLabel(data.filters.status)}`)
   }
-  
+
   if (data.filters.roomId && data.filters.roomId !== "all") {
     const roomName = getRoomName(data.filters.roomId, data.rooms)
     filterLines.push(`Quarto: ${roomName}`)
@@ -147,7 +147,7 @@ export function generateReservationsReport(
     formatDate(reservation.checkIn),
     formatDate(reservation.checkOut),
     getStatusLabel(reservation.status),
-    formatCurrency(reservation.totalPrice),
+    formatCurrency(reservation.totalValue),
   ])
 
   // Add table
@@ -164,8 +164,8 @@ export function generateReservationsReport(
   doc.setFont("helvetica", "normal")
 
   const totalReservations = sortedReservations.length
-  const totalRevenue = sortedReservations.reduce((sum, r) => sum + r.totalPrice, 0)
-  
+  const totalRevenue = sortedReservations.reduce((sum, r) => sum + r.totalValue, 0)
+
   const statusCounts: Record<string, number> = {}
   sortedReservations.forEach(r => {
     const label = getStatusLabel(r.status)
@@ -201,7 +201,7 @@ export function generateReservationsReport(
 
 /**
  * Downloads the reservations report as a PDF file
- * 
+ *
  * @param data - Report data
  * @param systemSettings - System settings
  * @param filename - Optional custom filename (without extension)
@@ -212,7 +212,7 @@ export function downloadReservationsReport(
   filename?: string
 ): void {
   const blob = generateReservationsReport(data, systemSettings)
-  
+
   // Generate filename with timestamp
   const timestamp = new Date().toISOString().split("T")[0]
   const defaultFilename = `relatorio-reservas-${timestamp}.pdf`

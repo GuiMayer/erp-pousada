@@ -1,6 +1,6 @@
 /**
  * Sync Manager
- * 
+ *
  * Manages multi-user synchronization with "last write wins" strategy.
  * Detects conflicts and provides metadata tracking.
  */
@@ -30,8 +30,8 @@ export class SyncManager {
     entity: T,
     userId?: string
   ): T & EntityMetadata {
-    const now = Date.now()
-    
+    const now = new Date().toISOString()
+
     return {
       ...entity,
       _lastModified: now,
@@ -47,8 +47,8 @@ export class SyncManager {
     entity: T,
     userId?: string
   ): T {
-    const now = Date.now()
-    
+    const now = new Date().toISOString()
+
     return {
       ...entity,
       _lastModified: now,
@@ -59,7 +59,7 @@ export class SyncManager {
 
   /**
    * Resolve conflicts using "last write wins" strategy
-   * 
+   *
    * @param local - Local entities with metadata
    * @param remote - Remote entities with metadata
    * @returns Resolved entities and detected conflicts
@@ -97,7 +97,7 @@ export class SyncManager {
       // In both - resolve conflict
       if (localEntity && remoteEntity) {
         const conflict = this.detectConflict(localEntity, remoteEntity)
-        
+
         if (conflict) {
           conflicts.push({
             entityId: id,
@@ -137,8 +137,8 @@ export class SyncManager {
     }
 
     // Timestamp conflict - same version but different timestamps
-    const timeDiff = Math.abs(local._lastModified - remote._lastModified)
-    
+    const timeDiff = Math.abs(Date.parse(local._lastModified) - Date.parse(remote._lastModified))
+
     // Concurrent if modified within 1 second of each other
     if (timeDiff < 1000) {
       return 'concurrent'
@@ -165,7 +165,7 @@ export class SyncManager {
     }
 
     // Update metadata to reflect merge
-    merged._lastModified = Math.max(older._lastModified, newer._lastModified)
+    merged._lastModified = new Date(Math.max(Date.parse(older._lastModified), Date.parse(newer._lastModified))).toISOString()
     merged._version = Math.max(older._version || 0, newer._version || 0) + 1
     merged._modifiedBy = newer._modifiedBy
 

@@ -274,6 +274,7 @@ export interface AuditEntry {
 }
 
 export interface CashClose {
+  openingValue?: number
   id: string
   date: string
   operator: string
@@ -487,6 +488,7 @@ export interface RestaurantOrderItem {
 }
 
 export interface RestaurantOrder {
+  version?: number
   id: string
   tableId: number
   tableNumber: string
@@ -590,7 +592,7 @@ export interface Employee {
 export interface User {
   id: string
   username: string
-  password: string // In production, this would be hashed
+  password?: string // Write-only; never returned by the production API
   role: UserRole
   fullName: string
   email?: string
@@ -762,7 +764,7 @@ function transformPOSSale(seed: SeedPOSSale, products: POSProduct[]): POSSale {
     date: getDateFromHoursAgo(seed.hoursAgo),
     items: seed.items.map(item => ({
       id: item.id,
-      product: productMap.get(item.productId) || { id: item.productId, name: "Produto Removido", category: "Outros", price: 0 },
+      product: productMap.get(item.productId) || { id: item.productId, name: "Produto Removido", categoryId: "pcat-outros", trackStock: false, price: 0 },
       quantity: item.quantity,
       discount: item.discount,
     })),
@@ -798,7 +800,7 @@ function transformRestaurantOrder(seed: SeedRestaurantOrder, products: POSProduc
     tableId: seed.tableId,
     tableNumber: table?.number || `Mesa ${seed.tableId}`,
     items: seed.items.map(item => {
-      const product = productMap.get(item.productId) || { id: item.productId, name: "Produto Removido", category: "Outros", price: 0 }
+      const product = productMap.get(item.productId) || { id: item.productId, name: "Produto Removido", categoryId: "pcat-outros", trackStock: false, price: 0 }
       return {
         id: item.id,
         productId: item.productId,
@@ -806,7 +808,7 @@ function transformRestaurantOrder(seed: SeedRestaurantOrder, products: POSProduc
         quantity: item.quantity,
         unitPrice: product.price,
         subtotal: product.price * item.quantity,
-        category: product.category,
+        category: product.categoryId,
       }
     }),
     subtotal: seed.subtotal,
@@ -972,7 +974,7 @@ export const initialSystemSettings: SystemSettings = {
 /**
  * Calculates the timeline for a room based on its current state, reservations, and blocks.
  * This function dynamically generates the timeline for a given date range.
- * 
+ *
  * @param room - The room to calculate timeline for
  * @param reservations - All reservations in the system
  * @param startDate - Start date in ISO format (YYYY-MM-DD)
@@ -987,7 +989,7 @@ export function calculateRoomTimeline(
 ): TimelineDay[] {
   const timeline: TimelineDay[] = []
   const start = new Date(startDate + "T00:00:00")
-  
+
   // Get reservations for this room that are confirmed or checked-in
   const roomReservations = reservations.filter(
     r => r.roomId === room.id && (r.status === "confirmada" || r.status === "checkin")
@@ -997,15 +999,15 @@ export function calculateRoomTimeline(
     const currentDate = new Date(start)
     currentDate.setDate(currentDate.getDate() + i)
     const dateISO = currentDate.toISOString().split("T")[0]
-    
+
     // Format label
     const day = currentDate.getDate()
     const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
     const label = `${day} ${months[currentDate.getMonth()]}`
-    
+
     // Determine status for this date
     let status: RoomStatus = "disponivel"
-    
+
     // Check if room is blocked on this date
     if (room.status === "bloqueado" && room.blockEndDate) {
       const blockEnd = new Date(room.blockEndDate + "T23:59:59")
@@ -1013,38 +1015,38 @@ export function calculateRoomTimeline(
         status = "bloqueado"
       }
     }
-    
+
     // Check if there's a reservation covering this date
     if (status !== "bloqueado") {
       for (const reservation of roomReservations) {
         const checkIn = new Date(reservation.checkIn + "T00:00:00")
         const checkOut = new Date(reservation.checkOut + "T00:00:00")
-        
+
         if (currentDate >= checkIn && currentDate < checkOut) {
           status = "ocupado"
           break
         }
       }
     }
-    
+
     // If it's today and room is currently in limpeza, show limpeza
     const today = new Date().toISOString().split("T")[0]
     if (dateISO === today && room.status === "limpeza") {
       status = "limpeza"
     }
-    
+
     // If it's today, use the current room status (unless overridden by reservation/block)
     if (dateISO === today && status === "disponivel") {
       status = room.status
     }
-    
+
     timeline.push({
       date: dateISO,
       label,
       status,
     })
   }
-  
+
   return timeline
 }
 

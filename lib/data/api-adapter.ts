@@ -1,6 +1,6 @@
 /**
  * API Storage Adapter (Stub)
- * 
+ *
  * Future implementation for storing data on a remote server.
  * Currently returns empty data - to be implemented when backend is ready.
  */
@@ -15,9 +15,9 @@ export interface ApiAdapterOptions {
 
 /**
  * API Storage Adapter
- * 
+ *
  * Stores data on a remote server via REST API.
- * 
+ *
  * @example
  * ```typescript
  * const adapter = new ApiAdapter({
@@ -52,7 +52,8 @@ export class ApiAdapter implements IStorageAdapter {
         signal: AbortSignal.timeout(this.timeout)
       })
 
-      if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
+    if (!response.ok) {
         if (response.status === 404) {
           return null
         }
@@ -62,7 +63,7 @@ export class ApiAdapter implements IStorageAdapter {
       return await response.json()
     } catch (error) {
       console.error(`[ApiAdapter] Error getting ${key}:`, error)
-      return null
+      throw error
     }
   }
 
@@ -78,7 +79,8 @@ export class ApiAdapter implements IStorageAdapter {
         signal: AbortSignal.timeout(this.timeout)
       })
 
-      if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
+    if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
@@ -95,6 +97,7 @@ export class ApiAdapter implements IStorageAdapter {
       signal: AbortSignal.timeout(this.timeout)
     })
 
+    if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`)
     }
@@ -110,6 +113,7 @@ export class ApiAdapter implements IStorageAdapter {
       signal: AbortSignal.timeout(this.timeout)
     })
 
+    if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`)
     }
@@ -160,7 +164,8 @@ export class ApiAdapter implements IStorageAdapter {
         signal: AbortSignal.timeout(this.timeout)
       })
 
-      if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
+    if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
@@ -180,14 +185,15 @@ export class ApiAdapter implements IStorageAdapter {
         signal: AbortSignal.timeout(this.timeout)
       })
 
-      if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
+    if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
 
       return await response.json()
     } catch (error) {
       console.error(`[ApiAdapter] Error getting keys:`, error)
-      return []
+      throw error
     }
   }
 
@@ -202,7 +208,8 @@ export class ApiAdapter implements IStorageAdapter {
         signal: AbortSignal.timeout(this.timeout * 2) // Longer timeout for export
       })
 
-      if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
+    if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
 
@@ -225,7 +232,8 @@ export class ApiAdapter implements IStorageAdapter {
         signal: AbortSignal.timeout(this.timeout * 2) // Longer timeout for import
       })
 
-      if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
+    if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
@@ -245,7 +253,8 @@ export class ApiAdapter implements IStorageAdapter {
         signal: AbortSignal.timeout(this.timeout)
       })
 
-      if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
+    if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
 

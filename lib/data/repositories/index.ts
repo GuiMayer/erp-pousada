@@ -1,11 +1,11 @@
 /**
  * Data Repositories Index
- * 
+ *
  * Factory function to create a complete DataStore with all repositories.
  * This is the main entry point for the data layer.
  */
 
-import type { DataStore, DataStoreConfig } from "../types"
+import type { DataStoreConfig } from "../types"
 import { LocalStorageAdapter } from "../storage-adapter"
 import { DatabaseApiAdapter } from "../database-api-adapter"
 import { getDataConfig } from "../config"
@@ -45,20 +45,20 @@ import { RecurringTransactionRepository } from "./recurring-transaction-reposito
 
 /**
  * Create a complete DataStore with all repositories
- * 
+ *
  * @example
  * ```typescript
  * const dataStore = createDataStore({
  *   prefix: "pousada",
  *   userId: "user-123"
  * })
- * 
+ *
  * // Use repositories
  * const rooms = await dataStore.rooms.getAll()
  * await dataStore.rooms.create({ number: "101", ... })
  * ```
  */
-export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
+export function createDataStore(config?: Partial<DataStoreConfig>) {
   const dataConfig = getDataConfig()
   const adapter = config?.adapter ?? (
     dataConfig.adapter === "database"
@@ -157,39 +157,7 @@ export function createDataStore(config?: Partial<DataStoreConfig>): DataStore {
     },
 
     async clearAll(): Promise<void> {
-      await Promise.all([
-        rooms.clear(),
-        reservations.clear(),
-        guests.clear(),
-        expenses.clear(),
-        transactions.clear(),
-        auditLog.clear(),
-        categories.clear(),
-        cashCloses.clear(),
-        consumptions.clear(),
-        posProducts.clear(),
-        posSales.clear(),
-        productCategories.clear(),
-        restaurantTables.clear(),
-        restaurantOrders.clear(),
-        stockItems.clear(),
-        stockMovements.clear(),
-        recipes.clear(),
-        productions.clear(),
-        employees.clear(),
-        employeeConsumptions.clear(),
-        users.clear(),
-        userSessions.clear(),
-        systemSettings.clear(),
-        suppliers.clear(),
-        customers.clear(),
-        accountsReceivable.clear(),
-        bankAccounts.clear(),
-        bankTransfers.clear(),
-        costCenters.clear(),
-        budgets.clear(),
-        recurringTransactions.clear(),
-      ])
+      await adapter.clear()
     },
 
     async getStorageUsage(): Promise<number> {

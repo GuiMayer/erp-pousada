@@ -1,6 +1,6 @@
 /**
  * Test Data Fixtures
- * 
+ *
  * Reusable test data for consistent testing across the application
  */
 
@@ -82,28 +82,22 @@ export const TEST_POS_PRODUCTS: Record<string, POSProduct> = {
   WATER: {
     id: 'PROD_001',
     name: 'Água Mineral',
-    category: 'Bebidas',
+    categoryId: 'Bebidas', trackStock: false,
     price: 5.00,
-    stock: 100,
-    unit: 'un',
     barcode: '7891234567890',
   },
   BEER: {
     id: 'PROD_002',
     name: 'Cerveja',
-    category: 'Bebidas',
+    categoryId: 'Bebidas', trackStock: false,
     price: 8.00,
-    stock: 50,
-    unit: 'un',
     barcode: '7891234567891',
   },
   SNACK: {
     id: 'PROD_003',
     name: 'Salgadinho',
-    category: 'Alimentos',
+    categoryId: 'Alimentos', trackStock: false,
     price: 6.50,
-    stock: 30,
-    unit: 'un',
     barcode: '7891234567892',
   },
 }
@@ -118,8 +112,8 @@ export const TEST_RESERVATIONS: Record<string, Reservation> = {
     roomNumber: '101',
     guestName: 'João Silva',
     cpf: VALID_CPFS.GUEST_1,
-    checkIn: new Date('2026-05-10'),
-    checkOut: new Date('2026-05-15'),
+    checkIn: new Date('2026-05-10').toISOString(),
+    checkOut: new Date('2026-05-15').toISOString(),
     status: 'confirmada',
     totalValue: 1500.00,
   },
@@ -129,9 +123,9 @@ export const TEST_RESERVATIONS: Record<string, Reservation> = {
     roomNumber: '102',
     guestName: 'Maria Santos',
     cpf: VALID_CPFS.GUEST_2,
-    checkIn: new Date('2026-05-12'),
-    checkOut: new Date('2026-05-18'),
-    status: 'pendente',
+    checkIn: new Date('2026-05-12').toISOString(),
+    checkOut: new Date('2026-05-18').toISOString(),
+    status: 'confirmada',
     totalValue: 2400.00,
   },
 }

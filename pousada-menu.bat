@@ -2,13 +2,20 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "PROJECT_DIR=%~dp0"
-set "ENV_FILE=%PROJECT_DIR%.env"
+set "ENV_FILE=%PROJECT_DIR%.env.backups"
 set "CONFIG_DIR=%PROJECT_DIR%config"
 set "CONFIG_FILE=%CONFIG_DIR%\app.config.json"
 
 if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
 
 call :load_env
+if not exist "%ENV_FILE%" call :write_env
+if not exist "%PROJECT_DIR%.env" (
+  echo Configure .env conforme docs/PRODUCAO.md antes de usar o menu.
+  pause
+  exit /b 1
+)
+set "COMPOSE=docker compose --env-file .env --env-file .env.backups -f docker-compose.yml -f compose.https.yml"
 
 :menu
 cls
@@ -55,6 +62,11 @@ pause
 goto menu
 
 :load_env
+if exist "%PROJECT_DIR%.env" (
+  for /f "usebackq tokens=1,* delims==" %%A in ("%PROJECT_DIR%.env") do (
+    if /i "%%A"=="APP_URL" set "APP_URL=%%B"
+  )
+)
 if not defined BACKUP_HOST_DIR set "BACKUP_HOST_DIR=%PROJECT_DIR%backups"
 if not defined BACKUP_INTERVAL_MINUTES set "BACKUP_INTERVAL_MINUTES=30"
 if exist "%ENV_FILE%" (
@@ -88,7 +100,7 @@ exit /b 0
   echo     "port": 5432,
   echo     "name": "pousada",
   echo     "user": "pousada",
-  echo     "password": "pousada"
+  echo     "password": ""
   echo   }
   echo }
 ) > "%CONFIG_FILE%"
@@ -96,36 +108,29 @@ exit /b 0
 
 :start_stack
 call :require_docker || goto menu
-docker compose up -d --build
+%COMPOSE% up -d --build
 pause
 goto menu
 
 :open_browser
-start "" "http://localhost:3000"
+start "" "%APP_URL%"
 goto menu
 
 :show_wifi
-echo.
-echo Enderecos provaveis para abrir no celular:
-for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /C:"IPv4"') do (
-  set "ip=%%A"
-  set "ip=!ip: =!"
-  echo http://!ip!:3000
-)
-echo.
-echo Se nao abrir, libere a porta 3000 no Firewall do Windows e use o mesmo Wi-Fi.
+echo Use o dominio HTTPS configurado em APP_URL: %APP_URL%
+echo Consulte docs/PRODUCAO.md para DNS e certificado.
 pause
 goto menu
 
 :stop_stack
 call :require_docker || goto menu
-docker compose stop app backup-worker postgres
+%COMPOSE% stop app backup-worker postgres
 pause
 goto menu
 
 :restart_stack
 call :require_docker || goto menu
-docker compose restart
+%COMPOSE% restart
 pause
 goto menu
 
@@ -135,19 +140,19 @@ echo.
 echo ATENCAO: isto apaga o banco atual.
 set /p "confirm=Digite APAGAR para continuar: "
 if /i not "%confirm%"=="APAGAR" goto menu
-docker compose up -d postgres
-docker compose stop app backup-worker
-docker compose run --rm backup-worker sh /scripts/db-backup.sh
-docker compose run --rm backup-worker sh /scripts/db-reset.sh
-docker compose run --rm app pnpm prisma migrate deploy
-docker compose up -d app backup-worker
+%COMPOSE% up -d postgres
+%COMPOSE% stop app backup-worker
+%COMPOSE% run --rm backup-worker sh /scripts/db-backup.sh
+%COMPOSE% run --rm backup-worker sh /scripts/db-reset.sh
+%COMPOSE% run --rm app pnpm prisma migrate deploy
+%COMPOSE% up -d app backup-worker
 pause
 goto menu
 
 :backup_now
 call :require_docker || goto menu
-docker compose up -d postgres
-docker compose run --rm backup-worker sh /scripts/db-backup.sh
+%COMPOSE% up -d postgres
+%COMPOSE% run --rm backup-worker sh /scripts/db-backup.sh
 pause
 goto menu
 
@@ -167,12 +172,12 @@ echo.
 echo ATENCAO: restaurar backup substitui o banco atual.
 set /p "confirm=Digite RESTAURAR para continuar: "
 if /i not "%confirm%"=="RESTAURAR" goto menu
-docker compose up -d postgres
-docker compose stop app backup-worker
+%COMPOSE% up -d postgres
+%COMPOSE% stop app backup-worker
 echo Criando backup de seguranca antes da restauracao...
-docker compose run --rm backup-worker sh /scripts/db-backup.sh
-docker compose run --rm backup-worker sh /scripts/db-restore.sh "/backups/%backup_file%"
-docker compose up -d app backup-worker
+%COMPOSE% run --rm backup-worker sh /scripts/db-backup.sh
+%COMPOSE% run --rm backup-worker sh /scripts/db-restore.sh "/backups/%backup_file%"
+%COMPOSE% up -d app backup-worker
 pause
 goto menu
 
@@ -184,7 +189,7 @@ goto menu
 
 :logs
 call :require_docker || goto menu
-docker compose logs -f --tail=100
+%COMPOSE% logs -f --tail=100
 goto menu
 
 :configure
@@ -206,11 +211,11 @@ echo Esta opcao copia dados antigos de local_data_entries para tabelas relaciona
 echo Crie um backup antes de continuar.
 set /p "confirm=Digite MIGRAR para continuar: "
 if /i not "%confirm%"=="MIGRAR" goto menu
-docker compose up -d postgres
-docker compose stop app backup-worker
-docker compose run --rm backup-worker sh /scripts/db-backup.sh
-docker compose run --rm app pnpm db:migrate-local-data
-docker compose up -d app backup-worker
+%COMPOSE% up -d postgres
+%COMPOSE% stop app backup-worker
+%COMPOSE% run --rm backup-worker sh /scripts/db-backup.sh
+%COMPOSE% run --rm app pnpm db:migrate-local-data
+%COMPOSE% up -d app backup-worker
 pause
 goto menu
 

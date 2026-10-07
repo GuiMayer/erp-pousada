@@ -1,6 +1,6 @@
 /**
  * Audit Repository Tests
- * 
+ *
  * Tests for audit log immutability guarantees
  */
 
@@ -13,6 +13,10 @@ import type { IStorageAdapter } from '@/lib/data/types'
  * Simple in-memory storage adapter for testing
  */
 class MockStorageAdapter implements IStorageAdapter {
+  async export(): Promise<string> { return JSON.stringify(Object.fromEntries(this.storage)) }
+  async import(data: string): Promise<void> { for (const [key,value] of Object.entries(JSON.parse(data))) this.storage.set(key,value) }
+  async getUsage(): Promise<number> { return (await this.export()).length }
+
   private storage: Map<string, any> = new Map()
 
   async get<T>(key: string): Promise<T | null> {
@@ -237,7 +241,7 @@ describe('AuditRepository', () => {
     it('should get recent entries sorted by date', async () => {
       // Create entries with different dates to ensure proper sorting
       const now = Date.now()
-      
+
       const entry1 = await repository.create({
         user: 'user1',
         action: 'Action 1',

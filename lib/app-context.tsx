@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useRef, useCallback, useMemo, useEffect, type ReactNode } from "react"
 import {
   initialRooms, initialReservations, initialGuests,
   initialExpenses, initialTransactions, initialAuditLog,
@@ -31,6 +31,7 @@ import {
 import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
 import { getDataConfig } from "./data/config"
+import { submitOperation } from "./data/operations-client"
 import { seedDemoIfEmpty } from "./demo-data"
 
 const RESERVATION_BLOCKING_STATUSES = new Set<Reservation["status"]>(["confirmada", "checkin"])
@@ -101,6 +102,8 @@ type AppContextType = {
   budgets: Budget[]
   recurringTransactions: RecurringTransaction[]
   isLoading: boolean
+  dataError: string | null
+  runOperation: <T = unknown>(kind: string, payload: unknown, requestId?: string) => Promise<T>
   isHydrated: boolean
   updateRoom: (id: number, data: Partial<Room>) => Promise<void>
   addRoom: (room: Room) => Promise<void>
@@ -161,7 +164,7 @@ type AppContextType = {
   addSupplier: (s: Supplier) => Promise<void>
   updateSupplier: (id: string, data: Partial<Supplier>) => Promise<void>
   removeSupplier: (id: string) => Promise<void>
-  addCustomer: (c: Customer) => Promise<void>
+  addCustomer: (c: Customer) => Promise<Customer>
   updateCustomer: (id: string, data: Partial<Customer>) => Promise<void>
   removeCustomer: (id: string) => Promise<void>
   addAccountReceivable: (ar: AccountReceivable) => Promise<void>
@@ -194,8 +197,8 @@ const AppContext = createContext<AppContextType | null>(null)
 export { AppContext }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
-  
+  const { user, isLoggedIn, isSupervisor } = useAuth()
+
   // Initialize data store with user context
   const { dataStore, isLoading, isHydrated, isSyncing, exportData, importData, clearAllData, getStorageUsage } = useDataStore({
     userId: user?.username,
@@ -205,6 +208,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Local state for data (synced with repositories)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [dataError, setDataError] = useState<string | null>(null)
   const [rooms, setRooms] = useState<Room[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [guests, setGuests] = useState<GuestProfile[]>([])
@@ -238,8 +242,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([])
 
+  const currentUser = useRef(user?.id)
+  useEffect(() => { currentUser.current = user?.id }, [user?.id])
+
   // Load data from repositories on mount and when syncing
   const loadAllData = useCallback(async () => {
+    const loadingUser = user?.id
     try {
       const [
         roomsData, reservationsData, guestsData, expensesData, transactionsData,
@@ -270,10 +278,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dataStore.stockMovements.getAll(),
         dataStore.recipes.getAll(),
         dataStore.productions.getAll(),
-        dataStore.employees.getAll(),
-        dataStore.employeeConsumptions.getAll(),
-        dataStore.users.getAll(),
-        dataStore.userSessions.getAll(),
+        isSupervisor ? dataStore.employees.getAll() : Promise.resolve([]),
+        isSupervisor ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
+        isSupervisor ? dataStore.users.getAll() : Promise.resolve([]),
+        isSupervisor ? dataStore.userSessions.getAll() : Promise.resolve([]),
         dataStore.systemSettings.getAll(),
         dataStore.suppliers.getAll(),
         dataStore.customers.getAll(),
@@ -285,6 +293,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dataStore.recurringTransactions.getAll()
       ])
 
+      if (loadingUser !== currentUser.current) return
       setRooms(roomsData)
       setReservations(reservationsData)
       setGuests(guestsData)
@@ -316,74 +325,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCostCenters(costCentersData)
       setBudgets(budgetsData)
       setRecurringTransactions(recurringTransactionsData)
+      setDataError(null)
     } catch (error) {
-      console.error('[AppContext] Error loading data:', error)
+      setDataError(error instanceof Error ? error.message : 'Não foi possível carregar os dados')
+      throw error
     }
-  }, [dataStore])
+  }, [dataStore, isSupervisor, user?.id])
+
+  const pendingOperationIds = useRef(new Map<string, string>())
+  const runOperation = useCallback(async <T,>(kind: string, payload: unknown, requestId?: string): Promise<T> => {
+    const key = JSON.stringify({ kind, payload })
+    const operationId = requestId ?? pendingOperationIds.current.get(key) ?? crypto.randomUUID()
+    if (pendingOperationIds.current.size > 100) pendingOperationIds.current.clear()
+    pendingOperationIds.current.set(key, operationId)
+    const result = await submitOperation<T>(kind, payload, operationId)
+    pendingOperationIds.current.delete(key)
+    await loadAllData().catch(() => {})
+    return result
+  }, [loadAllData])
+
+  useEffect(() => {
+    pendingOperationIds.current.clear()
+    setIsInitialized(false)
+    setRooms([]); setReservations([]); setGuests([]); setExpenses([]); setTransactions([]); setAuditLog([]); setCategories([]); setCashCloses([]); setConsumptions([]); setPOSProducts([]); setPOSSales([]); setProductCategories([]); setRestaurantTables([]); setRestaurantOrders([]); setStockItems([]); setStockMovements([]); setRecipes([]); setProductions([]); setEmployees([]); setEmployeeConsumptions([]); setUsers([]); setUserSessions([]); setSuppliers([]); setCustomers([]); setAccountsReceivable([]); setBankAccounts([]); setBankTransfers([]); setCostCenters([]); setBudgets([]); setRecurringTransactions([])
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!isLoggedIn || getDataConfig().adapter !== "database") return
+    let running = false
+    const refresh = async () => {
+      if (running || document.hidden) return
+      running = true
+      try { await loadAllData() } catch { /* dataError is shown in the dashboard */ }
+      finally { running = false }
+    }
+    const timer = setInterval(() => void refresh(), 15000)
+    window.addEventListener("focus", refresh)
+    return () => { clearInterval(timer); window.removeEventListener("focus", refresh) }
+  }, [isLoggedIn, loadAllData])
 
   // Initial data load and seed if empty
   useEffect(() => {
-    if (isInitialized) return // Guard: prevent re-initialization
-    
+    if (isInitialized || !isLoggedIn) return // Wait for an authenticated user
+
     const initializeData = async () => {
-      // Check if we have any data in storage
-      const roomCount = await dataStore.rooms.count()
-      
       if (getDataConfig().adapter === "demo-localStorage") {
         await seedDemoIfEmpty(dataStore)
-      } else if (roomCount === 0) {
-        // First time - seed with initial data
-        console.log('[AppContext] Seeding initial data...')
-        await Promise.all([
-          ...initialRooms.map(r => dataStore.rooms.create(r)),
-          ...initialReservations.map(r => dataStore.reservations.create(r)),
-          ...initialGuests.map(g => dataStore.guests.create(g)),
-          ...initialExpenses.map(e => dataStore.expenses.create(e)),
-          ...initialTransactions.map(t => dataStore.transactions.create(t)),
-          ...initialAuditLog.map(a => dataStore.auditLog.create(a)),
-          ...initialCategories.map(c => dataStore.categories.create(c)),
-          ...initialCashCloses.map(c => dataStore.cashCloses.create(c)),
-          ...initialProductCategories.map(c => dataStore.productCategories.create(c)),
-          ...initialPOSProducts.map(p => dataStore.posProducts.create(p)),
-          ...initialPOSSales.map(s => dataStore.posSales.create(s)),
-          ...initialRestaurantTables.map(t => dataStore.restaurantTables.create(t)),
-          ...initialRestaurantOrders.map(o => dataStore.restaurantOrders.create(o)),
-          ...initialStockItems.map(s => dataStore.stockItems.create(s)),
-          ...initialStockMovements.map(m => dataStore.stockMovements.create(m)),
-          ...initialRecipes.map(r => dataStore.recipes.create(r)),
-          ...initialProductions.map(p => dataStore.productions.create(p)),
-          ...initialEmployees.map(e => dataStore.employees.create(e)),
-          ...initialEmployeeConsumptions.map(c => dataStore.employeeConsumptions.create(c)),
-          ...initialBankAccounts.map(account => dataStore.bankAccounts.create(account)),
-          ...initialBankTransfers.map(transfer => dataStore.bankTransfers.create(transfer)),
-          ...initialCostCenters.map(costCenter => dataStore.costCenters.create(costCenter)),
-          ...initialBudgets.map(budget => dataStore.budgets.create(budget)),
-          ...initialRecurringTransactions.map(transaction => dataStore.recurringTransactions.create(transaction)),
-          dataStore.systemSettings.create(initialSystemSettings)
-        ])
       }
-      
-      // Ensure system settings exist (for existing installations)
-      const settingsCount = await dataStore.systemSettings.count()
-      if (settingsCount === 0) {
-        console.log('[AppContext] Initializing system settings...')
-        await dataStore.systemSettings.create(initialSystemSettings)
-      }
-      
+
       // Load all data into state
       await loadAllData()
-      
+
       // Mark as initialized
       setIsInitialized(true)
     }
 
-    initializeData()
-  }, [dataStore, isInitialized, loadAllData])
+    void initializeData().catch(error => console.error("Initialization failed", error))
+  }, [dataStore, isInitialized, isLoggedIn, loadAllData])
 
   // Reload data when syncing from another tab
   useEffect(() => {
     if (isSyncing) {
-      loadAllData()
+      void loadAllData().catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSyncing])
@@ -401,9 +404,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Room methods
   const updateRoom = useCallback(async (id: number, data: Partial<Room>) => {
+    if (getDataConfig().adapter === "database" && data.status === "disponivel") {
+      await runOperation("release-room", { roomId: id }); return
+    }
     await dataStore.rooms.update(id, data)
     setRooms(await dataStore.rooms.getAll())
-  }, [dataStore])
+  }, [runOperation, dataStore])
 
   const addRoom = useCallback(async (room: Room) => {
     await dataStore.rooms.create(room)
@@ -425,12 +431,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Reservation methods
   const addReservation = useCallback(async (r: Reservation) => {
+    if (getDataConfig().adapter === "database") {
+      const { roomNumber, ...data } = r
+      await runOperation("reserve", data); return
+    }
     const currentReservations = await dataStore.reservations.getAll()
     assertReservationAvailability(r, currentReservations)
 
     const created = await dataStore.reservations.create(r)
     setReservations(await dataStore.reservations.getAll())
-    
+
     // Audit trail
     await addAuditEntry({
       user: user?.username || "sistema",
@@ -451,9 +461,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
     })
-  }, [dataStore, user?.username, addAuditEntry])
+  }, [runOperation, dataStore, user?.username, addAuditEntry])
 
   const updateReservation = useCallback(async (id: string, data: Partial<Reservation>) => {
+    if (getDataConfig().adapter === "database") {
+      const current = reservations.find(r => r.id === id)
+      if (!current) throw new Error("Reserva não encontrada")
+      const { roomNumber, ...input } = { ...current, ...data }
+      await runOperation("edit-reservation", input); return
+    }
     const before = await dataStore.reservations.getById(id)
     if (!before) return
 
@@ -464,7 +480,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await dataStore.reservations.update(id, data)
     const after = await dataStore.reservations.getById(id)
     setReservations(await dataStore.reservations.getAll())
-    
+
     // Audit trail
     if (before && after) {
       await addAuditEntry({
@@ -490,13 +506,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       })
     }
-  }, [dataStore, user?.username, addAuditEntry])
+  }, [reservations, runOperation, dataStore, user?.username, addAuditEntry])
 
   // Expense methods
   const addExpense = useCallback(async (e: Expense) => {
     const created = await dataStore.expenses.create(e)
     setExpenses(await dataStore.expenses.getAll())
-    
+
     // Audit trail
     await addAuditEntry({
       user: user?.username || "sistema",
@@ -521,7 +537,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await dataStore.expenses.update(id, data)
     const after = await dataStore.expenses.getById(id)
     setExpenses(await dataStore.expenses.getAll())
-    
+
     // Audit trail
     if (before && after) {
       await addAuditEntry({
@@ -553,7 +569,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     await dataStore.expenses.markInstallmentAsPaid(expenseId, installmentId)
     setExpenses(await dataStore.expenses.getAll())
-    
+
     // Audit trail
     const installment = expense.installments?.find(i => i.id === installmentId)
     if (installment) {
@@ -577,7 +593,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addTransaction = useCallback(async (t: Transaction) => {
     const created = await dataStore.transactions.create(t)
     setTransactions(await dataStore.transactions.getAll())
-    
+
     // Audit trail
     await addAuditEntry({
       user: user?.username || "sistema",
@@ -599,9 +615,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Category methods
   const addCategory = useCallback(async (label: string) => {
-    const created = await dataStore.categories.create({ id: "", label })
+    const created = await dataStore.categories.create({ label })
     setCategories(await dataStore.categories.getAll())
-    
+
     // Audit trail
     await addAuditEntry({
       user: user?.username || "sistema",
@@ -634,7 +650,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!existing) {
       const created = await dataStore.guests.create(g)
       setGuests(await dataStore.guests.getAll())
-      
+
       // Audit trail
       await addAuditEntry({
         user: user?.username || "sistema",
@@ -667,6 +683,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Consumption methods
   const addConsumptionItem = useCallback(async (roomId: number, item: ConsumptionItem) => {
+    if (getDataConfig().adapter === "database") { await runOperation("add-consumption", { roomId, item }); return }
     const existing = await dataStore.consumptions.getByRoomId(roomId)
     if (existing) {
       await dataStore.consumptions.update(existing.roomId, {
@@ -676,9 +693,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await dataStore.consumptions.create({ roomId, items: [item] })
     }
     setConsumptions(await dataStore.consumptions.getAll())
-  }, [dataStore])
+  }, [runOperation, dataStore])
 
   const removeConsumptionItem = useCallback(async (roomId: number, itemId: string) => {
+    if (getDataConfig().adapter === "database") { await runOperation("remove-consumption", { roomId, itemId }); return }
     const existing = await dataStore.consumptions.getByRoomId(roomId)
     if (existing) {
       await dataStore.consumptions.update(roomId, {
@@ -686,7 +704,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       setConsumptions(await dataStore.consumptions.getAll())
     }
-  }, [dataStore])
+  }, [runOperation, dataStore])
 
   const getConsumption = useCallback((roomId: number) => {
     return consumptions.find(c => c.roomId === roomId)
@@ -752,9 +770,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [dataStore])
 
   const updateRestaurantTable = useCallback(async (id: number, data: Partial<RestaurantTable>) => {
+    if (getDataConfig().adapter === "database" && (data.status === "livre" || data.status === "reservada")) {
+      await runOperation("table-status", { tableId: id, status: data.status }); return
+    }
     await dataStore.restaurantTables.update(id, data)
     setRestaurantTables(await dataStore.restaurantTables.getAll())
-  }, [dataStore])
+  }, [runOperation, dataStore])
 
   const removeRestaurantTable = useCallback(async (id: number) => {
     await dataStore.restaurantTables.delete(id)
@@ -763,14 +784,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Restaurant Order methods
   const addRestaurantOrder = useCallback(async (o: RestaurantOrder) => {
+    if (getDataConfig().adapter === "database") { await runOperation("open-table", { tableId: o.tableId, orderId: o.id }); return }
     await dataStore.restaurantOrders.create(o)
     setRestaurantOrders(await dataStore.restaurantOrders.getAll())
-  }, [dataStore])
+  }, [runOperation, dataStore])
 
   const updateRestaurantOrder = useCallback(async (id: string, data: Partial<RestaurantOrder>) => {
+    if (getDataConfig().adapter === "database" && data.items) {
+      const subtotal = data.items.reduce((sum, i) => sum + i.subtotal, 0)
+      await runOperation("edit-order", { orderId: id, expectedVersion: restaurantOrders.find(o => o.id === id)?.version ?? 0, items: data.items.map(i => ({ id: i.id, productId: i.productId, quantity: i.quantity })), discountPercent: subtotal ? ((data.discount ?? 0) / subtotal) * 100 : 0 }); return
+    }
     await dataStore.restaurantOrders.update(id, data)
     setRestaurantOrders(await dataStore.restaurantOrders.getAll())
-  }, [dataStore])
+  }, [restaurantOrders, runOperation, dataStore])
 
   const addOrderItem = useCallback(async (orderId: string, item: RestaurantOrderItem) => {
     const order = await dataStore.restaurantOrders.getById(orderId)
@@ -796,7 +822,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addStockItem = useCallback(async (s: StockItem) => {
     const created = await dataStore.stockItems.create(s)
     setStockItems(await dataStore.stockItems.getAll())
-    
+
     // Audit trail
     await addAuditEntry({
       user: user?.username || "sistema",
@@ -821,7 +847,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await dataStore.stockItems.update(id, data)
     const after = await dataStore.stockItems.getById(id)
     setStockItems(await dataStore.stockItems.getAll())
-    
+
     // Audit trail
     if (before && after) {
       await addAuditEntry({
@@ -850,7 +876,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addStockMovement = useCallback(async (m: StockMovement) => {
     const created = await dataStore.stockMovements.create(m)
     setStockMovements(await dataStore.stockMovements.getAll())
-    
+
     // Audit trail
     await addAuditEntry({
       user: user?.username || "sistema",
@@ -887,7 +913,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addProduction = useCallback(async (p: Production) => {
     const created = await dataStore.productions.create(p)
     setProductions(await dataStore.productions.getAll())
-    
+
     // Audit trail
     await addAuditEntry({
       user: user?.username || "sistema",
@@ -972,7 +998,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       // Check if settings exist in database
       const existing = await dataStore.systemSettings.getAll()
-      
+
       if (existing.length > 0) {
         // Update existing settings
         await dataStore.systemSettings.update(existing[0].id, data)
@@ -980,7 +1006,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Create new settings if they don't exist
         await dataStore.systemSettings.create({ ...initialSystemSettings, ...data })
       }
-      
+
       // Reload settings
       const updated = await dataStore.systemSettings.getAll()
       setSystemSettings(updated[0] || initialSystemSettings)
@@ -1008,8 +1034,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Customer methods
   const addCustomer = useCallback(async (c: Customer) => {
-    await dataStore.customers.create(c)
+    const created = await dataStore.customers.create(c)
     setCustomers(await dataStore.customers.getAll())
+    return created
   }, [dataStore])
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
@@ -1116,7 +1143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
-    rooms, reservations, guests, expenses, transactions,
+    runOperation, dataError, rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
     productCategories, restaurantTables, restaurantOrders,
@@ -1149,7 +1176,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRecurringTransaction, updateRecurringTransaction, removeRecurringTransaction,
     exportData, importData, clearAllData, getStorageUsage,
   }), [
-    rooms, reservations, guests, expenses, transactions,
+    runOperation, dataError, rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
     productCategories, restaurantTables, restaurantOrders,

@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
-import { deleteCollectionItem, updateCollectionItem } from "@/lib/server/db/relational-data-service"
-
-type RouteContext = {
-  params: Promise<{ key: string; id: string }>
+import { updateCollectionItem, deleteCollectionItem } from "@/lib/server/db/relational-data-service"
+import { authorizeCollection } from "@/lib/server/data-permissions"
+import { handleRoute, readJson } from "@/lib/server/http"
+type Context = { params: Promise<{ key: string; id: string }> }
+export async function PATCH(request: NextRequest, context: Context) {
+  return handleRoute(async () => {
+    const { key, id } = await context.params
+    const actor = await authorizeCollection(request, key)
+    return NextResponse.json(await updateCollectionItem(key, id, await readJson(request), actor))
+  })
 }
-
-export async function PATCH(request: NextRequest, context: RouteContext) {
-  const { key, id } = await context.params
-  const data = await request.json()
-  const item = await updateCollectionItem(decodeURIComponent(key), decodeURIComponent(id), data)
-
-  return NextResponse.json(item)
-}
-
-export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const { key, id } = await context.params
-
-  await deleteCollectionItem(decodeURIComponent(key), decodeURIComponent(id))
-
-  return NextResponse.json({ success: true })
+export async function DELETE(request: NextRequest, context: Context) {
+  return handleRoute(async () => {
+    const { key, id } = await context.params
+    await authorizeCollection(request, key)
+    await deleteCollectionItem(key, id)
+    return NextResponse.json({ success: true })
+  })
 }

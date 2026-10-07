@@ -1,16 +1,7 @@
-# Configuracao local
+# Configuração da instalação
 
-Copie `app.config.example.json` para `app.config.json` antes de instalar no PC do cliente.
+A configuração efetiva do Docker vem de `.env`, seguindo [o guia de produção](../docs/PRODUCAO.md). `APP_URL`, `DOMAIN` e `POSTGRES_PASSWORD` são obrigatórios para a instalação com HTTPS. Não versione esse arquivo.
 
-`app.config.json` nao deve ser versionado. Ele guarda configuracoes locais da instalacao, como pasta de backup, intervalo de backup e modo de dados.
+O menu Windows grava pasta e intervalo de backup em `.env.backups`, sem substituir `.env`. O arquivo `app.config.json` serve como registro local desses ajustes; não é a fonte de segredos para o Compose. O exemplo contém senha vazia propositalmente.
 
-Campos principais:
-
-- `dataMode`: use `database` para operacao real. Use `demo-localStorage` apenas para demonstracao isolada.
-- `backupDirectory`: pasta do Windows onde os backups `.dump` serao salvos.
-- `backupIntervalMinutes`: intervalo do backup automatico. Use `0` para desativar.
-- `host`: mantenha `0.0.0.0` para permitir acesso na rede local.
-- `port`: porta HTTP exposta pelo sistema.
-- `database`: configuracao usada pelos containers Docker.
-
-Em banco novo, os dados operacionais devem iniciar vazios. Dados demonstrativos devem ser carregados por acao separada.
+`Caddyfile` configura HTTPS e encaminha tráfego para o serviço da aplicação. O modo `database` é definido no build; `demo-localStorage` deve ser usado apenas para demonstração isolada.

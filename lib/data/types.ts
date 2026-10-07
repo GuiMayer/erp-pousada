@@ -1,6 +1,6 @@
 /**
  * Data Layer Types
- * 
+ *
  * This file defines the core interfaces for the data abstraction layer.
  * The repository pattern allows us to switch between localStorage and a real backend
  * without changing component code.
@@ -24,6 +24,7 @@ export interface IDataRepository<T> {
    * Get all items
    */
   getAll(): Promise<T[]>
+  count(): Promise<number>
 
   /**
    * Get a single item by ID
@@ -141,58 +142,7 @@ export interface DataStoreConfig {
  * Aggregated data store with all repositories
  * This is the main interface components will use
  */
-export interface DataStore {
-  // Core entities
-  rooms: IDataRepository<Room>
-  reservations: IDataRepository<Reservation>
-  guests: IDataRepository<GuestProfile>
-  expenses: IDataRepository<Expense>
-  transactions: IDataRepository<Transaction>
-  auditLog: IDataRepository<AuditEntry>
-  categories: IDataRepository<ExpenseCategory>
-  cashCloses: IDataRepository<CashClose>
-  consumptions: IDataRepository<RoomConsumption>
-  
-  // POS entities
-  posProducts: IDataRepository<POSProduct>
-  posSales: IDataRepository<POSSale>
-  productCategories: IDataRepository<ProductCategory>
-  
-  // Restaurant entities
-  restaurantTables: IDataRepository<RestaurantTable>
-  restaurantOrders: IDataRepository<RestaurantOrder>
-  
-  // Stock entities
-  stockItems: IDataRepository<StockItem>
-  stockMovements: IDataRepository<StockMovement>
-  recipes: IDataRepository<Recipe>
-  productions: IDataRepository<Production>
-  
-  // Employee entities
-  employees: IDataRepository<Employee>
-  employeeConsumptions: IDataRepository<EmployeeConsumption>
-  
-  // User management entities
-  users: IDataRepository<User>
-  userSessions: IDataRepository<UserSession>
-  systemSettings: IDataRepository<SystemSettings>
-  
-  // Financial entities
-  suppliers: IDataRepository<Supplier>
-  customers: IDataRepository<Customer>
-  accountsReceivable: IDataRepository<AccountReceivable>
-  bankAccounts: IDataRepository<BankAccount>
-  bankTransfers: IDataRepository<BankTransfer>
-  costCenters: IDataRepository<CostCenter>
-  budgets: IDataRepository<Budget>
-  recurringTransactions: IDataRepository<RecurringTransaction>
-  
-  // Utility methods
-  exportAll(): Promise<string>
-  importAll(json: string): Promise<void>
-  clearAll(): Promise<void>
-  getStorageUsage(): Promise<number>
-}
+export type DataStore = ReturnType<typeof import("./repositories").createDataStore>
 
 /**
  * Query options for pagination and sorting

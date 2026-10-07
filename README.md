@@ -134,7 +134,7 @@ Para desenvolver a persistência no servidor, crie `.env` com a conexão de banc
 **`.env`**
 
 ```dotenv
-DATABASE_URL="postgresql://pousada:pousada@localhost:5432/pousada"
+DATABASE_URL="postgresql://pousada_dev:local-development-only@127.0.0.1:5432/pousada_dev"
 ```
 
 **`.env.local`**
@@ -149,12 +149,14 @@ Com Docker disponível, execute:
 pnpm db:up
 pnpm db:generate
 pnpm exec prisma migrate deploy
+# Defina as credenciais de bootstrap conforme docs/PRODUCAO.md
+pnpm db:seed
 pnpm dev
 ```
 
 Reinicie o servidor de desenvolvimento sempre que trocar o modo de dados. O endereço de banco acima corresponde à configuração local de exemplo do Compose.
 
-No modo `database`, o navegador acessa `/api/data`, e as coleções mapeadas são persistidas em tabelas relacionais via Prisma. O adaptador JSONB legado permanece como caminho de migração e fallback. Consulte o [mapa do domínio](docs/DATABASE_DOMAIN_MAP.md) para os detalhes da transição.
+No modo `database`, o navegador acessa `/api/data`, e as coleções mapeadas são persistidas em tabelas relacionais via Prisma. O adaptador JSONB legado permanece apenas para migração. Consulte o [mapa do domínio](docs/DATABASE_DOMAIN_MAP.md) para os detalhes da transição.
 
 ## Execução com Docker
 
@@ -214,15 +216,17 @@ src/__tests__/         Testes automatizados
 
 ## Estado atual
 
-- **Autenticação:** o login da interface ainda usa usuários demonstrativos definidos no cliente. O cadastro administrativo de usuários não substitui esse fluxo por uma sessão autenticada no servidor.
-- **Inicialização do banco:** a aplicação ainda pode inserir dados iniciais quando não encontra quartos no modo `database`. O comando `pnpm db:seed` é atualmente um placeholder. A carga ampliada descrita neste README é exclusiva do modo de demonstração.
-- **Qualidade:** existem testes automatizados, mas a suíte geral e a verificação completa de tipos têm pendências. O build está configurado para ignorar erros de TypeScript; um build concluído não equivale a uma verificação de tipos aprovada.
+- **Acesso:** no modo `database`, o servidor autentica usuários, protege as APIs e aplica permissões. Senhas são gravadas com bcrypt e não são devolvidas ao navegador. Sessões usam cookies HttpOnly, expiram em oito horas e são revogadas em alterações de acesso.
+- **Operações:** vendas, estornos, check-in, reservas, consumo, comandas, estoque, produção e pagamentos de despesas usam operações no servidor. Vendas recalculam valores e aplicam os limites de desconto. Operações possuem transação e identificação de reenvios.
+- **Dados iniciais:** a produção começa vazia. O seed cria somente o primeiro supervisor e as configurações, exigindo credenciais definidas pelo responsável. A demonstração permanece separada.
+- **Verificação:** tipos e build não ignoram erros. O projeto inclui lint, testes unitários, integração com PostgreSQL e uma rotina de CI no GitHub.
 
-Esses pontos fazem parte da evolução do projeto e precisam ser tratados antes de usar o sistema com dados reais em uma implantação pública.
+Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), configure domínio e segredos, valide a cópia externa de backups e conclua a homologação dos fluxos da pousada. A configuração do repositório não comprova que uma infraestrutura remota já esteja implantada ou monitorada.
 
 ## Documentação
 
-- [Instalação no Windows, Docker e backups](docs/CLIENTE_INSTALACAO_DOCKER.md)
+- [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
+- [Instalação local no Windows](docs/CLIENTE_INSTALACAO_DOCKER.md)
 - [Camada de dados e repositórios](docs/DATA_LAYER.md)
 - [Mapa da migração relacional](docs/DATABASE_DOMAIN_MAP.md)
 - [Configuração local da instalação](config/README.md)

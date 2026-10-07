@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertTriangle } from "lucide-react"
 import { useState } from "react"
-import { validateSupervisorPassword } from "@/lib/utils/validators"
+import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
 type SupervisorApprovalDialogProps = {
   open: boolean
@@ -34,8 +34,8 @@ export function SupervisorApprovalDialog({
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
-  const handleApprove = () => {
-    if (validateSupervisorPassword(password)) {
+  const handleApprove = async () => {
+    if (await validateSupervisorPasswordAsync(password)) {
       setError("")
       setPassword("")
       onApprove()

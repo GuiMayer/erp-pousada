@@ -1,6 +1,6 @@
 /**
  * Reports Tab Component - Sidebar Layout
- * 
+ *
  * Radical UX restructure with actions sidebar:
  * - Main content area: Charts and visualizations
  * - Right sidebar: All export actions (CSV + PDF)
@@ -16,9 +16,9 @@ import { useReports } from "@/lib/hooks/useReports"
 import { useUserPreferences } from "@/contexts/user-preferences-context"
 import { useApp } from "@/lib/app-context"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  TrendingUp, 
-  DollarSign, 
+import {
+  TrendingUp,
+  DollarSign,
   ShoppingCart,
   Package,
 } from "lucide-react"
@@ -33,8 +33,8 @@ import { RevenueTrendChart } from "./reports/revenue-trend-chart"
 import { PeriodComparisonCard } from "./reports/period-comparison-card"
 import { ActionsSidebar } from "./reports/actions-sidebar"
 import { ExportDropdownMenu } from "./reports/export-dropdown-menu"
-import { 
-  exportDailySummaryToCSV, 
+import {
+  exportDailySummaryToCSV,
   exportTopProductsToCSV,
   exportSalesByCategoryToCSV,
   exportPaymentMethodToCSV,
@@ -47,24 +47,25 @@ import { downloadStockReport } from "@/lib/reports/stock-report"
 import { downloadRestaurantReport } from "@/lib/reports/restaurant-report"
 import { getTodayISO } from "@/lib/utils/constants"
 import { toast } from "sonner"
-import type { Reservation, Product, RestaurantOrder } from "@/lib/store"
+import type { StockReportProduct } from "@/lib/reports/stock-report"
+import type { Reservation, RestaurantOrder } from "@/lib/store"
 
 export function ReportsTab() {
   const { preferences } = useUserPreferences()
-  const { 
-    reservations, 
-    rooms, 
-    posProducts: products, 
-    productCategories,
+  const {
+    reservations,
+    rooms,
+    posProducts: products,
+    stockItems, productCategories,
     restaurantOrders,
-    systemSettings 
+    systemSettings
   } = useApp()
 
   // Period state
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today')
   const [startDate, setStartDate] = useState(getTodayISO())
   const [endDate, setEndDate] = useState(getTodayISO())
-  
+
   // Loading states
   const [isExporting, setIsExporting] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
@@ -75,7 +76,7 @@ export function ReportsTab() {
 
   // PDF Report filters - Stock
   const [stockCategoryId, setStockCategoryId] = useState<string | "all">("all")
-  const [stockType, setStockType] = useState<Product["type"] | "all">("all")
+  const [stockType, setStockType] = useState<StockReportProduct["type"] | "all">("all")
   const [stockLowStock, setStockLowStock] = useState(false)
 
   // PDF Report filters - Restaurant
@@ -100,7 +101,7 @@ export function ReportsTab() {
   const handlePeriodChange = (period: 'today' | 'week' | 'month' | 'custom') => {
     setSelectedPeriod(period)
     const today = new Date()
-    
+
     if (period === 'today') {
       const todayStr = getTodayISO()
       setStartDate(todayStr)
@@ -120,23 +121,23 @@ export function ReportsTab() {
 
   // Get data based on selected period
   const isMultiDay = selectedPeriod !== 'today' || startDate !== endDate
-  
-  const dailySummary = isMultiDay 
+
+  const dailySummary = isMultiDay
     ? getPeriodSummary(startDate, endDate)
     : getDailySummary(startDate)
-  
+
   const salesByCategory = isMultiDay
     ? getPeriodSalesByCategory(startDate, endDate)
     : getSalesByCategory(startDate)
-  
+
   const salesByPaymentMethod = isMultiDay
     ? getPeriodSalesByPaymentMethod(startDate, endDate)
     : getSalesByPaymentMethod(startDate)
-  
+
   const topProducts = isMultiDay
     ? getPeriodTopProducts(startDate, endDate, 10)
     : getTopProducts(startDate, 10)
-  
+
   const hourlySales = getHourlySales(startDate)
   const stockAlerts = getStockAlerts()
   const revenueTrend = isMultiDay ? getRevenueTrend(startDate, endDate) : []
@@ -218,7 +219,7 @@ export function ReportsTab() {
             startDate: startDate || undefined,
             endDate: endDate || undefined,
             status: reservationStatus,
-            roomId: reservationRoomId,
+            roomId: reservationRoomId === "all" ? "all" : Number(reservationRoomId),
           },
         },
         systemSettings
@@ -231,7 +232,7 @@ export function ReportsTab() {
     handlePDFWithLoading(() => {
       downloadStockReport(
         {
-          products,
+          products: stockItems.map(stock => ({ ...stock, name: stock.productName, categoryId: products.find(p => p.id === stock.productId)?.categoryId || "", type: "sellable" as const, unitPrice: stock.averageCost, minimumStock: stock.minimumStock })),
           categories: productCategories,
           filters: {
             categoryId: stockCategoryId,
@@ -275,7 +276,7 @@ export function ReportsTab() {
             Análise de vendas e geração de relatórios
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <CompactPeriodSelector
             selectedPeriod={selectedPeriod}
@@ -285,7 +286,7 @@ export function ReportsTab() {
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
           />
-          
+
           {/* Mobile export dropdown */}
           <div className="lg:hidden">
             <ExportDropdownMenu
@@ -368,7 +369,7 @@ export function ReportsTab() {
                 }}
                 previousPeriod={{
                   label: selectedPeriod === 'week' ? 'Semana Anterior' : selectedPeriod === 'month' ? 'Mês Anterior' : 'Período Anterior',
-                  revenue: dailySummary.previousDayRevenue,
+                  revenue: dailySummary.previousDayRevenue ?? 0,
                   transactions: 0,
                   averageTicket: 0,
                 }}

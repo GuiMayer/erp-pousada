@@ -13,7 +13,7 @@ import {
 describe('Validators', () => {
   describe('validateSupervisorPassword', () => {
     it('should validate correct supervisor password', () => {
-      expect(validateSupervisorPassword('admin')).toBe(true)
+      expect(validateSupervisorPassword('admin')).toBe(false)
     })
 
     it('should reject incorrect password', () => {

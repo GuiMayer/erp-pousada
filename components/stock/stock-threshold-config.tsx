@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
 import { useToast } from "@/hooks/use-toast"
 import { getStockStatusLevel } from "@/lib/utils/stock-validation"
@@ -29,7 +30,8 @@ import { AlertTriangle, Package, Save, Settings } from "lucide-react"
 import type { StockItem } from "@/lib/store"
 
 export function StockThresholdConfig() {
-  const { stockItems, updateStockItem, addAuditEntry } = useApp()
+  const { posProducts, stockItems, updateStockItem, addAuditEntry } = useApp()
+  const { username } = useAuth()
   const { toast } = useToast()
   const [editingItem, setEditingItem] = useState<StockItem | null>(null)
   const [minimumStock, setMinimumStock] = useState("")
@@ -68,11 +70,12 @@ export function StockThresholdConfig() {
 
     addAuditEntry({
       action: "atualizar_threshold",
-      entity: "estoque",
+      user: username || "sistema",
+      entityType: "StockItem",
       entityId: editingItem.id,
-      details: `Estoque mínimo alterado de ${oldMinimum} para ${newMinimum} ${editingItem.unit}`,
+      reference: `Estoque mínimo alterado de ${oldMinimum} para ${newMinimum} ${editingItem.unit}`,
       metadata: {
-        itemName: editingItem.name,
+        itemName: editingItem.productName,
         oldMinimum,
         newMinimum,
         unit: editingItem.unit,
@@ -81,7 +84,7 @@ export function StockThresholdConfig() {
 
     toast({
       title: "Threshold Atualizado",
-      description: `Estoque mínimo de ${editingItem.name} atualizado para ${newMinimum} ${editingItem.unit}`,
+      description: `Estoque mínimo de ${editingItem.productName} atualizado para ${newMinimum} ${editingItem.unit}`,
     })
 
     closeDialog()
@@ -124,12 +127,12 @@ export function StockThresholdConfig() {
     const statusOrder = { critical: 0, low: 1, warning: 2, normal: 3 }
     const statusA = getStockStatusLevel(a)
     const statusB = getStockStatusLevel(b)
-    
+
     if (statusOrder[statusA] !== statusOrder[statusB]) {
       return statusOrder[statusA] - statusOrder[statusB]
     }
-    
-    return a.name.localeCompare(b.name)
+
+    return a.productName.localeCompare(b.productName)
   })
 
   return (
@@ -176,11 +179,11 @@ export function StockThresholdConfig() {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Package className="h-4 w-4 text-muted-foreground" />
-                            {item.name}
+                            {item.productName}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {item.category}
+                          {posProducts.find(p => p.id === item.productId)?.categoryId}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {item.currentStock} {item.unit}
@@ -215,14 +218,14 @@ export function StockThresholdConfig() {
           <DialogHeader>
             <DialogTitle>Configurar Estoque Mínimo</DialogTitle>
             <DialogDescription>
-              Defina o nível mínimo de estoque para {editingItem?.name}
+              Defina o nível mínimo de estoque para {editingItem?.productName}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Item</Label>
-              <div className="text-sm font-medium">{editingItem?.name}</div>
+              <div className="text-sm font-medium">{editingItem?.productName}</div>
             </div>
 
             <div className="space-y-2">

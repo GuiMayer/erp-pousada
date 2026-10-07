@@ -18,12 +18,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
 
 export function DashboardShell() {
-  const { rooms } = useApp()
+  const { rooms, dataError } = useApp()
   const { isSupervisor } = useAuth()
   const { activeTab, setActiveTab } = useActiveTab()
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+      {dataError && <div role="alert" className="rounded-lg border border-destructive p-4 text-destructive">Não foi possível atualizar os dados: {dataError}. Recarregue a página para tentar novamente.</div>}
       <DashboardHeader rooms={rooms} />
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col gap-6">

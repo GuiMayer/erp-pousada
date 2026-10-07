@@ -122,19 +122,19 @@ export function AuditLogTab() {
   }, [auditLog])
 
   const uniqueOperations = useMemo(() => {
-    const ops = new Set(auditLog.map(e => e.operation).filter(Boolean))
+    const ops = new Set(auditLog.map(e => e.operation).filter((value): value is NonNullable<typeof value> => !!value))
     return Array.from(ops).sort()
   }, [auditLog])
 
   const uniqueEntityTypes = useMemo(() => {
-    const types = new Set(auditLog.map(e => e.entityType).filter(Boolean))
+    const types = new Set(auditLog.map(e => e.entityType).filter((value): value is NonNullable<typeof value> => !!value))
     return Array.from(types).sort()
   }, [auditLog])
 
   // Filter and search logic
   const filteredLog = useMemo(() => {
     return auditLog.filter(entry => {
-      const matchesSearch = 
+      const matchesSearch =
         entry.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.user.toLowerCase().includes(searchTerm.toLowerCase())
@@ -267,7 +267,7 @@ export function AuditLogTab() {
             <TableBody>
               {filteredLog.map((entry) => {
                 const isExpanded = expandedRows.has(entry.id)
-                const hasMetadata = entry.metadata && 
+                const hasMetadata = entry.metadata &&
                   (entry.metadata.before || entry.metadata.after || entry.metadata.reason || entry.metadata.amount !== undefined)
 
                 return (
@@ -337,7 +337,7 @@ export function AuditLogTab() {
               {filteredLog.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    {auditLog.length === 0 
+                    {auditLog.length === 0
                       ? "Nenhum evento registrado"
                       : "Nenhum evento encontrado com os filtros aplicados"}
                   </TableCell>

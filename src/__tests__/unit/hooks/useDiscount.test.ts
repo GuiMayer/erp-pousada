@@ -2,22 +2,22 @@ import { describe, it, expect } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useDiscount } from '@/lib/hooks/useDiscount'
 
-describe('useDiscount', () => {
+describe('useDiscount', async () => {
   const DISCOUNT_CEILING = 5
 
-  it('should initialize with default values', () => {
+  it('should initialize with default values', async () => {
     const { result } = renderHook(() => useDiscount(DISCOUNT_CEILING))
-    
+
     expect(result.current.discountValue).toBe(0)
     expect(result.current.needsApproval).toBe(false)
     expect(result.current.isApproved).toBe(false)
     expect(result.current.isValid).toBe(true)
   })
 
-  it('should allow discount within ceiling', () => {
+  it('should allow discount within ceiling', async () => {
     const { result } = renderHook(() => useDiscount(DISCOUNT_CEILING))
-    
-    act(() => {
+
+    await act(async () => {
       result.current.setDiscountValue(3)
     })
 
@@ -26,10 +26,10 @@ describe('useDiscount', () => {
     expect(result.current.isValid).toBe(true)
   })
 
-  it('should require approval for discount above ceiling', () => {
+  it('should require approval for discount above ceiling', async () => {
     const { result } = renderHook(() => useDiscount(DISCOUNT_CEILING))
-    
-    act(() => {
+
+    await act(async () => {
       result.current.setDiscountValue(10)
     })
 
@@ -37,16 +37,16 @@ describe('useDiscount', () => {
     expect(result.current.isValid).toBe(false)
   })
 
-  it('should approve discount with correct supervisor password', () => {
+  it('should approve discount with correct supervisor password', async () => {
     const { result } = renderHook(() => useDiscount(DISCOUNT_CEILING))
-    
-    act(() => {
+
+    await act(async () => {
       result.current.setDiscountValue(10)
     })
 
     let approved = false
-    act(() => {
-      approved = result.current.handleSupervisorApproval('admin')
+    await act(async () => {
+      approved = await result.current.handleSupervisorApproval('adm123')
     })
 
     expect(approved).toBe(true)
@@ -54,16 +54,16 @@ describe('useDiscount', () => {
     expect(result.current.isValid).toBe(true)
   })
 
-  it('should reject discount with incorrect supervisor password', () => {
+  it('should reject discount with incorrect supervisor password', async () => {
     const { result } = renderHook(() => useDiscount(DISCOUNT_CEILING))
-    
-    act(() => {
+
+    await act(async () => {
       result.current.setDiscountValue(10)
     })
 
     let approved = false
-    act(() => {
-      approved = result.current.handleSupervisorApproval('wrong')
+    await act(async () => {
+      approved = await result.current.handleSupervisorApproval('wrong')
     })
 
     expect(approved).toBe(false)
@@ -71,17 +71,17 @@ describe('useDiscount', () => {
     expect(result.current.isValid).toBe(false)
   })
 
-  it('should reset approval when discount changes back to valid range', () => {
+  it('should reset approval when discount changes back to valid range', async () => {
     const { result } = renderHook(() => useDiscount(DISCOUNT_CEILING))
-    
-    act(() => {
+
+    await act(async () => {
       result.current.setDiscountValue(10)
-      result.current.handleSupervisorApproval('admin')
+      await result.current.handleSupervisorApproval('adm123')
     })
 
     expect(result.current.isApproved).toBe(true)
 
-    act(() => {
+    await act(async () => {
       result.current.setDiscountValue(3)
     })
 
@@ -89,15 +89,15 @@ describe('useDiscount', () => {
     expect(result.current.needsApproval).toBe(false)
   })
 
-  it('should reset all state', () => {
+  it('should reset all state', async () => {
     const { result } = renderHook(() => useDiscount(DISCOUNT_CEILING))
-    
-    act(() => {
+
+    await act(async () => {
       result.current.setDiscountValue(10)
-      result.current.handleSupervisorApproval('admin')
+      await result.current.handleSupervisorApproval('adm123')
     })
 
-    act(() => {
+    await act(async () => {
       result.current.reset()
     })
 

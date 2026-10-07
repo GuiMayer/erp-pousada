@@ -19,7 +19,7 @@ interface ProductFormModalProps {
 
 export function ProductFormModal({ open, onClose, product, categoryType = "pdv" }: ProductFormModalProps) {
   const { posProducts, addPOSProduct, updatePOSProduct, productCategories } = useApp()
-  
+
   const [formData, setFormData] = useState({
     name: "",
     categoryId: "",
@@ -30,7 +30,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
   const [error, setError] = useState("")
 
   // Filter categories based on type
-  const filteredCategories = productCategories.filter(c => 
+  const filteredCategories = productCategories.filter(c =>
     c.active && (categoryType === "restaurant" ? c.isRestaurant : !c.isRestaurant)
   )
 
@@ -102,7 +102,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
       // Create new product
       const newProduct: POSProduct = {
         id: `P${Date.now()}`,
-        ...productData as Required<Omit<POSProduct, 'barcode'>>
+        ...productData as Required<Omit<POSProduct, 'id' | 'barcode'>>
       }
       addPOSProduct(newProduct)
     }
@@ -182,7 +182,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
             <Checkbox
               id="trackStock"
               checked={formData.trackStock}
-              onCheckedChange={(checked) => 
+              onCheckedChange={(checked) =>
                 setFormData({ ...formData, trackStock: checked as boolean })
               }
             />

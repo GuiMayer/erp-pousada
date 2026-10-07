@@ -42,7 +42,7 @@ export function StockTab() {
 
   const getStatusBadge = (item: StockItem) => {
     const status = getStockStatus(item)
-    
+
     if (status === "critical") {
       return (
         <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-200">
@@ -51,7 +51,7 @@ export function StockTab() {
         </Badge>
       )
     }
-    
+
     if (status === "low") {
       return (
         <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-200">
@@ -60,7 +60,7 @@ export function StockTab() {
         </Badge>
       )
     }
-    
+
     return (
       <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
         <TrendingUp className="h-3 w-3 mr-1" />
@@ -127,7 +127,7 @@ export function StockTab() {
 
       {/* Filters */}
       <div className="flex items-center gap-4">
-        <Select value={filter} onValueChange={(value: string) => setFilter(value)}>
+        <Select value={filter} onValueChange={(value: string) => setFilter(value as Parameters<typeof setFilter>[0])}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filtrar por status" />
           </SelectTrigger>

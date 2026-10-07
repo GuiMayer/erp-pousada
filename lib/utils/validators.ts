@@ -1,3 +1,4 @@
+import { getDataConfig } from "../data/config"
 /**
  * Validation utilities for state mutations
  */
@@ -15,7 +16,7 @@ export function validateRoom(room: Partial<Room>): { valid: boolean; error?: str
   if (room.number !== undefined && Number(room.number) <= 0) {
     return { valid: false, error: "Room number must be positive" }
   }
-  
+
   return { valid: true }
 }
 
@@ -26,16 +27,16 @@ export function validateReservation(reservation: Partial<Reservation>): { valid:
   if (reservation.checkIn && reservation.checkOut) {
     const checkIn = new Date(reservation.checkIn)
     const checkOut = new Date(reservation.checkOut)
-    
+
     if (checkOut <= checkIn) {
       return { valid: false, error: "Check-out must be after check-in" }
     }
   }
-  
+
   if (reservation.totalValue !== undefined && reservation.totalValue < 0) {
     return { valid: false, error: "Total price cannot be negative" }
   }
-  
+
   return { valid: true }
 }
 
@@ -46,11 +47,11 @@ export function validateExpense(expense: Partial<Expense>): { valid: boolean; er
   if (expense.value !== undefined && expense.value <= 0) {
     return { valid: false, error: "Expense amount must be positive" }
   }
-  
+
   if (expense.description !== undefined && expense.description.trim() === "") {
     return { valid: false, error: "Expense description cannot be empty" }
   }
-  
+
   return { valid: true }
 }
 
@@ -61,7 +62,7 @@ export function validateTransaction(transaction: Partial<Transaction>): { valid:
   if (transaction.value !== undefined && transaction.value === 0) {
     return { valid: false, error: "Transaction amount cannot be zero" }
   }
-  
+
   return { valid: true }
 }
 
@@ -88,11 +89,11 @@ export function validateStockItem(item: Partial<StockItem>): { valid: boolean; e
   if (item.lastPurchasePrice !== undefined && item.lastPurchasePrice < 0) {
     return { valid: false, error: "Last purchase price cannot be negative" }
   }
-  
+
   if (item.productName !== undefined && item.productName.trim() === "") {
     return { valid: false, error: "Stock item name cannot be empty" }
   }
-  
+
   return { valid: true }
 }
 
@@ -103,15 +104,15 @@ export function validateRecipe(recipe: Partial<Recipe>): { valid: boolean; error
   if (recipe.name !== undefined && recipe.name.trim() === "") {
     return { valid: false, error: "Recipe name cannot be empty" }
   }
-  
+
   if (recipe.expectedYield !== undefined && recipe.expectedYield <= 0) {
     return { valid: false, error: "Recipe yield must be positive" }
   }
-  
+
   if (recipe.ingredients && recipe.ingredients.length === 0) {
     return { valid: false, error: "Recipe must have at least one ingredient" }
   }
-  
+
   if (recipe.ingredients) {
     for (const ingredient of recipe.ingredients) {
       if (ingredient.quantity <= 0) {
@@ -119,7 +120,7 @@ export function validateRecipe(recipe: Partial<Recipe>): { valid: boolean; error
       }
     }
   }
-  
+
   return { valid: true }
 }
 
@@ -130,14 +131,14 @@ export function validateEmployee(employee: Partial<Employee>): { valid: boolean;
   if (employee.name !== undefined && employee.name.trim() === "") {
     return { valid: false, error: "Employee name cannot be empty" }
   }
-  
+
   if (employee.cpf !== undefined) {
     const cpfClean = employee.cpf.replace(/\D/g, "")
     if (cpfClean.length !== 11) {
       return { valid: false, error: "CPF must have 11 digits" }
     }
   }
-  
+
   return { valid: true }
 }
 
@@ -146,16 +147,16 @@ export function validateEmployee(employee: Partial<Employee>): { valid: boolean;
  */
 export function validateCPF(cpf: string): { valid: boolean; error?: string } {
   const cpfClean = cpf.replace(/\D/g, "")
-  
+
   if (cpfClean.length !== 11) {
     return { valid: false, error: "CPF must have 11 digits" }
   }
-  
+
   // Check for known invalid CPFs (all same digit)
   if (/^(\d)\1{10}$/.test(cpfClean)) {
     return { valid: false, error: "Invalid CPF format" }
   }
-  
+
   // Validate first check digit
   let sum = 0
   for (let i = 0; i < 9; i++) {
@@ -163,11 +164,11 @@ export function validateCPF(cpf: string): { valid: boolean; error?: string } {
   }
   let checkDigit = 11 - (sum % 11)
   if (checkDigit >= 10) checkDigit = 0
-  
+
   if (checkDigit !== parseInt(cpfClean.charAt(9))) {
     return { valid: false, error: "Invalid CPF checksum" }
   }
-  
+
   // Validate second check digit
   sum = 0
   for (let i = 0; i < 10; i++) {
@@ -175,11 +176,11 @@ export function validateCPF(cpf: string): { valid: boolean; error?: string } {
   }
   checkDigit = 11 - (sum % 11)
   if (checkDigit >= 10) checkDigit = 0
-  
+
   if (checkDigit !== parseInt(cpfClean.charAt(10))) {
     return { valid: false, error: "Invalid CPF checksum" }
   }
-  
+
   return { valid: true }
 }
 
@@ -206,6 +207,7 @@ export function validateSupervisorPassword(password: string): boolean {
  * Calls the /api/auth/supervisor endpoint which uses bcrypt hashing
  */
 export async function validateSupervisorPasswordAsync(password: string): Promise<boolean> {
+  if (getDataConfig().adapter === "demo-localStorage") return password === "adm123"
   try {
     const response = await fetch('/api/auth/supervisor', {
       method: 'POST',

@@ -1,6 +1,6 @@
 /**
  * User Repository
- * 
+ *
  * Manages user data and authentication.
  */
 
@@ -21,7 +21,7 @@ export class UserRepository extends BaseRepository<User> {
     if (!user.username || user.username.trim().length === 0) {
       return { valid: false, error: "Username é obrigatório" }
     }
-    if (!user.password || user.password.length < 4) {
+    if (user.password !== undefined && user.password.length < 12) {
       return { valid: false, error: "Senha deve ter no mínimo 4 caracteres" }
     }
     if (!user.role || !["operador", "supervisor"].includes(user.role)) {
@@ -59,15 +59,7 @@ export class UserRepository extends BaseRepository<User> {
   /**
    * Authenticate user
    */
-  async authenticate(username: string, password: string): Promise<User | null> {
-    const user = await this.findByUsername(username)
-    if (!user || !user.active) {
-      return null
-    }
-    // In production, this would use proper password hashing
-    if (user.password === password) {
-      return user
-    }
-    return null
+  async authenticate(): Promise<never> {
+    throw new Error("Autenticação é realizada exclusivamente pelo servidor")
   }
 }

@@ -11,6 +11,8 @@ afterEach(() => {
 let resetSharedState: (() => void) | null = null
 
 beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage")
+  localStorage.clear()
   if (resetSharedState) {
     resetSharedState()
   }
@@ -30,7 +32,7 @@ vi.mock('next/navigation', () => ({
 // Mock useDataStore with complete CRUD operations
 vi.mock('../../lib/hooks/useDataStore', async () => {
   const store = await import('../../lib/store')
-  
+
   // Shared state across all mock instances - will be reset before each test
   let sharedState = {
     rooms: [...store.initialRooms],
@@ -58,8 +60,9 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
     suppliers: [] as any[],
     customers: [] as any[],
     accountsReceivable: [] as any[],
+    bankAccounts: [] as any[], bankTransfers: [] as any[], costCenters: [] as any[], budgets: [] as any[], recurringTransactions: [] as any[],
   }
-  
+
   // Export reset function for beforeEach hook
   resetSharedState = () => {
     // Clear and repopulate arrays instead of reassigning to preserve references
@@ -109,14 +112,14 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
     sharedState.customers.length = 0
     sharedState.accountsReceivable.length = 0
   }
-  
+
   const createMockRepo = (dataKey: keyof typeof sharedState) => {
     return {
       getAll: vi.fn(async () => [...sharedState[dataKey]]),
       create: vi.fn(async (item) => {
         const data = sharedState[dataKey]
-        const exists = data.some((existing: any) => 
-          (item.id && existing.id === item.id) || 
+        const exists = data.some((existing: any) =>
+          (item.id && existing.id === item.id) ||
           (item.cpf && existing.cpf === item.cpf)
         )
         if (!exists) data.push(item)
@@ -145,10 +148,11 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
       getByRoomId: vi.fn(async (roomId: number) => sharedState[dataKey].find((item: any) => item.roomId === roomId)),
     }
   }
-  
-  return {
-    useDataStore: () => ({
+
+  const result = ({
       dataStore: {
+        exportAll: vi.fn(async () => JSON.stringify({ rooms: sharedState.rooms })),
+        importAll: vi.fn(async () => undefined),
         rooms: createMockRepo('rooms'),
         reservations: {
           ...createMockRepo('reservations'),
@@ -202,6 +206,7 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
         suppliers: createMockRepo('suppliers'),
         customers: createMockRepo('customers'),
         accountsReceivable: createMockRepo('accountsReceivable'),
+        bankAccounts: createMockRepo('bankAccounts'), bankTransfers: createMockRepo('bankTransfers'), costCenters: createMockRepo('costCenters'), budgets: createMockRepo('budgets'), recurringTransactions: createMockRepo('recurringTransactions'),
         systemSettings: {
           getAll: vi.fn(async () => [store.initialSystemSettings]),
           create: vi.fn(async () => undefined),
@@ -217,6 +222,6 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
       importData: vi.fn(async () => undefined),
       clearAllData: vi.fn(async () => undefined),
       getStorageUsage: vi.fn(async () => 0),
-    }),
-  }
+    })
+  return { useDataStore: () => result }
 })

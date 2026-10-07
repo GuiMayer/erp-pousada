@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { exportAllCollections } from "@/lib/server/db/relational-data-service"
-
-export async function GET() {
-  return new NextResponse(await exportAllCollections(), {
-    headers: {
-      "Content-Type": "application/json",
-    },
+import { authorize } from "@/lib/server/auth"
+import { handleRoute } from "@/lib/server/http"
+export async function GET(request: NextRequest) {
+  return handleRoute(async () => {
+    await authorize(request, true)
+    const result = await exportAllCollections()
+    return NextResponse.json(JSON.parse(result), { headers: { "Cache-Control": "no-store" } })
   })
 }

@@ -1,0 +1,66 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validation:
+    name: Validação
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: testadmin
+          POSTGRES_PASSWORD: ci-test-password
+          POSTGRES_DB: erp_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U testadmin -d erp_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://testadmin:ci-test-password@localhost:5432/erp_test
+      NEXT_PUBLIC_DATA_ADAPTER: database
+      APP_URL: http://localhost:3002
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma migrate deploy
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test:run
+      - run: pnpm test:integration
+      - run: pnpm audit --prod --audit-level=moderate
+      - run: pnpm build
+      - name: Validar backup e restauração em banco separado
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$POSTGRES_CONTAINER" pg_dump -U testadmin -d erp_test -Fc > /tmp/erp-test.dump
+          docker exec "$POSTGRES_CONTAINER" createdb -U testadmin erp_restore
+          docker exec -i "$POSTGRES_CONTAINER" pg_restore -U testadmin -d erp_restore --exit-on-error --single-transaction < /tmp/erp-test.dump
+          expected=$(docker exec "$POSTGRES_CONTAINER" psql -U testadmin -d erp_test -Atc 'SELECT count(*) FROM rooms')
+          actual=$(docker exec "$POSTGRES_CONTAINER" psql -U testadmin -d erp_restore -Atc 'SELECT count(*) FROM rooms')
+          test "$expected" = "$actual"
+      - name: Validar imagem de produção
+        env:
+          POSTGRES_PASSWORD: ci-container-test-only
+        run: docker build -t erp-pousada-ci .
+      - name: Validar inicialização e proteção do container
+        run: |
+          docker run -d --name erp-smoke --add-host host.docker.internal:host-gateway -p 127.0.0.1:3003:3000 -e DATABASE_URL=postgresql://testadmin:ci-test-password@host.docker.internal:5432/erp_test -e APP_URL=http://localhost:3003 erp-pousada-ci
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3003/api/health; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then docker logs erp-smoke; exit 1; fi
+          status=$(curl --silent --output /tmp/unauthorized.json --write-out '%{http_code}' http://localhost:3003/api/data/rooms)
+          test "$status" = 401

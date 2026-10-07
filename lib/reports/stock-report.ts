@@ -1,10 +1,10 @@
 /**
  * Stock Report Generator
- * 
+ *
  * Generates PDF reports for stock/inventory with filtering options.
  */
 
-import type { Product, ProductCategory, SystemSettings } from "../store"
+import type { ProductCategory, SystemSettings } from "../store"
 import {
   createPDFDocument,
   generatePDFHeader,
@@ -13,14 +13,16 @@ import {
   formatCurrency,
 } from "../utils/pdf-export"
 
+export type StockReportProduct = { id: string; name: string; categoryId: string; type: "consumable" | "sellable"; currentStock: number; minimumStock: number; unitPrice: number }
+
 export interface StockReportFilters {
   categoryId?: string | "all"
   lowStock?: boolean // Show only products below minimum stock
-  type?: Product["type"] | "all"
+  type?: StockReportProduct["type"] | "all"
 }
 
 export interface StockReportData {
-  products: Product[]
+  products: StockReportProduct[]
   categories: ProductCategory[]
   filters: StockReportFilters
 }
@@ -36,8 +38,8 @@ function getCategoryName(categoryId: string, categories: ProductCategory[]): str
 /**
  * Gets the product type label in Portuguese
  */
-function getTypeLabel(type: Product["type"]): string {
-  const labels: Record<Product["type"], string> = {
+function getTypeLabel(type: StockReportProduct["type"]): string {
+  const labels: Record<StockReportProduct["type"], string> = {
     consumable: "Consumível",
     sellable: "Vendável",
   }
@@ -48,9 +50,9 @@ function getTypeLabel(type: Product["type"]): string {
  * Filters products based on the provided criteria
  */
 function filterProducts(
-  products: Product[],
+  products: StockReportProduct[],
   filters: StockReportFilters
-): Product[] {
+): StockReportProduct[] {
   return products.filter(product => {
     // Filter by category
     if (filters.categoryId && filters.categoryId !== "all") {
@@ -73,7 +75,7 @@ function filterProducts(
 
 /**
  * Generates a PDF report for stock/inventory
- * 
+ *
  * @param data - Report data including products, categories, and filters
  * @param systemSettings - System settings for header information
  * @returns Blob containing the PDF file
@@ -83,25 +85,25 @@ export function generateStockReport(
   systemSettings: SystemSettings
 ): Blob {
   const doc = createPDFDocument()
-  
+
   // Generate header
   let yPos = generatePDFHeader(doc, systemSettings, "Relatório de Estoque")
 
   // Add filter information
   doc.setFontSize(9)
   doc.setFont("helvetica", "normal")
-  
+
   const filterLines: string[] = []
-  
+
   if (data.filters.categoryId && data.filters.categoryId !== "all") {
     const categoryName = getCategoryName(data.filters.categoryId, data.categories)
     filterLines.push(`Categoria: ${categoryName}`)
   }
-  
+
   if (data.filters.type && data.filters.type !== "all") {
     filterLines.push(`Tipo: ${getTypeLabel(data.filters.type)}`)
   }
-  
+
   if (data.filters.lowStock) {
     filterLines.push("Filtro: Apenas produtos com estoque baixo")
   }
@@ -120,7 +122,7 @@ export function generateStockReport(
   const filteredProducts = filterProducts(data.products, data.filters)
 
   // Sort by name
-  const sortedProducts = [...filteredProducts].sort((a, b) => 
+  const sortedProducts = [...filteredProducts].sort((a, b) =>
     a.name.localeCompare(b.name)
   )
 
@@ -129,7 +131,7 @@ export function generateStockReport(
   const rows = sortedProducts.map(product => {
     const totalValue = product.currentStock * product.unitPrice
     const stockStatus = product.currentStock < product.minimumStock ? "⚠️ " : ""
-    
+
     return [
       stockStatus + product.name,
       getCategoryName(product.categoryId, data.categories),
@@ -159,11 +161,11 @@ export function generateStockReport(
     (sum, p) => sum + (p.currentStock * p.unitPrice),
     0
   )
-  
+
   const lowStockProducts = sortedProducts.filter(
     p => p.currentStock < p.minimumStock
   )
-  
+
   const consumableProducts = sortedProducts.filter(p => p.type === "consumable")
   const sellableProducts = sortedProducts.filter(p => p.type === "sellable")
 
@@ -225,7 +227,7 @@ export function generateStockReport(
 
 /**
  * Downloads the stock report as a PDF file
- * 
+ *
  * @param data - Report data
  * @param systemSettings - System settings
  * @param filename - Optional custom filename (without extension)
@@ -236,7 +238,7 @@ export function downloadStockReport(
   filename?: string
 ): void {
   const blob = generateStockReport(data, systemSettings)
-  
+
   // Generate filename with timestamp
   const timestamp = new Date().toISOString().split("T")[0]
   const defaultFilename = `relatorio-estoque-${timestamp}.pdf`

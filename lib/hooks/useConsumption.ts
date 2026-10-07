@@ -5,8 +5,8 @@ import { generateConsumptionItemId } from "../utils/id-generators"
 type UseConsumptionProps = {
   roomId: number
   items: ConsumptionItem[]
-  addItem: (roomId: number, item: ConsumptionItem) => void
-  removeItem: (roomId: number, itemId: string) => void
+  addItem: (roomId: number, item: ConsumptionItem) => void | Promise<void>
+  removeItem: (roomId: number, itemId: string) => void | Promise<void>
 }
 
 /**
@@ -17,8 +17,8 @@ export function useConsumption({ roomId, items, addItem, removeItem }: UseConsum
     return items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0)
   }, [items])
 
-  const addCustomItem = useCallback((label: string, unitPrice: number, quantity: number = 1) => {
-    addItem(roomId, {
+  const addCustomItem = useCallback(async (label: string, unitPrice: number, quantity: number = 1) => {
+    await addItem(roomId, {
       id: generateConsumptionItemId(),
       label,
       unitPrice,
@@ -26,8 +26,8 @@ export function useConsumption({ roomId, items, addItem, removeItem }: UseConsum
     })
   }, [roomId, addItem])
 
-  const addCatalogItem = useCallback((label: string, unitPrice: number) => {
-    addItem(roomId, {
+  const addCatalogItem = useCallback(async (label: string, unitPrice: number) => {
+    await addItem(roomId, {
       id: generateConsumptionItemId(),
       label,
       unitPrice,
@@ -35,8 +35,8 @@ export function useConsumption({ roomId, items, addItem, removeItem }: UseConsum
     })
   }, [roomId, addItem])
 
-  const removeConsumptionItem = useCallback((itemId: string) => {
-    removeItem(roomId, itemId)
+  const removeConsumptionItem = useCallback(async (itemId: string) => {
+    await removeItem(roomId, itemId)
   }, [roomId, removeItem])
 
   return {

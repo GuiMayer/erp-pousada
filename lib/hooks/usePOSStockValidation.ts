@@ -20,7 +20,7 @@ export function usePOSStockValidation() {
       if (!item.product.trackStock) continue
 
       const stockItem = stockItems.find(s => s.productId === item.product.id)
-      
+
       if (!stockItem) {
         errors.push({
           productName: item.product.name,
@@ -67,14 +67,16 @@ export function usePOSStockValidation() {
       // Create stock movement
       const movement: StockMovement = {
         id: generateStockMovementId(),
-        stockItemId: stockItem.id,
+        productId: item.product.id,
+        productName: item.product.name,
+        unit: stockItem.unit,
         type: "saida",
         quantity: item.quantity,
         reason: `Venda PDV #${sale.id}`,
-        date: sale.date,
-        user: username,
-        reference: `Venda #${sale.id}`,
-        unitCost: stockItem.averageCost,
+        timestamp: sale.date,
+        registeredBy: username,
+
+        cost: stockItem.averageCost,
       }
       movements.push(movement)
 
@@ -98,10 +100,10 @@ export function usePOSStockValidation() {
   ): boolean => {
     return cart.some(item => {
       if (!item.product.trackStock) return false
-      
+
       const stockItem = stockItems.find(s => s.productId === item.product.id)
       if (!stockItem) return true
-      
+
       return stockItem.currentStock < item.quantity
     })
   }, [])
@@ -115,7 +117,7 @@ export function usePOSStockValidation() {
     stockItems: StockItem[]
   ): { available: boolean; currentStock: number; unit: string; message?: string } => {
     const stockItem = stockItems.find(s => s.productId === productId)
-    
+
     if (!stockItem) {
       return {
         available: false,
@@ -131,8 +133,8 @@ export function usePOSStockValidation() {
       available,
       currentStock: stockItem.currentStock,
       unit: stockItem.unit,
-      message: available 
-        ? undefined 
+      message: available
+        ? undefined
         : `Estoque insuficiente (disponível: ${stockItem.currentStock} ${stockItem.unit})`,
     }
   }, [])

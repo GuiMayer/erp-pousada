@@ -1,6 +1,6 @@
 /**
  * Expense Repository Tests
- * 
+ *
  * Tests for expense repository with installment support
  */
 
@@ -14,6 +14,10 @@ import { generateInstallments } from '../../../lib/utils/installment-generator'
  * Simple in-memory storage adapter for testing
  */
 class MockStorageAdapter implements IStorageAdapter {
+  async export(): Promise<string> { return JSON.stringify(Object.fromEntries(this.storage)) }
+  async import(data: string): Promise<void> { for (const [key,value] of Object.entries(JSON.parse(data))) this.storage.set(key,value) }
+  async getUsage(): Promise<number> { return (await this.export()).length }
+
   private storage: Map<string, any> = new Map()
 
   async get<T>(key: string): Promise<T | null> {
@@ -54,32 +58,30 @@ describe('ExpenseRepository', () => {
     it('should create an expense without installments', async () => {
       const expense: Partial<Expense> = {
         description: 'Office Supplies',
-        amount: 500,
+        value: 500,
         category: 'Supplies',
         dueDate: '2024-06-15',
         paid: false,
-        paymentMethod: 'credit'
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
       const retrieved = await repository.getById(created.id)
 
       expect(retrieved).toBeDefined()
       expect(retrieved?.description).toBe('Office Supplies')
-      expect(retrieved?.amount).toBe(500)
+      expect(retrieved?.value).toBe(500)
     })
 
     it('should update an expense', async () => {
       const expense: Partial<Expense> = {
         description: 'Internet Bill',
-        amount: 200,
+        value: 200,
         category: 'Utilities',
         dueDate: '2024-06-20',
         paid: false,
-        paymentMethod: 'debit'
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
       await repository.update(created.id, { paid: true, paymentDate: '2024-06-20' })
 
       const updated = await repository.getById(created.id)
@@ -90,14 +92,13 @@ describe('ExpenseRepository', () => {
     it('should delete an expense', async () => {
       const expense: Partial<Expense> = {
         description: 'Test Expense',
-        amount: 100,
+        value: 100,
         category: 'Test',
         dueDate: '2024-06-25',
         paid: false,
-        paymentMethod: 'cash'
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
       await repository.delete(created.id)
 
       const retrieved = await repository.getById(created.id)
@@ -113,33 +114,30 @@ describe('ExpenseRepository', () => {
     beforeEach(async () => {
       const rent = await repository.create({
         description: 'Rent',
-        amount: 2000,
+        value: 2000,
         category: 'Rent',
         dueDate: '2024-06-01',
         paid: true,
         paymentDate: '2024-06-01',
-        paymentMethod: 'transfer'
-      } as Expense)
+      } as Omit<Expense, "id">)
       rentId = rent.id
 
       const electricity = await repository.create({
         description: 'Electricity',
-        amount: 300,
+        value: 300,
         category: 'Utilities',
         dueDate: '2024-06-10',
         paid: false,
-        paymentMethod: 'debit'
-      } as Expense)
+      } as Omit<Expense, "id">)
       electricityId = electricity.id
 
       const water = await repository.create({
         description: 'Water',
-        amount: 150,
+        value: 150,
         category: 'Utilities',
         dueDate: '2024-05-15',
         paid: false,
-        paymentMethod: 'debit'
-      } as Expense)
+      } as Omit<Expense, "id">)
       waterId = water.id
     })
 
@@ -184,15 +182,14 @@ describe('ExpenseRepository', () => {
       })
       const expense: Partial<Expense> = {
         description: 'Equipment Purchase',
-        amount: 1200,
+        value: 1200,
         category: 'Equipment',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
       const retrieved = await repository.getById(created.id)
 
       expect(retrieved?.installments).toHaveLength(3)
@@ -208,15 +205,14 @@ describe('ExpenseRepository', () => {
       })
       const expense: Partial<Expense> = {
         description: 'Software License',
-        amount: 900,
+        value: 900,
         category: 'Software',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
       const withInstallments = await repository.findWithInstallments()
 
       expect(withInstallments.length).toBeGreaterThanOrEqual(1)
@@ -231,15 +227,14 @@ describe('ExpenseRepository', () => {
       })
       const expense: Partial<Expense> = {
         description: 'Consulting Services',
-        amount: 600,
+        value: 600,
         category: 'Services',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
       const installmentId = installments[0].id
 
       await repository.updateInstallment(created.id, installmentId, {
@@ -261,15 +256,14 @@ describe('ExpenseRepository', () => {
       })
       const expense: Partial<Expense> = {
         description: 'Marketing Campaign',
-        amount: 900,
+        value: 900,
         category: 'Marketing',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
       const installmentId = installments[0].id
 
       await repository.markInstallmentAsPaid(created.id, installmentId)
@@ -287,15 +281,14 @@ describe('ExpenseRepository', () => {
       })
       const expense: Partial<Expense> = {
         description: 'Training Course',
-        amount: 600,
+        value: 600,
         category: 'Training',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
 
       // Pay first installment
       await repository.markInstallmentAsPaid(created.id, installments[0].id)
@@ -317,15 +310,14 @@ describe('ExpenseRepository', () => {
       })
       const expense: Partial<Expense> = {
         description: 'Subscription',
-        amount: 600,
+        value: 600,
         category: 'Services',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
 
       // Pay all installments
       await repository.markInstallmentAsPaid(created.id, installments[0].id)
@@ -348,11 +340,10 @@ describe('ExpenseRepository', () => {
     it('should get all installments across all expenses', async () => {
       const expense1: Partial<Expense> = {
         description: 'Equipment A',
-        amount: 600,
+        value: 600,
         category: 'Equipment',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments: generateInstallments({
           totalValue: 600,
           numberOfInstallments: 2,
@@ -362,11 +353,10 @@ describe('ExpenseRepository', () => {
 
       const expense2: Partial<Expense> = {
         description: 'Equipment B',
-        amount: 900,
+        value: 900,
         category: 'Equipment',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments: generateInstallments({
           totalValue: 900,
           numberOfInstallments: 3,
@@ -374,8 +364,8 @@ describe('ExpenseRepository', () => {
         })
       }
 
-      await repository.create(expense1 as Expense)
-      await repository.create(expense2 as Expense)
+      await repository.create(expense1 as Omit<Expense, "id">)
+      await repository.create(expense2 as Omit<Expense, "id">)
 
       const allInstallments = await repository.getAllInstallments()
       expect(allInstallments.length).toBeGreaterThanOrEqual(5) // 2 + 3
@@ -396,26 +386,24 @@ describe('ExpenseRepository', () => {
 
       const expense1: Partial<Expense> = {
         description: 'Past Due',
-        amount: 600,
+        value: 600,
         category: 'Test',
         dueDate: '2024-05-01',
         paid: false,
-        paymentMethod: 'credit',
         installments: pastInstallments
       }
 
       const expense2: Partial<Expense> = {
         description: 'Future Due',
-        amount: 600,
+        value: 600,
         category: 'Test',
         dueDate: '2024-07-01',
         paid: false,
-        paymentMethod: 'credit',
         installments: futureInstallments
       }
 
-      const created1 = await repository.create(expense1 as Expense)
-      await repository.create(expense2 as Expense)
+      const created1 = await repository.create(expense1 as Omit<Expense, "id">)
+      await repository.create(expense2 as Omit<Expense, "id">)
 
       const overdueInstallments = await repository.findOverdueInstallments()
       expect(overdueInstallments.length).toBeGreaterThan(0)
@@ -431,14 +419,13 @@ describe('ExpenseRepository', () => {
     it('should throw error when updating installment on expense without installments', async () => {
       const expense: Partial<Expense> = {
         description: 'No Installments',
-        amount: 500,
+        value: 500,
         category: 'Test',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'cash'
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
 
       await expect(
         repository.updateInstallment(created.id, 'INST-001', { paid: true })
@@ -453,15 +440,14 @@ describe('ExpenseRepository', () => {
       })
       const expense: Partial<Expense> = {
         description: 'Test',
-        amount: 600,
+        value: 600,
         category: 'Test',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'credit',
         installments
       }
 
-      const created = await repository.create(expense as Expense)
+      const created = await repository.create(expense as Omit<Expense, "id">)
 
       await expect(
         repository.updateInstallment(created.id, 'NON-EXISTENT', { paid: true })
@@ -473,12 +459,11 @@ describe('ExpenseRepository', () => {
     it('should reject expense with invalid data', async () => {
       const invalidExpense = {
         description: '',
-        amount: -100,
+        value: -100,
         category: 'Test',
         dueDate: 'invalid-date',
         paid: false,
-        paymentMethod: 'cash'
-      } as Expense
+      } as Omit<Expense, "id">
 
       await expect(repository.create(invalidExpense)).rejects.toThrow()
     })
@@ -486,12 +471,11 @@ describe('ExpenseRepository', () => {
     it('should accept expense with valid required fields', async () => {
       const validExpense = {
         description: 'Valid Expense',
-        amount: 100,
+        value: 100,
         category: 'Test',
         dueDate: '2024-06-01',
         paid: false,
-        paymentMethod: 'cash'
-      } as Expense
+      } as Omit<Expense, "id">
 
       const created = await repository.create(validExpense)
       expect(created).toBeDefined()

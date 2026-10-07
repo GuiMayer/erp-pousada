@@ -8,10 +8,10 @@ if [ "$INTERVAL_MINUTES" = "0" ]; then
   tail -f /dev/null
 fi
 
-/scripts/db-wait.sh
+sh /scripts/db-wait.sh
 
 while true; do
   echo "Creating scheduled backup..."
-  /scripts/db-backup.sh
+  sh /scripts/db-backup.sh
   sleep "$((INTERVAL_MINUTES * 60))"
 done

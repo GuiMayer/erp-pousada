@@ -11,14 +11,14 @@ describe('useProductSearch', () => {
       categoryId: 'C001',
       price: 5,
       barcode: '7891234567890',
-      stock: 10,
+      trackStock: true,
     },
     {
       id: 'P002',
       name: 'Refrigerante',
       categoryId: 'C001',
       price: 8,
-      stock: 15,
+      trackStock: true,
     },
     {
       id: 'P003',
@@ -26,7 +26,7 @@ describe('useProductSearch', () => {
       categoryId: 'C002',
       price: 3,
       barcode: '7891234567891',
-      stock: 20,
+      trackStock: true,
     },
   ]
 
@@ -40,7 +40,7 @@ describe('useProductSearch', () => {
 
   it('should initialize with default values', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     expect(result.current.searchQuery).toBe('')
     expect(result.current.categoryFilter).toBe('Todos')
     expect(result.current.filteredProducts).toEqual(mockProducts)
@@ -48,13 +48,13 @@ describe('useProductSearch', () => {
 
   it('should extract unique categories', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     expect(result.current.categories).toEqual(['Todos', 'Bebidas', 'Higiene'])
   })
 
   it('should filter products by search query', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     act(() => {
       result.current.setSearchQuery('água')
     })
@@ -65,7 +65,7 @@ describe('useProductSearch', () => {
 
   it('should filter products by category', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     act(() => {
       result.current.setCategoryFilter('Bebidas')
     })
@@ -75,7 +75,7 @@ describe('useProductSearch', () => {
 
   it('should filter by both search and category', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     act(() => {
       result.current.setSearchQuery('refri')
       result.current.setCategoryFilter('Bebidas')
@@ -87,7 +87,7 @@ describe('useProductSearch', () => {
 
   it('should search by barcode', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     act(() => {
       result.current.setSearchQuery('7891234567890')
     })
@@ -98,24 +98,24 @@ describe('useProductSearch', () => {
 
   it('should find product by barcode', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     const product = result.current.findByBarcode('7891234567890')
-    
+
     expect(product).toBeDefined()
     expect(product?.name).toBe('Água Mineral')
   })
 
   it('should return undefined for non-existent barcode', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     const product = result.current.findByBarcode('9999999999999')
-    
+
     expect(product).toBeUndefined()
   })
 
   it('should be case-insensitive in search', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     act(() => {
       result.current.setSearchQuery('ÁGUA')
     })
@@ -126,7 +126,7 @@ describe('useProductSearch', () => {
 
   it('should show all products when category is "Todos"', () => {
     const { result } = renderHook(() => useProductSearch(mockProducts, mockGetCategoryName))
-    
+
     act(() => {
       result.current.setCategoryFilter('Bebidas')
       result.current.setCategoryFilter('Todos')

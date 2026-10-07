@@ -53,7 +53,7 @@ describe('AppContext', () => {
       await waitFor(() => {
         expect(result.current.rooms).toHaveLength(initialCount + 1)
       })
-      
+
       expect(result.current.rooms.find(r => r.id === 999)).toEqual(newRoom)
     })
 
@@ -99,7 +99,7 @@ describe('AppContext', () => {
       await waitFor(() => {
         expect(result.current.rooms).toHaveLength(initialCount - 1)
       })
-      
+
       expect(result.current.rooms.find(r => r.id === firstRoom.id)).toBeUndefined()
     })
   })
@@ -225,7 +225,7 @@ describe('AppContext', () => {
       await waitFor(() => {
         expect(result.current.reservations).toHaveLength(initialCount + 1)
       })
-      
+
       expect(result.current.reservations.find(r => r.id === 'TEST001')).toEqual(newReservation)
     })
 
@@ -282,7 +282,7 @@ describe('AppContext', () => {
       const newProduct: POSProduct = {
         id: 'TEST_PROD',
         name: 'Test Product',
-        category: 'Test Category',
+        categoryId: 'Test Category', trackStock: false,
         price: 10,
       }
 
@@ -293,7 +293,7 @@ describe('AppContext', () => {
       await waitFor(() => {
         expect(result.current.posProducts).toHaveLength(initialCount + 1)
       })
-      
+
       expect(result.current.posProducts.find(p => p.id === 'TEST_PROD')).toEqual(newProduct)
     })
 
@@ -310,7 +310,7 @@ describe('AppContext', () => {
       const newProduct: POSProduct = {
         id: 'TEST_PROD2',
         name: 'Test Product',
-        category: 'Test Category',
+        categoryId: 'Test Category', trackStock: false,
         price: 10,
       }
 
@@ -341,7 +341,7 @@ describe('AppContext', () => {
       const newProduct: POSProduct = {
         id: 'TEST_PROD3',
         name: 'Test Product',
-        category: 'Test Category',
+        categoryId: 'Test Category', trackStock: false,
         price: 10,
       }
 
@@ -358,7 +358,7 @@ describe('AppContext', () => {
       await waitFor(() => {
         expect(result.current.posProducts).toHaveLength(countAfterAdd - 1)
       })
-      
+
       expect(result.current.posProducts.find(p => p.id === 'TEST_PROD3')).toBeUndefined()
     })
   })
@@ -488,7 +488,7 @@ describe('AppContext', () => {
       await waitFor(() => {
         expect(result.current.auditLog).toHaveLength(initialCount + 1)
       })
-      
+
       const latestEntry = result.current.auditLog[result.current.auditLog.length - 1]
       expect(latestEntry.user).toBe('test-user')
       expect(latestEntry.action).toBe('test-action')

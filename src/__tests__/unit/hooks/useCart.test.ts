@@ -7,14 +7,14 @@ describe('useCart', () => {
   const mockProduct: POSProduct = {
     id: 'P001',
     name: 'Test Product',
-    category: 'Test',
+    categoryId: 'Test', trackStock: false,
     price: 10,
   }
 
   const mockProduct2: POSProduct = {
     id: 'P002',
     name: 'Test Product 2',
-    category: 'Test',
+    categoryId: 'Test', trackStock: false,
     price: 20,
   }
 
@@ -27,7 +27,7 @@ describe('useCart', () => {
 
   it('should add product to cart', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct, 2)
     })
@@ -40,7 +40,7 @@ describe('useCart', () => {
 
   it('should increase quantity when adding existing product', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct, 1)
       result.current.addToCart(mockProduct, 2)
@@ -52,7 +52,7 @@ describe('useCart', () => {
 
   it('should remove product from cart', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct)
     })
@@ -68,7 +68,7 @@ describe('useCart', () => {
 
   it('should update product quantity', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct, 1)
     })
@@ -84,7 +84,7 @@ describe('useCart', () => {
 
   it('should update item discount', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct)
     })
@@ -100,7 +100,7 @@ describe('useCart', () => {
 
   it('should calculate subtotal correctly', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct, 2) // 10 * 2 = 20
       result.current.addToCart(mockProduct2, 1) // 20 * 1 = 20
@@ -111,7 +111,7 @@ describe('useCart', () => {
 
   it('should calculate total with discounts', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct, 2) // 10 * 2 = 20
     })
@@ -129,7 +129,7 @@ describe('useCart', () => {
 
   it('should clear cart', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct)
       result.current.addToCart(mockProduct2)
@@ -147,7 +147,7 @@ describe('useCart', () => {
 
   it('should calculate item total correctly', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct, 2)
     })
@@ -160,7 +160,7 @@ describe('useCart', () => {
 
   it('should calculate item total with discount', () => {
     const { result } = renderHook(() => useCart())
-    
+
     act(() => {
       result.current.addToCart(mockProduct, 2)
     })

@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { getDataConfig } from "@/lib/data/config"
+
+import { useState, useCallback, useMemo } from "react"
 import { calculateItemTotal, formatCurrencyFixed } from "@/lib/utils/price-calculations"
 import {
   Dialog,
@@ -52,7 +54,7 @@ interface Props {
 }
 
 export function EmployeeConsumptionModal({ open, onClose }: Props) {
-  const { employees, posProducts, employeeConsumptions, addEmployeeConsumption, addAuditEntry } = useApp()
+  const { runOperation, employees, posProducts, employeeConsumptions, addEmployeeConsumption, addAuditEntry } = useApp()
   const { username } = useAuth()
 
   const [step, setStep] = useState<"select" | "cart" | "confirm">("select")
@@ -86,16 +88,16 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
     return posProducts.filter(
       p =>
         p.name.toLowerCase().includes(query) ||
-        p.category.toLowerCase().includes(query)
+        p.categoryId.toLowerCase().includes(query)
     )
   }, [posProducts, productSearch])
 
-  const getMonthlyConsumption = (employeeId: number): number => {
+  const getMonthlyConsumption = useCallback((employeeId: string): number => {
     const thisMonth = new Date().toISOString().slice(0, 7)
     return employeeConsumptions
-      .filter(c => c.employeeId === employeeId && c.date.startsWith(thisMonth))
+      .filter(c => c.employeeId === employeeId && c.timestamp.startsWith(thisMonth))
       .reduce((sum, c) => sum + c.total, 0)
-  }
+  }, [employeeConsumptions])
 
   const cartTotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + calculateItemTotal(item.product.price, item.quantity), 0)
@@ -105,7 +107,7 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
     if (!selectedEmployee) return 0
     const consumed = getMonthlyConsumption(selectedEmployee.id)
     return selectedEmployee.consumptionLimit - consumed - cartTotal
-  }, [selectedEmployee, cartTotal])
+  }, [getMonthlyConsumption, selectedEmployee, cartTotal])
 
   function resetForm() {
     setStep("select")
@@ -134,7 +136,7 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
       ))
     } else {
       setCart([...cart, {
-        id: `${product.id}-${Date.now()}`,
+        id: crypto.randomUUID(),
         product,
         quantity: 1,
       }])
@@ -186,10 +188,10 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
     setConfirmOpen(true)
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!selectedEmployee) return
 
-    const newId = Math.max(...employeeConsumptions.map(c => c.id), 0) + 1
+    const newId = crypto.randomUUID()
     const consumption: EmployeeConsumption = {
       id: newId,
       employeeId: selectedEmployee.id,
@@ -202,13 +204,16 @@ export function EmployeeConsumptionModal({ open, onClose }: Props) {
         subtotal: calculateItemTotal(item.product.price, item.quantity),
       })),
       total: cartTotal,
-      mealType,
-      paymentType,
-      date: new Date().toISOString(),
-      operator: username || "sistema",
+      category: mealType,
+      paymentType: paymentType === "desconto_folha" ? "desconto" : paymentType === "dinheiro" ? "pago" : "beneficio",
+      timestamp: new Date().toISOString(),
+      registeredBy: username || "sistema",
     }
 
-    addEmployeeConsumption(consumption)
+    try {
+      if (getDataConfig().adapter === "database") await runOperation("employee-consumption", { employeeId: consumption.employeeId, category: consumption.category, paymentType: consumption.paymentType, items: consumption.items.map(i => ({ productId: i.productId, quantity: i.quantity })) })
+      else await addEmployeeConsumption(consumption)
+    } catch (error) { setFormError(error instanceof Error ? error.message : "Consumo não registrado"); setConfirmOpen(false); return }
 
     addAuditEntry({
       user: username || "sistema",

@@ -1,11 +1,11 @@
 /**
  * Centralized Stock Validation Utilities
- * 
+ *
  * This module provides reusable stock validation functions to prevent
  * duplicated validation logic across the application.
  */
 
-import type { StockItem } from "../types"
+import type { StockItem } from "../store"
 
 export interface StockValidationResult {
   isValid: boolean
@@ -23,7 +23,7 @@ export interface StockValidationResult {
 
 /**
  * Validates if a product has sufficient stock for a requested quantity
- * 
+ *
  * @param stockItem - The stock item to validate
  * @param requestedQuantity - The quantity being requested
  * @param productName - The product name for error messages
@@ -81,7 +81,7 @@ export function validateStockAvailability(
 
 /**
  * Checks if a stock item is below minimum threshold
- * 
+ *
  * @param stockItem - The stock item to check
  * @returns true if stock is at or below minimum threshold
  */
@@ -91,7 +91,7 @@ export function isStockBelowMinimum(stockItem: StockItem): boolean {
 
 /**
  * Checks if a stock item is critically low (at or below zero)
- * 
+ *
  * @param stockItem - The stock item to check
  * @returns true if stock is critically low
  */
@@ -101,7 +101,7 @@ export function isStockCritical(stockItem: StockItem): boolean {
 
 /**
  * Checks if a stock item is approaching minimum (within 50% buffer)
- * 
+ *
  * @param stockItem - The stock item to check
  * @returns true if stock is approaching minimum threshold
  */
@@ -111,7 +111,7 @@ export function isStockApproachingMinimum(stockItem: StockItem): boolean {
 
 /**
  * Gets the stock status level for UI display
- * 
+ *
  * @param stockItem - The stock item to check
  * @returns Status level: 'critical' | 'low' | 'warning' | 'normal'
  */

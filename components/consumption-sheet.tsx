@@ -1,5 +1,8 @@
 "use client"
 
+import { getDataConfig } from "@/lib/data/config"
+import { useToast } from "@/hooks/use-toast"
+
 import { useState } from "react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -27,12 +30,15 @@ type Props = {
 }
 
 export function ConsumptionSheet({ room, open, onClose }: Props) {
-  const { 
+  const {
     addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry,
-    posProducts,
+    runOperation, clearConsumption, addTransaction, posProducts,
     getCategoryName,
   } = useApp()
   const { username } = useAuth()
+  const { toast } = useToast()
+  const [paying, setPaying] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState("pix")
   const { sendNotification } = useNotifications()
 
   const [customLabel, setCustomLabel] = useState("")
@@ -43,16 +49,16 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   const items = consumption?.items || []
 
   // Use custom hooks
-  const { 
-    searchQuery, 
-    setSearchQuery, 
-    categoryFilter, 
+  const {
+    searchQuery,
+    setSearchQuery,
+    categoryFilter,
     setCategoryFilter,
     categories,
-    filteredProducts 
+    filteredProducts
   } = useProductSearch(posProducts, getCategoryName)
 
-  const { 
+  const {
     total,
     addCatalogItem,
     addCustomItem,
@@ -64,8 +70,8 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     removeItem: removeConsumptionItem,
   })
 
-  function handleAddCatalogItem(name: string, unitPrice: number) {
-    addCatalogItem(name, unitPrice)
+  async function handleAddCatalogItem(name: string, unitPrice: number) {
+    try { await addCatalogItem(name, unitPrice) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
     addAuditEntry({
       user: username || "sistema",
       action: `Consumo lancado: ${name}`,
@@ -76,13 +82,13 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
       'Consumo Lançado',
       `${name} adicionado ao Quarto ${room.number}`,
       'low',
-      room.id
+      String(room.id)
     )
   }
 
-  function handleAddCustomItem() {
+  async function handleAddCustomItem() {
     if (!customLabel || !customPrice) return
-    addCustomItem(customLabel, Number(customPrice), Number(customQty) || 1)
+    try { await addCustomItem(customLabel, Number(customPrice), Number(customQty) || 1) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
     addAuditEntry({
       user: username || "sistema",
       action: `Consumo lancado: ${customLabel}`,
@@ -93,15 +99,28 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
       'Consumo Lançado',
       `${customLabel} adicionado ao Quarto ${room.number}`,
       'low',
-      room.id
+      String(room.id)
     )
     setCustomLabel("")
     setCustomPrice("")
     setCustomQty("1")
   }
 
-  function handleRemoveItem(itemId: string) {
-    removeItem(itemId)
+  async function handleRemoveItem(itemId: string) {
+    try { await removeItem(itemId) } catch (error) { toast({ title: "Item não removido", description: String(error), variant: "destructive" }) }
+  }
+  async function payConsumption() {
+    if (paying) return
+    setPaying(true)
+    try {
+      if (getDataConfig().adapter === "database") await runOperation("pay-consumption", { roomId: room.id, paymentMethod })
+      else {
+        await addTransaction({ id: crypto.randomUUID(), date: new Date().toISOString(), description: `Consumo quarto ${room.number}`, value: total, type: "receita", paymentMethod, responsible: username || "demo" })
+        await clearConsumption(room.id)
+      }
+      toast({ title: "Consumo quitado" })
+    } catch (error) { toast({ title: "Pagamento não concluído", description: String(error), variant: "destructive" }) }
+    finally { setPaying(false) }
   }
 
   return (
@@ -249,7 +268,13 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           </div>
         </div>
 
-        <SheetFooter className="border-t border-border pt-4">
+        <SheetFooter className="border-t border-border pt-4 flex-col gap-3">
+          {total > 0 && <div className="flex gap-2">
+            <select aria-label="Forma de pagamento" className="rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+              <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
+            </select>
+            <Button disabled={paying} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button>
+          </div>}
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground">Total Consumo</span>

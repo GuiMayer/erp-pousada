@@ -1,34 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getCollection, removeCollection, replaceCollection } from "@/lib/server/db/relational-data-service"
-
-type RouteContext = {
-  params: Promise<{ key: string }>
+import { getCollection } from "@/lib/server/db/relational-data-service"
+import { authorizeCollection } from "@/lib/server/data-permissions"
+import { handleRoute, HttpError } from "@/lib/server/http"
+type Context = { params: Promise<{ key: string }> }
+export async function GET(request: NextRequest, context: Context) {
+  return handleRoute(async () => {
+    const { key } = await context.params
+    await authorizeCollection(request, key)
+    return NextResponse.json(await getCollection(key), { headers: { "Cache-Control": "no-store" } })
+  })
 }
-
-export async function GET(_request: NextRequest, context: RouteContext) {
-  const { key } = await context.params
-  const data = await getCollection(decodeURIComponent(key))
-
-  if (data === null) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
-
-  return NextResponse.json(data)
+export async function PUT(request: NextRequest, context: Context) {
+  return handleRoute(async () => { await authorizeCollection(request, (await context.params).key); throw new HttpError(405, "Use as operações por registro ou importação completa") })
 }
-
-export async function PUT(request: NextRequest, context: RouteContext) {
-  const { key } = await context.params
-  const data = await request.json()
-
-  await replaceCollection(decodeURIComponent(key), data)
-
-  return NextResponse.json({ success: true })
-}
-
-export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const { key } = await context.params
-
-  await removeCollection(decodeURIComponent(key))
-
-  return NextResponse.json({ success: true })
-}
+export const DELETE = PUT

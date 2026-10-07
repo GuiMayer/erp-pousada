@@ -1,10 +1,10 @@
 /**
  * Restaurant Report Generator
- * 
+ *
  * Generates PDF reports for restaurant orders with filtering options.
  */
 
-import type { RestaurantOrder, RestaurantProduct, RestaurantProductCategory, SystemSettings } from "../store"
+import type { RestaurantOrder, POSProduct, ProductCategory, SystemSettings } from "../store"
 import {
   createPDFDocument,
   generatePDFHeader,
@@ -24,15 +24,15 @@ export interface RestaurantReportFilters {
 
 export interface RestaurantReportData {
   orders: RestaurantOrder[]
-  products: RestaurantProduct[]
-  categories: RestaurantProductCategory[]
+  products: POSProduct[]
+  categories: ProductCategory[]
   filters: RestaurantReportFilters
 }
 
 /**
  * Gets the product name by ID
  */
-function getProductName(productId: string, products: RestaurantProduct[]): string {
+function getProductName(productId: string, products: POSProduct[]): string {
   const product = products.find(p => p.id === productId)
   return product?.name || "Produto não encontrado"
 }
@@ -40,7 +40,7 @@ function getProductName(productId: string, products: RestaurantProduct[]): strin
 /**
  * Gets the category name by ID
  */
-function getCategoryName(categoryId: string, categories: RestaurantProductCategory[]): string {
+function getCategoryName(categoryId: string, categories: ProductCategory[]): string {
   const category = categories.find(c => c.id === categoryId)
   return category?.name || "Sem categoria"
 }
@@ -50,11 +50,9 @@ function getCategoryName(categoryId: string, categories: RestaurantProductCatego
  */
 function getStatusLabel(status: RestaurantOrder["status"]): string {
   const labels: Record<RestaurantOrder["status"], string> = {
-    pending: "Pendente",
-    preparing: "Preparando",
-    ready: "Pronto",
-    delivered: "Entregue",
-    cancelled: "Cancelado",
+    aberta: "Aberta",
+    fechada: "Fechada",
+    cancelada: "Cancelada",
   }
   return labels[status] || status
 }
@@ -64,19 +62,19 @@ function getStatusLabel(status: RestaurantOrder["status"]): string {
  */
 function filterOrders(
   orders: RestaurantOrder[],
-  products: RestaurantProduct[],
+  products: POSProduct[],
   filters: RestaurantReportFilters
 ): RestaurantOrder[] {
   return orders.filter(order => {
     // Filter by date range
     if (filters.startDate) {
-      const orderDate = new Date(order.createdAt)
+      const orderDate = new Date(order.openedAt)
       const filterStart = new Date(filters.startDate)
       if (orderDate < filterStart) return false
     }
 
     if (filters.endDate) {
-      const orderDate = new Date(order.createdAt)
+      const orderDate = new Date(order.openedAt)
       const filterEnd = new Date(filters.endDate)
       if (orderDate > filterEnd) return false
     }
@@ -101,7 +99,7 @@ function filterOrders(
 
 /**
  * Generates a PDF report for restaurant orders
- * 
+ *
  * @param data - Report data including orders, products, categories, and filters
  * @param systemSettings - System settings for header information
  * @returns Blob containing the PDF file
@@ -111,26 +109,26 @@ export function generateRestaurantReport(
   systemSettings: SystemSettings
 ): Blob {
   const doc = createPDFDocument()
-  
+
   // Generate header
   let yPos = generatePDFHeader(doc, systemSettings, "Relatório de Restaurante")
 
   // Add filter information
   doc.setFontSize(9)
   doc.setFont("helvetica", "normal")
-  
+
   const filterLines: string[] = []
-  
+
   if (data.filters.startDate || data.filters.endDate) {
     const start = data.filters.startDate ? formatDate(data.filters.startDate) : "Início"
     const end = data.filters.endDate ? formatDate(data.filters.endDate) : "Fim"
     filterLines.push(`Período: ${start} até ${end}`)
   }
-  
+
   if (data.filters.status && data.filters.status !== "all") {
     filterLines.push(`Status: ${getStatusLabel(data.filters.status)}`)
   }
-  
+
   if (data.filters.categoryId && data.filters.categoryId !== "all") {
     const categoryName = getCategoryName(data.filters.categoryId, data.categories)
     filterLines.push(`Categoria: ${categoryName}`)
@@ -151,7 +149,7 @@ export function generateRestaurantReport(
 
   // Sort by creation date (most recent first)
   const sortedOrders = [...filteredOrders].sort((a, b) => {
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    return new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime()
   })
 
   // Prepare table data
@@ -159,14 +157,14 @@ export function generateRestaurantReport(
   const rows = sortedOrders.map(order => {
     const itemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
     const itemsSummary = `${itemsCount} ${itemsCount === 1 ? "item" : "itens"}`
-    
+
     return [
-      `#${order.orderNumber}`,
-      formatDateTime(order.createdAt),
-      order.roomNumber || "N/A",
+      `#${order.id}`,
+      formatDateTime(order.openedAt),
+      order.tableNumber || "N/A",
       itemsSummary,
       getStatusLabel(order.status),
-      formatCurrency(order.totalPrice),
+      formatCurrency(order.total),
     ]
   })
 
@@ -182,7 +180,7 @@ export function generateRestaurantReport(
 
   // Aggregate products across all orders
   const productSales = new Map<string, { name: string; quantity: number; revenue: number }>()
-  
+
   sortedOrders.forEach(order => {
     order.items.forEach(item => {
       const productName = getProductName(item.productId, data.products)
@@ -218,11 +216,11 @@ export function generateRestaurantReport(
   doc.setFont("helvetica", "normal")
 
   const totalOrders = sortedOrders.length
-  const totalRevenue = sortedOrders.reduce((sum, o) => sum + o.totalPrice, 0)
-  const totalItems = sortedOrders.reduce((sum, o) => 
+  const totalRevenue = sortedOrders.reduce((sum, o) => sum + o.total, 0)
+  const totalItems = sortedOrders.reduce((sum, o) =>
     sum + o.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0
   )
-  
+
   const statusCounts: Record<string, number> = {}
   sortedOrders.forEach(o => {
     const label = getStatusLabel(o.status)
@@ -259,7 +257,7 @@ export function generateRestaurantReport(
     yPos += 5
 
     const categoryRevenue = new Map<string, number>()
-    
+
     sortedOrders.forEach(order => {
       order.items.forEach(item => {
         const product = data.products.find(p => p.id === item.productId)
@@ -290,7 +288,7 @@ export function generateRestaurantReport(
 
 /**
  * Downloads the restaurant report as a PDF file
- * 
+ *
  * @param data - Report data
  * @param systemSettings - System settings
  * @param filename - Optional custom filename (without extension)
@@ -301,7 +299,7 @@ export function downloadRestaurantReport(
   filename?: string
 ): void {
   const blob = generateRestaurantReport(data, systemSettings)
-  
+
   // Generate filename with timestamp
   const timestamp = new Date().toISOString().split("T")[0]
   const defaultFilename = `relatorio-restaurante-${timestamp}.pdf`

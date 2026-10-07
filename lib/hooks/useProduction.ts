@@ -1,3 +1,4 @@
+import { getDataConfig } from "../data/config"
 import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { Recipe, Production, RecipeIngredient } from "../store"
@@ -12,7 +13,7 @@ import { generateProductionId } from "../utils/id-generators"
  */
 export function useProduction() {
   const {
-    recipes,
+    runOperation, recipes,
     productions,
     addRecipe,
     updateRecipe,
@@ -72,6 +73,10 @@ export function useProduction() {
       return { success: false, error: "Receita não encontrada" }
     }
 
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("production", { recipeId, plannedQuantity, producedQuantity, notes }); return { success: true } }
+      catch (error) { return { success: false, error: error instanceof Error ? error.message : "Produção não concluída" } }
+    }
     // Check ingredients availability
     const { available, missing } = checkIngredientsAvailability(recipeId, plannedQuantity)
     if (!available) {
@@ -118,17 +123,17 @@ export function useProduction() {
       notes,
     }
 
-    addProduction(production)
+    await addProduction(production)
 
     // Check yield and alert if below threshold
     checkProductionYield(plannedQuantity * recipe.expectedYield, producedQuantity, recipe.name)
 
     return { success: true }
-  }, [recipes, checkIngredientsAvailability, calculateRecipeCost, addProduction, processStockForProduction, checkProductionYield])
+  }, [runOperation, recipes, checkIngredientsAvailability, calculateRecipeCost, addProduction, processStockForProduction, checkProductionYield])
 
   // Get production history
   const getProductionHistory = useCallback((limit?: number) => {
-    const sorted = productions.sort((a, b) => 
+    const sorted = [...productions].sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )
     return limit ? sorted.slice(0, limit) : sorted

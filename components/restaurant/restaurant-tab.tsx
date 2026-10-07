@@ -1,5 +1,7 @@
 "use client"
 
+import { getDataConfig } from "@/lib/data/config"
+
 import { useState } from "react"
 import { UtensilsCrossed, Settings, ChefHat, Users, Factory, Coffee, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -119,6 +121,7 @@ export function RestaurantTab() {
       await addRestaurantOrder(newOrder)
       setSelectedTable({
         ...table,
+        status: getDataConfig().adapter === "database" ? "ocupada" : table.status,
         currentOrderId: orderId,
       })
     } else {

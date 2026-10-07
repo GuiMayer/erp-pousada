@@ -1,5 +1,7 @@
 "use client"
+import { getDataConfig } from "@/lib/data/config"
 
+import { useToast } from "@/hooks/use-toast"
 import { useState, useMemo } from "react"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -81,7 +83,8 @@ function isOverdue(room: Room): boolean {
 export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: string }) {
   const config = statusConfig[room.status]
   const overdue = isOverdue(room)
-  const { updateRoom, addAuditEntry, getConsumption, clearConsumption, getRoomTimeline } = useApp()
+  const { toast } = useToast()
+  const { runOperation, updateRoom, addAuditEntry, getConsumption, clearConsumption, getRoomTimeline } = useApp()
   const { username } = useAuth()
   const { sendNotification } = useNotifications()
   const [blockModalOpen, setBlockModalOpen] = useState(false)
@@ -99,7 +102,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
     [room.id, selectedDate, getRoomTimeline]
   )
 
-  function handleCheckOut() {
+  async function handleCheckOut() {
     if (consumptionTotal > 0) {
       sendNotification(
         'payment',
@@ -111,17 +114,22 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
       return
     }
 
-    updateRoom(room.id, {
+    if (getDataConfig().adapter === "database") {
+      try { await runOperation("check-out", { roomId: room.id }) }
+      catch (error) { toast({ title: "Check-out não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
+    } else {
+    await updateRoom(room.id, {
       status: "limpeza",
       guest: undefined, guestCpf: undefined,
       checkIn: undefined, checkOut: undefined,
     })
-    clearConsumption(room.id)
+    await clearConsumption(room.id)
     addAuditEntry({
       user: username || "sistema",
       action: "Check-out realizado",
       reference: `Quarto ${room.number}`,
     })
+    }
     sendNotification(
       'check-out',
       'Check-out Realizado',

@@ -1,176 +1,45 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { AuthProvider, useAuth } from '../../../lib/auth-context'
+import { describe, it, expect, beforeEach, vi } from "vitest"
+import { renderHook, act, waitFor } from "@testing-library/react"
+import { AuthProvider, useAuth } from "@/lib/auth-context"
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {}
-
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString()
-    },
-    removeItem: (key: string) => {
-      delete store[key]
-    },
-    clear: () => {
-      store = {}
-    },
-  }
-})()
-
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-})
-
-describe('AuthContext', () => {
-  beforeEach(() => {
-    localStorageMock.clear()
-  })
-
-  it('should start with logged out state', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    expect(result.current.isLoggedIn).toBe(false)
-    expect(result.current.role).toBeNull()
-    expect(result.current.username).toBeNull()
-    expect(result.current.isSupervisor).toBe(false)
-  })
-
-  it('should login with valid operador credentials', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    act(() => {
-      const success = result.current.login('operador', '1234')
-      expect(success).toBe(true)
-    })
-
-    expect(result.current.isLoggedIn).toBe(true)
-    expect(result.current.role).toBe('operador')
-    expect(result.current.username).toBe('operador')
-    expect(result.current.isSupervisor).toBe(false)
-  })
-
-  it('should login with valid supervisor credentials', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    act(() => {
-      const success = result.current.login('supervisor', 'adm123')
-      expect(success).toBe(true)
-    })
-
-    expect(result.current.isLoggedIn).toBe(true)
-    expect(result.current.role).toBe('supervisor')
-    expect(result.current.username).toBe('supervisor')
+describe("AuthContext", () => {
+  beforeEach(() => { localStorage.clear(); vi.unstubAllGlobals() })
+  it("permite credenciais de exemplo somente no modo demo", async () => {
+    const { result } = renderHook(useAuth, { wrapper: AuthProvider })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => { expect(await result.current.login("supervisor", "adm123")).toBe(true) })
     expect(result.current.isSupervisor).toBe(true)
-  })
-
-  it('should fail login with invalid credentials', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    act(() => {
-      const success = result.current.login('operador', 'wrong-password')
-      expect(success).toBe(false)
-    })
-
+    expect(localStorage.getItem("erp_demo_auth")).toBeTruthy()
+    await act(async () => { await result.current.logout() })
     expect(result.current.isLoggedIn).toBe(false)
-    expect(result.current.role).toBeNull()
+    expect(localStorage.getItem("erp_demo_auth")).toBeNull()
   })
-
-  it('should logout successfully', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    act(() => {
-      result.current.login('operador', '1234')
-    })
-
-    expect(result.current.isLoggedIn).toBe(true)
-
-    act(() => {
-      result.current.logout()
-    })
-
+  it("recusa credenciais erradas no demo", async () => {
+    const { result } = renderHook(useAuth, { wrapper: AuthProvider })
+    await act(async () => { expect(await result.current.login("operador", "errada")).toBe(false) })
     expect(result.current.isLoggedIn).toBe(false)
-    expect(result.current.role).toBeNull()
-    expect(result.current.username).toBeNull()
   })
-
-  it('should persist auth state to localStorage', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    act(() => {
-      result.current.login('supervisor', 'adm123')
-    })
-
-    const stored = localStorageMock.getItem('pousada_auth')
-    expect(stored).toBeTruthy()
-    
-    const parsed = JSON.parse(stored!)
-    expect(parsed.isLoggedIn).toBe(true)
-    expect(parsed.role).toBe('supervisor')
-    expect(parsed.username).toBe('supervisor')
+  it("ignora perfil de supervisor forjado no localStorage em produção", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database")
+    localStorage.setItem("pousada_auth", JSON.stringify({ role: "supervisor", isLoggedIn: true }))
+    localStorage.setItem("erp_demo_auth", JSON.stringify({ id: "fake", username: "supervisor", role: "supervisor" }))
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 401 })
+    vi.stubGlobal("fetch", fetchMock)
+    const { result } = renderHook(useAuth, { wrapper: AuthProvider })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.isLoggedIn).toBe(false)
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/session", { cache: "no-store" })
   })
-
-  it('should restore auth state from localStorage', () => {
-    localStorageMock.setItem(
-      'pousada_auth',
-      JSON.stringify({
-        isLoggedIn: true,
-        role: 'operador',
-        username: 'operador',
-      })
-    )
-
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    expect(result.current.isLoggedIn).toBe(true)
-    expect(result.current.role).toBe('operador')
-    expect(result.current.username).toBe('operador')
-  })
-
-  it('should clear localStorage on logout', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    act(() => {
-      result.current.login('operador', '1234')
-    })
-
-    expect(localStorageMock.getItem('pousada_auth')).toBeTruthy()
-
-    act(() => {
-      result.current.logout()
-    })
-
-    expect(localStorageMock.getItem('pousada_auth')).toBeNull()
-  })
-
-  it('should handle case-insensitive username', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    })
-
-    act(() => {
-      const success = result.current.login('OPERADOR', '1234')
-      expect(success).toBe(true)
-    })
-
-    expect(result.current.username).toBe('operador')
+  it("restaura sessão validada pelo servidor e aguarda logout", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database")
+    const user = { id: "real", username: "ana", role: "operador" }
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ user }) })
+    vi.stubGlobal("fetch", fetchMock)
+    const { result } = renderHook(useAuth, { wrapper: AuthProvider })
+    await waitFor(() => expect(result.current.username).toBe("ana"))
+    expect(result.current.isSupervisor).toBe(false)
+    await act(async () => { await result.current.logout() })
+    expect(result.current.isLoggedIn).toBe(false)
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/auth/logout", { method: "POST" })
   })
 })

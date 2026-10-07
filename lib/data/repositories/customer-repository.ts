@@ -1,6 +1,6 @@
 /**
  * Customer Repository
- * 
+ *
  * Manages customer data with validation.
  */
 
@@ -51,7 +51,7 @@ export class CustomerRepository extends BaseRepository<Customer> {
   /**
    * Override update to update timestamp
    */
-  async update(id: string, updates: Partial<Customer>): Promise<void> {
+  async update(id: string, updates: Partial<Customer>): Promise<Customer> {
     const updatesWithTimestamp = {
       ...updates,
       updatedAt: new Date().toISOString()

@@ -25,6 +25,8 @@ export class GuestRepository implements IDataRepository<GuestProfile> {
     await this.adapter.set(this.getStorageKey(), guests)
   }
 
+  async count() { return (await this.getAll()).length }
+
   async getAll(): Promise<GuestProfile[]> {
     return this.loadFromStorage()
   }
@@ -40,6 +42,8 @@ export class GuestRepository implements IDataRepository<GuestProfile> {
       throw new Error("Hospede ja cadastrado para este CPF")
     }
 
+    const itemAdapter = this.adapter as IStorageAdapter & { createItem?: <T>(key: string, item: T) => Promise<T> }
+    if (itemAdapter.createItem) return itemAdapter.createItem("guests", guest)
     guests.push(guest)
     await this.saveToStorage(guests)
     return guest
@@ -52,6 +56,8 @@ export class GuestRepository implements IDataRepository<GuestProfile> {
       throw new Error("Hospede nao encontrado")
     }
 
+    const itemAdapter = this.adapter as IStorageAdapter & { updateItem?: <T>(key: string, id: string, data: Partial<T>) => Promise<T> }
+    if (itemAdapter.updateItem) return itemAdapter.updateItem("guests", String(cpf), data)
     const updated = { ...guests[index], ...data, cpf: guests[index].cpf }
     guests[index] = updated
     await this.saveToStorage(guests)
@@ -59,6 +65,8 @@ export class GuestRepository implements IDataRepository<GuestProfile> {
   }
 
   async delete(cpf: string | number): Promise<void> {
+    const adapter = this.adapter as IStorageAdapter & { deleteItem?: (key: string, id: string) => Promise<void> }
+    if (adapter.deleteItem) { await adapter.deleteItem("guests", String(cpf)); return }
     const guests = await this.loadFromStorage()
     await this.saveToStorage(guests.filter(item => item.cpf !== String(cpf)))
   }

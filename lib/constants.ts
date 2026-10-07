@@ -3,11 +3,6 @@
  */
 
 /**
- * Supervisor password for privileged operations
- */
-export const SUPERVISOR_PASSWORD = "admin"
-
-/**
  * Default checkout time for rooms
  */
 export const DEFAULT_CHECKOUT_TIME = "12:00"

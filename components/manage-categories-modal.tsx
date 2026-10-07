@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -24,9 +24,9 @@ import {
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import type { ProductCategory } from "@/lib/store"
-import { 
-  Plus, Pencil, Trash2, Tag, AlertTriangle, Package, Coffee, 
-  UtensilsCrossed, Wine, Cake, Pizza, IceCream, Sandwich, 
+import {
+  Plus, Pencil, Trash2, Tag, AlertTriangle, Package, Coffee,
+  UtensilsCrossed, Wine, Cake, Pizza, IceCream, Sandwich,
   Apple, Beef, Fish, Salad, Soup, Cookie, Croissant, Drumstick,
   Milk, Beer, GlassWater, Martini, CupSoda, Candy, Popcorn,
   ShoppingBag, ShoppingCart, Store, Sparkles, Star, Heart,
@@ -131,12 +131,12 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
   const deleteConfirmUsageCount = deleteConfirm ? productCountByCategory.get(deleteConfirm.id) || 0 : 0
 
   // Filter categories by type
-  const pdvCategories = useMemo(() => 
+  const pdvCategories = useMemo(() =>
     productCategories.filter(c => !c.isRestaurant),
     [productCategories]
   )
 
-  const restaurantCategories = useMemo(() => 
+  const restaurantCategories = useMemo(() =>
     productCategories.filter(c => c.isRestaurant),
     [productCategories]
   )
@@ -158,9 +158,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
     setEditingCategory(null)
   }
 
-  function getCurrentCategories(): ProductCategory[] {
-    return activeTab === "pdv" ? pdvCategories : restaurantCategories
-  }
+  const getCurrentCategories = useCallback((): ProductCategory[] => activeTab === "pdv" ? pdvCategories : restaurantCategories, [activeTab, pdvCategories, restaurantCategories])
 
   async function handleAdd() {
     if (!categoryName.trim()) {
@@ -173,7 +171,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
       setFormError("Ja existe uma categoria com esse nome.")
       return
     }
-    
+
     const newCategory: ProductCategory = {
       id: `pcat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: categoryName.trim(),
@@ -182,12 +180,12 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
       active: true,
       isRestaurant: activeTab === "restaurant",
     }
-    
+
     await addProductCategory(newCategory)
-    addAuditEntry({ 
-      user: username || "sistema", 
-      action: "Categoria adicionada", 
-      reference: `${categoryName} (${activeTab === "pdv" ? "PDV" : "Restaurante"})` 
+    addAuditEntry({
+      user: username || "sistema",
+      action: "Categoria adicionada",
+      reference: `${categoryName} (${activeTab === "pdv" ? "PDV" : "Restaurante"})`
     })
     resetForm()
     setMode("list")
@@ -206,16 +204,16 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
       setFormError("Ja existe uma categoria com esse nome.")
       return
     }
-    
-    await updateProductCategory(editingCategory.id, { 
+
+    await updateProductCategory(editingCategory.id, {
       name: categoryName.trim(),
       color: categoryColor,
       icon: categoryIcon
     })
-    addAuditEntry({ 
-      user: username || "sistema", 
-      action: "Categoria editada", 
-      reference: categoryName 
+    addAuditEntry({
+      user: username || "sistema",
+      action: "Categoria editada",
+      reference: categoryName
     })
     resetForm()
     setMode("list")
@@ -223,24 +221,24 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
 
   async function handleDelete(category: ProductCategory, hard: boolean) {
     const usageCount = productCountByCategory.get(category.id) || 0
-    
+
     if (hard) {
       if (usageCount > 0) {
         setFormError("Nao e possivel excluir uma categoria em uso.")
         return
       }
       await removeProductCategory(category.id)
-      addAuditEntry({ 
-        user: username || "sistema", 
-        action: "Categoria removida", 
-        reference: category.name 
+      addAuditEntry({
+        user: username || "sistema",
+        action: "Categoria removida",
+        reference: category.name
       })
     } else {
       await updateProductCategory(category.id, { active: false })
-      addAuditEntry({ 
-        user: username || "sistema", 
-        action: "Categoria desativada", 
-        reference: category.name 
+      addAuditEntry({
+        user: username || "sistema",
+        action: "Categoria desativada",
+        reference: category.name
       })
     }
     setDeleteConfirm(null)
@@ -267,7 +265,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
       ...cat,
       usageCount: productCountByCategory.get(cat.id) || 0
     })).sort((a, b) => a.name.localeCompare(b.name))
-  }, [pdvCategories, restaurantCategories, activeTab, productCountByCategory])
+  }, [getCurrentCategories, productCountByCategory])
 
   const activeCategories = sortedCategories.filter(c => c.active)
   const inactiveCategories = sortedCategories.filter(c => !c.active)
@@ -312,8 +310,8 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                             className="flex items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2.5"
                           >
                             <div className="flex flex-1 items-center gap-3 min-w-0">
-                              <div 
-                                className="size-4 rounded-full shrink-0 border border-border" 
+                              <div
+                                className="size-4 rounded-full shrink-0 border border-border"
                                 style={{ backgroundColor: category.color }}
                               />
                               <div className="flex flex-col gap-0.5 min-w-0">
@@ -357,8 +355,8 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                             className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2.5 opacity-60"
                           >
                             <div className="flex flex-1 items-center gap-3 min-w-0">
-                              <div 
-                                className="size-4 rounded-full shrink-0 border border-border" 
+                              <div
+                                className="size-4 rounded-full shrink-0 border border-border"
                                 style={{ backgroundColor: category.color }}
                               />
                               <div className="flex flex-col gap-0.5 min-w-0">
@@ -374,10 +372,10 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                                 className="size-8 p-0"
                                 onClick={async () => {
                                   await updateProductCategory(category.id, { active: true })
-                                  addAuditEntry({ 
-                                    user: username || "sistema", 
-                                    action: "Categoria reativada", 
-                                    reference: category.name 
+                                  addAuditEntry({
+                                    user: username || "sistema",
+                                    action: "Categoria reativada",
+                                    reference: category.name
                                   })
                                 }}
                               >
@@ -404,7 +402,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                       autoFocus
                     />
                   </div>
-                  
+
                   <div className="flex gap-4">
                     <div className="flex flex-col gap-2 flex-1">
                       <Label>Cor</Label>
@@ -424,7 +422,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                         ))}
                       </div>
                     </div>
-                    
+
                     <div className="flex flex-col gap-2 flex-1">
                       <Label>Ícone</Label>
                       <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
@@ -447,7 +445,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                                 key={name}
                                 type="button"
                                 className={`
-                                  flex items-center justify-center w-full h-10 rounded border-2 
+                                  flex items-center justify-center w-full h-10 rounded border-2
                                   hover:border-foreground transition-colors
                                   ${categoryIcon === name ? 'border-foreground bg-accent' : 'border-border'}
                                 `}
@@ -465,7 +463,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                       </Popover>
                     </div>
                   </div>
-                  
+
                   {formError && (
                     <p className="text-sm text-destructive">{formError}</p>
                   )}
@@ -503,7 +501,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusao</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja {hardDelete ? "excluir permanentemente" : "desativar"} a categoria "{deleteConfirm?.name}"?
+              Tem certeza que deseja {hardDelete ? "excluir permanentemente" : "desativar"} a categoria &quot;{deleteConfirm?.name}&quot;?
               {deleteConfirmUsageCount > 0 && (
                 <span className="flex items-center gap-2 mt-2 text-orange-600">
                   <AlertTriangle className="size-4" />
@@ -519,8 +517,8 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
               onCheckedChange={(checked) => setHardDelete(checked === true)}
               disabled={deleteConfirmUsageCount > 0}
             />
-            <Label 
-              htmlFor="hardDelete" 
+            <Label
+              htmlFor="hardDelete"
               className={`text-sm cursor-pointer ${deleteConfirmUsageCount > 0 ? "opacity-50" : ""}`}
             >
               Excluir permanentemente (nao pode ser desfeito)

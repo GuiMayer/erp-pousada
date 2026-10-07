@@ -37,6 +37,8 @@ import { useProduction } from "@/lib/hooks/useProduction"
 import { ChefHat, AlertTriangle, CheckCircle2, Search } from "lucide-react"
 import type { Recipe, Production } from "@/lib/store"
 
+type RecipeView = Recipe & { totalCost: number; unitCost: number; yield: number }
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -45,10 +47,10 @@ interface Props {
 export function ProductionModal({ open, onClose }: Props) {
   const { recipes, stockItems, addProduction, updateStockItem, addAuditEntry } = useApp()
   const { username } = useAuth()
-  const { checkAvailability } = useProduction()
+  const { checkIngredientsAvailability, registerProduction } = useProduction()
 
   const [step, setStep] = useState<"select" | "details" | "confirm">("select")
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeView | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [plannedQuantity, setPlannedQuantity] = useState("1")
   const [producedQuantity, setProducedQuantity] = useState("")
@@ -57,7 +59,7 @@ export function ProductionModal({ open, onClose }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const activeRecipes = useMemo(
-    () => recipes.filter(r => r.active),
+    () => recipes.filter(r => r.active).map(r => { const cost = r.ingredients.reduce((sum,i) => sum + i.cost,0); return { ...r, totalCost: cost, unitCost: r.expectedYield ? cost / r.expectedYield : 0, yield: r.expectedYield } }),
     [recipes]
   )
 
@@ -73,8 +75,10 @@ export function ProductionModal({ open, onClose }: Props) {
 
   const availability = useMemo(() => {
     if (!selectedRecipe) return null
-    return checkAvailability(selectedRecipe.id, parseFloat(plannedQuantity) || 1)
-  }, [selectedRecipe, plannedQuantity, checkAvailability])
+    const qty = parseFloat(plannedQuantity) || 1
+    const result = checkIngredientsAvailability(selectedRecipe.id, qty)
+    return { ...result, warnings: result.missing }
+  }, [selectedRecipe, plannedQuantity, checkIngredientsAvailability])
 
   function resetForm() {
     setStep("select")
@@ -86,7 +90,7 @@ export function ProductionModal({ open, onClose }: Props) {
     setFormError("")
   }
 
-  function handleSelectRecipe(recipe: Recipe) {
+  function handleSelectRecipe(recipe: RecipeView) {
     setSelectedRecipe(recipe)
     setStep("details")
     setFormError("")
@@ -115,53 +119,11 @@ export function ProductionModal({ open, onClose }: Props) {
     setConfirmOpen(true)
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!selectedRecipe || !availability) return
-
-    const planned = parseFloat(plannedQuantity)
-    const produced = parseFloat(producedQuantity)
-    const yieldPercent = (produced / planned) * 100
-
-    // Deduct ingredients from stock
-    selectedRecipe.ingredients.forEach(ingredient => {
-      const stockItem = stockItems.find(s => s.id === ingredient.productId)
-      if (!stockItem) return
-
-      const quantityToDeduct = ingredient.quantity * planned
-      const newQuantity = stockItem.currentStock - quantityToDeduct
-
-      updateStockItem(stockItem.id, {
-        currentStock: newQuantity,
-      })
-    })
-
-    // Create production record
-    const newId = Math.max(...([] as Production[]).map(p => p.id), 0) + 1
-    const production: Production = {
-      id: newId,
-      recipeId: selectedRecipe.id,
-      recipeName: selectedRecipe.name,
-      plannedQuantity: planned,
-      producedQuantity: produced,
-      yieldPercent,
-      totalCost: selectedRecipe.totalCost * planned,
-      unitCost: (selectedRecipe.totalCost * planned) / produced,
-      date: new Date().toISOString(),
-      operator: username || "sistema",
-      notes: notes.trim() || undefined,
-    }
-
-    addProduction(production)
-
-    addAuditEntry({
-      user: username || "sistema",
-      action: "Produção registrada",
-      reference: `${selectedRecipe.name} - ${produced} unidades`,
-    })
-
-    setConfirmOpen(false)
-    resetForm()
-    onClose()
+    const result = await registerProduction(selectedRecipe.id, Number(plannedQuantity), Number(producedQuantity), username || "sistema", notes || undefined)
+    if (!result.success) { setFormError(result.error || "Produção não concluída"); return }
+    setConfirmOpen(false); resetForm(); onClose()
   }
 
   const totalCost = selectedRecipe
@@ -223,7 +185,7 @@ export function ProductionModal({ open, onClose }: Props) {
                   </p>
                 ) : (
                   filteredRecipes.map(recipe => {
-                    const recipeAvailability = checkAvailability(recipe.id, 1)
+                    const recipeAvailability = checkIngredientsAvailability(recipe.id, 1)
 
                     return (
                       <button
@@ -365,8 +327,7 @@ export function ProductionModal({ open, onClose }: Props) {
                     <div className="text-xs text-red-800 space-y-1">
                       {availability.missing.map((item, idx) => (
                         <div key={idx}>
-                          • {item.name}: faltam {item.needed.toFixed(2)}{" "}
-                          {item.unit}
+                          • {item}
                         </div>
                       ))}
                     </div>

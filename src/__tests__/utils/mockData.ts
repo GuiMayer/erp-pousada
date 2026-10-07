@@ -79,14 +79,14 @@ export const mockPOSProducts: POSProduct[] = [
   {
     id: 'P001',
     name: 'Água Mineral',
-    category: 'Bebidas',
+    categoryId: 'Bebidas', trackStock: false,
     price: 5,
     barcode: '7891234567890',
   },
   {
     id: 'P002',
     name: 'Refrigerante',
-    category: 'Bebidas',
+    categoryId: 'Bebidas', trackStock: false,
     price: 8,
   },
 ]

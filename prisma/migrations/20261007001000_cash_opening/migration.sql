@@ -1,0 +1,1 @@
+ALTER TABLE "cash_closes" ADD COLUMN "openingValue" DECIMAL(12,2) NOT NULL DEFAULT 0;

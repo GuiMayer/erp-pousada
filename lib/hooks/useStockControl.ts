@@ -1,3 +1,4 @@
+import { getDataConfig } from "../data/config"
 import { useState, useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type { StockItem, StockMovement, MovementType, StockUnit } from "../store"
@@ -9,7 +10,7 @@ import { generateStockMovementId } from "../utils/id-generators"
  */
 export function useStockControl() {
   const {
-    stockItems,
+    runOperation, stockItems,
     stockMovements,
     addStockItem,
     updateStockItem,
@@ -59,8 +60,34 @@ export function useStockControl() {
     return stockItems.find(s => s.productId === productId)
   }, [stockItems])
 
+  const validateMovement = useCallback((
+    type: MovementType,
+    productId: string,
+    quantity: number
+  ): { valid: boolean; error?: string } => {
+    if (quantity <= 0) {
+      return { valid: false, error: "Quantidade deve ser maior que zero" }
+    }
+
+    const stockItem = getStockByProduct(productId)
+    if (!stockItem) {
+      return { valid: false, error: "Produto não encontrado no estoque" }
+    }
+
+    if (type === "saida" || type === "perda") {
+      if (stockItem.currentStock < quantity) {
+        return {
+          valid: false,
+          error: `Estoque insuficiente. Disponível: ${stockItem.currentStock} ${stockItem.unit}`,
+        }
+      }
+    }
+
+    return { valid: true }
+  }, [getStockByProduct])
+
   // Register stock movement
-  const registerMovement = useCallback((
+  const registerMovement = useCallback(async (
     type: MovementType,
     productId: string,
     quantity: number,
@@ -70,7 +97,7 @@ export function useStockControl() {
     invoiceNumber?: string,
     expirationDate?: string,
     notes?: string
-  ): { success: boolean; error?: string } => {
+  ): Promise<{ success: boolean; error?: string }> => {
     // Validate movement before processing
     const validation = validateMovement(type, productId, quantity)
     if (!validation.valid) {
@@ -100,6 +127,10 @@ export function useStockControl() {
     }
 
     try {
+      if (getDataConfig().adapter === "database") {
+        await runOperation("stock-movement", { type, productId, quantity, reason, cost, invoiceNumber, expirationDate, notes })
+        return { success: true }
+      }
       const movement: StockMovement = {
         id: generateStockMovementId(),
         type,
@@ -116,7 +147,7 @@ export function useStockControl() {
         notes,
       }
 
-      addStockMovement(movement)
+      await addStockMovement(movement)
 
       // Update stock item
       let newStock = stockItem.currentStock
@@ -127,20 +158,20 @@ export function useStockControl() {
         if (cost) {
           const totalValue = (stockItem.currentStock * stockItem.averageCost) + (quantity * cost)
           const newAverageCost = totalValue / newStock
-          updateStockItem(stockItem.id, {
+          await updateStockItem(stockItem.id, {
             currentStock: newStock,
             averageCost: newAverageCost,
             lastPurchasePrice: cost,
             lastPurchaseDate: new Date().toISOString().split("T")[0],
           })
         } else {
-          updateStockItem(stockItem.id, { currentStock: newStock })
+          await updateStockItem(stockItem.id, { currentStock: newStock })
         }
       } else if (type === "saida" || type === "perda") {
         newStock = Math.max(0, newStock - quantity)
-        updateStockItem(stockItem.id, { currentStock: newStock })
+        await updateStockItem(stockItem.id, { currentStock: newStock })
       } else if (type === "ajuste") {
-        updateStockItem(stockItem.id, { currentStock: quantity })
+        await updateStockItem(stockItem.id, { currentStock: quantity })
       }
 
       return { success: true }
@@ -149,7 +180,7 @@ export function useStockControl() {
       console.error(`Stock movement failed: ${errorMessage}`, error)
       return { success: false, error: errorMessage }
     }
-  }, [posProducts, stockItems, addStockMovement, updateStockItem, getStockByProduct])
+  }, [runOperation, validateMovement, posProducts, addStockMovement, updateStockItem, getStockByProduct])
 
   // Get movements by product
   const getMovementsByProduct = useCallback((productId: string) => {
@@ -160,37 +191,13 @@ export function useStockControl() {
 
   // Get recent movements
   const getRecentMovements = useCallback((limit: number = 10) => {
-    return stockMovements
+    return [...stockMovements]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, limit)
   }, [stockMovements])
 
   // Validate stock movement
-  const validateMovement = useCallback((
-    type: MovementType,
-    productId: string,
-    quantity: number
-  ): { valid: boolean; error?: string } => {
-    if (quantity <= 0) {
-      return { valid: false, error: "Quantidade deve ser maior que zero" }
-    }
 
-    const stockItem = getStockByProduct(productId)
-    if (!stockItem) {
-      return { valid: false, error: "Produto não encontrado no estoque" }
-    }
-
-    if (type === "saida" || type === "perda") {
-      if (stockItem.currentStock < quantity) {
-        return {
-          valid: false,
-          error: `Estoque insuficiente. Disponível: ${stockItem.currentStock} ${stockItem.unit}`,
-        }
-      }
-    }
-
-    return { valid: true }
-  }, [getStockByProduct])
 
   return {
     stockItems: filteredItems,

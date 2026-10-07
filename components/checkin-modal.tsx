@@ -1,4 +1,6 @@
 "use client"
+import { getDataConfig } from "@/lib/data/config"
+import { useToast } from "@/hooks/use-toast"
 
 import { useState } from "react"
 import {
@@ -24,7 +26,7 @@ type Props = {
 }
 
 export function CheckinModal({ room, open, onClose }: Props) {
-  const { updateRoom, addReservation, addAuditEntry, findGuest, addGuest, reservations } = useApp()
+  const { runOperation, updateRoom, addReservation, addAuditEntry, findGuest, addGuest, reservations } = useApp()
   const { username } = useAuth()
   const { sendNotification } = useNotifications()
 
@@ -43,12 +45,20 @@ export function CheckinModal({ room, open, onClose }: Props) {
     reset: resetGuest,
   } = useGuestSearch(findGuest)
 
-  function handleConfirm() {
+  const { toast } = useToast()
+  const [pending, setPending] = useState(false)
+  async function handleConfirm() {
+    if (pending) return
     if (!cpf || !guestName || !checkOut) return
 
     const todayISO = new Date().toISOString().split("T")[0]
 
-    updateRoom(room.id, {
+    setPending(true)
+    try {
+    if (getDataConfig().adapter === "database") {
+      await runOperation("check-in", { roomId: room.id, cpf, guestName, checkIn: todayISO, checkOut, totalValue: Number(totalValue) || 0 })
+    } else {
+    await updateRoom(room.id, {
       status: "ocupado",
       guest: guestName,
       guestCpf: cpf,
@@ -58,11 +68,11 @@ export function CheckinModal({ room, open, onClose }: Props) {
     })
 
     if (isNewGuest) {
-      addGuest({ cpf, name: guestName, totalStays: 1, avgTicket: Number(totalValue) || 0, noShows: 0 })
+      await addGuest({ cpf, name: guestName, totalStays: 1, avgTicket: Number(totalValue) || 0, noShows: 0 })
     }
 
     const resId = `R${String(reservations.length + 1).padStart(3, "0")}`
-    addReservation({
+    await addReservation({
       id: resId,
       roomId: room.id,
       roomNumber: room.number,
@@ -74,18 +84,19 @@ export function CheckinModal({ room, open, onClose }: Props) {
       totalValue: Number(totalValue) || 0,
     })
 
-    addAuditEntry({
+    await addAuditEntry({
       user: username || "sistema",
       action: "Check-in realizado",
       reference: `Quarto ${room.number} - ${guestName}`,
     })
 
+    }
     sendNotification(
       'check-in',
       'Check-in Realizado',
       `Quarto ${room.number} - ${guestName} realizou check-in`,
       'high',
-      room.id
+      String(room.id)
     )
 
     // Reset and close
@@ -93,6 +104,8 @@ export function CheckinModal({ room, open, onClose }: Props) {
     setCheckOut("")
     setTotalValue("")
     onClose()
+    } catch (error) { toast({ title: "Check-in não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
+    finally { setPending(false) }
   }
 
   function handleClose() {
@@ -178,7 +191,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>Cancelar</Button>
-          <Button disabled={!cpf || !guestName || !checkOut} onClick={handleConfirm}>
+          <Button disabled={pending || !cpf || !guestName || !checkOut} onClick={handleConfirm}>
             Confirmar Check-in
           </Button>
         </DialogFooter>

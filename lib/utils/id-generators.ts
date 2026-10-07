@@ -199,3 +199,5 @@ export function generateRecipeId(): string {
 export function generateProductionId(): string {
   return `PROD-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
 }
+
+export function generateStockItemId() { return `stock-${crypto.randomUUID()}` }

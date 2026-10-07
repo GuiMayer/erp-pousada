@@ -41,12 +41,12 @@ import { useApp } from "@/lib/app-context"
 
 function MyComponent() {
   const { rooms, addRoom, updateRoom, isLoading, isHydrated } = useApp()
-  
+
   // Wait for data to load
   if (!isHydrated) {
     return <div>Loading...</div>
   }
-  
+
   // Use data
   const handleAddRoom = async () => {
     await addRoom({
@@ -57,7 +57,7 @@ function MyComponent() {
       // ...
     })
   }
-  
+
   return <div>{/* Your UI */}</div>
 }
 ```
@@ -152,7 +152,7 @@ Production data uses PostgreSQL through Next.js API routes. Browser repositories
 - **Schema**: `prisma/schema.prisma`
 - **Relational tables**: rooms, reservations, finance, POS, restaurant, stock, employees, users, settings, audit
 - **Legacy table**: `local_data_entries` remains only for fallback and migration compatibility
-- **Default local URL**: `postgresql://pousada:pousada@localhost:5432/pousada`
+- **Default local URL**: `postgresql://pousada_dev:local-development-only@127.0.0.1:5432/pousada_dev`
 - **Runtime scope**: Prisma stays server-side; do not import it in client components
 - **Cloud path**: keep repository code unchanged, then point `DATABASE_URL` to a managed PostgreSQL provider when needed
 
@@ -293,14 +293,14 @@ export class ApiAdapter implements IStorageAdapter {
     const response = await fetch(`${this.baseUrl}/${key}`)
     return response.json()
   }
-  
+
   async set<T>(key: string, value: T): Promise<void> {
     await fetch(`${this.baseUrl}/${key}`, {
       method: 'PUT',
       body: JSON.stringify(value)
     })
   }
-  
+
   // ... implement other methods
 }
 ```
@@ -313,7 +313,7 @@ Set environment variable to switch adapters:
 # .env.local
 NEXT_PUBLIC_DATA_ADAPTER=database
 NEXT_PUBLIC_API_URL=https://api.pousada.com
-NEXT_PUBLIC_API_TOKEN=your-token
+# Autenticação por cookie de sessão; não configure tokens públicos.
 ```
 
 ### Step 3: No Code Changes Required
@@ -434,12 +434,12 @@ import { LocalStorageAdapter } from "@/lib/data/storage-adapter"
 
 describe('RoomRepository', () => {
   let repo: RoomRepository
-  
+
   beforeEach(() => {
     const adapter = new LocalStorageAdapter({ prefix: 'test' })
     repo = new RoomRepository(adapter)
   })
-  
+
   it('should create a room', async () => {
     const room = await repo.create({ /* ... */ })
     expect(room.id).toBeDefined()
@@ -458,7 +458,7 @@ describe('Data Store', () => {
   it('should persist data across reloads', async () => {
     const store1 = createDataStore({ prefix: 'test' })
     await store1.rooms.create({ /* ... */ })
-    
+
     const store2 = createDataStore({ prefix: 'test' })
     const rooms = await store2.rooms.getAll()
     expect(rooms).toHaveLength(1)
@@ -510,13 +510,13 @@ All methods are now async to support future API backend.
 
 The data layer provides:
 
-✅ **Persistent Storage**: Data survives page reloads  
-✅ **Type Safety**: Full TypeScript support  
-✅ **Validation**: Automatic data validation  
-✅ **Multi-User**: Conflict detection and resolution  
-✅ **Cross-Tab Sync**: Real-time synchronization  
-✅ **Future-Proof**: Easy migration to backend API  
-✅ **Performance**: Caching and indexing built-in  
-✅ **Developer Experience**: Clean, intuitive API  
+✅ **Persistent Storage**: Data survives page reloads
+✅ **Type Safety**: Full TypeScript support
+✅ **Validation**: Automatic data validation
+✅ **Multi-User**: Conflict detection and resolution
+✅ **Cross-Tab Sync**: Real-time synchronization
+✅ **Future-Proof**: Easy migration to backend API
+✅ **Performance**: Caching and indexing built-in
+✅ **Developer Experience**: Clean, intuitive API
 
 For questions or issues, refer to the source code in `lib/data/` or check the inline documentation.

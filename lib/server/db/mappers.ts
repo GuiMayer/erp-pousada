@@ -84,6 +84,8 @@ const dateString = (value: unknown): string => {
   if (value instanceof Date) return value.toISOString()
   return String(value ?? "")
 }
+const dateOnly = (value: unknown): string => dateString(value).slice(0, 10)
+const optionalDateOnly = (value: unknown): string | undefined => value == null ? undefined : dateOnly(value)
 const optionalDateString = (value: unknown): string | undefined => (value == null ? undefined : dateString(value))
 const dateValue = (value: unknown): Date | undefined => {
   if (!value) return undefined
@@ -110,11 +112,11 @@ const roomMapper: CollectionMapper<Room> = {
     status: row.status,
     guest: optional(row.guest),
     guestCpf: optional(row.guestCpf),
-    checkIn: optionalDateString(row.checkIn),
-    checkOut: optionalDateString(row.checkOut),
+    checkIn: optionalDateOnly(row.checkIn),
+    checkOut: optionalDateOnly(row.checkOut),
     checkOutTime: optional(row.checkOutTime),
     blockReason: optional(row.blockReason),
-    blockEndDate: optionalDateString(row.blockEndDate),
+    blockEndDate: optionalDateOnly(row.blockEndDate),
     blockResponsible: optional(row.blockResponsible),
     timeline: jsonValue(row.timeline, []),
   }),
@@ -133,7 +135,7 @@ const roomMapper: CollectionMapper<Room> = {
     blockResponsible: item.blockResponsible,
     timeline: item.timeline ?? [],
   }),
-  toUpdate: item => roomMapper.toCreate(item as Room),
+  toUpdate: item => stripUndefined({ ...roomMapper.toCreate(item as Room), timeline: item.timeline }),
 }
 
 const reservationMapper: CollectionMapper<Reservation> = {
@@ -145,8 +147,8 @@ const reservationMapper: CollectionMapper<Reservation> = {
     roomNumber: row.roomNumber,
     guestName: row.guestName,
     cpf: row.cpf,
-    checkIn: dateString(row.checkIn),
-    checkOut: dateString(row.checkOut),
+    checkIn: dateOnly(row.checkIn),
+    checkOut: dateOnly(row.checkOut),
     status: row.status,
     totalValue: numberValue(row.totalValue),
     cancelTreatment: optional(row.cancelTreatment),
@@ -184,16 +186,16 @@ const expenseMapper: CollectionMapper<Expense> = {
     category: row.category,
     supplierId: optional(row.supplierId),
     value: numberValue(row.value),
-    dueDate: dateString(row.dueDate),
+    dueDate: dateOnly(row.dueDate),
     paid: row.paid,
-    paymentDate: optionalDateString(row.paymentDate),
+    paymentDate: optionalDateOnly(row.paymentDate),
     installments: row.installments?.map((item: Row) => ({
       id: item.id,
       installmentNumber: item.installmentNumber,
       value: numberValue(item.value),
-      dueDate: dateString(item.dueDate),
+      dueDate: dateOnly(item.dueDate),
       paid: item.paid,
-      paymentDate: optionalDateString(item.paymentDate),
+      paymentDate: optionalDateOnly(item.paymentDate),
     })),
   }),
   toCreate: item => stripUndefined({
@@ -230,7 +232,7 @@ const transactionMapper: CollectionMapper<Transaction> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     id: row.id,
-    date: dateString(row.date),
+    date: dateOnly(row.date),
     description: row.description,
     value: numberValue(row.value),
     type: row.type,
@@ -254,7 +256,7 @@ const auditMapper: CollectionMapper<AuditEntry> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     id: row.id,
-    date: dateString(row.date),
+    date: dateOnly(row.date),
     user: row.user,
     action: row.action,
     reference: row.reference,
@@ -320,14 +322,14 @@ const simpleMappers = {
   stockItems: {
     prismaModel: "stockItem",
     orderBy: { productName: "asc" },
-    toApp: (row: Row): StockItem => ({ ...row, currentStock: numberValue(row.currentStock), minimumStock: numberValue(row.minimumStock), maximumStock: numberValue(row.maximumStock), averageCost: numberValue(row.averageCost), lastPurchasePrice: numberValue(row.lastPurchasePrice), lastPurchaseDate: optionalDateString(row.lastPurchaseDate) } as StockItem),
+    toApp: (row: Row): StockItem => ({ ...row, currentStock: numberValue(row.currentStock), minimumStock: numberValue(row.minimumStock), maximumStock: numberValue(row.maximumStock), averageCost: numberValue(row.averageCost), lastPurchasePrice: numberValue(row.lastPurchasePrice), lastPurchaseDate: optionalDateOnly(row.lastPurchaseDate) } as StockItem),
     toCreate: (item: StockItem) => stripUndefined({ ...item, lastPurchaseDate: dateValue(item.lastPurchaseDate) }),
     toUpdate: (item: Partial<StockItem>) => stripUndefined({ ...item, lastPurchaseDate: dateValue(item.lastPurchaseDate) }),
   },
   stockMovements: {
     prismaModel: "stockMovement",
     orderBy: { timestamp: "desc" },
-    toApp: (row: Row): StockMovement => ({ ...row, quantity: numberValue(row.quantity), cost: optionalNumber(row.cost), timestamp: dateString(row.timestamp), expirationDate: optionalDateString(row.expirationDate) } as StockMovement),
+    toApp: (row: Row): StockMovement => ({ ...row, quantity: numberValue(row.quantity), cost: optionalNumber(row.cost), timestamp: dateString(row.timestamp), expirationDate: optionalDateOnly(row.expirationDate) } as StockMovement),
     toCreate: (item: StockMovement) => stripUndefined({ ...item, timestamp: dateValue(item.timestamp), expirationDate: dateValue(item.expirationDate) }),
     toUpdate: (item: Partial<StockMovement>) => stripUndefined({ ...item, timestamp: dateValue(item.timestamp), expirationDate: dateValue(item.expirationDate) }),
   },
@@ -341,7 +343,7 @@ const simpleMappers = {
   users: {
     prismaModel: "user",
     orderBy: { username: "asc" },
-    toApp: (row: Row): User => ({ ...row, email: optional(row.email), createdAt: dateString(row.createdAt), lastLogin: optionalDateString(row.lastLogin) } as User),
+    toApp: (row: Row): User => ({ ...Object.fromEntries(Object.entries(row).filter(([key]) => key !== "password")), email: optional(row.email), createdAt: dateString(row.createdAt), lastLogin: optionalDateString(row.lastLogin) } as User),
     toCreate: (item: User) => stripUndefined({ ...item, createdAt: dateValue(item.createdAt), lastLogin: dateValue(item.lastLogin) }),
     toUpdate: (item: Partial<User>) => stripUndefined({ ...item, createdAt: dateValue(item.createdAt), lastLogin: dateValue(item.lastLogin) }),
   },
@@ -371,7 +373,7 @@ const customerMapper: CollectionMapper<Customer> = {
 const cashCloseMapper: CollectionMapper<CashClose> = {
   prismaModel: "cashClose",
   orderBy: { date: "desc" },
-  toApp: row => ({ ...row, date: dateString(row.date), physicalValue: numberValue(row.physicalValue), expectedValue: numberValue(row.expectedValue), divergence: numberValue(row.divergence) } as CashClose),
+  toApp: row => ({ ...row, date: dateOnly(row.date), openingValue: numberValue(row.openingValue), physicalValue: numberValue(row.physicalValue), expectedValue: numberValue(row.expectedValue), divergence: numberValue(row.divergence) } as CashClose),
   toCreate: item => stripUndefined({ ...item, date: dateValue(item.date) }),
   toUpdate: item => cashCloseMapper.toCreate(item as CashClose),
 }
@@ -393,9 +395,9 @@ const accountReceivableMapper: CollectionMapper<AccountReceivable> = {
     ...row,
     value: numberValue(row.value),
     issueDate: dateString(row.issueDate),
-    dueDate: dateString(row.dueDate),
-    paymentDate: optionalDateString(row.paymentDate),
-    installments: row.installments?.map((item: Row) => ({ id: item.id, installmentNumber: item.installmentNumber, value: numberValue(item.value), dueDate: dateString(item.dueDate), status: item.status, paymentDate: optionalDateString(item.paymentDate) })),
+    dueDate: dateOnly(row.dueDate),
+    paymentDate: optionalDateOnly(row.paymentDate),
+    installments: row.installments?.map((item: Row) => ({ id: item.id, installmentNumber: item.installmentNumber, value: numberValue(item.value), dueDate: dateOnly(item.dueDate), status: item.status, paymentDate: optionalDateOnly(item.paymentDate) })),
   } as AccountReceivable),
   toCreate: item => stripUndefined({
     ...item,
@@ -410,7 +412,7 @@ const accountReceivableMapper: CollectionMapper<AccountReceivable> = {
 const bankTransferMapper: CollectionMapper<BankTransfer> = {
   prismaModel: "bankTransfer",
   orderBy: { date: "desc" },
-  toApp: row => ({ ...row, date: dateString(row.date), value: numberValue(row.value) } as BankTransfer),
+  toApp: row => ({ ...row, date: dateOnly(row.date), value: numberValue(row.value) } as BankTransfer),
   toCreate: item => stripUndefined({ ...item, date: dateValue(item.date) }),
   toUpdate: item => bankTransferMapper.toCreate(item as BankTransfer),
 }
@@ -441,7 +443,7 @@ const budgetMapper: CollectionMapper<Budget> = {
 const recurringTransactionMapper: CollectionMapper<RecurringTransaction> = {
   prismaModel: "recurringTransaction",
   orderBy: { startDate: "desc" },
-  toApp: row => ({ ...row, value: numberValue(row.value), startDate: dateString(row.startDate), endDate: optionalDateString(row.endDate), lastGenerated: optionalDateString(row.lastGenerated) } as RecurringTransaction),
+  toApp: row => ({ ...row, value: numberValue(row.value), startDate: dateOnly(row.startDate), endDate: optionalDateOnly(row.endDate), lastGenerated: optionalDateString(row.lastGenerated) } as RecurringTransaction),
   toCreate: item => stripUndefined({ ...item, startDate: dateValue(item.startDate), endDate: dateValue(item.endDate), lastGenerated: dateValue(item.lastGenerated) }),
   toUpdate: item => recurringTransactionMapper.toCreate(item as RecurringTransaction),
 }
@@ -452,7 +454,7 @@ const posSaleMapper: CollectionMapper<POSSale> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     ...row,
-    date: dateString(row.date),
+    date: dateOnly(row.date),
     subtotal: numberValue(row.subtotal),
     discount: numberValue(row.discount),
     total: numberValue(row.total),
@@ -460,7 +462,7 @@ const posSaleMapper: CollectionMapper<POSSale> = {
     change: numberValue(row.change),
     customer: optional(row.customer),
     cancelReason: optional(row.cancelReason),
-    items: row.items?.map((item: Row) => ({ id: item.id, product: simpleMappers.posProducts.toApp(item.product), quantity: item.quantity, discount: numberValue(item.discount) })) ?? [],
+    items: row.items?.map((item: Row) => ({ id: item.id, product: { ...simpleMappers.posProducts.toApp(item.product), price: numberValue(item.unitPrice) }, quantity: item.quantity, discount: numberValue(item.discount) })) ?? [],
   } as POSSale),
   toCreate: item => stripUndefined({
     id: item.id,
@@ -475,7 +477,7 @@ const posSaleMapper: CollectionMapper<POSSale> = {
     operator: item.operator,
     status: item.status,
     cancelReason: item.cancelReason,
-    items: nestedCreate(item.items, cartItem => ({ id: cartItem.id, productId: cartItem.product.id, quantity: cartItem.quantity, discount: cartItem.discount, unitPrice: cartItem.product.price, subtotal: cartItem.product.price * cartItem.quantity - cartItem.discount })),
+    items: nestedCreate(item.items, cartItem => ({ id: cartItem.id, productId: cartItem.product.id, quantity: cartItem.quantity, discount: cartItem.discount, unitPrice: cartItem.product.price, subtotal: cartItem.product.price * cartItem.quantity * (1 - cartItem.discount / 100) })),
   }),
   toUpdate: item => stripUndefined({ status: item.status, cancelReason: item.cancelReason }),
 }
@@ -499,7 +501,7 @@ const restaurantOrderMapper: CollectionMapper<RestaurantOrder> = {
     ...item,
     openedAt: dateValue(item.openedAt),
     closedAt: dateValue(item.closedAt),
-    items: nestedCreate(item.items, orderItem => ({ ...orderItem })),
+    items: nestedCreate(item.items, orderItem => ({ id: orderItem.id, productId: orderItem.productId, productName: orderItem.productName, quantity: orderItem.quantity, unitPrice: orderItem.unitPrice, subtotal: orderItem.subtotal, category: orderItem.category })),
   }),
   toUpdate: item => stripUndefined({ ...item, openedAt: dateValue(item.openedAt), closedAt: dateValue(item.closedAt), items: undefined }),
 }

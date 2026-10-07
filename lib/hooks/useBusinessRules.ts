@@ -4,7 +4,7 @@ import type { StockItem, RestaurantOrder, CashClose } from "../store"
 
 /**
  * Hook for business rules validation and alerts
- * 
+ *
  * Provides functions to check business rules and trigger alerts
  * when thresholds are exceeded
  */
@@ -48,12 +48,7 @@ export function useBusinessRules() {
   const checkCashDifference = useCallback((cashClose: CashClose) => {
     const { cashDifferenceWarning, cashDifferenceCritical } = thresholds
 
-    const totalDifference = Math.abs(
-      (cashClose.cashDifference || 0) +
-      (cashClose.debitDifference || 0) +
-      (cashClose.creditDifference || 0) +
-      (cashClose.pixDifference || 0)
-    )
+    const totalDifference = Math.abs(cashClose.divergence)
 
     if (totalDifference >= cashDifferenceCritical) {
       addAlert({

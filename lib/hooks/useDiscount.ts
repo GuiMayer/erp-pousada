@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react"
-import { validateDiscount, requiresSupervisorApproval, validateSupervisorPassword } from "../utils/validators"
+import { validateDiscount, requiresSupervisorApproval, validateSupervisorPasswordAsync } from "../utils/validators"
 
 /**
  * Hook for managing discount validation and supervisor approval
@@ -21,9 +21,9 @@ export function useDiscount(discountCeiling: number) {
     }
   }, [discountCeiling, isApproved])
 
-  const handleSupervisorApproval = useCallback((password: string) => {
+  const handleSupervisorApproval = useCallback(async (password: string) => {
     setSupervisorPassword(password)
-    if (validateSupervisorPassword(password)) {
+    if (await validateSupervisorPasswordAsync(password)) {
       setIsApproved(true)
       return true
     }

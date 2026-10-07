@@ -1,13 +1,18 @@
 /**
  * Test Helpers
- * 
+ *
  * Shared utilities for testing with AuthProvider and AppProvider
  */
 
-import { ReactNode } from 'react'
-import { AuthProvider } from '../../../lib/auth-context'
+import { ReactNode, useEffect } from 'react'
+import { AuthProvider, useAuth } from '../../../lib/auth-context'
 import { AppProvider } from '../../../lib/app-context'
 
+function SignedIn({ children }: { children: ReactNode }) {
+  const { login } = useAuth()
+  useEffect(() => { void login("supervisor", "adm123") }, [login])
+  return <AppProvider>{children}</AppProvider>
+}
 /**
  * Test wrapper that provides both AuthProvider and AppProvider
  * Use this for tests that need access to both contexts
@@ -15,7 +20,7 @@ import { AppProvider } from '../../../lib/app-context'
 export function TestWrapper({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-      <AppProvider>{children}</AppProvider>
+      <SignedIn>{children}</SignedIn>
     </AuthProvider>
   )
 }

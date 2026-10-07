@@ -33,7 +33,7 @@ interface StockMovementModalProps {
 
 export function StockMovementModal({ open, onOpenChange, stockItem }: StockMovementModalProps) {
   const { registerMovement, validateMovement } = useStockControl()
-  
+
   const [type, setType] = useState<MovementType>("entrada")
   const [quantity, setQuantity] = useState("")
   const [cost, setCost] = useState("")
@@ -43,7 +43,7 @@ export function StockMovementModal({ open, onOpenChange, stockItem }: StockMovem
   const [notes, setNotes] = useState("")
   const [error, setError] = useState("")
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!stockItem) return
 
     const qty = parseFloat(quantity)
@@ -66,7 +66,7 @@ export function StockMovementModal({ open, onOpenChange, stockItem }: StockMovem
     }
 
     // Register movement
-    registerMovement(
+    const result = await registerMovement(
       type,
       stockItem.productId,
       qty,
@@ -78,6 +78,7 @@ export function StockMovementModal({ open, onOpenChange, stockItem }: StockMovem
       notes || undefined
     )
 
+    if (!result.success) { setError(result.error || "Movimento não concluído"); return }
     // Reset form
     resetForm()
     onOpenChange(false)

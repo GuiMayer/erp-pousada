@@ -1,5 +1,6 @@
 "use client"
 
+import { getDataConfig } from "@/lib/data/config"
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
@@ -16,11 +17,18 @@ export function LoginScreen() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
-  function handleSubmit(e: React.FormEvent) {
+  const [pending, setPending] = useState(false)
+  const demo = getDataConfig().adapter === "demo-localStorage"
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
-    const success = login(username, password)
-    if (!success) setError("Credenciais invalidas. Tente novamente.")
+    setPending(true)
+    try {
+      const success = await login(username, password)
+      if (!success) setError("Credenciais inválidas. Tente novamente.")
+    } catch (error) { setError(error instanceof Error ? error.message : "Não foi possível entrar") }
+    finally { setPending(false) }
   }
 
   return (
@@ -30,7 +38,7 @@ export function LoginScreen() {
           <div className="flex size-14 items-center justify-center rounded-2xl bg-primary">
             <BedDouble className="size-7 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">{systemSettings.pousadaName}</h1>
+          <h1 className="text-xl font-bold text-foreground">{demo ? systemSettings.pousadaName : "ERP Pousada"}</h1>
           <p className="text-sm text-muted-foreground">Acesse o painel de gerenciamento</p>
         </CardHeader>
         <CardContent className="pt-4">
@@ -39,7 +47,7 @@ export function LoginScreen() {
               <Label htmlFor="username">Usuario</Label>
               <Input
                 id="username"
-                placeholder="operador ou supervisor"
+                placeholder="Seu usuário"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 autoComplete="username"
@@ -59,15 +67,15 @@ export function LoginScreen() {
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
-            <Button type="submit" className="mt-1 gap-2">
+            <Button disabled={pending} type="submit" className="mt-1 gap-2">
               <LogIn className="size-4" />
               Entrar
             </Button>
-            <div className="rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
+            {demo && <div className="rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">Credenciais de teste:</p>
               <p className="mt-1">Operador: <span className="font-mono">operador / 1234</span></p>
               <p>Supervisor: <span className="font-mono">supervisor / adm123</span></p>
-            </div>
+            </div>}
           </form>
         </CardContent>
       </Card>

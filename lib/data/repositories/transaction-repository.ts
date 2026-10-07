@@ -1,6 +1,6 @@
 /**
  * Transaction Repository
- * 
+ *
  * Manages financial transaction data.
  */
 
@@ -16,7 +16,7 @@ export class TransactionRepository extends BaseRepository<Transaction> {
   }
 
   protected generateId(items: Transaction[]): string {
-    return generateTransactionId(items.length + 1)
+    return generateTransactionId()
   }
 
   protected validate(transaction: Partial<Transaction>): { valid: boolean; error?: string } {
@@ -51,7 +51,7 @@ export class TransactionRepository extends BaseRepository<Transaction> {
     const transactions = await this.getAll()
     const start = new Date(startDate)
     const end = new Date(endDate)
-    
+
     return transactions.filter(t => {
       const date = new Date(t.date)
       return date >= start && date <= end

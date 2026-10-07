@@ -40,7 +40,7 @@ import type { Employee, EmployeeRole } from "@/lib/store"
 const EMPLOYEE_ROLES: { value: EmployeeRole; label: string }[] = [
   { value: "caixa", label: "Caixa" },
   { value: "cozinha", label: "Cozinha" },
-  { value: "garcom", label: "Garçom" },
+  { value: "atendimento", label: "Garçom" },
   { value: "gerente", label: "Gerente" },
 ]
 
@@ -63,7 +63,7 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
   // Form state
   const [name, setName] = useState("")
   const [cpfValue, setCpfValue] = useState("")
-  const [role, setRole] = useState<EmployeeRole>("garcom")
+  const [role, setRole] = useState<EmployeeRole>("atendimento")
   const [consumptionLimit, setConsumptionLimit] = useState("50")
   const [lunchIncluded, setLunchIncluded] = useState(true)
   const [dinnerIncluded, setDinnerIncluded] = useState(true)
@@ -83,7 +83,7 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
   function resetForm() {
     setName("")
     setCpfValue("")
-    setRole("garcom")
+    setRole("atendimento")
     setConsumptionLimit("50")
     setLunchIncluded(true)
     setDinnerIncluded(true)
@@ -141,7 +141,7 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
   function handleAdd() {
     if (!validateForm()) return
 
-    const newId = Math.max(...employees.map(e => e.id), 0) + 1
+    const newId = crypto.randomUUID()
     const cleanCPF = cpfValue.replace(/\D/g, "")
 
     addEmployee({
@@ -249,10 +249,10 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
     return EMPLOYEE_ROLES.find(r => r.value === roleValue)?.label || roleValue
   }
 
-  function getConsumptionTotal(employeeId: number): number {
+  function getConsumptionTotal(employeeId: string): number {
     const thisMonth = new Date().toISOString().slice(0, 7)
     return employeeConsumptions
-      .filter(c => c.employeeId === employeeId && c.date.startsWith(thisMonth))
+      .filter(c => c.employeeId === employeeId && c.timestamp.startsWith(thisMonth))
       .reduce((sum, c) => sum + c.total, 0)
   }
 
@@ -295,7 +295,7 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
                   <Plus className="h-4 w-4" /> Novo Funcionário
                 </Button>
 
-                <Select value={filter} onValueChange={(v: string) => setFilter(v)}>
+                <Select value={filter} onValueChange={(v: string) => setFilter(v as typeof filter)}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue />
                   </SelectTrigger>

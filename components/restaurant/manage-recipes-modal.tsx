@@ -323,7 +323,7 @@ export function ManageRecipesModal({ open, onClose }: Props) {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v)}>
+                <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v as Parameters<typeof setStatusFilter>[0])}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue />
                   </SelectTrigger>
@@ -649,7 +649,7 @@ export function ManageRecipesModal({ open, onClose }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusao</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja desativar a receita "{deleteConfirm?.name}"?
+              Tem certeza que deseja desativar a receita &quot;{deleteConfirm?.name}&quot;?
               <br />
               <span className="text-xs text-muted-foreground mt-2 block">
                 Nota: Exclusao permanente de receitas nao e permitida para preservar historico de producoes.
