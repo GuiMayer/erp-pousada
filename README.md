@@ -12,74 +12,65 @@ Aplicação web em português para organizar a rotina de pousadas: da reserva ao
 
 </div>
 
-![Mapa de quartos do ERP Pousada com ocupação, hóspedes e agenda de sete dias](docs/images/mapa-quartos.jpg)
-
-*Captura real da aplicação, com dados fictícios da Pousada Sol & Mar.*
-
 ## Visão geral
 
 O ERP Pousada reúne a recepção, a frente de caixa, o restaurante e o financeiro em uma interface compartilhada. Os módulos trabalham com quartos, hóspedes, produtos e lançamentos para acompanhar a operação do estabelecimento.
 
 O projeto está em desenvolvimento. Há um modo de demonstração sem banco e uma camada de persistência com PostgreSQL; consulte o [estado atual](#estado-atual) antes de planejar uma instalação operacional.
 
-## Funcionalidades
-
-| Módulo | Recursos disponíveis |
-| --- | --- |
-| **Hospedagem** | Mapa de quartos, agenda de sete dias, filtros por situação, check-in, check-out, limpeza e bloqueios de manutenção. |
-| **Reservas e hóspedes** | Cadastro e edição de reservas, verificação de conflitos de período, cancelamento, no-show e histórico de hóspedes. |
-| **Consumo e frente de caixa** | Catálogo por categoria, busca por produto ou código de barras, carrinho, descontos, formas de pagamento e histórico de vendas. |
-| **Restaurante** | Mapa de mesas, comandas, lançamento de itens, fechamento de pedidos, fichas de receita, produção e consumo de funcionários. |
-| **Estoque** | Catálogo de produtos, cardápio do restaurante, entradas, saídas, ajustes, perdas e alertas de estoque mínimo. |
-| **Financeiro** | Receitas, despesas, vencimentos, parcelas, estornos, fechamento de turno, clientes, fornecedores e contas a receber. |
-| **Relatórios** | Indicadores de vendas, ticket médio, gráficos por período, categorias e formas de pagamento, exportação CSV e relatórios PDF. |
-| **Administração** | Cadastros de usuários, configurações do estabelecimento, registros de auditoria e preferências de interface. |
-
 ## Telas do sistema
 
-As imagens abaixo foram capturadas na aplicação em execução. Nomes, valores e operações são exemplos fictícios; as datas são calculadas quando a demonstração é criada.
+Conheça cinco abas que representam os principais fluxos da aplicação. As capturas foram feitas em **modo claro**, com dados fictícios da Pousada Sol & Mar. Nomes, valores e operações são exemplos; as datas são calculadas quando a demonstração é criada.
 
-<details>
-<summary><strong>Reservas — hóspedes, períodos e situação de cada hospedagem</strong></summary>
+### Mapa — acompanhe a ocupação e a rotina dos quartos
 
-![Lista de reservas com hóspedes fictícios, quartos, datas e valores](docs/images/reservas.jpg)
+A recepção visualiza quartos disponíveis, ocupados, em limpeza ou bloqueados para manutenção. Cada cartão reúne o hóspede, a previsão de saída, o consumo pendente e uma agenda de sete dias, permitindo identificar a situação da hospedagem sem sair do mapa.
 
-</details>
+Os filtros ajudam a localizar quartos por situação. A partir dos cartões, é possível iniciar o check-in, consultar o consumo, liberar um quarto após a limpeza e acompanhar bloqueios. O check-out exige a quitação do consumo pendente.
 
-<details>
-<summary><strong>Frente de caixa — catálogo de produtos e carrinho de venda</strong></summary>
+![Mapa em modo claro com situações dos quartos, hóspedes, consumo e agenda de sete dias](docs/images/mapa-quartos.jpg)
 
-![Frente de caixa com produtos por categoria e um carrinho de exemplo](docs/images/frente-caixa.jpg)
+### Frente de Caixa — registre o consumo e organize a venda
 
-</details>
+O catálogo apresenta os produtos por categoria, com busca por nome ou código de barras. O operador adiciona itens ao carrinho, ajusta quantidades, aplica descontos e seleciona a forma de pagamento para concluir a venda.
 
-<details>
-<summary><strong>Restaurante — mesas livres, reservadas e comandas em aberto</strong></summary>
+Na captura, o carrinho contém uma água e um suco, mostrando como os itens e o total ficam visíveis durante o atendimento. A aba também oferece acesso ao histórico de vendas.
 
-![Restaurante com dez mesas e três comandas fictícias em aberto](docs/images/restaurante.jpg)
+![Frente de caixa em modo claro com catálogo de bebidas e carrinho de exemplo](docs/images/frente-caixa.jpg)
 
-</details>
+### Restaurante — gerencie mesas e comandas
 
-<details>
-<summary><strong>Financeiro — resultado da operação e controle de vencimentos</strong></summary>
+O mapa de mesas diferencia lugares livres, ocupados e reservados. Nas mesas em atendimento, os cartões mostram a comanda, a quantidade de itens e o valor acumulado, facilitando o acompanhamento do salão.
 
-![Painel financeiro com receitas, despesas e contas de exemplo](docs/images/financeiro.jpg)
+Ao acessar uma mesa, o operador pode lançar pedidos e fechar a comanda. O módulo também reúne fichas de receita, produção e consumo de funcionários para apoiar a rotina da cozinha.
 
-</details>
+![Restaurante em modo claro com dez mesas e três comandas fictícias em aberto](docs/images/restaurante.jpg)
 
-<details>
-<summary><strong>Estoque — saldos, custos e alertas de reposição</strong></summary>
+### Financeiro — acompanhe resultados e vencimentos
 
-![Estoque com doze produtos, custos médios e alertas de reposição](docs/images/estoque.jpg)
+O painel reúne receitas, despesas, resultado líquido e estornos. A lista de lançamentos permite consultar categorias, valores, vencimentos e situações de pagamento, ajudando a identificar contas pendentes e organizar o fluxo financeiro.
 
-</details>
+Além do resumo, a aba oferece controle de despesas e parcelas, contas a receber, clientes, fornecedores e fechamento de turno.
 
-<details>
-<summary><strong>Relatórios — indicadores, evolução das vendas e exportação</strong></summary>
+![Financeiro em modo claro com resumo de receitas e despesas e lançamentos de exemplo](docs/images/financeiro.jpg)
 
-![Relatório semanal com indicadores, gráfico de receita e opções de exportação CSV e PDF](docs/images/relatorios.jpg)
+### Relatórios — transforme a operação em indicadores
 
-</details>
+Selecione um período para consultar receita, quantidade de vendas, ticket médio e alertas de estoque. Os gráficos mostram a distribuição por categoria, forma de pagamento e horário, permitindo comparar o movimento e reconhecer os produtos que contribuem para as vendas.
+
+As visualizações de vendas, produtos e estoque complementam a análise. Os dados podem ser exportados em CSV, e os relatórios de reservas, estoque e restaurante estão disponíveis em PDF.
+
+![Relatórios em modo claro com indicadores, gráficos de vendas e exportação CSV e PDF](docs/images/relatorios.jpg)
+
+### Outras abas
+
+| Aba | O que permite fazer |
+| --- | --- |
+| **Reservas** | Cadastrar e editar hospedagens, verificar conflitos de período, acompanhar cancelamentos, no-show e histórico de hóspedes. |
+| **Estoque** | Consultar produtos e cardápio, registrar entradas, saídas, ajustes e perdas, e acompanhar alertas de estoque mínimo. |
+| **Configurações** | Ajustar os dados do estabelecimento e as preferências da interface. |
+| **Administração** | Gerenciar o cadastro de usuários. |
+| **Auditoria** | Consultar os registros de ações realizadas no sistema. |
 
 ## Demonstração local
 
