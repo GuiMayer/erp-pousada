@@ -1,323 +1,244 @@
-# Sistema de Gestão de Pousada
+<div align="center">
 
-Sistema completo de gestão hoteleira desenvolvido com Next.js, React e TypeScript. Oferece controle total de reservas, check-in/check-out, consumo, financeiro, PDV e auditoria.
+# ERP Pousada
 
-## Funcionalidades Principais
+**Hospedagem, restaurante e gestão financeira em um só painel.**
 
-### 1. Gestão de Quartos
+Aplicação web em português para organizar a rotina de pousadas: da reserva ao fechamento de caixa, com controle de consumo, estoque e relatórios.
 
-- **Visualização em Grid**: Todos os quartos com status visual (disponível, ocupado, limpeza, bloqueado)
-- **Check-in Rápido**: Modal de check-in com busca de hóspede por CPF
-- **Check-out**: Processo completo com cálculo de consumo e pagamento
-- **Lançamento de Consumo**: Sistema de PDV integrado para lançar itens consumidos
-- **Histórico**: Visualização completa do histórico de cada quarto
+[Conheça as telas](#telas-do-sistema) · [Execute a demonstração](#demonstração-local) · [Configure o banco](#desenvolvimento-com-postgresql) · [Documentação](#documentação)
 
-**Status de Quartos:**
-- Disponível (verde)
-- Ocupado (vermelho)
-- Limpeza (amarelo)
-- Bloqueado (cinza)
+**Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Prisma 7 · PostgreSQL 16**
 
-### 2. Sistema de Reservas
+</div>
 
-- **Criar Reservas**: Formulário completo com dados do hóspede e período
-- **Gerenciar Reservas**: Lista com filtros por status e período
-- **Status de Reservas**:
-  - Confirmada
-  - Check-in realizado
-  - Check-out realizado
-  - Cancelada
-  - No-show
+![Mapa de quartos do ERP Pousada com ocupação, hóspedes e agenda de sete dias](docs/images/mapa-quartos.jpg)
 
-### 3. Perfil de Hóspedes
+*Captura real da aplicação, com dados fictícios da Pousada Sol & Mar.*
 
-- **Cadastro Automático**: Hóspedes são cadastrados automaticamente no primeiro check-in
-- **Histórico de Estadias**: Número total de estadias por hóspede
-- **Ticket Médio**: Cálculo automático do valor médio gasto
-- **Alertas de No-show**: Identificação de hóspedes com histórico de não comparecimento
-- **Busca por CPF**: Sistema inteligente de busca e auto-preenchimento
+## Visão geral
 
-### 4. Consumo e PDV
+O ERP Pousada reúne a recepção, a frente de caixa, o restaurante e o financeiro em uma interface compartilhada. Os módulos trabalham com quartos, hóspedes, produtos e lançamentos para acompanhar a operação do estabelecimento.
 
-- **Catálogo de Produtos**: Produtos organizados por categorias
-- **Busca e Filtros**: Busca por nome e filtro por categoria
-- **Itens Personalizados**: Possibilidade de lançar itens não catalogados
-- **Cálculo Automático**: Total de consumo calculado em tempo real
-- **Integração com Check-out**: Consumo é automaticamente incluído no check-out
+O projeto está em desenvolvimento. Há um modo de demonstração sem banco e uma camada de persistência com PostgreSQL; consulte o [estado atual](#estado-atual) antes de planejar uma instalação operacional.
 
-**Categorias de Produtos:**
-- Bebidas
-- Alimentos
-- Serviços
-- Outros
+## Funcionalidades
 
-### 5. Gestão Financeira
+| Módulo | Recursos disponíveis |
+| --- | --- |
+| **Hospedagem** | Mapa de quartos, agenda de sete dias, filtros por situação, check-in, check-out, limpeza e bloqueios de manutenção. |
+| **Reservas e hóspedes** | Cadastro e edição de reservas, verificação de conflitos de período, cancelamento, no-show e histórico de hóspedes. |
+| **Consumo e frente de caixa** | Catálogo por categoria, busca por produto ou código de barras, carrinho, descontos, formas de pagamento e histórico de vendas. |
+| **Restaurante** | Mapa de mesas, comandas, lançamento de itens, fechamento de pedidos, fichas de receita, produção e consumo de funcionários. |
+| **Estoque** | Catálogo de produtos, cardápio do restaurante, entradas, saídas, ajustes, perdas e alertas de estoque mínimo. |
+| **Financeiro** | Receitas, despesas, vencimentos, parcelas, estornos, fechamento de turno, clientes, fornecedores e contas a receber. |
+| **Relatórios** | Indicadores de vendas, ticket médio, gráficos por período, categorias e formas de pagamento, exportação CSV e relatórios PDF. |
+| **Administração** | Cadastros de usuários, configurações do estabelecimento, registros de auditoria e preferências de interface. |
 
-#### Receitas
-- **Registro de Transações**: Todas as receitas são registradas automaticamente
-- **Métodos de Pagamento**:
-  - Dinheiro
-  - Cartão de Débito
-  - Cartão de Crédito
-  - PIX
-- **Relatórios**: Visualização de receitas por período e método
+## Telas do sistema
 
-#### Despesas
-- **Lançamento de Despesas**: Registro de todas as despesas operacionais
-- **Categorias Customizáveis**: Crie e gerencie categorias de despesas
-- **Aprovação de Supervisor**: Despesas acima de limite requerem aprovação
-- **Anexos**: Possibilidade de anexar comprovantes
+As imagens abaixo foram capturadas na aplicação em execução. Nomes, valores e operações são exemplos fictícios; as datas são calculadas quando a demonstração é criada.
 
-#### Fechamento de Caixa
-- **Fechamento Diário**: Registro de abertura e fechamento de caixa
-- **Conferência**: Comparação entre valores esperados e contados
-- **Diferenças**: Identificação automática de divergências
-- **Histórico**: Consulta de fechamentos anteriores
+<details>
+<summary><strong>Reservas — hóspedes, períodos e situação de cada hospedagem</strong></summary>
 
-### 6. Sistema de Descontos
+![Lista de reservas com hóspedes fictícios, quartos, datas e valores](docs/images/reservas.jpg)
 
-- **Descontos Configuráveis**: Defina limite máximo de desconto
-- **Aprovação de Supervisor**: Descontos acima do limite requerem senha de supervisor
-- **Cálculo Automático**: Valores com desconto calculados em tempo real
-- **Auditoria**: Todos os descontos são registrados no log de auditoria
+</details>
 
-### 7. Auditoria e Logs
+<details>
+<summary><strong>Frente de caixa — catálogo de produtos e carrinho de venda</strong></summary>
 
-- **Registro Automático**: Todas as ações importantes são registradas
-- **Rastreabilidade**: Usuário, ação, data e hora de cada operação
-- **Filtros**: Busca por usuário, ação ou período
-- **Exportação**: Possibilidade de exportar logs para análise
+![Frente de caixa com produtos por categoria e um carrinho de exemplo](docs/images/frente-caixa.jpg)
 
-**Ações Auditadas:**
-- Check-ins e check-outs
-- Lançamentos de consumo
-- Transações financeiras
-- Aprovações de supervisor
-- Alterações de status de quartos
+</details>
 
-### 8. Controle de Acesso
+<details>
+<summary><strong>Restaurante — mesas livres, reservadas e comandas em aberto</strong></summary>
 
-- **Dois Níveis de Usuário**:
-  - **Operador**: Acesso às operações diárias
-  - **Supervisor**: Acesso total + aprovações especiais
+![Restaurante com dez mesas e três comandas fictícias em aberto](docs/images/restaurante.jpg)
 
-- **Autenticação**: Sistema de login com persistência de sessão
-- **Permissões**: Ações sensíveis requerem nível de supervisor
+</details>
 
-**Usuários Padrão:**
-- Operador: `operador` / senha: `1234`
-- Supervisor: `supervisor` / senha: `admin`
+<details>
+<summary><strong>Financeiro — resultado da operação e controle de vencimentos</strong></summary>
 
-### 9. Dashboard e Relatórios
+![Painel financeiro com receitas, despesas e contas de exemplo](docs/images/financeiro.jpg)
 
-- **Visão Geral**: Cards com métricas principais
-- **Ocupação**: Taxa de ocupação em tempo real
-- **Receita**: Receita total e por período
-- **Despesas**: Total de despesas e categorias
-- **Gráficos**: Visualização gráfica de dados financeiros
+</details>
 
-### 10. PDV (Ponto de Venda)
+<details>
+<summary><strong>Estoque — saldos, custos e alertas de reposição</strong></summary>
 
-- **Gestão de Produtos**: CRUD completo de produtos
-- **Categorias**: Organização por categorias
-- **Preços**: Controle de preços unitários
-- **Estoque**: (Preparado para implementação futura)
-- **Vendas**: Registro de vendas avulsas (não vinculadas a quartos)
+![Estoque com doze produtos, custos médios e alertas de reposição](docs/images/estoque.jpg)
 
-## Tecnologias Utilizadas
+</details>
 
-- **Framework**: Next.js 15 (App Router)
-- **UI**: React 19 + TypeScript
-- **Estilização**: Tailwind CSS
-- **Componentes**: shadcn/ui
-- **Ícones**: Lucide React
-- **Gerenciamento de Estado**: React Context API
-- **Testes**: Vitest + React Testing Library
-- **Validação**: Validadores customizados
+<details>
+<summary><strong>Relatórios — indicadores, evolução das vendas e exportação</strong></summary>
 
-## Arquitetura do Projeto
+![Relatório semanal com indicadores, gráfico de receita e opções de exportação CSV e PDF](docs/images/relatorios.jpg)
 
-```
-src/
-├── app/                    # Páginas Next.js (App Router)
-├── components/             # Componentes React
-│   └── ui/                # Componentes UI reutilizáveis
-├── lib/
-│   ├── utils/             # Utilitários
-│   │   ├── constants.ts   # Constantes do sistema
-│   │   ├── formatters.ts  # Formatadores
-│   │   ├── validators.ts  # Validadores
-│   │   └── id-generators.ts # Geradores de ID
-│   ├── hooks/             # Hooks customizados
-│   │   ├── useCart.ts
-│   │   ├── usePayment.ts
-│   │   ├── useDiscount.ts
-│   │   ├── useProductSearch.ts
-│   │   ├── useGuestSearch.ts
-│   │   └── useConsumption.ts
-│   ├── app-context.tsx    # Contexto principal
-│   ├── auth-context.tsx   # Contexto de autenticação
-│   └── store.ts           # Tipos e dados iniciais
-└── __tests__/             # Testes (158 testes)
-```
+</details>
 
-## Componentes UI Reutilizáveis
+## Demonstração local
 
-- **CurrencyDisplay**: Exibição formatada de valores monetários
-- **StatusBadge**: Badge de status com cores semânticas
-- **DateDisplay**: Formatação de datas com ícone
-- **DueDateDisplay**: Datas com alertas de vencimento
-- **PaymentMethodBadge**: Badge de método de pagamento
-- **StatCard**: Card de estatística para dashboard
-- **SupervisorApprovalDialog**: Diálogo de aprovação com senha
+### Requisitos
 
-## Hooks Customizados
-
-- **useCart**: Gerenciamento de carrinho de compras
-- **usePayment**: Processamento de pagamentos
-- **useDiscount**: Cálculo e validação de descontos
-- **useProductSearch**: Busca e filtro de produtos
-- **useGuestSearch**: Busca de hóspedes por CPF
-- **useConsumption**: Gerenciamento de consumo de quartos
-
-## Instalação e Execução
-
-### Pré-requisitos
-
-- Node.js 18+ 
-- pnpm (recomendado) ou npm
+- **Node.js 22.12 ou superior na linha 22**, ou **Node.js 24**.
+- **pnpm 10**.
+- Git para clonar o repositório.
 
 ### Instalação
 
 ```bash
-# Clone o repositório
-git clone <repository-url>
-
-# Entre no diretório
-cd v0-agi-pousada
-
-# Instale as dependências
-pnpm install
+git clone https://github.com/GuiMayer/erp-pousada.git
+cd erp-pousada
+pnpm install --frozen-lockfile
+pnpm db:generate
 ```
 
-### Executar em Desenvolvimento
+Crie um arquivo `.env.local` na raiz com:
+
+```dotenv
+NEXT_PUBLIC_DATA_ADAPTER=demo-localStorage
+```
+
+Inicie a aplicação:
 
 ```bash
 pnpm dev
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000)
+Acesse **[http://localhost:3000](http://localhost:3000)**. O modo de demonstração não exige um servidor PostgreSQL.
 
-### Executar Testes
+### Acesso de demonstração
 
-```bash
-# Rodar todos os testes
-pnpm test
+| Perfil | Usuário | Senha |
+| --- | --- | --- |
+| Operador | `operador` | `1234` |
+| Supervisor | `supervisor` | `adm123` |
 
-# Rodar testes em modo watch
-pnpm test:watch
+Use o perfil supervisor para explorar também o módulo de administração. Essas credenciais pertencem ao login demonstrativo atual.
 
-# Rodar testes com cobertura
-pnpm test:coverage
+### Dados de exemplo
+
+Na primeira abertura de um armazenamento de demonstração vazio, o sistema carrega:
+
+- **12 quartos** com situações de ocupação, disponibilidade, limpeza e manutenção.
+- **10 reservas e 9 hóspedes**, incluindo estadias em andamento e reservas futuras.
+- **36 produtos**, sendo 28 do catálogo da pousada e 8 do cardápio do restaurante.
+- **10 mesas e 3 comandas abertas** com itens e totais relacionados.
+- **112 vendas distribuídas em 14 dias**, com lançamentos financeiros correspondentes.
+- **12 itens de estoque**, movimentações, alertas de reposição, despesas e contas a receber.
+
+Os exemplos ficam no navegador, sob o prefixo `erp-pousada-demo`. A carga inicial preserva um armazenamento já preenchido e mantém as antigas chaves `pousada:*` intactas. As alterações na demonstração continuam disponíveis após recarregar a página, no mesmo navegador e endereço.
+
+Para uma nova demonstração, use um perfil de navegador sem dados anteriores. A implementação dos exemplos está em [`lib/demo-data.ts`](lib/demo-data.ts).
+
+## Desenvolvimento com PostgreSQL
+
+Para desenvolver a persistência no servidor, crie `.env` com a conexão de banco e ajuste `.env.local` para o modo `database`:
+
+**`.env`**
+
+```dotenv
+DATABASE_URL="postgresql://pousada:pousada@localhost:5432/pousada"
 ```
 
-### Build para Produção
+**`.env.local`**
 
-```bash
-# Criar build otimizado
-pnpm build
-
-# Executar build de produção
-pnpm start
+```dotenv
+NEXT_PUBLIC_DATA_ADAPTER=database
 ```
 
-## Qualidade e Testes
-
-- **158 testes** unitários e de integração
-- **Cobertura de 100%** em utilitários, hooks e componentes UI
-- **17 arquivos de teste** organizados por módulo
-- **Testes de integração** para fluxos principais
-
-### Executar Testes
+Com Docker disponível, execute:
 
 ```bash
-pnpm test              # Rodar todos os testes
-pnpm test:watch        # Modo watch
-pnpm test:coverage     # Com cobertura
+pnpm db:up
+pnpm db:generate
+pnpm exec prisma migrate deploy
+pnpm dev
 ```
 
-## Fluxos Principais
+Reinicie o servidor de desenvolvimento sempre que trocar o modo de dados. O endereço de banco acima corresponde à configuração local de exemplo do Compose.
 
-### Fluxo de Check-in
+No modo `database`, o navegador acessa `/api/data`, e as coleções mapeadas são persistidas em tabelas relacionais via Prisma. O adaptador JSONB legado permanece como caminho de migração e fallback. Consulte o [mapa do domínio](docs/DATABASE_DOMAIN_MAP.md) para os detalhes da transição.
 
-1. Selecionar quarto disponível
-2. Clicar em "Check-in"
-3. Informar CPF do hóspede (busca automática)
-4. Preencher dados complementares
-5. Confirmar check-in
-6. Quarto muda para status "ocupado"
+## Execução com Docker
 
-### Fluxo de Check-out
+O projeto inclui aplicação, PostgreSQL e um serviço de backup automático:
 
-1. Selecionar quarto ocupado
-2. Clicar em "Check-out"
-3. Revisar consumo lançado
-4. Aplicar desconto (se necessário)
-5. Selecionar método de pagamento
-6. Confirmar check-out
-7. Quarto volta para status "disponível"
+```bash
+docker compose up -d --build
+```
 
-### Fluxo de Consumo
+A aplicação fica disponível em **[http://localhost:3000](http://localhost:3000)**. Libere a porta 3000 caso outra instância local já esteja em execução. As migrations são aplicadas na inicialização do container da aplicação.
 
-1. Selecionar quarto ocupado
-2. Clicar em "Consumo"
-3. Buscar produtos no catálogo ou adicionar item personalizado
-4. Adicionar itens ao consumo
-5. Itens são salvos automaticamente
-6. Total é calculado em tempo real
+No Windows, `pousada-menu.bat` reúne instalação, acesso na rede local, configuração de backups e restauração. O procedimento completo está no [guia de instalação com Docker](docs/CLIENTE_INSTALACAO_DOCKER.md).
 
-## Otimizações de Performance
+## Tecnologias e organização
 
-- **Memoização de Contextos**: `useMemo` nos providers para evitar re-renders
-- **Callbacks Memoizados**: `useCallback` em todas as funções de contexto
-- **Filtros Otimizados**: Memoização de listas filtradas
-- **Componentes Leves**: Componentes UI sem lógica pesada
+| Camada | Tecnologias |
+| --- | --- |
+| Aplicação | Next.js 16, App Router, React 19 e TypeScript |
+| Interface | Tailwind CSS 4, componentes shadcn/ui, Radix UI e Lucide |
+| Dados | React Context, repositórios, API interna, Prisma 7 e PostgreSQL 16 |
+| Gráficos e documentos | Recharts, jsPDF e exportação CSV |
+| Testes | Vitest, React Testing Library e Happy DOM |
+| Instalação | Docker Compose e ferramentas de backup/restauração |
 
-## Documentação Adicional
+```text
+app/                   Página principal e rotas da API
+components/            Telas, módulos e componentes de interface
+contexts/              Preferências e navegação
+lib/
+  data/                Adaptadores e repositórios
+  db/                  Cliente Prisma
+  hooks/               Lógica compartilhada dos módulos
+  server/              Persistência e serviços no servidor
+  demo-data.ts         Exemplos do modo de demonstração
+  store.ts             Tipos e dados iniciais
+prisma/                Schema e migrations
+scripts/               Migração de dados e manutenção do banco
+docs/                  Documentação técnica e capturas de tela
+src/__tests__/         Testes automatizados
+```
 
-- [REFACTORING.md](./REFACTORING.md) - Documentação completa da refatoração
-- [TEST_SUMMARY.md](./TEST_SUMMARY.md) - Resumo dos testes implementados
+## Comandos úteis
 
-## Próximas Melhorias Sugeridas
+| Comando | Finalidade |
+| --- | --- |
+| `pnpm dev` | Iniciar o servidor de desenvolvimento |
+| `pnpm build` | Gerar o build da aplicação |
+| `pnpm start` | Executar um build existente |
+| `pnpm exec vitest run` | Executar a suíte de testes uma vez |
+| `pnpm test` | Executar os testes em modo interativo |
+| `pnpm test:ui` | Abrir a interface do Vitest |
+| `pnpm db:generate` | Gerar o cliente Prisma |
+| `pnpm db:migrate` | Criar/aplicar migrations durante o desenvolvimento |
+| `pnpm exec prisma migrate deploy` | Aplicar migrations já versionadas |
+| `pnpm db:studio` | Inspecionar o banco pelo Prisma Studio |
+| `pnpm db:logs` | Acompanhar os logs do PostgreSQL local |
 
-- [ ] Integração com banco de dados real
-- [ ] Sistema de relatórios avançados
-- [ ] Exportação de dados (PDF, Excel)
-- [ ] Gestão de estoque
-- [ ] Integração com sistemas de pagamento
-- [ ] App mobile
-- [ ] Sistema de notificações
-- [ ] Backup automático
-- [ ] Multi-idioma
+## Estado atual
 
-## Contribuindo
+- **Autenticação:** o login da interface ainda usa usuários demonstrativos definidos no cliente. O cadastro administrativo de usuários não substitui esse fluxo por uma sessão autenticada no servidor.
+- **Inicialização do banco:** a aplicação ainda pode inserir dados iniciais quando não encontra quartos no modo `database`. O comando `pnpm db:seed` é atualmente um placeholder. A carga ampliada descrita neste README é exclusiva do modo de demonstração.
+- **Qualidade:** existem testes automatizados, mas a suíte geral e a verificação completa de tipos têm pendências. O build está configurado para ignorar erros de TypeScript; um build concluído não equivale a uma verificação de tipos aprovada.
 
-Este projeto foi desenvolvido com foco em qualidade, testabilidade e manutenibilidade. Ao contribuir:
+Esses pontos fazem parte da evolução do projeto e precisam ser tratados antes de usar o sistema com dados reais em uma implantação pública.
 
-1. Mantenha a cobertura de testes em 100%
-2. Siga os padrões de código estabelecidos
-3. Use os hooks e componentes existentes
-4. Documente novas funcionalidades
-5. Execute os testes antes de commitar
+## Documentação
 
-## Licença
+- [Instalação no Windows, Docker e backups](docs/CLIENTE_INSTALACAO_DOCKER.md)
+- [Camada de dados e repositórios](docs/DATA_LAYER.md)
+- [Mapa da migração relacional](docs/DATABASE_DOMAIN_MAP.md)
+- [Configuração local da instalação](config/README.md)
+- [Histórico da refatoração](REFACTORING.md)
 
-Este projeto está sob a licença MIT.
+## Contribuição e licença
 
-## Suporte
+Para contribuir, abra uma issue descrevendo o problema ou a proposta e envie um pull request com contexto e validação da alteração. Mantenha os exemplos fictícios e documente mudanças de configuração ou persistência.
 
-Para dúvidas ou sugestões, abra uma issue no repositório.
-
----
-
-Desenvolvido com Next.js e React
+O repositório ainda não possui um arquivo de licença. A disponibilização pública do código não substitui a definição de uma licença de uso e distribuição.

@@ -30,6 +30,8 @@ import {
 } from "./store"
 import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
+import { getDataConfig } from "./data/config"
+import { seedDemoIfEmpty } from "./demo-data"
 
 const RESERVATION_BLOCKING_STATUSES = new Set<Reservation["status"]>(["confirmada", "checkin"])
 
@@ -198,7 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { dataStore, isLoading, isHydrated, isSyncing, exportData, importData, clearAllData, getStorageUsage } = useDataStore({
     userId: user?.username,
     enableSync: true,
-    prefix: "pousada"
+    prefix: getDataConfig().adapter === "demo-localStorage" ? "erp-pousada-demo" : "pousada"
   })
 
   // Local state for data (synced with repositories)
@@ -327,7 +329,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Check if we have any data in storage
       const roomCount = await dataStore.rooms.count()
       
-      if (roomCount === 0) {
+      if (getDataConfig().adapter === "demo-localStorage") {
+        await seedDemoIfEmpty(dataStore)
+      } else if (roomCount === 0) {
         // First time - seed with initial data
         console.log('[AppContext] Seeding initial data...')
         await Promise.all([
