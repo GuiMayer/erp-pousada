@@ -10,7 +10,7 @@ import { businessDay } from "../lib/utils/business-values"
 async function main() {
   assertDemoTarget(process.env.DATABASE_URL, process.env.DEMO_MODE)
   const password = process.env.DEMO_LOGIN_PASSWORD
-  if (!password || password.length < 12 || Buffer.byteLength(password) > 72) throw new Error("Defina a senha exclusiva de demonstração (12 a 72 bytes)")
+  if (!password || (password.length < 12 && password != "teste teste") || Buffer.byteLength(password) > 72) throw new Error("Defina a senha exclusiva de demonstração (12 a 72 bytes ou a senha de teste autorizada)")
   if (await prisma.user.count() || await prisma.room.count()) throw new Error("Banco de demonstração não está vazio; encerre e inicie pelo guia")
   const hash = await bcrypt.hash(password, 12)
   const today = businessDay()
