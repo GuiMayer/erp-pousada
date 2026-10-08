@@ -9,6 +9,7 @@ const operatorWrites = ["guests", "customers", "auditLog"]
 export async function authorizeCollection(request: NextRequest, key: string) {
   collectionMapper(key)
   const write = !["GET", "HEAD"].includes(request.method)
+  if (write && ["reservations", "transactions", "cashCloses", "bankTransfers", "posSales", "restaurantOrders", "consumptions", "stockMovements", "productions", "employeeConsumptions"].includes(key)) throw new HttpError(403, "Utilize a operação específica")
   const actor = await authorize(request, restricted.includes(key) || (write && !operatorWrites.includes(key)))
   if (key === "userSessions" && write) throw new HttpError(403, "Sessões são gerenciadas pelo servidor")
   if (["auditLog", "userSessions"].includes(key) && write && request.method !== "POST") throw new HttpError(403, "Histórico não pode ser alterado")

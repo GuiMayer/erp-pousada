@@ -3,6 +3,9 @@
 import { getDataConfig } from "@/lib/data/config"
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
+import { CashSessionPanel } from "./cash-session-panel"
+import { PaymentDialog } from "./payment-fields"
+import { businessDay } from "@/lib/utils/business-values"
 import { useState, useMemo } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -33,7 +36,7 @@ import {
   CreditCard, FileText, Tag, Eye,
 } from "lucide-react"
 import type { Transaction, Expense } from "@/lib/store"
-import { formatCurrency } from "@/lib/utils/formatters"
+import { formatCurrency, daysUntilDue } from "@/lib/utils/formatters"
 import { generateInstallments } from "@/lib/utils/installment-generator"
 import { SuppliersManagement } from "@/components/suppliers-management"
 import { AccountsReceivableManagement } from "@/components/accounts-receivable-management"
@@ -46,11 +49,9 @@ function formatDateBR(iso: string) {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })
 }
 
-function daysUntilDue(iso: string) {
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const d = new Date(iso + "T12:00:00"); d.setHours(0, 0, 0, 0)
-  return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-}
+const movementLabels: Record<Transaction["type"], string> = { receita: "Receita", despesa: "Despesa", estorno: "Estorno", credito_concedido: "Crédito concedido", credito_utilizado: "Crédito utilizado", transferencia_entrada: "Transferência recebida", transferencia_saida: "Transferência enviada" }
+const movementSign = (type: Transaction["type"]) => ["receita", "credito_concedido", "transferencia_entrada"].includes(type) ? "+" : "-"
+const movementClass = (type: Transaction["type"]) => type === "receita" ? "text-success" : type === "despesa" ? "text-destructive" : "text-muted-foreground"
 
 type DueFilter = "todos" | "pendentes" | "pagos" | "vencidos"
 
@@ -64,6 +65,7 @@ export function FinancialTab() {
 
   // New expense modal
   const [showNewExpense, setShowNewExpense] = useState(false)
+  const [savingExpense, setSavingExpense] = useState(false), [expenseError, setExpenseError] = useState("")
   const [expDesc, setExpDesc] = useState("")
   const [expCategory, setExpCategory] = useState("")
   const [expValue, setExpValue] = useState("")
@@ -87,12 +89,7 @@ export function FinancialTab() {
   const [discountReservationId, setDiscountReservationId] = useState("")
   const [discountError, setDiscountError] = useState("")
 
-  // Cash close
-  const [showCashClose, setShowCashClose] = useState(false)
-  const [cashPhysical, setCashPhysical] = useState("")
-  const [cashOpening, setCashOpening] = useState("0")
-  const [cashConfirmed, setCashConfirmed] = useState(false)
-
+  const [payingExpense, setPayingExpense] = useState<ExpenseRow | null>(null)
   // Due filter (toggle group)
   const [dueFilter, setDueFilter] = useState<DueFilter>("todos")
 
@@ -111,10 +108,7 @@ export function FinancialTab() {
   const totalEstornos = transactions.filter(t => t.type === "estorno").reduce((a, t) => a + Math.abs(t.value), 0)
   const netResult = totalReceitas - totalDespesas - totalEstornos
 
-  const todayISO = new Date().toISOString().split("T")[0]
-  const expectedCash = Number(cashOpening || 0) + transactions
-    .filter(t => t.date.split("T")[0] === todayISO && t.paymentMethod?.toLowerCase() === "dinheiro")
-    .reduce((a, t) => a + (t.type === "receita" ? t.value : -t.value), 0)
+  const todayISO = businessDay()
 
   // Expand expenses with installments into individual rows
   type ExpenseRow = {
@@ -191,16 +185,16 @@ export function FinancialTab() {
       result = result.filter(t => t.type === txTypeFilter)
     }
     if (dateFrom) {
-      result = result.filter(t => t.date >= dateFrom)
+      result = result.filter(t => businessDay(t.date) >= dateFrom)
     }
     if (dateTo) {
-      result = result.filter(t => t.date <= dateTo)
+      result = result.filter(t => businessDay(t.date) <= dateTo)
     }
     return result.sort((a, b) => b.date.localeCompare(a.date))
   }, [transactions, dateFrom, dateTo, txTypeFilter])
 
   async function handleCreateExpense() {
-    if (!expDesc || !expCategory || !expValue || !expDueDate) return
+    if (savingExpense || !expDesc || !expCategory || !expValue || !expDueDate) return
 
     const totalValue = Number(expValue)
     const numInstallments = Number(expInstallments)
@@ -217,7 +211,7 @@ export function FinancialTab() {
       : undefined
 
     const e = {
-      id: `E${String(expenses.length + 1).padStart(3, "0")}`,
+      id: crypto.randomUUID(),
       description: expDesc,
       category: expCategory,
       value: totalValue,
@@ -225,16 +219,19 @@ export function FinancialTab() {
       paid: false,
       installments,
     }
-    addExpense(e)
+    setSavingExpense(true); setExpenseError("")
+    try { await addExpense(e)
     setExpDesc(""); setExpCategory(""); setExpValue(""); setExpDueDate("")
     setExpInstallments("1"); setExpInstallmentInterval("30")
     setShowNewExpense(false)
+    } catch (error) { setExpenseError(error instanceof Error ? error.message : "Despesa não salva") }
+    finally { setSavingExpense(false) }
   }
 
   async function handleMarkPaid(expenseRow: ExpenseRow) {
     if (expenseRow.paid) return
     if (getDataConfig().adapter === "database") {
-      try { await runOperation("pay-expense", { expenseId: expenseRow.expenseId, installmentId: expenseRow.installmentId }) }
+      try { setPayingExpense(expenseRow) }
       catch (error) { alert(error instanceof Error ? error.message : "Pagamento não concluído") }
       return
     }
@@ -323,32 +320,6 @@ export function FinancialTab() {
       }
       setShowDiscountModal(false); setDiscountValue(""); setDiscountUnlockPass(""); setDiscountUnlocked(false); setDiscountError("")
     } catch (error) { setDiscountError(error instanceof Error ? error.message : "Desconto não aplicado") }
-  }
-
-  async function handleCashConfirm() {
-    const physical = Number(cashPhysical)
-    if (!Number.isFinite(physical) || physical < 0) return
-    if (getDataConfig().adapter === "database") {
-      try { await runOperation("cash-close", { physicalValue: physical, openingValue: Number(cashOpening || 0) }); setCashConfirmed(true) }
-      catch (error) { alert(error instanceof Error ? error.message : "Fechamento não registrado") }
-      return
-    }
-    const divergence = physical - expectedCash
-    const close = {
-      id: `CC${String(cashCloses.length + 1).padStart(3, "0")}`,
-      date: new Date().toISOString(),
-      operator: username || "operador",
-      openingValue: Number(cashOpening || 0), physicalValue: physical,
-      expectedValue: expectedCash,
-      divergence,
-    }
-    await addCashClose(close)
-    addAuditEntry({
-      user: username || "sistema",
-      action: `Diferenca de caixa: ${formatCurrency(divergence)}`,
-      reference: `Fechamento Turno #${cashCloses.length + 1}`,
-    })
-    setCashConfirmed(true)
   }
 
   const discountNeedsSupervisor =
@@ -570,22 +541,22 @@ export function FinancialTab() {
                         <TableCell className="text-xs">{formatDateBR(t.date)}</TableCell>
                         <TableCell className="font-medium text-sm">{t.description}</TableCell>
                         <TableCell className={`tabular-nums text-xs font-semibold ${
-                          t.type === "receita" ? "text-success" : t.type === "estorno" ? "text-warning-foreground" : "text-destructive"
+                          movementClass(t.type)
                         }`}>
-                          {t.type === "receita" ? "+" : "-"}{formatCurrency(Math.abs(t.value))}
+                          {movementSign(t.type)}{formatCurrency(Math.abs(t.value))}
                         </TableCell>
                         <TableCell>
                           <Badge className={`text-[10px] border-transparent ${
                             t.type === "receita" ? "bg-success/15 text-success" :
                             t.type === "estorno" ? "bg-warning/15 text-warning-foreground" :
-                            "bg-destructive/15 text-destructive"
+                            "bg-secondary text-muted-foreground"
                           }`}>
-                            {t.type === "receita" ? "Receita" : t.type === "estorno" ? "Estorno" : "Despesa"}
+                            {movementLabels[t.type]}
                           </Badge>
                         </TableCell>
                         {isSupervisor && (
                           <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                            {t.type === "receita" && (
+                            {t.type === "receita" && !/^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(t.refId ?? "") && (
                               <Button
                                 variant="ghost" size="sm"
                                 className="gap-1 text-xs text-warning-foreground hover:text-warning-foreground"
@@ -640,91 +611,7 @@ export function FinancialTab() {
         </TabsContent>
 
         {/* Cash close */}
-        <TabsContent value="fechar-turno">
-          <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-semibold text-foreground">Fechar Turno (Caixa Cego)</h3>
-            <Card>
-              <CardContent className="py-6">
-                {!showCashClose ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <p className="text-sm text-muted-foreground text-center">
-                      Ao fechar o turno, informe o valor fisico em caixa. O sistema nao mostra o valor esperado antes da confirmacao.
-                    </p>
-                    <Button onClick={() => { setShowCashClose(true); setCashConfirmed(false); setCashPhysical("") }}>
-                      Iniciar Fechamento
-                    </Button>
-                  </div>
-                ) : !cashConfirmed ? (
-                  <div className="flex flex-col gap-4 max-w-sm mx-auto">
-                    <div className="flex flex-col gap-1.5"><Label>Saldo inicial em dinheiro (R$)</Label><Input type="number" min="0" value={cashOpening} onChange={e => setCashOpening(e.target.value)} /></div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label>Valor Fisico em Caixa (R$)</Label>
-                      <Input type="number" placeholder="0,00" value={cashPhysical} onChange={e => setCashPhysical(e.target.value)} autoFocus />
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button variant="outline" onClick={() => setShowCashClose(false)}>Cancelar</Button>
-                      <Button disabled={!cashPhysical} onClick={handleCashConfirm}>Confirmar</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4 max-w-sm mx-auto animate-fade-in">
-                    <div className="rounded-lg bg-secondary/60 p-4 flex flex-col gap-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Valor informado:</span>
-                        <span className="font-semibold">{formatCurrency(Number(cashPhysical))}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Valor esperado:</span>
-                        <span className="font-semibold">{formatCurrency(expectedCash)}</span>
-                      </div>
-                      <div className="border-t border-border mt-1 pt-2 flex justify-between text-sm">
-                        <span className="text-muted-foreground">Divergencia:</span>
-                        <span className={`font-bold ${Number(cashPhysical) - expectedCash >= 0 ? "text-success" : "text-destructive"}`}>
-                          {formatCurrency(Number(cashPhysical) - expectedCash)}
-                        </span>
-                      </div>
-                    </div>
-                    <Button variant="outline" onClick={() => setShowCashClose(false)}>Fechar</Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {cashCloses.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <h4 className="text-sm font-semibold text-foreground">Historico de Fechamentos</h4>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Operador</TableHead>
-                        <TableHead>Fisico</TableHead>
-                        <TableHead>Esperado</TableHead>
-                        <TableHead>Divergencia</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {cashCloses.map(c => (
-                        <TableRow key={c.id}>
-                          <TableCell className="text-xs">{formatDateBR(c.date)}</TableCell>
-                          <TableCell className="capitalize text-xs">{c.operator}</TableCell>
-                          <TableCell className="tabular-nums text-xs">{formatCurrency(c.physicalValue)}</TableCell>
-                          <TableCell className="tabular-nums text-xs">{formatCurrency(c.expectedValue)}</TableCell>
-                          <TableCell className={`tabular-nums text-xs font-semibold ${c.divergence >= 0 ? "text-success" : "text-destructive"}`}>
-                            {formatCurrency(c.divergence)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
+        <TabsContent value="fechar-turno"><CashSessionPanel /></TabsContent>
       </Tabs>
 
       {/* Transaction detail sheet */}
@@ -743,15 +630,15 @@ export function FinancialTab() {
                 <Badge className={`w-fit text-xs border-transparent ${
                   detailTransaction.type === "receita" ? "bg-success/15 text-success" :
                   detailTransaction.type === "estorno" ? "bg-warning/15 text-warning-foreground" :
-                  "bg-destructive/15 text-destructive"
+                  "bg-secondary text-muted-foreground"
                 }`}>
-                  {detailTransaction.type === "receita" ? "Receita" : detailTransaction.type === "estorno" ? "Estorno" : "Despesa"}
+                  {movementLabels[detailTransaction.type]}
                 </Badge>
 
                 <div className="flex flex-col gap-3">
                   <TxDetailRow icon={<FileText className="size-4" />} label="Descricao" value={detailTransaction.description} />
                   <TxDetailRow icon={<DollarSign className="size-4" />} label="Valor" value={
-                    `${detailTransaction.type === "receita" ? "+" : "-"} ${formatCurrency(Math.abs(detailTransaction.value))}`
+                    `${movementSign(detailTransaction.type)} ${formatCurrency(Math.abs(detailTransaction.value))}`
                   } />
                   <TxDetailRow icon={<CalendarDays className="size-4" />} label="Data" value={formatDateBR(detailTransaction.date)} />
                   <Separator />
@@ -847,7 +734,8 @@ export function FinancialTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewExpense(false)}>Cancelar</Button>
-            <Button disabled={!expDesc || !expCategory || !expValue || !expDueDate} onClick={handleCreateExpense}>Salvar</Button>
+            {expenseError && <p role="alert" className="text-destructive">{expenseError}</p>}
+            <Button disabled={savingExpense || !expDesc || !expCategory || !expValue || !expDueDate} onClick={handleCreateExpense}>{savingExpense ? "Salvando..." : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -870,6 +758,10 @@ export function FinancialTab() {
       </Dialog>
 
       {/* Refund modal */}
+      <PaymentDialog open={!!payingExpense} onClose={() => setPayingExpense(null)} title={`Pagar despesa — ${payingExpense?.description || ""} · R$ ${(payingExpense?.value ?? 0).toFixed(2)}`} onConfirm={async (paymentMethod, accountId) => {
+        if (!payingExpense) return
+        await runOperation("pay-expense", { expenseId: payingExpense.expenseId, installmentId: payingExpense.installmentId, paymentMethod, accountId })
+      }} />
       <Dialog open={!!refundModal} onOpenChange={v => { if (!v) setRefundModal(null) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

@@ -2,6 +2,7 @@
 
 import { getDataConfig } from "@/lib/data/config"
 
+import { BankAccountPicker } from "../payment-fields"
 import { useState } from "react"
 import { X, Plus, Minus, Trash2, DollarSign, Percent } from "lucide-react"
 import {
@@ -56,6 +57,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
   const [selectedProduct, setSelectedProduct] = useState<string>("")
   const [quantity, setQuantity] = useState(1)
   const [discountPercent, setDiscountPercent] = useState(0)
+  const [paymentAccountId, setPaymentAccountId] = useState("")
   const [paymentMethod, setPaymentMethod] = useState<string>("")
   const [amountPaid, setAmountPaid] = useState("")
   const [customerName, setCustomerName] = useState("")
@@ -106,7 +108,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
       return
     }
 
-    const result = await closeOrder(paymentMethod, paid, customerName || undefined, operator)
+    const result = await closeOrder(paymentMethod, paid, customerName || undefined, operator, paymentMethod.toLowerCase() === "dinheiro" ? undefined : paymentAccountId || undefined)
     if (!result.success) {
       if (stockResult.movementIds?.length) {
         await rollbackStock(stockResult.movementIds, operator)
@@ -328,6 +330,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
           <div className="space-y-4">
             <div>
               <Label htmlFor="payment-method">Forma de Pagamento</Label>
+              <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} />
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger id="payment-method">
                   <SelectValue placeholder="Selecione" />

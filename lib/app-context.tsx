@@ -467,7 +467,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (getDataConfig().adapter === "database") {
       const current = reservations.find(r => r.id === id)
       if (!current) throw new Error("Reserva não encontrada")
-      const { roomNumber, ...input } = { ...current, ...data }
+      const merged = { ...current, ...data }
+      const input = { id, roomId: merged.roomId, cpf: merged.cpf, guestName: merged.guestName, checkIn: merged.checkIn, checkOut: merged.checkOut, totalValue: merged.totalValue, status: merged.status }
       await runOperation("edit-reservation", input); return
     }
     const before = await dataStore.reservations.getById(id)
@@ -1082,9 +1083,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [dataStore])
 
   const addBankTransfer = useCallback(async (transfer: BankTransfer) => {
+    if (getDataConfig().adapter === "database") { const { fromAccountId, toAccountId, value, description } = transfer; await runOperation("bank-transfer", { fromAccountId, toAccountId, value, description }); return }
     await dataStore.bankTransfers.create(transfer)
     setBankTransfers(await dataStore.bankTransfers.getAll())
-  }, [dataStore])
+  }, [dataStore, runOperation])
 
   const updateBankTransfer = useCallback(async (id: string, data: Partial<BankTransfer>) => {
     await dataStore.bankTransfers.update(id, data)

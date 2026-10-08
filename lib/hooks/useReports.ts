@@ -1,3 +1,4 @@
+import { businessDay, normalizePayment, netItemValues } from "../utils/business-values"
 import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type {
@@ -34,7 +35,7 @@ export function useReports() {
 
     // Filter sales for the date
     const daySales = posSales.filter(s =>
-      s.date.startsWith(datePrefix) && s.status === "concluida"
+      businessDay(s.date) === datePrefix && s.status === "concluida"
     )
 
     const totalRevenue = daySales.reduce((sum, s) => sum + s.total, 0)
@@ -43,19 +44,19 @@ export function useReports() {
 
     // Revenue by payment method
     const cashRevenue = daySales
-      .filter(s => s.paymentMethod === "Dinheiro")
+      .filter(s => normalizePayment(s.paymentMethod) === "Dinheiro")
       .reduce((sum, s) => sum + s.total, 0)
 
     const debitRevenue = daySales
-      .filter(s => s.paymentMethod === "Cartao Debito")
+      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Debito")
       .reduce((sum, s) => sum + s.total, 0)
 
     const creditRevenue = daySales
-      .filter(s => s.paymentMethod === "Cartao Credito")
+      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Credito")
       .reduce((sum, s) => sum + s.total, 0)
 
     const pixRevenue = daySales
-      .filter(s => s.paymentMethod === "PIX")
+      .filter(s => normalizePayment(s.paymentMethod) === "PIX")
       .reduce((sum, s) => sum + s.total, 0)
 
     // Calculate previous day for comparison
@@ -64,7 +65,7 @@ export function useReports() {
     const prevDatePrefix = prevDate.toISOString().split('T')[0]
 
     const prevDaySales = posSales.filter(s =>
-      s.date.startsWith(prevDatePrefix) && s.status === "concluida"
+      businessDay(s.date) === prevDatePrefix && s.status === "concluida"
     )
     const previousDayRevenue = prevDaySales.reduce((sum, s) => sum + s.total, 0)
 
@@ -94,18 +95,18 @@ export function useReports() {
     const datePrefix = date.split('T')[0]
 
     const daySales = posSales.filter(s =>
-      s.date.startsWith(datePrefix) && s.status === "concluida"
+      businessDay(s.date) === datePrefix && s.status === "concluida"
     )
 
     const categoryMap = new Map<string, { revenue: number; quantity: number }>()
 
     daySales.forEach(sale => {
-      sale.items.forEach(item => {
+      sale.items.forEach((item, itemIndex) => {
         const category = getCategoryName(item.product.categoryId)
         const existing = categoryMap.get(category) || { revenue: 0, quantity: 0 }
 
         categoryMap.set(category, {
-          revenue: existing.revenue + (item.product.price * item.quantity),
+          revenue: existing.revenue + netItemValues(sale)[itemIndex],
           quantity: existing.quantity + item.quantity,
         })
       })
@@ -131,13 +132,13 @@ export function useReports() {
     const datePrefix = date.split('T')[0]
 
     const daySales = posSales.filter(s =>
-      s.date.startsWith(datePrefix) && s.status === "concluida"
+      businessDay(s.date) === datePrefix && s.status === "concluida"
     )
 
     const methodMap = new Map<string, { revenue: number; count: number }>()
 
     daySales.forEach(sale => {
-      const method = sale.paymentMethod
+      const method = normalizePayment(sale.paymentMethod)
       const existing = methodMap.get(method) || { revenue: 0, count: 0 }
 
       methodMap.set(method, {
@@ -166,7 +167,7 @@ export function useReports() {
     const datePrefix = date.split('T')[0]
 
     const daySales = posSales.filter(s =>
-      s.date.startsWith(datePrefix) && s.status === "concluida"
+      businessDay(s.date) === datePrefix && s.status === "concluida"
     )
 
     const productMap = new Map<string, {
@@ -178,7 +179,7 @@ export function useReports() {
     }>()
 
     daySales.forEach(sale => {
-      sale.items.forEach(item => {
+      sale.items.forEach((item, itemIndex) => {
         const productId = item.product.id
         const existing = productMap.get(productId) || {
           name: item.product.name,
@@ -188,7 +189,7 @@ export function useReports() {
           totalPrice: 0,
         }
 
-        const itemRevenue = item.product.price * item.quantity
+        const itemRevenue = netItemValues(sale)[itemIndex]
 
         productMap.set(productId, {
           name: existing.name,
@@ -220,7 +221,7 @@ export function useReports() {
     const datePrefix = date.split('T')[0]
 
     const daySales = posSales.filter(s =>
-      s.date.startsWith(datePrefix) && s.status === "concluida"
+      businessDay(s.date) === datePrefix && s.status === "concluida"
     )
 
     const hourMap = new Map<number, { revenue: number; count: number }>()
@@ -290,7 +291,7 @@ export function useReports() {
       const dateStr = currentDate.toISOString().split('T')[0]
 
       const daySales = posSales.filter(s =>
-        s.date.startsWith(dateStr) && s.status === "concluida"
+        businessDay(s.date) === dateStr && s.status === "concluida"
       )
 
       trendData.push({
@@ -311,17 +312,18 @@ export function useReports() {
   const getCashFlowSummary = useCallback((date: string): CashFlowSummary | null => {
     const datePrefix = date.split('T')[0]
 
-    const cashClose = cashCloses.find(c => c.date.startsWith(datePrefix))
-    if (!cashClose) return null
-
-    const dayTransactions = transactions.filter(t => t.date.startsWith(datePrefix))
+    const closedSessions = cashCloses.filter(c => c.status !== "aberto" && businessDay(c.date) === datePrefix)
+    if (!closedSessions.length) return null
+    const sessionIds = new Set(closedSessions.filter(c => c.status).map(c => c.id))
+    const legacy = closedSessions.some(c => !c.status)
+    const dayTransactions = transactions.filter(t => t.cashSessionId ? sessionIds.has(t.cashSessionId) : legacy && businessDay(t.date) === datePrefix && normalizePayment(t.paymentMethod || "") === "Dinheiro")
 
     const totalRevenue = dayTransactions
       .filter(t => t.type === "receita")
       .reduce((sum, t) => sum + t.value, 0)
 
     const totalExpenses = dayTransactions
-      .filter(t => t.type === "despesa")
+      .filter(t => t.type === "despesa" || t.type === "estorno")
       .reduce((sum, t) => sum + t.value, 0)
 
     const withdrawals = dayTransactions.filter(t => t.type === "despesa").reduce((sum,t) => sum + t.value, 0)
@@ -329,8 +331,8 @@ export function useReports() {
 
     return {
       date: datePrefix,
-      openingBalance: cashClose.openingValue ?? 0,
-      closingBalance: cashClose.physicalValue,
+      openingBalance: closedSessions.reduce((sum, session) => sum + (session.openingValue ?? 0), 0),
+      closingBalance: closedSessions.reduce((sum, session) => sum + session.physicalValue, 0),
       totalRevenue,
       totalExpenses,
       netFlow: totalRevenue - totalExpenses,
@@ -348,7 +350,7 @@ export function useReports() {
 
     // Filter sales for the date range
     const periodSales = posSales.filter(s => {
-      const saleDate = new Date(s.date.split('T')[0])
+      const saleDate = new Date(businessDay(s.date))
       return saleDate >= start && saleDate <= end && s.status === "concluida"
     })
 
@@ -358,19 +360,19 @@ export function useReports() {
 
     // Revenue by payment method
     const cashRevenue = periodSales
-      .filter(s => s.paymentMethod === "Dinheiro")
+      .filter(s => normalizePayment(s.paymentMethod) === "Dinheiro")
       .reduce((sum, s) => sum + s.total, 0)
 
     const debitRevenue = periodSales
-      .filter(s => s.paymentMethod === "Cartao Debito")
+      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Debito")
       .reduce((sum, s) => sum + s.total, 0)
 
     const creditRevenue = periodSales
-      .filter(s => s.paymentMethod === "Cartao Credito")
+      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Credito")
       .reduce((sum, s) => sum + s.total, 0)
 
     const pixRevenue = periodSales
-      .filter(s => s.paymentMethod === "PIX")
+      .filter(s => normalizePayment(s.paymentMethod) === "PIX")
       .reduce((sum, s) => sum + s.total, 0)
 
     // Calculate previous period for comparison
@@ -381,7 +383,7 @@ export function useReports() {
     prevEnd.setDate(prevEnd.getDate() - daysDiff)
 
     const prevPeriodSales = posSales.filter(s => {
-      const saleDate = new Date(s.date.split('T')[0])
+      const saleDate = new Date(businessDay(s.date))
       return saleDate >= prevStart && saleDate <= prevEnd && s.status === "concluida"
     })
     const previousPeriodRevenue = prevPeriodSales.reduce((sum, s) => sum + s.total, 0)
@@ -413,19 +415,19 @@ export function useReports() {
     const end = new Date(endDate)
 
     const periodSales = posSales.filter(s => {
-      const saleDate = new Date(s.date.split('T')[0])
+      const saleDate = new Date(businessDay(s.date))
       return saleDate >= start && saleDate <= end && s.status === "concluida"
     })
 
     const categoryMap = new Map<string, { revenue: number; quantity: number }>()
 
     periodSales.forEach(sale => {
-      sale.items.forEach(item => {
+      sale.items.forEach((item, itemIndex) => {
         const category = getCategoryName(item.product.categoryId)
         const existing = categoryMap.get(category) || { revenue: 0, quantity: 0 }
 
         categoryMap.set(category, {
-          revenue: existing.revenue + (item.product.price * item.quantity),
+          revenue: existing.revenue + netItemValues(sale)[itemIndex],
           quantity: existing.quantity + item.quantity,
         })
       })
@@ -452,14 +454,14 @@ export function useReports() {
     const end = new Date(endDate)
 
     const periodSales = posSales.filter(s => {
-      const saleDate = new Date(s.date.split('T')[0])
+      const saleDate = new Date(businessDay(s.date))
       return saleDate >= start && saleDate <= end && s.status === "concluida"
     })
 
     const methodMap = new Map<string, { revenue: number; count: number }>()
 
     periodSales.forEach(sale => {
-      const method = sale.paymentMethod
+      const method = normalizePayment(sale.paymentMethod)
       const existing = methodMap.get(method) || { revenue: 0, count: 0 }
 
       methodMap.set(method, {
@@ -489,7 +491,7 @@ export function useReports() {
     const end = new Date(endDate)
 
     const periodSales = posSales.filter(s => {
-      const saleDate = new Date(s.date.split('T')[0])
+      const saleDate = new Date(businessDay(s.date))
       return saleDate >= start && saleDate <= end && s.status === "concluida"
     })
 
@@ -502,7 +504,7 @@ export function useReports() {
     }>()
 
     periodSales.forEach(sale => {
-      sale.items.forEach(item => {
+      sale.items.forEach((item, itemIndex) => {
         const productId = item.product.id
         const existing = productMap.get(productId) || {
           name: item.product.name,
@@ -512,7 +514,7 @@ export function useReports() {
           totalPrice: 0,
         }
 
-        const itemRevenue = item.product.price * item.quantity
+        const itemRevenue = netItemValues(sale)[itemIndex]
 
         productMap.set(productId, {
           name: existing.name,

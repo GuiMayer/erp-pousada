@@ -1,5 +1,6 @@
 "use client"
 
+import { unitFactor } from "@/lib/utils/units"
 import { useState, useMemo } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -104,12 +105,14 @@ export function ManageRecipesModal({ open, onClose }: Props) {
       setFormError("Este ingrediente ja foi adicionado.")
       return
     }
+    let factor: number
+    try { factor = unitFactor(ingredientUnit, stockItem.unit) } catch { setFormError("Unidade incompatível com o estoque deste ingrediente."); return }
     const newIngredient: RecipeIngredient = {
       productId: stockItem.productId,
       productName: stockItem.productName,
       quantity: qty,
       unit: ingredientUnit,
-      cost: stockItem.averageCost * qty,
+      cost: stockItem.averageCost * qty * factor,
     }
     setIngredients([...ingredients, newIngredient])
     setSelectedProductId("")
@@ -135,7 +138,9 @@ export function ManageRecipesModal({ open, onClose }: Props) {
     const missing: string[] = []
     for (const ing of ingredients) {
       const stockItem = stockItems.find(s => s.productId === ing.productId)
-      if (!stockItem || stockItem.currentStock < ing.quantity) {
+      let factor: number
+      try { factor = unitFactor(ing.unit, stockItem?.unit || ing.unit) } catch { missing.push(`${ing.productName}: unidade incompatível`); continue }
+      if (!stockItem || stockItem.currentStock < ing.quantity * factor) {
         missing.push(ing.productName)
       }
     }

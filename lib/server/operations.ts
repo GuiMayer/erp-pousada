@@ -1,3 +1,6 @@
+import { financeOperation, recordLedger, paymentFields } from "./business-finance"
+import { normalizePayment } from "../utils/business-values"
+import { unitFactor } from "../utils/units"
 import { randomUUID } from "node:crypto"
 import { Prisma } from "@prisma/client"
 import { z } from "zod"
@@ -9,15 +12,15 @@ import { HttpError } from "./http"
 import { collectionMapper, createCollectionItem, updateCollectionItem } from "./db/relational-data-service"
 
 const text = z.string().trim().min(1).max(200)
-const money = z.number().finite().nonnegative().max(999999999)
+const money = z.number().finite().nonnegative().max(999999999).refine(value => Math.abs(value * 100 - Math.round(value * 100)) < 0.00001, "Use no máximo duas casas decimais")
 const id = text
 const cpf = z.string().max(18).transform(value => value.replace(/\D/g, "")).refine(value => cpfValidator.isValid(value), "CPF inválido")
 const integer = z.number().int().positive().max(100000)
 const percent = z.number().finite().min(0).max(100)
 const payment = z.enum(["dinheiro", "pix", "debito", "credito", "Dinheiro", "PIX", "Cartao Debito", "Cartao Credito", "Cartão Débito", "Cartão Crédito"])
 const cartItem = z.object({ id, product: z.object({ id }).passthrough(), quantity: integer, discount: percent }).passthrough()
-const saleInput = z.object({ sale: z.object({ id, items: z.array(cartItem).min(1).max(100), total: money, paymentMethod: payment, amountPaid: money, customer: z.string().max(200).optional() }).passthrough(), globalDiscount: percent })
-const checkinInput = z.object({ roomId: integer, cpf, guestName: text, checkIn: z.string().datetime({ offset: true }).or(z.string().date()), checkOut: z.string().datetime({ offset: true }).or(z.string().date()), totalValue: money }).strict()
+const saleInput = z.object({ sale: z.object({ id, items: z.array(cartItem).min(1).max(100), total: money, paymentMethod: payment, accountId: id.optional(), amountPaid: money, customer: z.string().max(200).optional() }).passthrough(), globalDiscount: percent })
+const checkinInput = z.object({ roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money }).strict()
 const approved = (actor: Actor) => actor.role === "supervisor" || !!actor.approvedUntil && actor.approvedUntil > new Date()
 const decimal = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n)
 const round = (n: Prisma.Decimal) => n.toDecimalPlaces(2)
@@ -28,7 +31,7 @@ async function audit(tx: Tx, actor: Actor, action: string, reference: string) {
 }
 async function checkDiscount(tx: Tx, actor: Actor, value: number) {
   const settings = await tx.systemSettings.findFirst()
-  if (value > (settings?.discountCeiling ?? 0) && !approved(actor)) throw new HttpError(403, "Desconto exige aprovação do supervisor")
+  if (value - (settings?.discountCeiling ?? 0) > 0.000001 && !approved(actor)) throw new HttpError(403, "Desconto exige aprovação do supervisor")
 }
 async function moveStock(tx: Tx, productId: string, quantity: number, actor: Actor, reference: string, restore = false) {
   const product = await tx.pOSProduct.findUniqueOrThrow({ where: { id: productId } })
@@ -39,14 +42,26 @@ async function moveStock(tx: Tx, productId: string, quantity: number, actor: Act
   if (changed.count !== 1) throw new HttpError(409, `Estoque insuficiente: ${product.name}`)
   await tx.stockMovement.create({ data: { id: randomUUID(), type: restore ? "entrada" : "saida", productId, productName: product.name, quantity, unit: stock.unit, cost: stock.averageCost, reason: reference, timestamp: new Date(), registeredBy: actor.username } })
 }
-async function ledger(tx: Tx, actor: Actor, reference: string, value: Prisma.Decimal, type = "receita", paymentMethod?: string) {
-  await tx.transaction.create({ data: { id: randomUUID(), date: new Date(), description: reference, refId: reference, value, type, paymentMethod, responsible: actor.username } })
+const ledger = recordLedger
+
+async function assertRoomPeriod(tx: Tx, room: { id: number; status: string; blockEndDate: Date | null }, start: Date, end: Date) {
+  if (end <= start) throw new HttpError(400, "Período inválido")
+  if (room.status === "bloqueado" && (!room.blockEndDate || start <= room.blockEndDate)) throw new HttpError(409, "Período coincide com bloqueio do quarto")
 }
 
 export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload: unknown): Promise<unknown> {
+  const financeResult = await financeOperation(tx, actor, kind, payload)
+  if (financeResult !== undefined) return financeResult
+  if (kind === "reserve-group") {
+    const input = z.object({ rooms: z.array(z.object({ roomId: integer, totalValue: money })).min(1).max(50), cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date() }).strict().parse(payload)
+    if (new Set(input.rooms.map(room => room.roomId)).size !== input.rooms.length) throw new HttpError(400, "Quartos repetidos")
+    const results = []
+    for (const room of input.rooms) results.push(await applyOperation(tx, actor, "reserve", { ...room, cpf: input.cpf, guestName: input.guestName, checkIn: input.checkIn, checkOut: input.checkOut }))
+    return results
+  }
   if (kind === "sale") {
     const { sale, globalDiscount } = saleInput.parse(payload)
-    await checkDiscount(tx, actor, Math.max(globalDiscount, ...sale.items.map(i => i.discount)))
+    await checkDiscount(tx, actor, Math.max(...sale.items.map(i => 100 * (1 - (1 - i.discount / 100) * (1 - globalDiscount / 100)))))
     const products = await tx.pOSProduct.findMany({ where: { id: { in: sale.items.map(i => i.product.id) } } })
     let subtotal = decimal(0)
     const items = sale.items.map(item => {
@@ -61,52 +76,63 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (!total.equals(round(decimal(sale.total)))) throw new HttpError(409, "Preço alterado. Atualize o carrinho.")
     if (decimal(sale.amountPaid).lt(total)) throw new HttpError(400, "Pagamento insuficiente")
     for (const item of items) await moveStock(tx, item.productId, item.quantity, actor, `Venda ${sale.id}`)
-    const result = await tx.pOSSale.create({ data: { id: sale.id, date: new Date(), subtotal, discount, total, paymentMethod: sale.paymentMethod, amountPaid: sale.amountPaid, change: sale.paymentMethod.toLowerCase() === "dinheiro" ? decimal(sale.amountPaid).minus(total) : 0, customer: sale.customer, operator: actor.username, status: "concluida", items: { create: items } }, include: { items: { include: { product: true } } } })
-    await ledger(tx, actor, `Venda ${sale.id}`, total, "receita", sale.paymentMethod)
+    const result = await tx.pOSSale.create({ data: { id: sale.id, date: new Date(), subtotal, discount, total, paymentMethod: normalizePayment(sale.paymentMethod), amountPaid: sale.amountPaid, change: sale.paymentMethod.toLowerCase() === "dinheiro" ? decimal(sale.amountPaid).minus(total) : 0, customer: sale.customer, operator: actor.username, status: "concluida", items: { create: items } }, include: { items: { include: { product: true } } } })
+    await ledger(tx, actor, `Venda ${sale.id}`, total, "receita", sale.paymentMethod, sale.accountId)
     await audit(tx, actor, "Venda finalizada", sale.id)
     return collectionMapper("posSales").toApp(result)
   }
   if (kind === "cancel-sale") {
     if (!approved(actor)) throw new HttpError(403, "Estorno exige supervisor")
-    const input = z.object({ saleId: id, reason: text }).strict().parse(payload)
+    const input = z.object({ saleId: id, reason: text, returnToStock: z.boolean() }).strict().parse(payload)
     const sale = await tx.pOSSale.findUniqueOrThrow({ where: { id: input.saleId }, include: { items: true } })
     if (sale.status !== "concluida") throw new HttpError(409, "Venda já estornada")
-    for (const item of sale.items) await moveStock(tx, item.productId, item.quantity, actor, `Estorno ${sale.id}`, true)
+    if (input.returnToStock) for (const item of sale.items) await moveStock(tx, item.productId, item.quantity, actor, `Estorno ${sale.id}`, true)
     await tx.pOSSale.update({ where: { id: sale.id }, data: { status: "cancelada", cancelReason: input.reason } })
-    await ledger(tx, actor, `Estorno ${sale.id}`, sale.total, "estorno", sale.paymentMethod)
+    const originalPayment = await tx.transaction.findFirstOrThrow({ where: { refId: `Venda ${sale.id}`, type: "receita" } })
+    await ledger(tx, actor, `Estorno ${sale.id}`, sale.total, "estorno", sale.paymentMethod, originalPayment.accountId ?? undefined)
     await audit(tx, actor, "Venda estornada", `${sale.id}: ${input.reason}`)
     return { success: true }
   }
   if (kind === "reserve" || kind === "edit-reservation") {
-    const input = z.object({ id: id.optional(), roomId: integer, cpf, guestName: text, checkIn: z.string(), checkOut: z.string(), totalValue: money, status: z.enum(["confirmada", "cancelada", "noshow"]).default("confirmada"), cancelTreatment: z.string().max(200).optional() }).strict().parse(payload)
+    const input = z.object({ id: id.optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money, status: z.enum(["confirmada", "cancelada", "noshow"]).default("confirmada"), cancelTreatment: z.string().max(200).optional() }).strict().parse(payload)
     const checkIn = new Date(input.checkIn), checkOut = new Date(input.checkOut)
     if (!Number.isFinite(checkIn.getTime()) || !Number.isFinite(checkOut.getTime()) || checkOut <= checkIn) throw new HttpError(400, "Período inválido")
     const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
+    let originalValue = decimal(input.totalValue)
     if (kind === "edit-reservation") {
       const current = await tx.reservation.findUniqueOrThrow({ where: { id: input.id } })
-      if (current.status === "checkin" || current.status === "checkout") throw new HttpError(409, "Utilize o fluxo de hospedagem")
+      originalValue = Prisma.Decimal.max(current.originalValue ?? current.totalValue, current.totalValue, input.totalValue)
+      if (current.status !== "confirmada") throw new HttpError(409, "Somente reserva confirmada pode ser editada")
+      if (current.paidValue.gt(0) && current.cpf !== input.cpf) throw new HttpError(409, "Reserva paga não permite trocar o titular")
+      if (input.totalValue < Number(current.totalValue)) await checkDiscount(tx, actor, Number((current.originalValue ?? current.totalValue).minus(input.totalValue).div(current.originalValue ?? current.totalValue).mul(100)))
+      if (current.paidValue.gt(input.totalValue)) throw new HttpError(409, "Valor inferior ao recebido; faça a conciliação antes")
     }
+    if (input.status !== "confirmada") throw new HttpError(400, "Utilize o fluxo de cancelamento ou no-show")
+    await assertRoomPeriod(tx, room, checkIn, checkOut)
     if (input.status === "confirmada") {
       const overlap = await tx.reservation.count({ where: { ...(kind === "edit-reservation" ? { id: { not: input.id } } : {}), roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: checkOut }, checkOut: { gt: checkIn } } })
       if (overlap) throw new HttpError(409, "Reserva conflita com outra hospedagem")
     }
     await tx.guestProfile.upsert({ where: { cpf: input.cpf }, create: { cpf: input.cpf, name: input.guestName }, update: { name: input.guestName } })
-    const data = { ...input, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number }
+    const data = { ...input, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number, originalValue }
     const result = kind === "reserve" ? await tx.reservation.create({ data }) : await tx.reservation.update({ where: { id: input.id }, data })
     await audit(tx, actor, kind === "reserve" ? "Reserva criada" : "Reserva alterada", result.id)
     return collectionMapper("reservations").toApp(result)
   }
   if (kind === "check-in") {
     const input = checkinInput.parse(payload)
-    if (input.checkOut <= input.checkIn) throw new HttpError(400, "Período inválido")
+    const checkIn = new Date(input.checkIn), checkOut = new Date(input.checkOut)
+    if (checkOut <= checkIn) throw new HttpError(400, "Período inválido")
     const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
     if (room.status !== "disponivel") throw new HttpError(409, "Quarto indisponível")
+    await assertRoomPeriod(tx, room, checkIn, checkOut)
     const existing = await tx.reservation.findFirst({ where: { roomId: room.id, cpf: input.cpf, status: "confirmada", checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
+    if (existing && !existing.totalValue.equals(input.totalValue)) throw new HttpError(409, "Use o valor confirmado da reserva ou edite-a antes do check-in")
     const overlap = await tx.reservation.count({ where: { ...(existing ? { id: { not: existing.id } } : {}), roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: new Date(input.checkOut) }, checkOut: { gt: new Date(input.checkIn) } } })
     if (overlap) throw new HttpError(409, "Reserva conflita com outra hospedagem")
     await tx.guestProfile.upsert({ where: { cpf: input.cpf }, create: { cpf: input.cpf, name: input.guestName, totalStays: 1 }, update: { name: input.guestName, totalStays: { increment: 1 } } })
     await tx.room.update({ where: { id: room.id }, data: { status: "ocupado", guest: input.guestName, guestCpf: input.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
-    const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin" } }) : await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, guestName: input.guestName, cpf: input.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut), status: "checkin", totalValue: input.totalValue } })
+    const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin" } }) : await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, guestName: input.guestName, cpf: input.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut), status: "checkin", totalValue: input.totalValue, originalValue: input.totalValue } })
     await audit(tx, actor, "Check-in realizado", `${room.number}: ${reservation.id}`)
     return collectionMapper("reservations").toApp(reservation)
   }
@@ -118,6 +144,8 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.room.update({ where: { id: roomId }, data: { status: "disponivel" } })
     } else {
       if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
+      const stay = await tx.reservation.findFirstOrThrow({ where: { roomId, status: "checkin" } })
+      if (stay.paidValue.lt(stay.totalValue)) throw new HttpError(409, "Quite a hospedagem antes do check-out")
       const consumption = await tx.roomConsumption.findUnique({ where: { roomId }, include: { items: true } })
       if (consumption?.items.some(i => i.unitPrice.mul(i.quantity).gt(0))) throw new HttpError(409, "Quite o consumo antes do check-out")
       await tx.roomConsumption.deleteMany({ where: { roomId } })
@@ -151,11 +179,11 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "pay-consumption") {
-    const { roomId, paymentMethod } = z.object({ roomId: integer, paymentMethod: payment }).strict().parse(payload)
+    const { roomId, paymentMethod, accountId } = z.object({ roomId: integer, ...paymentFields }).strict().parse(payload)
     const consumption = await tx.roomConsumption.findUniqueOrThrow({ where: { roomId }, include: { items: true } })
     const total = consumption.items.reduce((sum, item) => sum.plus(item.unitPrice.mul(item.quantity)), decimal(0))
     if (total.lte(0)) throw new HttpError(409, "Consumo já quitado")
-    await ledger(tx, actor, `Consumo quarto ${roomId}`, total, "receita", paymentMethod)
+    await ledger(tx, actor, `Consumo quarto ${roomId}`, total, "receita", paymentMethod, accountId)
     await tx.roomConsumption.delete({ where: { id: consumption.id } })
     await audit(tx, actor, "Consumo quitado", String(roomId))
     return { success: true }
@@ -171,7 +199,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   }
   if (kind === "edit-order") {
     const input = z.object({ orderId: id, expectedVersion: z.number().int().nonnegative(), items: z.array(z.object({ id, productId: id, quantity: integer }).passthrough()).max(100), discountPercent: percent.default(0) }).strict().parse(payload)
-    const order = await tx.restaurantOrder.findUniqueOrThrow({ where: { id: input.orderId } })
+    const order = await tx.restaurantOrder.findUniqueOrThrow({ where: { id: input.orderId }, include: { items: true } })
     if (order.status !== "aberta") throw new HttpError(409, "Comanda não está aberta")
     if (order.version !== input.expectedVersion) throw new HttpError(409, "Comanda alterada em outro dispositivo. Atualize antes de editar.")
     await checkDiscount(tx, actor, input.discountPercent)
@@ -179,7 +207,10 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const items = input.items.map(item => {
       const product = products.find(p => p.id === item.productId)
       if (!product) throw new HttpError(404, "Produto não encontrado")
-      return { ...item, productName: product.name, unitPrice: product.price, subtotal: product.price.mul(item.quantity), category: product.category.name }
+      const previous = order.items.find(row => row.id === item.id)
+      if (previous && previous.productId !== product.id) throw new HttpError(409, "Item não pode trocar de produto")
+      const unitPrice = previous?.unitPrice ?? product.price
+      return { id: item.id, productId: product.id, quantity: item.quantity, productName: previous?.productName ?? product.name, unitPrice, subtotal: unitPrice.mul(item.quantity), category: previous?.category ?? product.category.name }
     })
     const subtotal = items.reduce((sum,i) => sum.plus(i.subtotal), decimal(0))
     const discount = round(subtotal.mul(input.discountPercent).div(100))
@@ -188,17 +219,17 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "close-order" || kind === "cancel-order") {
-    const input = z.object({ orderId: id, paymentMethod: payment.optional(), amountPaid: money.optional(), discountPercent: percent.default(0), customer: z.string().max(200).optional(), reason: text.optional() }).strict().parse(payload)
+    const input = z.object({ orderId: id, expectedVersion: z.number().int().nonnegative(), accountId: id.optional(), paymentMethod: payment.optional(), amountPaid: money.optional(), discountPercent: percent.default(0), customer: z.string().max(200).optional(), reason: text.optional() }).strict().parse(payload)
     const order = await tx.restaurantOrder.findUniqueOrThrow({ where: { id: input.orderId }, include: { items: true } })
     if (order.status !== "aberta") throw new HttpError(409, "Comanda já encerrada")
+    if (order.version !== input.expectedVersion) throw new HttpError(409, "Comanda alterada; atualize antes de encerrar")
     if (kind === "close-order") {
       if (!order.items.length || !input.paymentMethod) throw new HttpError(400, "Comanda sem itens ou pagamento")
-      await checkDiscount(tx, actor, input.discountPercent)
-      const total = round(order.subtotal.mul(decimal(1).minus(decimal(input.discountPercent).div(100))))
+      const total = order.total
       if (input.amountPaid === undefined || decimal(input.amountPaid).lt(total)) throw new HttpError(400, "Pagamento insuficiente")
       for (const item of order.items) await moveStock(tx, item.productId, item.quantity, actor, `Comanda ${order.id}`)
-      await tx.restaurantOrder.update({ where: { id: order.id }, data: { status: "fechada", total, discount: order.subtotal.minus(total), paymentMethod: input.paymentMethod, amountPaid: input.amountPaid, change: decimal(input.amountPaid).minus(total), customer: input.customer, closedAt: new Date() } })
-      await ledger(tx, actor, `Comanda ${order.id}`, total, "receita", input.paymentMethod)
+      await tx.restaurantOrder.update({ where: { id: order.id }, data: { status: "fechada", total, discount: order.discount, paymentMethod: normalizePayment(input.paymentMethod), amountPaid: input.amountPaid, change: normalizePayment(input.paymentMethod) === "Dinheiro" ? decimal(input.amountPaid).minus(total) : 0, customer: input.customer, closedAt: new Date() } })
+      await ledger(tx, actor, `Comanda ${order.id}`, total, "receita", input.paymentMethod, input.accountId)
     } else {
       if (!approved(actor) || !input.reason) throw new HttpError(403, "Cancelamento exige supervisor e motivo")
       await tx.restaurantOrder.update({ where: { id: order.id }, data: { status: "cancelada", cancelReason: input.reason, closedAt: new Date() } })
@@ -232,23 +263,16 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (!["confirmada", "checkin"].includes(reservation.status) || reservation.totalValue.lte(0)) throw new HttpError(409, "Reserva não permite desconto")
     const amount = input.type === "percent" ? round(reservation.totalValue.mul(input.value).div(100)) : decimal(input.value)
     if (amount.gt(reservation.totalValue)) throw new HttpError(400, "Desconto excede o valor da reserva")
-    await checkDiscount(tx, actor, Number(amount.div(reservation.totalValue).mul(100)))
+    if (reservation.paidValue.gt(reservation.totalValue.minus(amount))) throw new HttpError(409, "Desconto deixaria recebimento excedente")
+    const original = reservation.originalValue ?? reservation.totalValue
+    await checkDiscount(tx, actor, Number(original.minus(reservation.totalValue.minus(amount)).div(original).mul(100)))
     await tx.reservation.update({ where: { id: reservation.id }, data: { totalValue: reservation.totalValue.minus(amount) } })
     await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`)
     return { success: true }
   }
-  if (kind === "cash-close") {
-    const { physicalValue, openingValue } = z.object({ physicalValue: money, openingValue: money.default(0) }).strict().parse(payload)
-    const day = new Date().toISOString().slice(0, 10)
-    const entries = await tx.transaction.findMany({ where: { date: { gte: new Date(day), lt: new Date(new Date(day).getTime() + 86400000) }, paymentMethod: { equals: "dinheiro", mode: "insensitive" } } })
-    const expectedValue = entries.reduce((sum, entry) => entry.type === "receita" ? sum.plus(entry.value) : sum.minus(entry.value), decimal(openingValue))
-    const close = await tx.cashClose.create({ data: { id: randomUUID(), date: new Date(), operator: actor.username, openingValue, physicalValue, expectedValue, divergence: decimal(physicalValue).minus(expectedValue) } })
-    await audit(tx, actor, "Fechamento de caixa", close.id)
-    return collectionMapper("cashCloses").toApp(close)
-  }
   if (kind === "pay-expense") {
     if (actor.role !== "supervisor") throw new HttpError(403, "Pagamento exige supervisor")
-    const input = z.object({ expenseId: id, installmentId: id.optional() }).strict().parse(payload)
+    const input = z.object({ expenseId: id, installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
     const expense = await tx.expense.findUniqueOrThrow({ where: { id: input.expenseId }, include: { installments: true } })
     let value = expense.value
     let reference = expense.id
@@ -263,7 +287,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       if (expense.paid || expense.installments.length) throw new HttpError(409, "Despesa já paga ou parcelada")
       await tx.expense.update({ where: { id: expense.id }, data: { paid: true, paymentDate: new Date() } })
     }
-    await ledger(tx, actor, reference, value, "despesa")
+    await ledger(tx, actor, reference, value, "despesa", input.paymentMethod, input.accountId)
     await audit(tx, actor, "Despesa paga", reference)
     return { success: true }
   }
@@ -271,9 +295,9 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (!approved(actor)) throw new HttpError(403, "Estorno exige supervisor")
     const { transactionId } = z.object({ transactionId: id }).strict().parse(payload)
     const transaction = await tx.transaction.findUniqueOrThrow({ where: { id: transactionId } })
-    if (transaction.type !== "receita" || /^(Venda|Comanda|Consumo quarto) /.test(transaction.refId ?? "")) throw new HttpError(409, "Utilize o estorno da operação original")
+    if (transaction.type !== "receita" || /^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(transaction.refId ?? "")) throw new HttpError(409, "Utilize o estorno da operação original")
     if (await tx.transaction.count({ where: { type: "estorno", refId: transaction.id } })) throw new HttpError(409, "Transação já estornada")
-    await ledger(tx, actor, transaction.id, transaction.value.abs(), "estorno", transaction.paymentMethod ?? undefined)
+    await ledger(tx, actor, transaction.id, transaction.value.abs(), "estorno", transaction.paymentMethod ?? undefined, transaction.accountId ?? undefined)
     await audit(tx, actor, "Receita estornada", transaction.id)
     return { success: true }
   }
@@ -309,11 +333,14 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (actor.role !== "supervisor") throw new HttpError(403, "Produção exige supervisor")
     const input = z.object({ recipeId: id, plannedQuantity: z.number().positive().finite(), producedQuantity: z.number().positive().finite(), notes: z.string().max(2000).optional() }).strict().parse(payload)
     const recipe = await tx.recipe.findUniqueOrThrow({ where: { id: input.recipeId }, include: { ingredients: true } })
-    if (!recipe.active || recipe.expectedYield.lte(0)) throw new HttpError(409, "Receita inválida ou inativa")
+    if (!recipe.active || recipe.expectedYield.lte(0) || !recipe.ingredients.length || recipe.ingredients.some(item => item.quantity.lte(0))) throw new HttpError(409, "Receita inválida ou inativa")
     const productionId = randomUUID(); let totalCost = decimal(0)
     for (const ingredient of recipe.ingredients) {
-      const quantity = ingredient.quantity.mul(input.plannedQuantity)
       const stock = await tx.stockItem.findUniqueOrThrow({ where: { productId: ingredient.productId } })
+      let factor: number
+      try { factor = unitFactor(ingredient.unit, stock.unit) } catch (error) { throw new HttpError(400, (error as Error).message) }
+      const quantity = ingredient.quantity.mul(input.plannedQuantity).mul(factor)
+      if (!quantity.equals(quantity.toDecimalPlaces(3))) throw new HttpError(400, "Quantidade exige precisão superior ao estoque (3 casas)")
       const changed = await tx.stockItem.updateMany({ where: { id: stock.id, currentStock: { gte: quantity } }, data: { currentStock: { decrement: quantity } } })
       if (!changed.count) throw new HttpError(409, `Estoque insuficiente: ${ingredient.productName}`)
       totalCost = totalCost.plus(quantity.mul(stock.averageCost))
@@ -327,7 +354,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   if (kind === "admin-create" || kind === "admin-update") {
     if (actor.role !== "supervisor") throw new HttpError(403, "Acesso restrito")
     const input = z.object({ key: id, id: id.optional(), data: z.record(z.unknown()) }).strict().parse(payload)
-    if (["auditLog", "userSessions", "posSales", "transactions", "stockMovements", "reservations"].includes(input.key)) throw new HttpError(403, "Utilize o fluxo específico desta operação")
+    if (["auditLog", "userSessions", "posSales", "transactions", "stockMovements", "reservations", "cashCloses", "bankTransfers", "restaurantOrders", "consumptions", "productions", "employeeConsumptions"].includes(input.key)) throw new HttpError(403, "Utilize o fluxo específico desta operação")
     const result = kind === "admin-create" ? await createCollectionItem(input.key, input.data, actor, tx) : await updateCollectionItem(input.key, input.id ?? "", input.data, actor, tx)
     await audit(tx, actor, kind, input.key)
     return result

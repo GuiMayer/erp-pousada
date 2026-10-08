@@ -3,6 +3,7 @@
 import { getDataConfig } from "@/lib/data/config"
 import { useToast } from "@/hooks/use-toast"
 
+import { BankAccountPicker } from "./payment-fields"
 import { useState } from "react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -38,6 +39,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   const { username } = useAuth()
   const { toast } = useToast()
   const [paying, setPaying] = useState(false)
+  const [paymentAccountId, setPaymentAccountId] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("pix")
   const { sendNotification } = useNotifications()
 
@@ -113,7 +115,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     if (paying) return
     setPaying(true)
     try {
-      if (getDataConfig().adapter === "database") await runOperation("pay-consumption", { roomId: room.id, paymentMethod })
+      if (getDataConfig().adapter === "database") await runOperation("pay-consumption", { roomId: room.id, paymentMethod, accountId: paymentMethod.toLowerCase() === "dinheiro" ? undefined : paymentAccountId || undefined })
       else {
         await addTransaction({ id: crypto.randomUUID(), date: new Date().toISOString(), description: `Consumo quarto ${room.number}`, value: total, type: "receita", paymentMethod, responsible: username || "demo" })
         await clearConsumption(room.id)
@@ -273,7 +275,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <select aria-label="Forma de pagamento" className="rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
             </select>
-            <Button disabled={paying} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button>
+            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><Button disabled={paying} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button>
           </div>}
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">

@@ -226,6 +226,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 ## Documentação
 
 - [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
+- [Regras de hospedagem, cancelamentos, pagamentos e estoque](docs/REGRAS_NEGOCIO.md)
 - [Instalação local no Windows](docs/CLIENTE_INSTALACAO_DOCKER.md)
 - [Camada de dados e repositórios](docs/DATA_LAYER.md)
 - [Mapa da migração relacional](docs/DATABASE_DOMAIN_MAP.md)

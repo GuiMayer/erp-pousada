@@ -4,6 +4,7 @@ import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
 import { getDataConfig } from "@/lib/data/config"
 
+import { BankAccountPicker } from "./payment-fields"
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -76,6 +77,8 @@ export function POSTab() {
 
   // Payment modal
   const [paymentOpen, setPaymentOpen] = useState(false)
+  const [paymentAccountId, setPaymentAccountId] = useState("")
+  const [returnToStock, setReturnToStock] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("dinheiro")
   const [amountPaid, setAmountPaid] = useState("")
 
@@ -320,7 +323,7 @@ export function POSTab() {
     if (getDataConfig().adapter === "database") {
       setSubmitting(true)
       try {
-        const saved = await runOperation<POSSale>("sale", { sale, globalDiscount }, operationRef.current)
+        const saved = await runOperation<POSSale>("sale", { sale: { ...sale, accountId: paymentMethod === "dinheiro" ? undefined : paymentAccountId || undefined }, globalDiscount }, operationRef.current)
         setLastSale(saved); setPaymentOpen(false); setCart([]); setGlobalDiscount(0); setCustomer("")
         operationRef.current = null
         toast({ title: "Venda finalizada", description: saved.id })
@@ -383,6 +386,7 @@ export function POSTab() {
   }
 
   function openCancelSale(sale: POSSale) {
+    setReturnToStock(false)
     setSaleToCancel(sale)
     setCancelReason("")
     setSupervisorPassword("")
@@ -395,7 +399,7 @@ export function POSTab() {
       toast({ title: "Aprovação recusada", variant: "destructive" }); return
     }
     if (getDataConfig().adapter === "database") {
-      try { await runOperation("cancel-sale", { saleId: saleToCancel.id, reason: cancelReason }); setSaleToCancel(null); setCancelReason(""); setSupervisorPassword("") }
+      try { await runOperation("cancel-sale", { saleId: saleToCancel.id, reason: cancelReason, returnToStock }); setSaleToCancel(null); setCancelReason(""); setSupervisorPassword("") }
       catch (error) { toast({ title: "Estorno não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
       return
     }
@@ -408,11 +412,11 @@ export function POSTab() {
       return
     }
 
-    const stockResult = await restoreStockForSale(
+    const stockResult = returnToStock ? await restoreStockForSale(
       saleToCancel.items,
       username || "sistema",
       `PDV ${saleToCancel.id} - ${cancelReason}`
-    )
+    ) : { success: true, error: undefined }
 
     if (!stockResult.success) {
       toast({
@@ -832,6 +836,7 @@ export function POSTab() {
             </div>
 
             {/* Amount paid (for cash) */}
+            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} />
             {paymentMethod === "dinheiro" && (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="amountPaid" className="text-sm font-medium">
@@ -1139,6 +1144,7 @@ export function POSTab() {
 
           <div className="flex flex-col gap-4 py-4">
             <div className="flex flex-col gap-2">
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={returnToStock} onChange={event => setReturnToStock(event.target.checked)} />Devolução física: repor produtos no estoque</label>
               <Label htmlFor="cancelReason">Motivo do Cancelamento *</Label>
               <Input
                 id="cancelReason"

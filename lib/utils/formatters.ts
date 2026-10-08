@@ -1,3 +1,4 @@
+import { businessDay } from "./business-values"
 /**
  * Formatting utilities for currency, dates, and other display values
  */
@@ -68,9 +69,5 @@ export function getDateISO(offset: number): string {
  * @returns Number of days until due (negative if overdue)
  */
 export function daysUntilDue(iso: string): number {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const d = new Date(iso + "T12:00:00")
-  d.setHours(0, 0, 0, 0)
-  return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.round((new Date(businessDay(iso)).getTime() - new Date(businessDay()).getTime()) / 86400000)
 }

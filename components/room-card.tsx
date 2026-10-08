@@ -1,4 +1,5 @@
 "use client"
+import { ReservationPaymentButton } from "./reservation-payment-button"
 import { getDataConfig } from "@/lib/data/config"
 
 import { useToast } from "@/hooks/use-toast"
@@ -84,7 +85,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   const config = statusConfig[room.status]
   const overdue = isOverdue(room)
   const { toast } = useToast()
-  const { runOperation, updateRoom, addAuditEntry, getConsumption, clearConsumption, getRoomTimeline } = useApp()
+  const { reservations, runOperation, updateRoom, addAuditEntry, getConsumption, clearConsumption, getRoomTimeline } = useApp()
   const { username } = useAuth()
   const { sendNotification } = useNotifications()
   const [blockModalOpen, setBlockModalOpen] = useState(false)
@@ -329,6 +330,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
         {/* Flexible spacer to push timeline to consistent bottom position */}
         <div className="flex-1" />
 
+        {room.status === "ocupado" && reservations.filter(reservation => reservation.roomId === room.id && reservation.status === "checkin").map(reservation => <div key={reservation.id} className="px-4 pb-2"><ReservationPaymentButton reservation={reservation} /></div>)}
         <CardFooter className="flex-col items-stretch gap-0 pb-4 pt-0">
           <Separator className="mb-3 mt-3" />
           <MiniTimeline days={timeline} highlightDate={selectedDate} />
