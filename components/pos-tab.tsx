@@ -501,8 +501,8 @@ export function POSTab() {
           <CardHeader className="border-b border-border bg-muted/30 pb-4">
             <div className="flex flex-col gap-4">
               {/* Search and Barcode */}
-              <div className="flex gap-2">
-                <div className="relative flex-1">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative min-w-0 flex-1">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar produto..."
@@ -512,14 +512,14 @@ export function POSTab() {
                   />
                 </div>
                 <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <Barcode className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       ref={barcodeRef}
                       placeholder="Codigo de barras (F2)"
                       value={barcodeInput}
                       onChange={e => setBarcodeInput(e.target.value)}
-                      className="w-48 pl-9"
+                      className="w-full pl-9 sm:w-48"
                     />
                   </div>
                 </form>
@@ -542,7 +542,7 @@ export function POSTab() {
             </div>
           </CardHeader>
 
-          <CardContent className="p-4">
+          <CardContent className="max-h-[45dvh] overflow-y-auto p-4 lg:max-h-none">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               {filteredProducts.map(product => (
                 <button

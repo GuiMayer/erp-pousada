@@ -4,18 +4,23 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-function Table({ className, ...props }: React.ComponentProps<'table'>) {
+const MobileColumns = React.createContext<string[] | undefined>(undefined)
+
+function Table({ className, mobileColumns, ...props }: React.ComponentProps<'table'> & { mobileColumns?: string[] }) {
   return (
+    <MobileColumns.Provider value={mobileColumns}>
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative min-w-0 w-full overflow-x-auto"
     >
       <table
         data-slot="table"
+        data-mobile-cards={mobileColumns ? '' : undefined}
         className={cn('w-full caption-bottom text-sm', className)}
         {...props}
       />
     </div>
+    </MobileColumns.Provider>
   )
 }
 
@@ -52,7 +57,8 @@ function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
   )
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
+function TableRow({ className, children, ...props }: React.ComponentProps<'tr'>) {
+  const columns = React.useContext(MobileColumns)
   return (
     <tr
       data-slot="table-row"
@@ -61,7 +67,12 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
         className,
       )}
       {...props}
-    />
+    >
+      {columns ? React.Children.toArray(children).map((child, index) => {
+        if (!React.isValidElement<React.ComponentProps<'td'>>(child) || child.type !== TableCell || child.props.colSpan) return child
+        return React.cloneElement(child, { 'data-label': columns[index] } as React.ComponentProps<'td'>)
+      }) : children}
+    </tr>
   )
 }
 

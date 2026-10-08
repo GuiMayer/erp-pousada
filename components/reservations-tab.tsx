@@ -346,7 +346,7 @@ export function ReservationsTab() {
       {/* Reservations table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <Table mobileColumns={["ID", "Hóspede", "Quarto", "Check-in", "Check-out", "Valor", "Status", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>

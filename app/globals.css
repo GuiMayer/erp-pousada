@@ -174,3 +174,51 @@
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Keep dialogs reachable in short viewports and when the keyboard reduces space. */
+[data-slot="dialog-content"], [data-slot="alert-dialog-content"] {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 639px) {
+  [data-slot="button"], [data-slot="tabs-trigger"], [data-slot="toggle-group-item"],
+  [data-slot="select-trigger"], [data-slot="dialog-close"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  [data-slot="tabs-trigger"] { max-width: 100%; white-space: normal; }
+  [data-slot="tabs-list"]:not(.hidden) {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%;
+  }
+  [data-slot="toggle-group"] { flex-wrap: wrap; }
+  [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"] {
+    font-size: 16px;
+    min-width: 0;
+  }
+  [data-slot="sheet-content"] { max-width: 100vw; overflow-y: auto; }
+  [data-slot="sheet-content"][class*="inset-y-0"] { width: 100%; }
+  [data-mobile-cards] { display: block; }
+  [data-mobile-cards] > thead {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  [data-mobile-cards] > tbody { display: grid; gap: 12px; padding: 12px; }
+  [data-mobile-cards] > tbody > tr {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; gap: 8px; padding: 12px;
+    border: 1px solid var(--border); border-radius: 12px;
+  }
+  [data-mobile-cards] td:first-child, [data-mobile-cards] td:last-child,
+  [data-mobile-cards] td[colspan] { grid-column: 1 / -1; }
+  [data-mobile-cards] > tbody > tr > td {
+    display: block; min-width: 0; padding: 4px 0;
+    white-space: normal; overflow-wrap: anywhere; text-align: left;
+  }
+  [data-mobile-cards] td[data-label]::before {
+    content: attr(data-label); display: block;
+    margin-bottom: 2px; color: var(--muted-foreground); font-size: 12px; font-weight: 500;
+  }
+  [data-mobile-cards] td > div { flex-wrap: wrap; justify-content: flex-start; }
+  [data-mobile-cards] td [data-slot="button"] { max-width: 100%; white-space: normal; }
+}

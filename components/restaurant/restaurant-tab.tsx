@@ -171,7 +171,7 @@ export function RestaurantTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <UtensilsCrossed className="h-8 w-8" />
@@ -181,7 +181,7 @@ export function RestaurantTab() {
             Gerencie mesas e comandas do restaurante
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <PermissionGate permission="production.register"><Button
             variant="outline"
             size="sm"
@@ -231,7 +231,7 @@ export function RestaurantTab() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Total de Mesas</div>
           <div className="text-2xl font-bold">{stats.total}</div>

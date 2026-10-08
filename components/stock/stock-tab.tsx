@@ -75,7 +75,7 @@ export function StockTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Package className="h-8 w-8" />
@@ -154,7 +154,7 @@ export function StockTab() {
         />
       ) : (
         <div className="rounded-md border">
-          <Table>
+            <Table mobileColumns={["Produto", "Estoque atual", "Estoque mínimo", "Estoque máximo", "Custo médio", "Status", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>

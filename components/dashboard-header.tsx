@@ -52,28 +52,28 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
   // ).size
 
   return (
-    <header className="flex flex-col gap-6">
+    <header className="flex flex-col gap-3 sm:gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary sm:size-10">
               <BedDouble className="size-5 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="min-w-0 break-words text-lg font-bold tracking-tight text-foreground sm:text-2xl">
               {systemSettings.pousadaName}
             </h1>
           </div>
-          <p className="mt-1.5 text-sm capitalize text-muted-foreground">
+          <p className="hidden mt-1.5 text-sm capitalize text-muted-foreground sm:block">
             {formatted}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-1 sm:gap-3">
           <AlertBadge />
           <NotificationCenter />
-          <div className="rounded-lg bg-secondary px-3 py-1.5 text-xs">
-            <span className="text-muted-foreground">Logado como </span>
+          <div className="min-w-0 flex-1 truncate rounded-lg bg-secondary px-2 py-1.5 text-xs sm:flex-none sm:px-3">
+            <span className="hidden text-muted-foreground sm:inline">Logado como </span>
             <span className="font-semibold capitalize text-foreground">{username}</span>
-            <span className="ml-1 text-muted-foreground">({PROFILES[user?.accessProfile ?? ""]?.label ?? role})</span>
+            <span className="hidden ml-1 text-muted-foreground sm:inline">({PROFILES[user?.accessProfile ?? ""]?.label ?? role})</span>
           </div>
           <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5 text-xs text-muted-foreground">
             <LogOut className="size-3.5" />
@@ -84,7 +84,7 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
 
       {/* Room Metrics - Can be hidden via settings */}
       {can("rooms.read") && preferences.showRoomMetrics && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-5 sm:gap-3">
           <StatPill label="Total" value={counts.total} icon={<BedDouble className="size-4" />} variant="default" />
           <StatPill label="Disponivel" value={counts.disponivel} icon={<CheckCircle2 className="size-4" />} variant="success" />
           <StatPill label="Ocupados" value={counts.ocupado} icon={<Users className="size-4" />} variant="warning" />
@@ -133,16 +133,16 @@ function StatPill({
   const styles = {
     default: "bg-secondary text-secondary-foreground",
     success: "bg-success/10 text-success",
-    warning: "bg-warning/15 text-warning-foreground",
+    warning: "bg-warning/15 text-warning",
     cleaning: "bg-cleaning/10 text-cleaning",
     info: "bg-info/10 text-info",
   }
 
   return (
-    <div className={`flex items-center gap-2.5 rounded-xl px-4 py-3 ${styles[variant]}`}>
+    <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 sm:gap-2.5 sm:rounded-xl sm:px-4 sm:py-3 ${styles[variant]}`}>
       {icon}
       <div className="flex items-baseline gap-1.5">
-        <span className="text-xl font-bold tabular-nums">{value}</span>
+        <span className="text-base font-bold tabular-nums sm:text-xl">{value}</span>
         <span className="text-xs font-medium opacity-70">{label}</span>
       </div>
     </div>

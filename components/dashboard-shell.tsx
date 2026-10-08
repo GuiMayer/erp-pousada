@@ -17,7 +17,14 @@ import { ReportsTab } from "./reports-tab"
 import { SettingsTab } from "./settings-tab"
 import { AdminTab } from "./admin-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
+
+const moduleLabels: Record<string, string> = {
+  mapa: "Mapa", reservas: "Reservas", pdv: "Frente de Caixa", restaurante: "Restaurante",
+  estoque: "Estoque", financeiro: "Financeiro", relatorios: "Relatórios",
+  configuracoes: "Configurações", administracao: "Administração", auditoria: "Auditoria",
+}
 
 export function DashboardShell() {
   const { rooms, dataError } = useApp()
@@ -30,13 +37,19 @@ export function DashboardShell() {
   }, [activeTab, can, permittedTab, setActiveTab])
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-8 lg:px-8">
       {dataError && <div role="alert" className="rounded-lg border border-destructive p-4 text-destructive">Não foi possível atualizar os dados: {dataError}. Recarregue a página para tentar novamente.</div>}
       <DashboardHeader rooms={rooms} />
       {!permittedTab && <p role="status">Nenhum módulo foi liberado para seu usuário. Procure o administrador.</p>}
 
       <Tabs value={visible(activeTab) ? activeTab : permittedTab ?? ""} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col gap-6">
-          <TabsList className="w-fit">
+        <div className="sm:hidden">
+          <Select value={visible(activeTab) ? activeTab : permittedTab ?? ""} onValueChange={value => setActiveTab(value as typeof activeTab)}>
+            <SelectTrigger aria-label="Navegar entre módulos" className="w-full min-h-11"><SelectValue placeholder="Escolha um módulo" /></SelectTrigger>
+            <SelectContent>{Object.entries(moduleLabels).filter(([key]) => visible(key)).map(([key, label]) => <SelectItem key={key} value={key} className="min-h-11">{label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+          <TabsList className="hidden sm:flex">
           {visible("mapa") && (<TabsTrigger value="mapa" className="gap-1.5">
             <Map className="size-3.5" />
             Mapa

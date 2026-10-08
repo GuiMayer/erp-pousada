@@ -397,7 +397,7 @@ export function FinancialTab() {
 
             <Card>
               <CardContent className="p-0">
-                <Table>
+                <Table mobileColumns={["Descrição", "Categoria", "Valor", "Vencimento", "Status", "Ação"]}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Descricao</TableHead>
@@ -497,7 +497,7 @@ export function FinancialTab() {
               </div>
               <div className="flex flex-col gap-1">
                 <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Periodo</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Input
                     type="date" value={dateFrom}
                     onChange={e => setDateFrom(e.target.value)}
@@ -522,7 +522,7 @@ export function FinancialTab() {
 
             <Card>
               <CardContent className="p-0">
-                <Table>
+                <Table mobileColumns={["ID", "Data", "Descrição", "Valor", "Tipo", "Ações"]}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>

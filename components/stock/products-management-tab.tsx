@@ -127,7 +127,7 @@ export function ProductsManagementTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Package className="h-6 w-6" />
@@ -137,7 +137,7 @@ export function ProductsManagementTab() {
             Gerencie o catálogo central de produtos usado em todos os sistemas
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <PermissionGate permission="productCategories.edit"><Button variant="outline" onClick={() => setCategoriesModalOpen(true)}>
             <Tag className="h-4 w-4 mr-2" />
             Categorias
@@ -214,7 +214,7 @@ export function ProductsManagementTab() {
         />
       ) : (
         <div className="rounded-md border">
-          <Table>
+          <Table mobileColumns={["Nome", "Categoria", "Preço", "Código de barras", "Estoque", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
@@ -262,6 +262,7 @@ export function ProductsManagementTab() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleEdit(product)}
+                        aria-label={`Editar ${product.name}`}
                       >
                         <Edit className="h-4 w-4" />
                       </Button></PermissionGate>
@@ -269,6 +270,7 @@ export function ProductsManagementTab() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleDelete(product)}
+                        aria-label={`Excluir ${product.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button></PermissionGate>
