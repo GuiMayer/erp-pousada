@@ -1,3 +1,4 @@
+import { businessDay } from "@/lib/utils/business-values"
 import { describe, it, expect } from 'vitest'
 import {
   formatCurrency,
@@ -69,30 +70,30 @@ describe('Formatters', () => {
 
   describe('daysUntilDue', () => {
     it('should calculate days until due date', () => {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      const today = new Date(businessDay())
+      today.setUTCHours(0, 0, 0, 0)
       
       const tomorrow = new Date(today)
-      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
       const tomorrowISO = tomorrow.toISOString().split('T')[0]
       
       expect(daysUntilDue(tomorrowISO)).toBe(1)
     })
 
     it('should return negative for overdue dates', () => {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      const today = new Date(businessDay())
+      today.setUTCHours(0, 0, 0, 0)
       
       const yesterday = new Date(today)
-      yesterday.setDate(yesterday.getDate() - 1)
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1)
       const yesterdayISO = yesterday.toISOString().split('T')[0]
       
       expect(daysUntilDue(yesterdayISO)).toBe(-1)
     })
 
     it('should return 0 for today', () => {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      const today = new Date(businessDay())
+      today.setUTCHours(0, 0, 0, 0)
       const todayISO = today.toISOString().split('T')[0]
       
       expect(daysUntilDue(todayISO)).toBe(0)

@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { getDataConfig } from "@/lib/data/config"
+import { businessDay } from "@/lib/utils/business-values"
+import { ReservationPaymentButton } from "./reservation-payment-button"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -104,14 +107,18 @@ function RoomCombobox({ rooms, value, onChange }: { rooms: Room[]; value: string
 
 export function ReservationsTab() {
   const {
-    reservations, rooms, addReservation, updateReservation,
-    updateRoom, findGuest, addAuditEntry,
+    runOperation, reservations, rooms, addReservation, updateReservation,
+    findGuest, addAuditEntry,
   } = useApp()
   const { username } = useAuth()
 
   const [showNewForm, setShowNewForm] = useState(false)
   const [cancelModal, setCancelModal] = useState<Reservation | null>(null)
   const [cancelTreatment, setCancelTreatment] = useState<string>("")
+  const [cancellationFee, setCancellationFee] = useState("0")
+  const [noShow, setNoShow] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [operationError, setOperationError] = useState("")
   const [detailSheet, setDetailSheet] = useState<Reservation | null>(null)
   const [editModal, setEditModal] = useState<Reservation | null>(null)
 
@@ -130,7 +137,11 @@ export function ReservationsTab() {
   const [editCheckOut, setEditCheckOut] = useState("")
   const [editTotal, setEditTotal] = useState("")
 
-  const availableRooms = rooms.filter(r => r.status === "disponivel")
+  const availableRooms = rooms.filter(room => {
+    if (!newCheckIn || !newCheckOut) return true
+    if (room.status === "bloqueado" && (!room.blockEndDate || newCheckIn <= room.blockEndDate)) return false
+    return !reservations.some(reservation => reservation.roomId === room.id && ["confirmada", "checkin"].includes(reservation.status) && reservation.checkIn < newCheckOut && reservation.checkOut > newCheckIn)
+  })
 
   function handleCpfSearch(cpf: string) {
     setNewCpf(cpf)
@@ -143,39 +154,20 @@ export function ReservationsTab() {
     }
   }
 
-  function handleCreateReservation() {
-    if (!newCpf || !newGuestName || !newCheckIn || !newCheckOut) return
-    const validRoomIds = selectedRooms.filter(Boolean)
-    if (validRoomIds.length === 0) return
-
-    validRoomIds.forEach((roomIdStr, idx) => {
-      const room = rooms.find(r => r.id === Number(roomIdStr))
-      if (!room) return
-
-      const reservation: Reservation = {
-        id: `R${String(reservations.length + 1 + idx).padStart(3, "0")}`,
-        roomId: room.id,
-        roomNumber: room.number,
-        guestName: newGuestName,
-        cpf: newCpf,
-        checkIn: newCheckIn,
-        checkOut: newCheckOut,
-        status: "confirmada",
-        totalValue: Number(newTotal) || 0,
+  async function handleCreateReservation() {
+    if (pending || !newCpf || !newGuestName || !newCheckIn || !newCheckOut) return
+    const chosen = selectedRooms.filter(Boolean).map(value => Number(value))
+    if (!chosen.length) return
+    setPending(true); setOperationError("")
+    try {
+      if (getDataConfig().adapter === "database") await runOperation("reserve-group", { rooms: chosen.map(roomId => ({ roomId, totalValue: Number(newTotal) || 0 })), cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut })
+      else for (const roomId of chosen) {
+        const room = rooms.find(item => item.id === roomId)!
+        await addReservation({ id: crypto.randomUUID(), roomId, roomNumber: room.number, cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut, totalValue: Number(newTotal) || 0, status: "confirmada" })
       }
-      addReservation(reservation)
-    })
-
-    addAuditEntry({
-      user: username || "sistema",
-      action: `Reserva criada (${validRoomIds.length} quarto${validRoomIds.length > 1 ? "s" : ""})`,
-      reference: `${newGuestName}`,
-    })
-
-    // Reset
-    setNewCpf(""); setFoundGuest(undefined); setNewGuestName("")
-    setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal("")
-    setShowNewForm(false)
+      setNewCpf(""); setFoundGuest(undefined); setNewGuestName(""); setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal(""); setShowNewForm(false)
+    } catch (error) { setOperationError(error instanceof Error ? error.message : "Reserva não concluída") }
+    finally { setPending(false) }
   }
 
   function handleAddRoomSlot() {
@@ -194,36 +186,20 @@ export function ReservationsTab() {
     setSelectedRooms(prev => prev.filter((_, i) => i !== index))
   }
 
-  function handleCancel() {
-    if (!cancelModal || !cancelTreatment) return
-    updateReservation(cancelModal.id, {
-      status: "cancelada",
-      cancelTreatment: cancelTreatment as "estorno" | "multa" | "credito",
-    })
-    updateRoom(cancelModal.roomId, {
-      status: "disponivel", guest: undefined, guestCpf: undefined,
-      checkIn: undefined, checkOut: undefined,
-    })
-    addAuditEntry({
-      user: username || "sistema",
-      action: `Cancelamento de reserva (${cancelTreatment})`,
-      reference: `${cancelModal.id} - ${cancelModal.guestName}`,
-    })
-    setCancelModal(null)
-    setCancelTreatment("")
+  async function handleCancel() {
+    if (!cancelModal || !cancelTreatment || pending) return
+    setPending(true); setOperationError("")
+    try {
+      if (getDataConfig().adapter === "database") await runOperation("cancel-reservation", { reservationId: cancelModal.id, status: noShow ? "noshow" : "cancelada", treatment: cancelTreatment, fee: cancelTreatment === "estorno" ? 0 : Number(cancellationFee) || 0 })
+      else { await updateReservation(cancelModal.id, { status: noShow ? "noshow" : "cancelada", cancelTreatment: cancelTreatment as "estorno" | "multa" | "credito" }); await addAuditEntry({ user: username || "sistema", action: "Reserva cancelada", reference: cancelModal.id }) }
+      setCancelModal(null); setCancelTreatment(""); setCancellationFee("0"); setNoShow(false)
+    } catch (error) { setOperationError(error instanceof Error ? error.message : "Cancelamento não concluído") }
+    finally { setPending(false) }
   }
 
-  function handleNoShow(r: Reservation) {
-    updateReservation(r.id, { status: "noshow" })
-    updateRoom(r.roomId, {
-      status: "disponivel", guest: undefined, guestCpf: undefined,
-      checkIn: undefined, checkOut: undefined,
-    })
-    addAuditEntry({
-      user: username || "sistema",
-      action: "No-show registrado",
-      reference: `${r.id} - ${r.guestName}`,
-    })
+  function handleNoShow(reservation: Reservation) {
+    if (reservation.checkIn > businessDay()) { setOperationError("No-show só pode ser registrado a partir da chegada prevista"); return }
+    setNoShow(true); setCancelTreatment("multa"); setCancellationFee("0"); setCancelModal(reservation)
   }
 
   function openEdit(r: Reservation) {
@@ -233,19 +209,12 @@ export function ReservationsTab() {
     setEditTotal(String(r.totalValue))
   }
 
-  function handleSaveEdit() {
-    if (!editModal) return
-    updateReservation(editModal.id, {
-      checkIn: editCheckIn,
-      checkOut: editCheckOut,
-      totalValue: Number(editTotal) || 0,
-    })
-    addAuditEntry({
-      user: username || "sistema",
-      action: "Reserva editada",
-      reference: `${editModal.id} - ${editModal.guestName}`,
-    })
-    setEditModal(null)
+  async function handleSaveEdit() {
+    if (!editModal || pending) return
+    setPending(true); setOperationError("")
+    try { await updateReservation(editModal.id, { checkIn: editCheckIn, checkOut: editCheckOut, totalValue: Number(editTotal) || 0 }); setEditModal(null) }
+    catch (error) { setOperationError(error instanceof Error ? error.message : "Edição não concluída") }
+    finally { setPending(false) }
   }
 
   const isCheckInOverdue = (r: Reservation) => {
@@ -268,6 +237,7 @@ export function ReservationsTab() {
         </Button>
       </div>
 
+      {operationError && <p role="alert" className="text-sm text-destructive">{operationError}</p>}
       {/* New reservation form */}
       {showNewForm && (
         <Card className="animate-fade-in">
@@ -347,7 +317,7 @@ export function ReservationsTab() {
                 <Input type="date" value={newCheckOut} onChange={e => setNewCheckOut(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Valor Total (R$)</Label>
+                <Label>Valor por quarto (R$)</Label>
                 <Input type="number" value={newTotal} onChange={e => setNewTotal(e.target.value)} placeholder="0,00" />
               </div>
             </div>
@@ -406,7 +376,7 @@ export function ReservationsTab() {
                       {statusLabels[r.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                  <TableCell className="text-right" onClick={e => e.stopPropagation()}><ReservationPaymentButton reservation={r} />
                     <div className="flex gap-1 justify-end">
                       {(r.status === "confirmada" || r.status === "checkin") && (
                         <>
@@ -416,7 +386,7 @@ export function ReservationsTab() {
                           <Button
                             variant="ghost" size="sm"
                             className="gap-1 text-xs text-destructive hover:text-destructive"
-                            onClick={() => { setCancelModal(r); setCancelTreatment("") }}
+                            onClick={() => { setCancelModal(r); setCancelTreatment(""); setNoShow(false); setCancellationFee("0"); setOperationError("") }}
                           >
                             <XCircle className="size-3.5" /> Cancelar
                           </Button>
@@ -482,7 +452,7 @@ export function ReservationsTab() {
                       <Button
                         variant="outline" size="sm"
                         className="gap-1.5 flex-1 text-destructive hover:text-destructive"
-                        onClick={() => { setCancelModal(detailSheet); setCancelTreatment(""); setDetailSheet(null) }}
+                        onClick={() => { setCancelModal(detailSheet); setCancelTreatment(""); setNoShow(false); setCancellationFee("0"); setOperationError(""); setDetailSheet(null) }}
                       >
                         <XCircle className="size-3.5" /> Cancelar
                       </Button>
@@ -514,11 +484,12 @@ export function ReservationsTab() {
               <Input type="date" value={editCheckOut} onChange={e => setEditCheckOut(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label>Valor Total (R$)</Label>
+              <Label>Valor por quarto (R$)</Label>
               <Input type="number" value={editTotal} onChange={e => setEditTotal(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
+            {operationError && <p role="alert" className="text-destructive">{operationError}</p>}
             <Button variant="outline" onClick={() => setEditModal(null)}>Cancelar</Button>
             <Button onClick={handleSaveEdit}>Salvar</Button>
           </DialogFooter>
@@ -547,9 +518,12 @@ export function ReservationsTab() {
               </SelectContent>
             </Select>
           </div>
+          <Label>Multa definida pelo supervisor (R$)<Input aria-label="Multa de cancelamento" type="number" min="0" max={cancelModal?.paidValue ?? 0} step="0.01" value={cancelTreatment === "estorno" ? "0" : cancellationFee} disabled={cancelTreatment === "estorno"} onChange={event => setCancellationFee(event.target.value)} /></Label>
+          <p className="text-sm text-muted-foreground">Recebido: R$ {(cancelModal?.paidValue ?? 0).toFixed(2)} · Saldo para {cancelTreatment === "credito" ? "crédito" : "reembolso"}: R$ {Math.max(0, (cancelModal?.paidValue ?? 0) - (cancelTreatment === "estorno" ? 0 : Number(cancellationFee) || 0)).toFixed(2)}</p>
+          {operationError && <p role="alert" className="text-destructive">{operationError}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelModal(null)}>Voltar</Button>
-            <Button variant="destructive" disabled={!cancelTreatment} onClick={handleCancel}>Confirmar Cancelamento</Button>
+            <Button variant="outline" disabled={pending} onClick={() => setCancelModal(null)}>Voltar</Button>
+            <Button variant="destructive" disabled={!cancelTreatment || pending} onClick={handleCancel}>Confirmar Cancelamento</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

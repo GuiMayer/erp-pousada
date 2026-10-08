@@ -1,3 +1,4 @@
+import { roundMoney } from "./business-values"
 /**
  * Centralized price calculation utilities
  * Consolidates pricing logic to ensure consistency across the application
@@ -18,7 +19,7 @@ export interface CartItem {
  */
 export function calculateItemTotal(price: number, quantity: number, discountPercent: number = 0): number {
   const subtotal = price * quantity
-  return subtotal * (1 - discountPercent / 100)
+  return roundMoney(subtotal * (1 - discountPercent / 100))
 }
 
 /**
@@ -28,7 +29,7 @@ export function calculateCartSubtotal(items: CartItem[]): number {
   return items.reduce((sum, item) => {
     const itemTotal = item.product.price * item.quantity
     const itemDiscount = item.discount || 0
-    return sum + itemTotal * (1 - itemDiscount / 100)
+    return roundMoney(sum + roundMoney(itemTotal * (1 - itemDiscount / 100)))
   }, 0)
 }
 
@@ -36,7 +37,7 @@ export function calculateCartSubtotal(items: CartItem[]): number {
  * Calculate cart total with global discount
  */
 export function calculateCartTotal(subtotal: number, discountAmount: number = 0): number {
-  return Math.max(0, subtotal - discountAmount)
+  return Math.max(0, roundMoney(subtotal - roundMoney(discountAmount)))
 }
 
 /**

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/client"
 import { getCollectionKeys, getCollectionMapper } from "./mappers"
 import { HttpError } from "../http"
 import type { Actor } from "../auth"
+import { businessDay } from "@/lib/utils/business-values"
 
 type Client = Prisma.TransactionClient
 type Row = Record<string, unknown>
@@ -92,6 +93,15 @@ async function mappedInput(key: string, item: unknown, partial: boolean, actor?:
     }
     if (!partial) { input.createdBy = actor?.username ?? "setup"; input.createdAt = new Date().toISOString() }
   }
+  if (actor) {
+    if (key === "guests" && input.creditValue !== undefined) throw new HttpError(403, "Crédito é gerenciado pelo financeiro")
+    if (["expenses", "accountsReceivable"].includes(key)) {
+      if (input.paid === true || input.status === "pago" || input.paymentDate !== undefined) throw new HttpError(403, "Utilize o fluxo de pagamento")
+      const parts = input.installments as Row[] | undefined
+      if (parts && (!Array.isArray(parts) || parts.some(part => Number(part.value) <= 0 || part.paid === true || part.status === "pago") || Math.abs(parts.reduce((sum, part) => sum + Number(part.value), 0) - Number(input.value)) > 0.001)) throw new HttpError(400, "Parcelas devem ser positivas e somar o valor do título")
+    }
+    if (key === "bankAccounts" && !partial) input.currentBalance = input.initialBalance
+  }
   if (key === "auditLog" && actor) input.user = actor.username
   const mapper = collectionMapper(key)
   const data = partial ? mapper.toUpdate(input) : mapper.toCreate(input)
@@ -110,6 +120,19 @@ export const upsertCollectionItem = createCollectionItem
 export async function updateCollectionItem(key: string, id: string, data: unknown, actor?: Actor, client: Client = prisma): Promise<unknown> {
   if (client === prisma) return prisma.$transaction(tx => updateCollectionItem(key, id, data, actor, tx), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   const input = await mappedInput(key, data, true, actor)
+  if (actor) {
+    const current = await model(key, client).findUnique({ where: itemWhere(key, id) })
+    if (key === "rooms" && current && ["ocupado", "limpeza"].includes(String(current.status)) && ["status", "guest", "guestCpf", "checkIn", "checkOut"].some(field => Object.prototype.hasOwnProperty.call(data, field))) throw new HttpError(409, "Utilize o fluxo de hospedagem para alterar a ocupação")
+    if (key === "rooms" && input.status === "ocupado") throw new HttpError(409, "Utilize check-in")
+    if (key === "rooms" && input.status === "bloqueado") {
+      const end = input.blockEndDate === undefined ? current?.blockEndDate : input.blockEndDate
+      if (await client.reservation.count({ where: { roomId: Number(id), status: { in: ["confirmada", "checkin"] }, checkOut: { gt: new Date(businessDay()) }, ...(end ? { checkIn: { lte: end as Date } } : {}) } })) throw new HttpError(409, "Bloqueio coincide com reserva ou hospedagem; resolva o período antes")
+    }
+    if (key === "bankAccounts" && current && ["initialBalance", "currentBalance"].some(field => input[field] !== undefined && Number(input[field]) !== Number(current[field]))) throw new HttpError(409, "Saldo é alterado por pagamentos e transferências")
+    if (["expenses", "accountsReceivable"].includes(key) && current && (current.paid === true || current.status === "pago")) throw new HttpError(409, "Título pago não pode ser alterado")
+    if (key === "expenses" && await client.expenseInstallment.count({ where: { expenseId: id, paid: true } })) throw new HttpError(409, "Título possui parcelas pagas e não pode ser alterado")
+    if (key === "accountsReceivable" && await client.accountReceivableInstallment.count({ where: { accountReceivableId: id, status: "pago" } })) throw new HttpError(409, "Título possui parcelas recebidas e não pode ser alterado")
+  }
   if (key === "users" && (input.active === false || input.role === "operador")) {
     const current = await client.user.findUnique({ where: { id } })
     if (current?.active && current.role === "supervisor" && await client.user.count({ where: { role: "supervisor", active: true } }) <= 1) throw new HttpError(409, "Mantenha ao menos um supervisor ativo")
@@ -134,6 +157,12 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
     const current = await client.user.findUnique({ where: { id } })
     if (current?.active && current.role === "supervisor" && await client.user.count({ where: { active: true, role: "supervisor" } }) <= 1) throw new HttpError(409, "Mantenha ao menos um supervisor ativo")
   }
+  if (["expenses", "accountsReceivable", "guests"].includes(key)) {
+    const current = await model(key, client).findUnique({ where: itemWhere(key, id) })
+    if (current && (current.paid === true || current.status === "pago" || Number(current.creditValue || 0) > 0)) throw new HttpError(409, "Registro possui pagamento ou crédito e não pode ser excluído")
+  }
+  if (key === "expenses" && await client.expenseInstallment.count({ where: { expenseId: id, paid: true } })) throw new HttpError(409, "Título possui parcelas pagas")
+  if (key === "accountsReceivable" && await client.accountReceivableInstallment.count({ where: { accountReceivableId: id, status: "pago" } })) throw new HttpError(409, "Título possui parcelas recebidas")
   await model(key, client).delete({ where: itemWhere(key, id) })
 }
 export async function replaceCollection(key: string, value: unknown) {

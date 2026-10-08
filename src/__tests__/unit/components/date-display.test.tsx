@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { DateDisplay, DueDateDisplay } from '@/components/ui/date-display'
+import { businessDay } from '@/lib/utils/business-values'
 
 describe('DateDisplay', () => {
   it('should format date in short format', () => {
@@ -23,8 +24,8 @@ describe('DateDisplay', () => {
 
 describe('DueDateDisplay', () => {
   it('should show overdue warning for past dates', () => {
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterday = new Date(businessDay())
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1)
     const dateStr = yesterday.toISOString().split('T')[0]
 
     const { container } = render(<DueDateDisplay dueDate={dateStr} />)
@@ -32,8 +33,8 @@ describe('DueDateDisplay', () => {
   })
 
   it('should show warning for dates due soon', () => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrow = new Date(businessDay())
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
     const dateStr = tomorrow.toISOString().split('T')[0]
 
     const { container } = render(<DueDateDisplay dueDate={dateStr} />)
@@ -41,8 +42,8 @@ describe('DueDateDisplay', () => {
   })
 
   it('should show days remaining when enabled', () => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrow = new Date(businessDay())
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
     const dateStr = tomorrow.toISOString().split('T')[0]
 
     render(<DueDateDisplay dueDate={dateStr} showDaysRemaining />)

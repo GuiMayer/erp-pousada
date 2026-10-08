@@ -1,3 +1,4 @@
+import { unitFactor } from "../utils/units"
 import { getDataConfig } from "../data/config"
 import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
@@ -48,7 +49,10 @@ export function useProduction() {
     const missing: string[] = []
 
     for (const ingredient of recipe.ingredients) {
-      const requiredQuantity = ingredient.quantity * quantity
+      const stock = getStockByProduct(ingredient.productId)
+      let factor: number
+      try { factor = unitFactor(ingredient.unit, stock?.unit || ingredient.unit) } catch { missing.push(`${ingredient.productName}: unidade incompatível`); continue }
+      const requiredQuantity = ingredient.quantity * quantity * factor
       if (!hasStock(ingredient.productId, requiredQuantity)) {
         missing.push(ingredient.productName)
       }
@@ -58,7 +62,7 @@ export function useProduction() {
       available: missing.length === 0,
       missing,
     }
-  }, [recipes, hasStock])
+  }, [recipes, hasStock, getStockByProduct])
 
   // Register production and deduct ingredients from stock
   const registerProduction = useCallback(async (
@@ -94,7 +98,8 @@ export function useProduction() {
     // Prepare ingredients with scaled quantities
     const scaledIngredients = recipe.ingredients.map(ing => ({
       ...ing,
-      quantity: ing.quantity * plannedQuantity,
+      quantity: ing.quantity * plannedQuantity * unitFactor(ing.unit, getStockByProduct(ing.productId)?.unit || ing.unit),
+      unit: getStockByProduct(ing.productId)?.unit || ing.unit,
     }))
 
     // Process stock deduction with rollback capability
@@ -129,7 +134,7 @@ export function useProduction() {
     checkProductionYield(plannedQuantity * recipe.expectedYield, producedQuantity, recipe.name)
 
     return { success: true }
-  }, [runOperation, recipes, checkIngredientsAvailability, calculateRecipeCost, addProduction, processStockForProduction, checkProductionYield])
+  }, [runOperation, recipes, checkIngredientsAvailability, calculateRecipeCost, addProduction, processStockForProduction, checkProductionYield, getStockByProduct])
 
   // Get production history
   const getProductionHistory = useCallback((limit?: number) => {

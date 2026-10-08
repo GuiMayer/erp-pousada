@@ -1,5 +1,7 @@
 "use client"
 
+import { PaymentDialog } from "./payment-fields"
+import { getDataConfig } from "@/lib/data/config"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { Button } from "@/components/ui/button"
@@ -23,7 +25,7 @@ export function AccountsReceivableManagement() {
     addAccountReceivable,
     updateAccountReceivable,
     removeAccountReceivable,
-    addTransaction,
+    runOperation, addTransaction,
   } = useApp()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingAR, setEditingAR] = useState<AccountReceivable | null>(null)
@@ -143,8 +145,10 @@ export function AccountsReceivableManagement() {
     }
   }
 
+  const [payingAccount, setPayingAccount] = useState<AccountReceivable | null>(null)
   const handleMarkAsPaid = async (ar: AccountReceivable) => {
-    if (ar.status === "pago") return
+    if (["pago", "cancelado"].includes(ar.status)) return
+    if (getDataConfig().adapter === "database") { setPayingAccount(ar); return }
 
     const paymentDate = new Date().toISOString().split("T")[0]
 
@@ -215,7 +219,12 @@ export function AccountsReceivableManagement() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <PaymentDialog open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} onConfirm={async (paymentMethod, accountId) => {
+        if (!payingAccount) return
+        const installment = payingAccount.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]
+        await runOperation("receive-account", { accountReceivableId: payingAccount.id, installmentId: installment?.id, paymentMethod, accountId })
+      }} />
+      <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Pendente
@@ -350,7 +359,7 @@ export function AccountsReceivableManagement() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="pendente">Pendente</SelectItem>
-                          <SelectItem value="pago">Pago</SelectItem>
+                          <SelectItem value="pago" disabled>Pago — utilize Receber</SelectItem>
                           <SelectItem value="vencido">Vencido</SelectItem>
                           <SelectItem value="cancelado">Cancelado</SelectItem>
                         </SelectContent>

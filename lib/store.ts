@@ -166,7 +166,7 @@ export interface SeedEmployee {
 // ─── Application Types (Runtime structure) ─────────────────────────────
 export type RoomStatus = "disponivel" | "ocupado" | "limpeza" | "bloqueado"
 export type ReservationStatus = "confirmada" | "checkin" | "checkout" | "cancelada" | "noshow"
-export type TransactionType = "receita" | "despesa" | "estorno"
+export type TransactionType = "receita" | "despesa" | "estorno" | "credito_concedido" | "credito_utilizado" | "transferencia_entrada" | "transferencia_saida"
 export type CancelTreatment = "estorno" | "multa" | "credito"
 export type POSSaleStatus = "concluida" | "cancelada"
 export type UserRole = "operador" | "supervisor"
@@ -194,6 +194,9 @@ export interface Room {
 }
 
 export interface Reservation {
+  cancellationFee?: number
+  originalValue?: number
+  paidValue?: number
   id: string
   roomId: number
   roomNumber: string
@@ -207,6 +210,7 @@ export interface Reservation {
 }
 
 export interface GuestProfile {
+  creditValue?: number
   cpf: string
   name: string
   totalStays: number
@@ -236,6 +240,7 @@ export interface ExpenseInstallment {
 }
 
 export interface Transaction {
+  cashSessionId?: string
   id: string
   date: string
   description: string
@@ -274,6 +279,9 @@ export interface AuditEntry {
 }
 
 export interface CashClose {
+  status?: "aberto" | "fechado"
+  openedAt?: string
+  closedAt?: string
   openingValue?: number
   id: string
   date: string

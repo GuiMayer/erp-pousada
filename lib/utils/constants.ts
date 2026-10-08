@@ -1,3 +1,4 @@
+import { businessDay } from "./business-values"
 /**
  * Centralized application constants
  * Consolidates hardcoded values to ensure consistency across the application
@@ -17,11 +18,11 @@ export type RoomStatus = typeof ROOM_STATUS[keyof typeof ROOM_STATUS]
 
 // Date formatting utilities
 export function getTodayISO(): string {
-  return new Date().toISOString().split("T")[0]
+  return businessDay()
 }
 
 export function toDateISO(date: Date): string {
-  return date.toISOString().split("T")[0]
+  return businessDay(date)
 }
 
 // Date formatting options

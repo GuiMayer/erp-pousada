@@ -176,14 +176,11 @@ export function FinancialCadastrosManagement() {
       return
     }
 
-    if (editingId) {
-      await updateBankTransfer(editingId, transferForm)
-      await addAuditEntry({ user: auditUser, action: "Transferencia editada", reference: transferForm.description || editingId })
-    } else {
-      await addBankTransfer({ id: `BT${Date.now()}`, ...transferForm, responsible: transferForm.responsible || auditUser })
-      await addAuditEntry({ user: auditUser, action: "Transferencia criada", reference: transferForm.description || formatCurrency(transferForm.value) })
-    }
-    closeDialog()
+    try {
+      if (editingId) { setError("Transferências registradas são imutáveis"); return }
+      await addBankTransfer({ id: crypto.randomUUID(), ...transferForm, description: transferForm.description || "Transferência entre contas", responsible: transferForm.responsible || auditUser })
+      closeDialog()
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Transferência não concluída") }
   }
 
   async function saveBudget() {
@@ -296,7 +293,7 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{transfer.description || "Transferencia"}</div>
                 <div className="text-xs text-muted-foreground">{transfer.date} - {formatCurrency(transfer.value)}</div>
               </div>
-              <RowActions active onEdit={() => openBankTransfer(transfer)} onDelete={() => removeCadastro("bankTransfer", transfer.id, transfer.description || transfer.id)} />
+              <span className="text-xs text-muted-foreground">Transferência registrada · histórico preservado</span>
             </div>
           ))}
           {bankTransfers.length === 0 && <EmptyState label="Nenhuma transferencia cadastrada." />}
@@ -378,7 +375,7 @@ export function FinancialCadastrosManagement() {
               </Select>
             </Field>
             <Field label="Banco"><Input value={bankForm.bank || ""} onChange={e => setBankForm(prev => ({ ...prev, bank: e.target.value }))} /></Field>
-            <Field label="Saldo atual"><Input type="number" value={bankForm.currentBalance} onChange={e => setBankForm(prev => ({ ...prev, currentBalance: Number(e.target.value), initialBalance: editingId ? prev.initialBalance : Number(e.target.value) }))} /></Field>
+            <Field label="Saldo atual"><Input type="number" disabled={!!editingId} value={bankForm.currentBalance} onChange={e => setBankForm(prev => ({ ...prev, currentBalance: Number(e.target.value), initialBalance: editingId ? prev.initialBalance : Number(e.target.value) }))} /></Field>
             <ActiveSwitch checked={bankForm.active} onChange={active => setBankForm(prev => ({ ...prev, active }))} />
           </div>
           <DialogFooter><Button variant="outline" onClick={closeDialog}>Cancelar</Button><Button onClick={saveBankAccount}>Salvar</Button></DialogFooter>

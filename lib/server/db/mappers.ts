@@ -151,6 +151,9 @@ const reservationMapper: CollectionMapper<Reservation> = {
     checkOut: dateOnly(row.checkOut),
     status: row.status,
     totalValue: numberValue(row.totalValue),
+    originalValue: optionalNumber(row.originalValue),
+    cancellationFee: numberValue(row.cancellationFee ?? 0),
+    paidValue: numberValue(row.paidValue ?? 0),
     cancelTreatment: optional(row.cancelTreatment),
   }),
   toCreate: item => stripUndefined({
@@ -163,6 +166,9 @@ const reservationMapper: CollectionMapper<Reservation> = {
     checkOut: dateValue(item.checkOut),
     status: item.status,
     totalValue: item.totalValue,
+    originalValue: item.originalValue,
+    cancellationFee: item.cancellationFee,
+    paidValue: item.paidValue,
     cancelTreatment: item.cancelTreatment,
   }),
   toUpdate: item => reservationMapper.toCreate(item as Reservation),
@@ -171,8 +177,8 @@ const reservationMapper: CollectionMapper<Reservation> = {
 const guestMapper: CollectionMapper<GuestProfile> = {
   prismaModel: "guestProfile",
   orderBy: { name: "asc" },
-  toApp: row => ({ cpf: row.cpf, name: row.name, totalStays: row.totalStays, avgTicket: numberValue(row.avgTicket), noShows: row.noShows }),
-  toCreate: item => ({ cpf: item.cpf, name: item.name, totalStays: item.totalStays, avgTicket: item.avgTicket, noShows: item.noShows }),
+  toApp: row => ({ cpf: row.cpf, name: row.name, creditValue: numberValue(row.creditValue ?? 0), totalStays: row.totalStays, avgTicket: numberValue(row.avgTicket), noShows: row.noShows }),
+  toCreate: item => ({ cpf: item.cpf, name: item.name, creditValue: item.creditValue, totalStays: item.totalStays, avgTicket: item.avgTicket, noShows: item.noShows }),
   toUpdate: item => stripUndefined({ name: item.name, totalStays: item.totalStays, avgTicket: item.avgTicket, noShows: item.noShows }),
 }
 
@@ -232,7 +238,8 @@ const transactionMapper: CollectionMapper<Transaction> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     id: row.id,
-    date: dateOnly(row.date),
+    date: dateString(row.date),
+    cashSessionId: optional(row.cashSessionId),
     description: row.description,
     value: numberValue(row.value),
     type: row.type,
@@ -373,8 +380,8 @@ const customerMapper: CollectionMapper<Customer> = {
 const cashCloseMapper: CollectionMapper<CashClose> = {
   prismaModel: "cashClose",
   orderBy: { date: "desc" },
-  toApp: row => ({ ...row, date: dateOnly(row.date), openingValue: numberValue(row.openingValue), physicalValue: numberValue(row.physicalValue), expectedValue: numberValue(row.expectedValue), divergence: numberValue(row.divergence) } as CashClose),
-  toCreate: item => stripUndefined({ ...item, date: dateValue(item.date) }),
+  toApp: row => ({ ...row, date: dateString(row.date), openedAt: optionalDateString(row.openedAt), closedAt: optionalDateString(row.closedAt), openingValue: numberValue(row.openingValue), physicalValue: numberValue(row.physicalValue), expectedValue: numberValue(row.expectedValue), divergence: numberValue(row.divergence) } as CashClose),
+  toCreate: item => stripUndefined({ ...item, date: dateValue(item.date), openedAt: dateValue(item.openedAt), closedAt: dateValue(item.closedAt) }),
   toUpdate: item => cashCloseMapper.toCreate(item as CashClose),
 }
 

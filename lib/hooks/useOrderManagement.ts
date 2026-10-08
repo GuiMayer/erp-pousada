@@ -1,3 +1,4 @@
+import { roundMoney } from "../utils/business-values"
 import { getDataConfig } from "../data/config"
 import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
@@ -8,9 +9,9 @@ import { getTodayISO } from "../utils/constants"
 type OrderActionResult = { success: boolean; error?: string }
 
 function calculateTotals(items: RestaurantOrderItem[], discountPercent: number) {
-  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
-  const discount = (subtotal * discountPercent) / 100
-  const total = subtotal - discount
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + roundMoney(item.subtotal), 0))
+  const discount = roundMoney((subtotal * discountPercent) / 100)
+  const total = roundMoney(subtotal - discount)
 
   return { subtotal, discount, total }
 }
@@ -109,7 +110,8 @@ export function useOrderManagement(orderId?: string) {
     paymentMethod: string,
     amountPaid: number,
     customer?: string,
-    operator = "sistema"
+    operator = "sistema",
+    accountId?: string
   ): Promise<OrderActionResult> => {
     if (!order || !orderId) return { success: false, error: "Comanda nao encontrada" }
     if (order.status !== "aberta") return { success: false, error: "Comanda nao esta aberta" }
@@ -120,7 +122,7 @@ export function useOrderManagement(orderId?: string) {
     }
 
     if (getDataConfig().adapter === "database") {
-      try { await runOperation("close-order", { orderId, paymentMethod, amountPaid, customer, discountPercent: discount }); return { success: true } }
+      try { await runOperation("close-order", { orderId, expectedVersion: order.version ?? 0, paymentMethod, amountPaid, customer, accountId }); return { success: true } }
       catch (error) { return { success: false, error: error instanceof Error ? error.message : "Falha ao fechar comanda" } }
     }
     const change = amountPaid - totals.total
@@ -156,7 +158,7 @@ export function useOrderManagement(orderId?: string) {
     })
 
     return { success: true }
-  }, [discount, runOperation, order, orderId, totals, updateRestaurantOrder, addTransaction, addAuditEntry])
+  }, [runOperation, order, orderId, totals, updateRestaurantOrder, addTransaction, addAuditEntry])
 
   // Cancel order
   const cancelOrder = useCallback(async (
@@ -170,7 +172,7 @@ export function useOrderManagement(orderId?: string) {
     if (!trimmedReason) return { success: false, error: "Informe o motivo do cancelamento" }
 
     if (getDataConfig().adapter === "database") {
-      try { await runOperation("cancel-order", { orderId, reason: trimmedReason }); return { success: true } }
+      try { await runOperation("cancel-order", { orderId, expectedVersion: order.version ?? 0, reason: trimmedReason }); return { success: true } }
       catch (error) { return { success: false, error: error instanceof Error ? error.message : "Falha ao cancelar comanda" } }
     }
     await updateRestaurantOrder(orderId, {

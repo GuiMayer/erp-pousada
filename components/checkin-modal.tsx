@@ -2,7 +2,8 @@
 import { getDataConfig } from "@/lib/data/config"
 import { useToast } from "@/hooks/use-toast"
 
-import { useState } from "react"
+import { businessDay } from "@/lib/utils/business-values"
+import { useState, useEffect, useRef } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -45,13 +46,21 @@ export function CheckinModal({ room, open, onClose }: Props) {
     reset: resetGuest,
   } = useGuestSearch(findGuest)
 
+  const initialized = useRef(false)
+  useEffect(() => {
+    if (!open) { initialized.current = false; return }
+    if (initialized.current) return
+    initialized.current = true
+    const expected = reservations.find(reservation => reservation.roomId === room.id && reservation.status === "confirmada" && reservation.checkIn === businessDay())
+    if (expected) { setCpf(expected.cpf); setGuestName(expected.guestName); setCheckOut(expected.checkOut); setTotalValue(String(expected.totalValue)) }
+  }, [open, reservations, room.id, setCpf, setGuestName])
   const { toast } = useToast()
   const [pending, setPending] = useState(false)
   async function handleConfirm() {
     if (pending) return
     if (!cpf || !guestName || !checkOut) return
 
-    const todayISO = new Date().toISOString().split("T")[0]
+    const todayISO = businessDay()
 
     setPending(true)
     try {
