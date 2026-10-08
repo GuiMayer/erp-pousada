@@ -11,6 +11,33 @@ Esta versão opera com PostgreSQL 16 e Docker Desktop. O banco começa vazio, co
 
 Para desenvolvimento com dados separados, use `compose.dev.yml` e `.env.local` com `NEXT_PUBLIC_DATA_ADAPTER=database`. Os scripts Prisma agora leem os arquivos de ambiente na mesma ordem do Next.js. Variáveis explicitamente definidas no processo mantêm prioridade. O build Docker sempre seleciona `database`, independentemente da demonstração local.
 
+## Painel de servidores no Windows
+
+Depois de preparar a instalação, execute `powershell -NoProfile -File scripts/install-server-panel.ps1`. Será criado o atalho **ERP Pousada - Servidores** na Área de Trabalho. O Docker Desktop precisa estar em execução.
+
+O painel oferece **Iniciar**, **Encerrar**, **Ativar link**, **Abrir site** e **Copiar link** para cada ambiente. Mostra separadamente a resposta do aplicativo e banco, a conexão com Docker e Tailscale, e a configuração dos links. Há atalhos para abrir Docker Desktop e Tailscale.
+
+- **Sistema normal (porta 3000):** inicia os containers já instalados, sem atualizar a imagem ou executar migrations. Encerrar para os serviços dessa instalação e preserva o banco e os backups.
+- **Demonstração (porta 3001):** inicia com exemplos restaurados; encerrar descarta as alterações. A imagem de demonstração deve ter sido preparada anteriormente com `scripts/start-demo.ps1`.
+
+**Iniciar** também prepara o acesso HTTPS pelo Tailscale Serve; **Ativar link** configura o acesso de um servidor que já está ligado. O painel preserva os encaminhamentos existentes e escolhe uma porta HTTPS livre (443, 8443 ou 10000). Ajusta `APP_URL` ou `DEMO_APP_URL` e, quando necessário, recria somente o aplicativo com a mesma imagem instalada, preservando o banco. **Abrir site** e **Copiar link** usam o endereço verificado; utilize esse endereço também no servidor, pois a origem autorizada passa a ser a URL HTTPS. Se a rede falhar, o aplicativo pode permanecer ligado localmente, mas a ativação do link deve ser repetida. Os dispositivos que receberem o link precisam estar conectados à rede Tailscale e ter permissão de acesso. Este recurso é uma conveniência opcional de instalação; Tailscale continua sendo infraestrutura externa, sem integração oficial no ERP. Fechar o painel mantém os servidores funcionando. O painel não altera a inicialização automática do Windows nem substitui o procedimento de instalação e atualização.
+
+### Recuperação do painel
+
+Comandos externos têm prazo máximo e as operações completas têm limite de oito minutos. O painel mostra a etapa atual e oferece **Cancelar espera**. Cancelar termina somente os comandos auxiliares iniciados por essa operação; serviços Docker que já foram iniciados podem continuar funcionando. O painel consulta seus estados novamente. Não apaga banco operacional nem encerra o motor Docker. Fechar a janela deixa a operação seguir até concluir ou atingir seu prazo. Consulte **Abrir diagnóstico** para o último resultado e erro, sem senhas ou dados de negócio.
+
+### Segunda cópia de backup em uma pasta
+
+Use **Escolher pasta de backup** para selecionar outra pasta no Windows. A configuração recria somente o serviço de backup, preservando banco e aplicativo, e produz uma primeira cópia verificada. **Fazer backup agora** permite antecipar o backup automático. A frequência continua sendo a configurada em `BACKUP_INTERVAL_MINUTES` (30 minutos por padrão).
+
+Nesta instalação, a pasta inicial é `C:\Users\usuario\Documents\Backups ERP Pousada`. Ela é uma segunda cópia no mesmo computador; não representa um backup externo enquanto não houver sincronização ou cópia para outro dispositivo. Pode ser substituída pelo painel por uma pasta sincronizada pelo Google Drive. Prefira uma pasta realmente disponível no disco (modo espelhado, quando aplicável). O painel confirma gravação e integridade da cópia local; confira também no aplicativo Drive se o envio à nuvem terminou.
+
+O backup usa arquivo temporário, comparação integral e validação do catálogo PostgreSQL antes de publicar a cópia. Backups manuais e agendados usam um bloqueio do sistema, liberado automaticamente se o processo terminar. Uma falha conserva o backup local já concluído e mantém um marcador de erro visível no painel. Se `ALERT_WEBHOOK_URL` estiver configurado, também envia aviso externo; sem esse canal, o aviso aparece no painel e nos logs.
+
+O painel mostra a última conclusão de cada destino e alerta sobre cópias atrasadas. A limpeza automática de 14 dias vale somente para a pasta principal; a segunda pasta não é limpa automaticamente, para evitar que a exclusão se propague pela sincronização. Revise o espaço disponível e a retenção dessa pasta. Os arquivos `.dump` contêm dados e contas da instalação: mantenha a pasta privada e a conta Drive protegida. Esta modalidade não adiciona criptografia ao arquivo; o destino `rclone crypt` continua disponível para quem precisar de cópia criptografada.
+
+Para restaurar, baixe ou copie o `.dump` completo para a pasta principal de backups, interrompa aplicativo e workers e siga o procedimento de `scripts/db-restore.sh` no guia de produção. A recuperação deve ser testada em banco separado antes de substituir uma instalação. A exportação JSON da interface não substitui este backup completo.
+
 ## HTTPS no computador e na rede
 
 Por padrão, o endereço é `https://localhost` e o proxy escuta somente no computador da instalação. O Caddy usa uma autoridade certificadora interna; instale a raiz desta instalação como confiável antes de usar o sistema. Exporte somente o certificado público:

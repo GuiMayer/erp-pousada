@@ -1,4 +1,4 @@
-import { businessDay, normalizePayment, netItemValues } from "../utils/business-values"
+import { businessDay, businessHour, normalizePayment, netItemValues } from "../utils/business-values"
 import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type {
@@ -232,7 +232,7 @@ export function useReports() {
     }
 
     daySales.forEach(sale => {
-      const hour = new Date(sale.date).getHours()
+      const hour = businessHour(sale.date)
       const existing = hourMap.get(hour)!
 
       hourMap.set(hour, {

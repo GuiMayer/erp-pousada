@@ -17,9 +17,6 @@ while true; do
     mkdir -p "${BACKUP_DIR:-/backups}"
     date -u +%Y-%m-%dT%H:%M:%SZ > "${BACKUP_DIR:-/backups}/last-error"
     echo "Backup falhou; nova tentativa no próximo intervalo." >&2
-    if [ -n "${ALERT_WEBHOOK_URL:-}" ]; then
-      curl --fail --silent --max-time 15 -H 'Content-Type: application/json' --data '{"text":"ERP Pousada: falha no backup. Verifique o computador da pousada."}' "$ALERT_WEBHOOK_URL" >/dev/null || echo "Falha ao entregar alerta de backup" >&2
-    fi
   fi
   sleep "$((INTERVAL_MINUTES * 60))"
 done

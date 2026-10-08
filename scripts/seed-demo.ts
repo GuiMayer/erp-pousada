@@ -10,15 +10,15 @@ import { businessDay } from "../lib/utils/business-values"
 async function main() {
   assertDemoTarget(process.env.DATABASE_URL, process.env.DEMO_MODE)
   const password = process.env.DEMO_LOGIN_PASSWORD
-  if (!password || (password.length < 12 && password != "teste teste") || Buffer.byteLength(password) > 72) throw new Error("Defina a senha exclusiva de demonstração (12 a 72 bytes ou a senha de teste autorizada)")
+  if (!password || (password.length < 12 && password !== "teste") || Buffer.byteLength(password) > 72) throw new Error("Defina a senha exclusiva de demonstração (12 a 72 bytes ou a senha de teste autorizada)")
   if (await prisma.user.count() || await prisma.room.count()) throw new Error("Banco de demonstração não está vazio; encerre e inicie pelo guia")
   const hash = await bcrypt.hash(password, 12)
   const today = businessDay()
   const day = (offset: number) => { const date = new Date(`${today}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + offset); return date.toISOString().slice(0, 10) }
-  const actor: Actor = { id: "demo-admin", username: "demo", role: "supervisor", sessionId: "seed", approvedUntil: null, permissions: ALL_PERMISSIONS }
+  const actor: Actor = { id: "demo-admin", username: "teste", role: "supervisor", sessionId: "seed", approvedUntil: null, permissions: ALL_PERMISSIONS }
   await prisma.$transaction(async tx => {
-    for (const [username, profile, fullName] of [["demo", "administrador", "Administrador de demonstração"], ["recepcao", "recepcao", "Recepção de demonstração"], ["restaurante", "restaurante", "Restaurante de demonstração"], ["estoque", "estoque", "Estoque de demonstração"]]) {
-      await tx.user.create({ data: { id: username === "demo" ? actor.id : `demo-${username}`, username, password: hash, fullName, role: username === "demo" ? "supervisor" : "operador", accessProfile: profile, createdBy: "demo-seed" } })
+    for (const [username, profile, fullName] of [["teste", "administrador", "Administrador de demonstração"], ["recepcao", "recepcao", "Recepção de demonstração"], ["restaurante", "restaurante", "Restaurante de demonstração"], ["estoque", "estoque", "Estoque de demonstração"]]) {
+      await tx.user.create({ data: { id: username === "teste" ? actor.id : `demo-${username}`, username, password: hash, fullName, role: username === "teste" ? "supervisor" : "operador", accessProfile: profile, createdBy: "demo-seed" } })
     }
     await tx.systemSettings.create({ data: { id: "demo-settings", pousadaName: "Pousada Jardim · Demonstração", checkInTime: "14:00", checkOutTime: "12:00", discountCeiling: 10 } })
     for (let id = 1; id <= 12; id++) await tx.room.create({ data: { id, number: String(100 + id), type: id <= 5 ? "casal" : id <= 9 ? "triplo" : "suite", status: id === 10 ? "limpeza" : id === 11 ? "bloqueado" : "disponivel", ...(id === 11 ? { blockReason: "Manutenção de exemplo", blockEndDate: new Date(day(2)), blockResponsible: "Equipe de demonstração" } : {}) } })

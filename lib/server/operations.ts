@@ -7,7 +7,7 @@ import { approvalResourceHash, approvalReview } from "./approval-scope"
 import { effectivePermissions } from "@/lib/permissions"
 import { demand, demandOperation, DELEGATABLE } from "./permissions"
 import { financeOperation, recordLedger, paymentFields } from "./business-finance"
-import { normalizePayment } from "../utils/business-values"
+import { normalizePayment, businessMonthBounds } from "../utils/business-values"
 import { unitFactor } from "../utils/units"
 import { randomUUID } from "node:crypto"
 import { Prisma } from "@prisma/client"
@@ -323,8 +323,8 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     }
     const total = items.reduce((sum, item) => sum.plus(item.subtotal), decimal(0))
     if (input.paymentType === "desconto") {
-      const now = new Date()
-      const consumed = await tx.employeeConsumption.aggregate({ where: { employeeId: employee.id, paymentType: "desconto", timestamp: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) } }, _sum: { total: true } })
+      const { start, end } = businessMonthBounds()
+      const consumed = await tx.employeeConsumption.aggregate({ where: { employeeId: employee.id, paymentType: "desconto", timestamp: { gte: start, lt: end } }, _sum: { total: true } })
       if (total.plus(consumed._sum.total ?? 0).gt(employee.consumptionLimit)) throw new HttpError(409, "Limite mensal excedido")
     }
     if (input.paymentType === "beneficio") {

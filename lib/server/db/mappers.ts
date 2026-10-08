@@ -421,7 +421,7 @@ const accountReceivableMapper: CollectionMapper<AccountReceivable> = {
 const bankTransferMapper: CollectionMapper<BankTransfer> = {
   prismaModel: "bankTransfer",
   orderBy: { date: "desc" },
-  toApp: row => ({ ...row, date: dateOnly(row.date), value: numberValue(row.value) } as BankTransfer),
+  toApp: row => ({ ...row, date: dateString(row.date), value: numberValue(row.value) } as BankTransfer),
   toCreate: item => stripUndefined({ ...item, date: dateValue(item.date) }),
   toUpdate: item => bankTransferMapper.toCreate(item as BankTransfer),
 }
@@ -463,7 +463,7 @@ const posSaleMapper: CollectionMapper<POSSale> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     ...row,
-    date: dateOnly(row.date),
+    date: dateString(row.date),
     subtotal: numberValue(row.subtotal),
     discount: numberValue(row.discount),
     total: numberValue(row.total),

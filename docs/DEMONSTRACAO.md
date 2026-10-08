@@ -10,7 +10,7 @@ Na pasta do projeto, com o Docker Desktop funcionando:
 .\scripts\start-demo.ps1
 ```
 
-No primeiro início, a imagem é construída e as contas exclusivas são geradas. Abra `http://localhost:3001`. As credenciais estão em `.local/demonstracao-acesso.txt`, protegido para o usuário do Windows e ignorado pelo Git. A conta `demo` permite explorar todos os módulos; `recepcao`, `restaurante` e `estoque` demonstram acessos por setor. As contas usam a senha de demonstração indicada nesse arquivo, sem relação com credenciais da instalação principal.
+No primeiro início, a imagem é construída e as contas exclusivas são geradas. Abra `http://localhost:3001`. As credenciais estão em `.local/demonstracao-acesso.txt`, protegido para o usuário do Windows e ignorado pelo Git. A conta `teste` permite explorar todos os módulos; `recepcao`, `restaurante` e `estoque` demonstram acessos por setor. Por padrão, o usuário administrador é `teste` e a senha é `teste`. As contas usam a senha de demonstração indicada nesse arquivo, sem relação com credenciais da instalação principal.
 
 Há quartos disponíveis, ocupados, em limpeza e manutenção; reservas e hóspedes fictícios; vendas e receitas financeiras; mesas e uma comanda aberta; produtos, estoque e alertas; receita de produção; despesas e contas a receber. Datas são ajustadas ao dia de início. As operações usam as regras e permissões normais do sistema. O aviso de demonstração aparece no topo da página.
 

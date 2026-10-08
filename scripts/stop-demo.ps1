@@ -1,3 +1,8 @@
+﻿function Invoke-DemoDocker {
+  param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments)
+  if(Get-Command Invoke-Docker -ErrorAction SilentlyContinue) { Invoke-Docker $Arguments; $global:LASTEXITCODE=0 }
+  else { & docker @Arguments }
+}
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $projectRoot
@@ -12,7 +17,7 @@ if (!(Test-Path -LiteralPath $environmentFile)) {
   $environmentFile = $temporary
 }
 try {
-  & docker compose --project-name erp-pousada-demo --env-file $environmentFile -f compose.demo.yml down --volumes --remove-orphans
+  Invoke-DemoDocker compose --project-name erp-pousada-demo --env-file $environmentFile -f compose.demo.yml down --volumes --remove-orphans
   if ($LASTEXITCODE -ne 0) { throw 'Falha ao encerrar a demonstração. Verifique se o Docker está funcionando.' }
   Write-Host 'Demonstração encerrada. As alterações foram descartadas; a instalação principal foi preservada.'
 } finally { if ($temporary) { Remove-Item -LiteralPath $temporary } }

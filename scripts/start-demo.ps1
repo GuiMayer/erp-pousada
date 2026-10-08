@@ -1,4 +1,9 @@
-param([string]$AppUrl = '', [switch]$NoBuild)
+﻿param([string]$AppUrl = '', [switch]$NoBuild)
+function Invoke-DemoDocker {
+  param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments)
+  if(Get-Command Invoke-Docker -ErrorAction SilentlyContinue) { Invoke-Docker $Arguments; $global:LASTEXITCODE=0 }
+  else { & docker @Arguments }
+}
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $projectRoot
@@ -24,7 +29,8 @@ if ($AppUrl) {
 New-Item -ItemType Directory -Path $localDirectory -Force | Out-Null
 if (!(Test-Path -LiteralPath $environmentFile)) {
   $configuration = @('DEMO_APP_URL=http://localhost:3001')
-  foreach ($key in @('DEMO_DB_ADMIN_PASSWORD','DEMO_DB_MIGRATOR_PASSWORD','DEMO_DB_APP_PASSWORD','DEMO_DB_BACKUP_PASSWORD','DEMO_DB_WORKER_PASSWORD','DEMO_LOGIN_PASSWORD')) { $configuration += "$key=$(New-DemoSecret)" }
+  foreach ($key in @('DEMO_DB_ADMIN_PASSWORD','DEMO_DB_MIGRATOR_PASSWORD','DEMO_DB_APP_PASSWORD','DEMO_DB_BACKUP_PASSWORD','DEMO_DB_WORKER_PASSWORD')) { $configuration += "$key=$(New-DemoSecret)" }
+  $configuration += "DEMO_LOGIN_PASSWORD=teste"
   [IO.File]::WriteAllLines($environmentFile, $configuration)
 }
 $configuration = Get-Content -LiteralPath $environmentFile
@@ -35,26 +41,27 @@ if ($AppUrl) {
 Protect-DemoFile $environmentFile
 $demoUrl = ($configuration | Where-Object { $_.StartsWith('DEMO_APP_URL=') }).Substring(13)
 $loginPassword = ($configuration | Where-Object { $_.StartsWith('DEMO_LOGIN_PASSWORD=') }).Substring(20)
-[IO.File]::WriteAllLines($credentialFile, @("Endereço: $demoUrl", 'Usuário administrador: demo', 'Usuários por setor: recepcao, restaurante, estoque', "Senha das contas de demonstração: $loginPassword", 'Credenciais exclusivas para dados fictícios; não são utilizadas pela instalação principal.'))
+[IO.File]::WriteAllLines($credentialFile, @("Endereço: $demoUrl", 'Usuário administrador: teste', 'Usuários por setor: recepcao, restaurante, estoque', "Senha das contas de demonstração: $loginPassword", 'Credenciais exclusivas para dados fictícios; não são utilizadas pela instalação principal.'))
 Protect-DemoFile $credentialFile
-& docker info --format '{{.ServerVersion}}' | Out-Null
+Invoke-DemoDocker info --format '{{.ServerVersion}}' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Inicie o Docker Desktop.' }
 $composeArguments = @('compose','--project-name','erp-pousada-demo','--env-file',$environmentFile,'-f','compose.demo.yml')
 Write-Host 'Recriando apenas a demonstração. Alterações da sessão anterior serão descartadas.'
-& docker @composeArguments down --volumes --remove-orphans
+Invoke-DemoDocker @composeArguments down --volumes --remove-orphans
 if ($LASTEXITCODE -ne 0) { throw 'Não foi possível encerrar a demonstração anterior.' }
 try {
   if (!$NoBuild) {
-    & docker @composeArguments build app-demo
+    Invoke-DemoDocker @composeArguments build app-demo
     if ($LASTEXITCODE -ne 0) { throw 'Falha ao construir a imagem de demonstração.' }
   }
-  & docker @composeArguments up -d
+  Invoke-DemoDocker @composeArguments up -d
   if ($LASTEXITCODE -ne 0) { throw 'Falha ao iniciar a demonstração.' }
+  if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Exemplos restaurados. Aguardando o aplicativo de demonstração responder…'}
   $deadline = [DateTime]::UtcNow.AddMinutes(3)
   do {
-    $containerId = & docker @composeArguments ps -q app-demo
+    $containerId = Invoke-DemoDocker @composeArguments ps -q app-demo
     if (!$containerId) { throw 'Servidor de demonstração não foi criado.' }
-    $health = & docker inspect $containerId --format '{{.State.Health.Status}}'
+    $health = Invoke-DemoDocker inspect $containerId --format '{{.State.Health.Status}}'
     if ($health -eq 'healthy') { break }
     if ($health -eq 'unhealthy') { throw 'Servidor de demonstração não está saudável.' }
     Start-Sleep -Seconds 2
@@ -69,11 +76,11 @@ try {
   $startupError = $_
   try {
     $diagnosticFile = Join-Path $localDirectory 'demonstracao-ultimo-erro.log'
-    & docker @composeArguments logs --no-color --tail 40 migrate-demo seed-demo permissions-demo app-demo 2>&1 | Set-Content -LiteralPath $diagnosticFile
+    Invoke-DemoDocker @composeArguments logs --no-color --tail 40 migrate-demo seed-demo permissions-demo app-demo 2>&1 | Set-Content -LiteralPath $diagnosticFile
     Protect-DemoFile $diagnosticFile
     Write-Host "Diagnóstico da inicialização: $diagnosticFile"
   } finally {
-    & docker @composeArguments down --volumes --remove-orphans | Out-Null
+    Invoke-DemoDocker @composeArguments down --volumes --remove-orphans | Out-Null
   }
   throw $startupError
 }

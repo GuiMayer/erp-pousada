@@ -132,11 +132,16 @@ services:
       BACKUP_INTERVAL_MINUTES: ${BACKUP_INTERVAL_MINUTES:-30}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
       BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      BACKUP_SECONDARY_ENABLED: ${BACKUP_SECONDARY_ENABLED:-false}
+      BACKUP_SECONDARY_DIR: /backup-secondary
       RCLONE_CONFIG: /backup-config/rclone.conf
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
     volumes:
       - ${BACKUP_HOST_DIR:-./backups}:/backups
       - ${BACKUP_CONFIG_DIR:-./.local/backup-config}:/backup-config:ro
+      - type: bind
+        source: ${BACKUP_SECONDARY_HOST_DIR:-./.local/backup-secondary}
+        target: /backup-secondary
       - ./scripts:/scripts:ro
     command: ["sh", "/scripts/backup-worker.sh"]
     healthcheck:

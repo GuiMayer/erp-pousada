@@ -6,6 +6,14 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-panel:
+    name: Painel Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar prazo e cancelamento dos comandos
+        shell: powershell
+        run: ./scripts/test-server-panel.ps1
   validation:
     name: Validação
     runs-on: ubuntu-latest
@@ -78,6 +86,7 @@ jobs:
           DB_BACKUP_PASSWORD: ci-backup-only
           DB_WORKER_PASSWORD: ci-worker-only
           APP_URL: https://localhost
+          BACKUP_SECONDARY_ENABLED: "true"
         run: |
           docker rm -f erp-smoke
           docker compose -f docker-compose.yml config --quiet
@@ -90,4 +99,5 @@ jobs:
           if [ "$ready" != 1 ]; then docker compose logs; exit 1; fi
           docker compose exec -T backup-worker sh /scripts/db-backup.sh
           docker compose exec -T backup-worker sh -c 'test -f /backups/last-success && test ! -f /backups/last-error'
+          docker compose exec -T backup-worker sh -c 'test -f /backups/last-secondary-success && for file in /backups/*.dump; do cmp "$file" "/backup-secondary/$(basename "$file")"; done'
           docker compose down
