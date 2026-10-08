@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+umask 077
 
 if [ "$#" -ne 1 ]; then
   echo "Usage: db-restore.sh /backups/file.dump" >&2

@@ -163,12 +163,13 @@ No modo `database`, o navegador acessa `/api/data`, e as coleções mapeadas sã
 O projeto inclui aplicação, PostgreSQL e um serviço de backup automático:
 
 ```bash
-docker compose up -d --build
+powershell -NoProfile -File scripts/setup-docker.ps1
+powershell -NoProfile -File scripts/start-docker.ps1
 ```
 
-A aplicação fica disponível em **[http://localhost:3000](http://localhost:3000)**. Libere a porta 3000 caso outra instância local já esteja em execução. As migrations são aplicadas na inicialização do container da aplicação.
+A instalação começa vazia e usa **https://localhost**, com certificado interno que deve ser configurado como confiável. Aplicação, migrações e backups usam credenciais distintas. As migrations são aplicadas por um serviço separado antes da aplicação.
 
-No Windows, `pousada-menu.bat` reúne instalação, acesso na rede local, configuração de backups e restauração. O procedimento completo está no [guia de instalação com Docker](docs/CLIENTE_INSTALACAO_DOCKER.md).
+No Windows, siga o [guia de instalação no computador da pousada](docs/INSTALACAO_POUSADA.md), incluindo HTTPS na rede, credencial inicial, backup externo e recuperação. O menu `pousada-menu.bat` reúne preparação, inicialização, verificação e backup.
 
 ## Tecnologias e organização
 
