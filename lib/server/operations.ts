@@ -1,6 +1,6 @@
 import { approvalResourceHash, approvalReview } from "./approval-scope"
 import { effectivePermissions } from "@/lib/permissions"
-import { demand, demandOperation } from "./permissions"
+import { demand, demandOperation, DELEGATABLE } from "./permissions"
 import { financeOperation, recordLedger, paymentFields } from "./business-finance"
 import { normalizePayment } from "../utils/business-values"
 import { unitFactor } from "../utils/units"
@@ -371,16 +371,25 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       return await prisma.$transaction(async tx => {
-        const receipt = await tx.operationReceipt.findUnique({ where: { id: receiptId } })
-        if (receipt) {
-          if (receipt.requestHash !== fingerprint) throw new HttpError(409, "Identificador reutilizado com dados diferentes")
-          return receipt.result
-        }
         if (actor.permissions) {
           const current = await tx.user.findUnique({ where: { id: actor.id } })
           const session = await tx.authSession.findUnique({ where: { id: actor.sessionId } })
           if (!current?.active || !session || session.expiresAt <= new Date()) throw new HttpError(401, "Sessão expirada")
           actor = { ...actor, permissions: effectivePermissions(current), permissionOverrides: current.permissionOverrides as Actor["permissionOverrides"] }
+        }
+        const receipt = await tx.operationReceipt.findUnique({ where: { id: receiptId } })
+        if (receipt) {
+          if (receipt.requestHash !== fingerprint) throw new HttpError(409, "Identificador reutilizado com dados diferentes")
+          // A completed approval permits only retrieving this receipt; explicit
+          // denials and current access to the underlying action still apply.
+          demandOperation({ ...actor, grantedPermissions: DELEGATABLE }, kind)
+          if (kind === "admin-create" || kind === "admin-update") {
+            const input = z.object({ key: id }).passthrough().parse(payload)
+            demand(actor, `${input.key}.${kind === "admin-create" ? "create" : "edit"}`)
+            demand(actor, `${input.key}.read`)
+            if (input.key === "users") demand(actor, "users.manage")
+          }
+          return receipt.result
         }
         const grants = await tx.operationApproval.findMany({ where: { sessionId: actor.sessionId, requesterId: actor.id, requestId, requestHash: fingerprint, usedAt: null, expiresAt: { gt: new Date() } } })
         const valid = []
