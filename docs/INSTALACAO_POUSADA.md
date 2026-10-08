@@ -25,6 +25,36 @@ Para outros computadores, defina um nome resolvido pelo DNS da rede ou pelo arqu
 
 Use `start-docker.ps1` novamente após mudar o endereço. Sessões usam cookie seguro; não troque a URL por HTTP para contornar problemas com certificados. Domínio público continua sendo suportado por `compose.https.yml` em vez do perfil LAN.
 
+## Alternativa opcional: acesso pelo Tailscale
+
+O responsável pela instalação pode usar Tailscale para facilitar o acesso remoto. É uma escolha de infraestrutura externa, sem integração oficial ou dependência do ERP. A instalação padrão continua sendo a descrita acima; esta alternativa pode substituí-la para o acesso da equipe.
+
+Depois de preparar o Docker e criar o administrador pelos passos anteriores:
+
+1. Instale Tailscale no Windows da pousada e nos dispositivos da equipe, conectando-os à mesma rede Tailscale (tailnet). Habilite MagicDNS e certificados HTTPS conforme as instruções do serviço.
+2. No computador da pousada, configure o encaminhamento para a porta local do app:
+
+   ```powershell
+   tailscale serve --bg --https=443 http://127.0.0.1:3000
+   tailscale serve status
+   ```
+
+   Copie o endereço HTTPS informado, por exemplo `https://pousada.nome-da-rede.ts.net`. O Serve oferece acesso dentro da tailnet, sujeito às regras de acesso configuradas. Use Serve para este cenário; Funnel publica o serviço na internet. [Documentação do Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve).
+
+3. Em `.env.docker.local`, substitua somente `APP_URL` pelo endereço HTTPS exato informado. Mantenha as senhas e as demais opções. Recrie o app para aplicar a mudança:
+
+   ```powershell
+   docker compose --env-file .env.docker.local -f docker-compose.yml up -d app
+   ```
+
+   O Docker mantém o backend em `127.0.0.1:3000` e o banco sem porta publicada. Neste caminho, o Tailscale entrega o HTTPS ao navegador; não é necessário importar a raiz do Caddy para acessar o endereço `.ts.net`.
+
+4. Abra esse mesmo endereço HTTPS em todos os dispositivos, inclusive no servidor, e confira login e uma operação de cadastro. O app valida a origem contra `APP_URL`; usar `https://localhost`, um IP ou outro nome após essa alteração pode resultar em “Origem não autorizada”. O login e as permissões do ERP continuam obrigatórios.
+
+O proxy Caddy pode permanecer disponível localmente, mas não participa desse encaminhamento. O menu e `start-docker.ps1` continuam iniciando a configuração padrão; preserve o `APP_URL` escolhido nas atualizações. Restrinja o acesso na tailnet à equipe e confira novamente o acesso após reiniciar o Windows, o Docker e o Tailscale. `--bg` mantém o Serve em segundo plano; consulte a [referência de comandos](https://tailscale.com/docs/reference/tailscale-cli/serve) para gerenciar esse serviço.
+
+Esta opção não configura backup externo nem monitoramento. A contratação, as condições do plano e a administração do Tailscale ficam a cargo do responsável pela instalação.
+
 ## Contas do banco e atualizações
 
 - `pousada_admin`: administração da instalação, sem uso pela aplicação.
