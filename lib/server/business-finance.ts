@@ -1,3 +1,4 @@
+import { recordAudit } from "./audit"
 import { can, demand } from "./permissions"
 import { randomUUID } from "node:crypto"
 import { Prisma } from "@prisma/client"
@@ -15,9 +16,7 @@ export const paymentSchema = z.enum(["dinheiro", "pix", "debito", "credito", "Di
 export const paymentFields = { paymentMethod: paymentSchema, accountId: id.optional() }
 const D = (value: Prisma.Decimal.Value) => new Prisma.Decimal(value)
 
-async function audit(tx: Tx, actor: Actor, action: string, reference: string) {
-  await tx.auditEntry.create({ data: { id: randomUUID(), user: actor.username, action, reference } })
-}
+const audit = recordAudit
 
 export async function recordLedger(tx: Tx, actor: Actor, reference: string, value: Prisma.Decimal, type = "receita", method?: string, requestedAccount?: string) {
   const paymentMethod = method ? normalizePayment(method) : undefined
@@ -53,7 +52,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     if (await tx.cashClose.count({ where: { status: "aberto" } })) throw new HttpError(409, "Já existe um caixa aberto")
     const now = new Date()
     const session = await tx.cashClose.create({ data: { id: randomUUID(), status: "aberto", date: now, openedAt: now, operator: actor.username, responsibleUserId: actor.id, openingValue, physicalValue: 0, expectedValue: openingValue, divergence: 0 } })
-    await audit(tx, actor, "Caixa aberto", session.id)
+    await audit(tx, actor, "Caixa aberto", session.id, { entityType: "cashCloses", entityId: session.id, operation: "create" })
     return collectionMapper("cashCloses").toApp(session)
   }
   if (kind === "cash-close") {
@@ -64,7 +63,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     const entries = await tx.transaction.findMany({ where: { cashSessionId: session.id } })
     const expectedValue = entries.reduce((sum, entry) => entry.type === "receita" ? sum.plus(entry.value) : sum.minus(entry.value), session.openingValue)
     const closed = await tx.cashClose.update({ where: { id: session.id }, data: { status: "fechado", date: new Date(), closedAt: new Date(), physicalValue, expectedValue, divergence: D(physicalValue).minus(expectedValue) } })
-    await audit(tx, actor, "Caixa fechado", session.id)
+    await audit(tx, actor, "Caixa fechado", session.id, { entityType: "cashCloses", entityId: session.id, operation: "update" })
     return collectionMapper("cashCloses").toApp(closed)
   }
   if (kind === "pay-reservation") {
@@ -78,7 +77,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
       await recordLedger(tx, actor, `Hospedagem ${reservation.id}`, D(input.value), "credito_utilizado")
     } else await recordLedger(tx, actor, `Hospedagem ${reservation.id}`, D(input.value), "receita", input.paymentMethod, input.accountId)
     const updated = await tx.reservation.update({ where: { id: reservation.id }, data: { paidValue: { increment: input.value } } })
-    await audit(tx, actor, "Hospedagem recebida", reservation.id)
+    await audit(tx, actor, "Hospedagem recebida", reservation.id, { entityType: "reservations", entityId: reservation.id, operation: "update" })
     return collectionMapper("reservations").toApp(updated)
   }
   if (kind === "cancel-reservation") {
@@ -109,7 +108,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     }
     await tx.reservation.update({ where: { id: reservation.id }, data: { status: input.status, cancelTreatment: input.treatment, cancellationFee: input.fee, paidValue: 0 } })
     if (input.status === "noshow") await tx.guestProfile.update({ where: { cpf: reservation.cpf }, data: { noShows: { increment: 1 } } })
-    await audit(tx, actor, `Reserva ${input.status}: ${input.treatment}, multa ${input.fee}`, reservation.id)
+    await audit(tx, actor, `Reserva ${input.status}: ${input.treatment}, multa ${input.fee}`, reservation.id, { entityType: "reservations", entityId: reservation.id, operation: "update" })
     return { success: true }
   }
   if (kind === "receive-account") {
@@ -129,7 +128,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
       await tx.accountReceivable.update({ where: { id: account.id }, data: { status: "pago", paymentDate: new Date() } })
     }
     await recordLedger(tx, actor, `Recebimento ${reference}`, value, "receita", input.paymentMethod, input.accountId)
-    await audit(tx, actor, "Título recebido", reference)
+    await audit(tx, actor, "Título recebido", reference, { entityType: "accountsReceivable", entityId: account.id, operation: "update" })
     return { success: true }
   }
   if (kind === "bank-transfer") {
@@ -140,7 +139,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     await recordLedger(tx, actor, `Transferência ${transferId}`, D(input.value), "transferencia_saida", "pix", input.fromAccountId)
     await recordLedger(tx, actor, `Transferência ${transferId}`, D(input.value), "transferencia_entrada", "pix", input.toAccountId)
     const transfer = await tx.bankTransfer.create({ data: { ...input, id: transferId, date: new Date(), responsible: actor.username } })
-    await audit(tx, actor, "Transferência bancária", transferId)
+    await audit(tx, actor, "Transferência bancária", transferId, { entityType: "bankTransfers", entityId: transferId, operation: "create" })
     return collectionMapper("bankTransfers").toApp(transfer)
   }
   return undefined

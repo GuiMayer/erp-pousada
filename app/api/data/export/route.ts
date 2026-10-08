@@ -8,5 +8,5 @@ export async function GET(request: NextRequest) {
     demand(await authorize(request), "data.backup")
     const result = await exportAllCollections()
     return NextResponse.json(JSON.parse(result), { headers: { "Cache-Control": "no-store" } })
-  })
+  }, request)
 }

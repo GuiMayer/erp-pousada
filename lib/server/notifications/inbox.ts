@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"
+import { recordAudit } from "../audit"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db/client"
 import { ALL_PERMISSIONS, effectivePermissions } from "@/lib/permissions"
@@ -51,7 +51,7 @@ export async function changeInbox(actor: Actor, ids: string[], action: "read" | 
       if (!effectivePermissions(user).includes("approvals.issue") || targets.some(row => row.event.conditionKey || !["cash", "production"].includes(row.event.type))) throw new HttpError(403, "Somente um supervisor pode concluir a conferência deste alerta")
       for (const row of targets) {
         await tx.notificationEvent.update({ where: { id: row.event.id }, data: { resolvedAt: new Date() } })
-        await tx.auditEntry.create({ data: { id: randomUUID(), user: actor.username, action: "Alerta conferido e resolvido", reference: row.event.id } })
+        await recordAudit(tx, actor, "Alerta conferido e resolvido", row.event.id, { entityType: "notificationEvents", entityId: row.event.id, operation: "update" })
       }
       return
     }

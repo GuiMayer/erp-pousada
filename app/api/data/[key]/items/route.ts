@@ -7,5 +7,5 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ke
     const { key } = await context.params
     const actor = await authorizeCollection(request, key)
     return NextResponse.json(await createCollectionItem(key, await readJson(request), actor), { status: 201 })
-  })
+  }, request)
 }

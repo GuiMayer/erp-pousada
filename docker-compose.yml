@@ -1,6 +1,11 @@
 name: erp-pousada
 services:
   app:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     image: erp-pousada:${APP_VERSION:-local}
     build:
       context: .
@@ -24,6 +29,11 @@ services:
       start_period: 60s
       retries: 3
   postgres:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     image: postgres:16.15-alpine
     restart: unless-stopped
     environment:
@@ -43,6 +53,11 @@ services:
       timeout: 5s
       retries: 5
   migrate:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     image: erp-pousada:${APP_VERSION:-local}
     build:
       context: .
@@ -55,6 +70,11 @@ services:
       DATABASE_URL: postgresql://pousada_migrator:${DB_MIGRATOR_PASSWORD:?Defina DB_MIGRATOR_PASSWORD}@postgres:5432/pousada
     command: ["pnpm", "exec", "prisma", "migrate", "deploy"]
   database-permissions:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     image: postgres:16.15-alpine
     restart: "no"
     depends_on:
@@ -68,6 +88,11 @@ services:
       - ./scripts/db-configure-permissions.sh:/scripts/db-configure-permissions.sh:ro
     command: ["sh", "/scripts/db-configure-permissions.sh"]
   notification-worker:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     image: erp-pousada:${APP_VERSION:-local}
     restart: unless-stopped
     depends_on:
@@ -84,6 +109,11 @@ services:
       timeout: 5s
       retries: 3
   backup-worker:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     build:
       context: .
       dockerfile: Dockerfile.backup
@@ -115,6 +145,11 @@ services:
       start_period: 60s
       retries: 3
   restore:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     image: postgres:16.15-alpine
     profiles: [maintenance]
     environment:

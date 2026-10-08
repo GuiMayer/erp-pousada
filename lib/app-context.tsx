@@ -267,7 +267,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (can("guests.read")) ? dataStore.guests.getAll() : Promise.resolve([]),
         (can("expenses.read")) ? dataStore.expenses.getAll() : Promise.resolve([]),
         (can("transactions.read")) ? dataStore.transactions.getAll() : Promise.resolve([]),
-        (can("auditLog.read")) ? dataStore.auditLog.getAll() : Promise.resolve([]),
+        (can("auditLog.read") && getDataConfig().adapter !== "database") ? dataStore.auditLog.getAll() : Promise.resolve([]),
         (can("categories.read")) ? dataStore.categories.getAll() : Promise.resolve([]),
         (can("cashCloses.read")) ? dataStore.cashCloses.getAll() : Promise.resolve([]),
         (can("consumptions.read")) ? dataStore.consumptions.getAll() : Promise.resolve([]),

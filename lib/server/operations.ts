@@ -1,3 +1,5 @@
+import { setLogOperation } from "./logging"
+import { recordAudit } from "./audit"
 import { emitOperation } from "./notifications/service"
 import { evaluateStock, evaluateTimed } from "./notifications/rules"
 import { approvalResourceHash, approvalReview } from "./approval-scope"
@@ -30,9 +32,7 @@ const decimal = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n)
 const round = (n: Prisma.Decimal) => n.toDecimalPlaces(2)
 type Tx = Prisma.TransactionClient
 
-async function audit(tx: Tx, actor: Actor, action: string, reference: string) {
-  await tx.auditEntry.create({ data: { id: randomUUID(), user: actor.username, action, reference } })
-}
+const audit = recordAudit
 async function checkDiscount(tx: Tx, actor: Actor, value: number) {
   const settings = await tx.systemSettings.findFirst()
   if (value - (settings?.discountCeiling ?? 0) > 0.000001) demand(actor, "discount.override")
@@ -54,6 +54,7 @@ async function assertRoomPeriod(tx: Tx, room: { id: number; status: string; bloc
 }
 
 export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload: unknown): Promise<unknown> {
+  setLogOperation(kind)
   demandOperation(actor, kind)
   const financeResult = await financeOperation(tx, actor, kind, payload)
   if (financeResult !== undefined) return financeResult
@@ -83,7 +84,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     for (const item of items) await moveStock(tx, item.productId, item.quantity, actor, `Venda ${sale.id}`)
     const result = await tx.pOSSale.create({ data: { id: sale.id, date: new Date(), subtotal, discount, total, paymentMethod: normalizePayment(sale.paymentMethod), amountPaid: sale.amountPaid, change: sale.paymentMethod.toLowerCase() === "dinheiro" ? decimal(sale.amountPaid).minus(total) : 0, customer: sale.customer, operator: actor.username, status: "concluida", items: { create: items } }, include: { items: { include: { product: true } } } })
     await ledger(tx, actor, `Venda ${sale.id}`, total, "receita", sale.paymentMethod, sale.accountId)
-    await audit(tx, actor, "Venda finalizada", sale.id)
+    await audit(tx, actor, "Venda finalizada", sale.id, { entityType: "posSales", entityId: sale.id, operation: "create" })
     return collectionMapper("posSales").toApp(result)
   }
   if (kind === "cancel-sale") {
@@ -95,7 +96,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     await tx.pOSSale.update({ where: { id: sale.id }, data: { status: "cancelada", cancelReason: input.reason } })
     const originalPayment = await tx.transaction.findFirstOrThrow({ where: { refId: `Venda ${sale.id}`, type: "receita" } })
     await ledger(tx, actor, `Estorno ${sale.id}`, sale.total, "estorno", sale.paymentMethod, originalPayment.accountId ?? undefined)
-    await audit(tx, actor, "Venda estornada", `${sale.id}: ${input.reason}`)
+    await audit(tx, actor, "Venda estornada", `${sale.id}: ${input.reason}`, { entityType: "posSales", entityId: sale.id, operation: "update", metadata: { reason: input.reason } })
     return { success: true }
   }
   if (kind === "reserve" || kind === "edit-reservation") {
@@ -123,7 +124,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const { recordVersion: _version, ...fields } = input
     const data = { ...fields, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number, originalValue }
     const result = kind === "reserve" ? await tx.reservation.create({ data }) : await tx.reservation.update({ where: { id: input.id }, data: { ...data, recordVersion: { increment: 1 } } })
-    await audit(tx, actor, kind === "reserve" ? "Reserva criada" : "Reserva alterada", result.id)
+    await audit(tx, actor, kind === "reserve" ? "Reserva criada" : "Reserva alterada", result.id, { entityType: "reservations", entityId: result.id, operation: kind === "reserve" ? "create" : "update" })
     return collectionMapper("reservations").toApp(result)
   }
   if (kind === "check-in") {
@@ -140,7 +141,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     await tx.guestProfile.upsert({ where: { cpf: input.cpf }, create: { cpf: input.cpf, name: input.guestName, totalStays: 1 }, update: { name: input.guestName, totalStays: { increment: 1 } } })
     await tx.room.update({ where: { id: room.id }, data: { status: "ocupado", guest: input.guestName, guestCpf: input.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
     const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin" } }) : await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, guestName: input.guestName, cpf: input.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut), status: "checkin", totalValue: input.totalValue, originalValue: input.totalValue } })
-    await audit(tx, actor, "Check-in realizado", `${room.number}: ${reservation.id}`)
+    await audit(tx, actor, "Check-in realizado", `${room.number}: ${reservation.id}`, { entityType: "reservations", entityId: reservation.id, operation: "update" })
     return collectionMapper("reservations").toApp(reservation)
   }
   if (kind === "check-out" || kind === "release-room") {
@@ -159,7 +160,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.room.update({ where: { id: roomId }, data: { status: "limpeza", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
       await tx.reservation.updateMany({ where: { roomId, status: "checkin" }, data: { status: "checkout" } })
     }
-    await audit(tx, actor, kind === "release-room" ? "Quarto liberado" : "Check-out realizado", room.number)
+    await audit(tx, actor, kind === "release-room" ? "Quarto liberado" : "Check-out realizado", room.number, { entityType: "rooms", entityId: String(room.id), operation: "update" })
     return { success: true }
   }
   if (kind === "add-consumption") {
@@ -172,7 +173,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number}`)
     const consumption = await tx.roomConsumption.upsert({ where: { roomId }, create: { id: randomUUID(), roomId }, update: {} })
     await tx.roomConsumptionItem.create({ data: { ...item, consumptionId: consumption.id } })
-    await audit(tx, actor, "Consumo lançado", `${room.number}: ${item.label}`)
+    await audit(tx, actor, "Consumo lançado", `${room.number}: ${item.label}`, { entityType: "consumptions", entityId: item.id, operation: "create" })
     return { success: true }
   }
   if (kind === "remove-consumption") {
@@ -182,7 +183,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (item.consumption.roomId !== input.roomId) throw new HttpError(404, "Item não encontrado")
     // Removal is a billing correction; consumed goods are not returned to inventory.
     await tx.roomConsumptionItem.delete({ where: { id: item.id } })
-    await audit(tx, actor, "Consumo removido", `${input.roomId}: ${item.label}`)
+    await audit(tx, actor, "Consumo removido", `${input.roomId}: ${item.label}`, { entityType: "consumptions", entityId: item.id, operation: "delete" })
     return { success: true }
   }
   if (kind === "pay-consumption") {
@@ -192,7 +193,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (total.lte(0)) throw new HttpError(409, "Consumo já quitado")
     await ledger(tx, actor, `Consumo quarto ${roomId}`, total, "receita", paymentMethod, accountId)
     await tx.roomConsumption.delete({ where: { id: consumption.id } })
-    await audit(tx, actor, "Consumo quitado", String(roomId))
+    await audit(tx, actor, "Consumo quitado", String(roomId), { entityType: "consumptions", entityId: String(roomId), operation: "action" })
     return { success: true }
   }
   if (kind === "open-table") {
@@ -201,7 +202,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (table.status === "ocupada") throw new HttpError(409, "Mesa ocupada")
     const order = await tx.restaurantOrder.create({ data: { id: orderId, tableId, tableNumber: table.number, subtotal: 0, discount: 0, total: 0, status: "aberta", openedAt: new Date(), operator: actor.username }, include: { items: true } })
     await tx.restaurantTable.update({ where: { id: tableId }, data: { status: "ocupada", currentOrderId: orderId, openedAt: new Date() } })
-    await audit(tx, actor, "Mesa aberta", table.number)
+    await audit(tx, actor, "Mesa aberta", table.number, { entityType: "restaurantOrders", entityId: order.id, operation: "create" })
     return collectionMapper("restaurantOrders").toApp(order)
   }
   if (kind === "edit-order") {
@@ -223,6 +224,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const discount = round(subtotal.mul(input.discountPercent).div(100))
     await tx.restaurantOrderItem.deleteMany({ where: { orderId: order.id } })
     await tx.restaurantOrder.update({ where: { id: order.id }, data: { version: { increment: 1 }, items: { create: items }, subtotal, discount, total: subtotal.minus(discount) } })
+    await audit(tx, actor, "Comanda editada", order.id, { entityType: "restaurantOrders", entityId: order.id, operation: "update", metadata: { before: { items: order.items, subtotal: Number(order.subtotal), discount: Number(order.discount), total: Number(order.total), version: order.version }, after: { items, subtotal: Number(subtotal), discount: Number(discount), total: Number(subtotal.minus(discount)), version: order.version + 1 } } })
     return { success: true }
   }
   if (kind === "close-order" || kind === "cancel-order") {
@@ -243,7 +245,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.restaurantOrder.update({ where: { id: order.id }, data: { status: "cancelada", cancelReason: input.reason, closedAt: new Date() } })
     }
     await tx.restaurantTable.update({ where: { id: order.tableId }, data: { status: "livre", currentOrderId: null, openedAt: null } })
-    await audit(tx, actor, kind === "close-order" ? "Comanda fechada" : "Comanda cancelada", order.id)
+    await audit(tx, actor, kind === "close-order" ? "Comanda fechada" : "Comanda cancelada", order.id, { entityType: "restaurantOrders", entityId: order.id, operation: "update" })
     return { success: true }
   }
   if (kind === "table-status") {
@@ -251,6 +253,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const table = await tx.restaurantTable.findUniqueOrThrow({ where: { id: input.tableId } })
     if (table.status === "ocupada") throw new HttpError(409, "Encerre a comanda primeiro")
     await tx.restaurantTable.update({ where: { id: input.tableId }, data: { status: input.status } })
+    await audit(tx, actor, "Estado da mesa alterado", table.number, { entityType: "restaurantTables", entityId: String(table.id), operation: "update", metadata: { before: { status: table.status }, after: { status: input.status } } })
     return { success: true }
   }
   if (kind === "stock-movement") {
@@ -261,7 +264,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const averageCost = input.type === "entrada" && input.cost !== undefined && next.gt(0) ? stock.currentStock.mul(stock.averageCost).plus(decimal(input.quantity).mul(input.cost)).div(next) : stock.averageCost
     await tx.stockItem.update({ where: { id: stock.id }, data: { currentStock: next, averageCost, ...(input.type === "entrada" ? { lastPurchaseDate: new Date(), lastPurchasePrice: input.cost ?? stock.lastPurchasePrice } : {}) } })
     const movement = await tx.stockMovement.create({ data: { ...input, id: randomUUID(), productName: stock.productName, unit: stock.unit, timestamp: new Date(), expirationDate: input.expirationDate ? new Date(input.expirationDate) : undefined, registeredBy: actor.username } })
-    await audit(tx, actor, "Movimento de estoque", movement.id)
+    await audit(tx, actor, "Movimento de estoque", movement.id, { entityType: "stockMovements", entityId: movement.id, operation: "create" })
     return collectionMapper("stockMovements").toApp(movement)
   }
   if (kind === "reservation-discount") {
@@ -274,7 +277,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const original = reservation.originalValue ?? reservation.totalValue
     await checkDiscount(tx, actor, Number(original.minus(reservation.totalValue.minus(amount)).div(original).mul(100)))
     await tx.reservation.update({ where: { id: reservation.id }, data: { totalValue: reservation.totalValue.minus(amount) } })
-    await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`)
+    await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`, { entityType: "reservations", entityId: reservation.id, operation: "update", metadata: { amount: Number(amount) } })
     return { success: true }
   }
   if (kind === "pay-expense") {
@@ -294,7 +297,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.expense.update({ where: { id: expense.id }, data: { paid: true, paymentDate: new Date() } })
     }
     await ledger(tx, actor, reference, value, "despesa", input.paymentMethod, input.accountId)
-    await audit(tx, actor, "Despesa paga", reference)
+    await audit(tx, actor, "Despesa paga", reference, { entityType: "expenses", entityId: input.expenseId, operation: "update" })
     return { success: true }
   }
   if (kind === "refund-transaction") {
@@ -304,7 +307,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (transaction.type !== "receita" || /^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(transaction.refId ?? "")) throw new HttpError(409, "Utilize o estorno da operação original")
     if (await tx.transaction.count({ where: { type: "estorno", refId: transaction.id } })) throw new HttpError(409, "Transação já estornada")
     await ledger(tx, actor, transaction.id, transaction.value.abs(), "estorno", transaction.paymentMethod ?? undefined, transaction.accountId ?? undefined)
-    await audit(tx, actor, "Receita estornada", transaction.id)
+    await audit(tx, actor, "Receita estornada", transaction.id, { entityType: "transactions", entityId: transaction.id, operation: "update" })
     return { success: true }
   }
   if (kind === "employee-consumption") {
@@ -331,7 +334,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     for (const item of items) await moveStock(tx, item.productId, item.quantity, actor, `Consumo funcionário ${consumptionId}`)
     await tx.employeeConsumption.create({ data: { id: consumptionId, employeeId: employee.id, employeeName: employee.name, total, category: input.category, paymentType: input.paymentType, timestamp: new Date(), registeredBy: actor.username, items: { create: items } } })
     if (input.paymentType === "pago") await ledger(tx, actor, consumptionId, total, "receita", "dinheiro")
-    await audit(tx, actor, "Consumo de funcionário", consumptionId)
+    await audit(tx, actor, "Consumo de funcionário", consumptionId, { entityType: "employeeConsumptions", entityId: consumptionId, operation: "create" })
     return { success: true }
   }
   if (kind === "production") {
@@ -351,7 +354,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.stockMovement.create({ data: { id: randomUUID(), productId: ingredient.productId, productName: ingredient.productName, quantity, type: "saida", unit: stock.unit, cost: stock.averageCost, reason: `Produção ${productionId}`, timestamp: new Date(), registeredBy: actor.username } })
     }
     const result = await tx.production.create({ data: { ...input, id: productionId, recipeName: recipe.name, totalCost: round(totalCost), unitCost: round(totalCost.div(input.producedQuantity)), yield: decimal(input.producedQuantity).div(recipe.expectedYield.mul(input.plannedQuantity)).mul(100), timestamp: new Date(), producedBy: actor.username } })
-    await audit(tx, actor, "Produção registrada", productionId)
+    await audit(tx, actor, "Produção registrada", productionId, { entityType: "productions", entityId: productionId, operation: "create" })
     return collectionMapper("productions").toApp(result)
   }
   // Corrections of non-operational records are still validated and audited server-side.
@@ -361,7 +364,6 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     demand(actor, `${input.key}.${kind === "admin-create" ? "create" : "edit"}`)
     if (input.key === "users") demand(actor, "users.manage")
     const result = kind === "admin-create" ? await createCollectionItem(input.key, input.data, actor, tx) : await updateCollectionItem(input.key, input.id ?? "", input.data, actor, tx)
-    await audit(tx, actor, kind, input.key)
     return result
   }
   throw new HttpError(400, "Operação inválida")
@@ -411,7 +413,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
-          await tx.auditEntry.create({ data: { id: randomUUID(), user: actor.username, action: "Operação aprovada", reference: kind, entityId: requestId, metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } } })
+          await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })
         }
         await tx.operationReceipt.create({ data: { id: receiptId, userId: actor.id, requestHash: fingerprint, result } })
         return result

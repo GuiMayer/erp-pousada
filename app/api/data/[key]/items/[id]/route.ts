@@ -8,7 +8,7 @@ export async function PATCH(request: NextRequest, context: Context) {
     const { key, id } = await context.params
     const actor = await authorizeCollection(request, key)
     return NextResponse.json(await updateCollectionItem(key, id, await readJson(request), actor))
-  })
+  }, request)
 }
 export async function DELETE(request: NextRequest, context: Context) {
   return handleRoute(async () => {
@@ -16,5 +16,5 @@ export async function DELETE(request: NextRequest, context: Context) {
     const actor = await authorizeCollection(request, key)
     await deleteCollectionItem(key, id, undefined, actor)
     return NextResponse.json({ success: true })
-  })
+  }, request)
 }

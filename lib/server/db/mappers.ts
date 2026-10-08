@@ -264,7 +264,7 @@ const auditMapper: CollectionMapper<AuditEntry> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     id: row.id,
-    date: dateOnly(row.date),
+    date: new Date(row.date).toISOString(),
     user: row.user,
     action: row.action,
     reference: row.reference,

@@ -1,3 +1,4 @@
+import { logEvent } from "../lib/server/logging"
 import { prisma } from "../lib/db/client"
 import { Prisma } from "@prisma/client"
 import { evaluateStock, evaluateTimed } from "../lib/server/notifications/rules"
@@ -18,7 +19,7 @@ async function tick() {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60000 })
     if (worked) writeFileSync("/tmp/notification-worker-success", String(Date.now()))
   } catch (error) {
-    console.error("Falha ao avaliar notificações", error instanceof Error ? error.message : "Erro desconhecido")
+    logEvent("error", "notifications.worker.failed", {}, error)
     await prisma.notificationWorkerState.upsert({ where: { id: "rules" }, create: { id: "rules", lastError: "Falha na avaliação; nova tentativa em 30 segundos" }, update: { lastError: "Falha na avaliação; nova tentativa em 30 segundos" } }).catch(() => {})
   }
 }

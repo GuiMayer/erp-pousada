@@ -1,3 +1,4 @@
+import { setLogActor, logEvent } from "./logging"
 import { createHash, randomBytes } from "node:crypto"
 import bcrypt from "bcryptjs"
 import { NextRequest, NextResponse } from "next/server"
@@ -21,6 +22,7 @@ export async function requireSession(request: NextRequest, supervisor = false): 
   const { user } = session
   if (user.role !== "operador" && user.role !== "supervisor") throw new HttpError(403, "Perfil inválido")
   const actor: Actor = { id: user.id, username: user.username, role: user.role, sessionId: session.id, approvedUntil: null, permissions: effectivePermissions(user), accessProfile: user.accessProfile, accessVersion: user.accessVersion, permissionOverrides: user.permissionOverrides as PermissionOverrides }
+  setLogActor(actor.id)
   if (supervisor) demand(actor, "users.manage")
   return actor
 }
@@ -44,7 +46,10 @@ export async function authenticate(username: string, password: string) {
   await limitAuthentication(`login:${username}`)
   const user = await prisma.user.findUnique({ where: { username } })
   const valid = await bcrypt.compare(password, user?.password ?? dummyHash)
-  if (!valid || !user?.active || !["supervisor", "operador"].includes(user.role)) throw new HttpError(401, "Credenciais inválidas")
+  if (!valid || !user?.active || !["supervisor", "operador"].includes(user.role)) {
+    logEvent("warn", "authentication.failed", { subjectHash: hashToken(username) })
+    throw new HttpError(401, "Credenciais inválidas")
+  }
   await prisma.authRateLimit.deleteMany({ where: { id: hashToken(`login:${username}`) } })
   return user
 }

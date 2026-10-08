@@ -1,3 +1,4 @@
+import { recordAudit } from "../audit"
 import { ruleSchema } from "@/lib/notification-policy"
 import { roomStatusEvent } from "../notifications/service"
 import { evaluateStock } from "../notifications/rules"
@@ -162,8 +163,8 @@ async function checkUserChange(client: Client, id: string | undefined, input: Ro
 async function mutationAudit(client: Client, actor: Actor | undefined, key: string, operation: string, id: string, before?: Row | null, after?: Row) {
   if (!actor) return
   const access = (row?: Row | null) => row ? Object.fromEntries(["role", "active", "accessProfile", "permissionOverrides", "accessVersion"].map(field => [field, row[field] ?? null])) : null
-  const metadata = key === "users" ? JSON.parse(JSON.stringify({ before: access(before), after: access(after) })) : undefined
-  await client.auditEntry.create({ data: { metadata, id: randomUUID(), user: actor.username, action: `${key}: ${operation}`, reference: id, entityType: key, entityId: id, operation } })
+  const metadata = key === "users" ? { before: access(before), after: access(after) } : { before, after }
+  await recordAudit(client, actor, `${key}: ${operation}`, id, { metadata, entityType: key, entityId: id, operation })
 }
 async function revokeUserSessions(client: Client, id: string) {
   await client.userSession.updateMany({ where: { userId: id, logoutTime: null }, data: { logoutTime: new Date() } })
@@ -289,7 +290,7 @@ export async function getStorageUsageBytes() { return Buffer.byteLength(await ex
 
 async function resetSessionsAfterRestore(tx: Client, actor: Actor | undefined, action: string) {
   if (!actor) return
-  await tx.auditEntry.create({ data: { id: randomUUID(), user: actor.username, action, reference: "Todas as coleções operacionais" } })
+  await recordAudit(tx, actor, action, "Todas as coleções operacionais", { entityType: "database", operation: "action" })
   await tx.userSession.updateMany({ where: { logoutTime: null }, data: { logoutTime: new Date() } })
   await tx.authSession.deleteMany()
   await tx.operationApproval.deleteMany()
