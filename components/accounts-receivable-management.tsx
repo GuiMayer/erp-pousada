@@ -286,7 +286,7 @@ export function AccountsReceivableManagement() {
                   Nova Conta
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent mobileTask className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingAR ? "Editar Conta a Receber" : "Nova Conta a Receber"}
@@ -419,7 +419,7 @@ export function AccountsReceivableManagement() {
 
           {filteredAR.length > 0 ? (
             <div className="border rounded-lg">
-              <Table>
+              <Table mobileColumns={["Cliente", "Descrição", "Valor", "Vencimento", "Status", "Ações"]} mobilePreview={["Cliente", "Valor", "Vencimento", "Status"]}>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Cliente</TableHead>

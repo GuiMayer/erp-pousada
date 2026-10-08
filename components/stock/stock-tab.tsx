@@ -1,4 +1,5 @@
 "use client"
+import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { ProductionModal } from "@/components/restaurant/production-modal"
@@ -110,7 +111,8 @@ export function StockTab() {
 
         {/* Movements Tab */}
         <TabsContent value="movements" className="space-y-6">
-          {/* Stats */}
+          <MobileSummary label="Resumo do estoque">
+{/* Stats */}
           <div className="grid gap-4 md:grid-cols-4">
             <div className="rounded-lg border bg-card p-4">
               <div className="text-sm font-medium text-muted-foreground">Total de Itens</div>
@@ -130,7 +132,8 @@ export function StockTab() {
             </div>
           </div>
 
-      {/* Filters */}
+      </MobileSummary>
+{/* Filters */}
       <div className="flex items-center gap-4">
         <Select value={filter} onValueChange={(value: string) => setFilter(value as Parameters<typeof setFilter>[0])}>
           <SelectTrigger className="w-[200px]">
@@ -154,7 +157,7 @@ export function StockTab() {
         />
       ) : (
         <div className="rounded-md border">
-            <Table mobileColumns={["Produto", "Estoque atual", "Estoque mínimo", "Estoque máximo", "Custo médio", "Status", "Ações"]}>
+            <Table mobilePreview={["Produto", "Estoque atual", "Status"]} mobileColumns={["Produto", "Estoque atual", "Estoque mínimo", "Estoque máximo", "Custo médio", "Status", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>

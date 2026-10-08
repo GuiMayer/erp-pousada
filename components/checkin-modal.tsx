@@ -126,7 +126,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent mobileTask protectDraft className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LogIn className="size-5 text-primary" />
@@ -140,9 +140,10 @@ export function CheckinModal({ room, open, onClose }: Props) {
         <div className="flex flex-col gap-4 py-2">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
-              <Label>CPF</Label>
+              <Label htmlFor="checkin-cpf">CPF</Label>
               <div className="flex gap-2">
                 <Input
+                  id="checkin-cpf" inputMode="numeric"
                   placeholder="000.000.000-00"
                   value={cpf}
                   onChange={e => setCpf(e.target.value)}
@@ -153,8 +154,9 @@ export function CheckinModal({ room, open, onClose }: Props) {
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Nome do Hospede</Label>
+              <Label htmlFor="checkin-name">Nome do Hospede</Label>
               <Input
+                id="checkin-name" autoComplete="name"
                 value={guestName}
                 onChange={e => setGuestName(e.target.value)}
                 placeholder="Nome completo"
@@ -188,12 +190,12 @@ export function CheckinModal({ room, open, onClose }: Props) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
-              <Label>Data de Saida</Label>
-              <Input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} />
+              <Label htmlFor="checkin-out">Data de Saida</Label>
+              <Input id="checkin-out" type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Valor Total (R$)</Label>
-              <Input type="number" value={totalValue} onChange={e => setTotalValue(e.target.value)} placeholder="0,00" />
+              <Label htmlFor="checkin-total">Valor Total (R$)</Label>
+              <Input id="checkin-total" inputMode="decimal" type="number" value={totalValue} onChange={e => setTotalValue(e.target.value)} placeholder="0,00" />
             </div>
           </div>
         </div>

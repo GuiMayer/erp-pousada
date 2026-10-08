@@ -1,4 +1,6 @@
 "use client"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { getDataConfig } from "@/lib/data/config"
@@ -173,15 +175,21 @@ export function RestaurantTab() {
       {/* Header */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <h2 className="hidden sm:flex text-3xl font-bold tracking-tight items-center gap-2">
             <UtensilsCrossed className="h-8 w-8" />
             Restaurante
           </h2>
-          <p className="text-muted-foreground">
+          <p className="hidden sm:block text-muted-foreground">
             Gerencie mesas e comandas do restaurante
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {(can("recipes.edit") || can("employees.edit") || can("restaurantTables.edit")) && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="sm:hidden">Gerenciar</Button></DropdownMenuTrigger><DropdownMenuContent>
+            <PermissionGate permission="recipes.edit"><DropdownMenuItem onSelect={() => setManageRecipesOpen(true)}>Receitas</DropdownMenuItem></PermissionGate>
+            <PermissionGate permission="employees.edit"><DropdownMenuItem onSelect={() => setManageEmployeesOpen(true)}>Funcionários</DropdownMenuItem></PermissionGate>
+            <PermissionGate permission="restaurantTables.edit"><DropdownMenuItem onSelect={() => setManageTablesOpen(true)}>Mesas</DropdownMenuItem></PermissionGate>
+          </DropdownMenuContent></DropdownMenu>}
+
           <PermissionGate permission="production.register"><Button
             variant="outline"
             size="sm"
@@ -203,7 +211,7 @@ export function RestaurantTab() {
           <PermissionGate permission="recipes.edit"><Button
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="hidden sm:inline-flex gap-2"
             onClick={() => setManageRecipesOpen(true)}
           >
             <ChefHat className="size-4" />
@@ -212,7 +220,7 @@ export function RestaurantTab() {
           <PermissionGate permission="employees.edit"><Button
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="hidden sm:inline-flex gap-2"
             onClick={() => setManageEmployeesOpen(true)}
           >
             <Users className="size-4" />
@@ -221,7 +229,7 @@ export function RestaurantTab() {
           <PermissionGate permission="restaurantTables.edit"><Button
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="hidden sm:inline-flex gap-2"
             onClick={() => setManageTablesOpen(true)}
           >
             <Settings className="size-4" />
@@ -230,7 +238,8 @@ export function RestaurantTab() {
         </div>
       </div>
 
-      {/* Stats */}
+      <MobileSummary label={`Mesas: ${stats.occupied} ocupadas · ${stats.free} livres`}>
+{/* Stats */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Total de Mesas</div>
@@ -250,7 +259,8 @@ export function RestaurantTab() {
         </div>
       </div>
 
-      {/* Filters */}
+      </MobileSummary>
+{/* Filters */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <Select value={filter} onValueChange={(value) => setFilter(value as TableStatus | "all")}>

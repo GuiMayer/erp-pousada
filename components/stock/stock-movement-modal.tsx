@@ -129,7 +129,7 @@ export function StockMovementModal({ open, onOpenChange, stockItem }: StockMovem
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent mobileTask protectDraft className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />

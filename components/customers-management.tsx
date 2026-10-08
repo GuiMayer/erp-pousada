@@ -343,7 +343,7 @@ export default function CustomersManagement() {
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
+        <Table mobileColumns={["Tipo", "Nome", "CPF/CNPJ", "Telefone", "Email", "Status", "Ações"]} mobilePreview={["Nome", "Telefone", "Status"]}>
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
@@ -425,7 +425,7 @@ export default function CustomersManagement() {
 
       {/* Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent mobileTask className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingId ? "Editar Cliente" : "Novo Cliente"}

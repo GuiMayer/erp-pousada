@@ -330,10 +330,11 @@ export function FinancialTab() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <h2 className="text-lg font-semibold text-foreground">Financeiro</h2>
+      <h2 className="hidden sm:block text-lg font-semibold text-foreground">Financeiro</h2>
 
+      {can("transactions.read") && <details className="mobile-summary-toggle sm:hidden"><summary>Resumo financeiro</summary><p className="py-2 text-sm">Receitas: {formatCurrency(totalReceitas)} · Despesas: {formatCurrency(totalDespesas)} · Líquido: {formatCurrency(netResult)}</p></details>}
       {/* Summary cards */}
-      {can("transactions.read") && <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {can("transactions.read") && <div className="financial-summary grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCard label="Receitas" value={totalReceitas} icon={<TrendingUp className="size-4" />} variant="success" />
         <SummaryCard label="Despesas" value={totalDespesas} icon={<TrendingDown className="size-4" />} variant="destructive" />
         <SummaryCard label="Estornos" value={totalEstornos} icon={<Undo2 className="size-4" />} variant="warning" />
@@ -343,7 +344,7 @@ export function FinancialTab() {
       </div>}
 
       <Tabs defaultValue={Object.keys(financialTabs).find(visible)}>
-        <TabsList>
+        <TabsList mobilePriority={["vencimentos", "contas-receber", "transacoes"]}>
           {visible("vencimentos") && (<TabsTrigger value="vencimentos">Vencimentos</TabsTrigger>)}
           {visible("transacoes") && (<TabsTrigger value="transacoes">Transacoes</TabsTrigger>)}
           {visible("fornecedores") && (<TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>)}
@@ -397,7 +398,7 @@ export function FinancialTab() {
 
             <Card>
               <CardContent className="p-0">
-                <Table mobileColumns={["Descrição", "Categoria", "Valor", "Vencimento", "Status", "Ação"]}>
+                <Table mobilePreview={["Descrição", "Valor", "Vencimento", "Status"]} mobileColumns={["Descrição", "Categoria", "Valor", "Vencimento", "Status", "Ação"]}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Descricao</TableHead>
@@ -522,7 +523,7 @@ export function FinancialTab() {
 
             <Card>
               <CardContent className="p-0">
-                <Table mobileColumns={["ID", "Data", "Descrição", "Valor", "Tipo", "Ações"]}>
+                <Table mobilePreview={["Descrição", "Valor", "Data", "Tipo"]} mobileColumns={["ID", "Data", "Descrição", "Valor", "Tipo", "Ações"]}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
@@ -666,7 +667,7 @@ export function FinancialTab() {
 
       {/* New expense modal */}
       <Dialog open={showNewExpense} onOpenChange={setShowNewExpense}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent mobileTask protectDraft className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Despesa</DialogTitle>
             <DialogDescription>Registre uma nova conta a pagar.</DialogDescription>

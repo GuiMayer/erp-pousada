@@ -157,7 +157,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-2xl">
+        <SheetContent data-mobile-order="" className="w-full sm:max-w-2xl">
           <SheetHeader>
             <SheetTitle>Mesa {table.number}</SheetTitle>
             <SheetDescription>
@@ -165,10 +165,10 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex flex-col h-[calc(100vh-8rem)] mt-6">
+          <div className="mobile-order-body flex flex-col h-[calc(100vh-8rem)] mt-6">
             {/* Add Item Section */}
             <div className="space-y-4 pb-4 border-b">
-              <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+              <div className="mobile-order-add grid grid-cols-[1fr_auto_auto] gap-2">
                 <div>
                   <Label htmlFor="product">Produto</Label>
                   <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -195,7 +195,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                   />
                 </div>
                 <div className="flex items-end">
-                  <PermissionGate permission="restaurant.edit"><Button onClick={handleAddItem} disabled={!selectedProduct}>
+                  <PermissionGate permission="restaurant.edit"><Button aria-label="Adicionar produto à comanda" onClick={handleAddItem} disabled={!selectedProduct}>
                     <Plus className="h-4 w-4" />
                   </Button></PermissionGate>
                 </div>
@@ -203,7 +203,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
             </div>
 
             {/* Order Items */}
-            <ScrollArea className="flex-1 py-4">
+            <ScrollArea className="mobile-order-items flex-1 py-4">
               {!order || order.items.length === 0 ? (
                 <EmptyState
                   icon={DollarSign}
@@ -215,7 +215,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                   {order.items.map(item => (
                     <div
                       key={item.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                      className="mobile-order-item flex items-center gap-3 p-3 rounded-lg border bg-card"
                     >
                       <div className="flex-1">
                         <div className="font-medium">{item.productName}</div>
@@ -227,6 +227,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                         <PermissionGate permission="restaurant.edit"><Button
                           size="icon"
                           variant="outline"
+                          aria-label={`Diminuir quantidade de ${item.productName}`}
                           onClick={() => updateItemQuantity(item.id, Math.max(1, item.quantity - 1))}
                         >
                           <Minus className="h-4 w-4" />
@@ -235,6 +236,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                         <PermissionGate permission="restaurant.edit"><Button
                           size="icon"
                           variant="outline"
+                          aria-label={`Aumentar quantidade de ${item.productName}`}
                           onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
                         >
                           <Plus className="h-4 w-4" />
@@ -242,6 +244,7 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                         <PermissionGate permission="restaurant.edit"><Button
                           size="icon"
                           variant="destructive"
+                          aria-label={`Remover ${item.productName}`}
                           onClick={() => removeItem(item.id)}
                         >
                           <Trash2 className="h-4 w-4" />

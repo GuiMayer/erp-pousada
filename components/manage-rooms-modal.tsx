@@ -130,7 +130,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
   return (
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setMode("list"); resetForm() } }}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+        <DialogContent mobileTask className="sm:max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BedDouble className="size-5 text-primary" />

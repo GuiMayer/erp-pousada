@@ -120,7 +120,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent mobileTask protectDraft className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
             {product ? "Editar Produto" : "Novo Produto"}

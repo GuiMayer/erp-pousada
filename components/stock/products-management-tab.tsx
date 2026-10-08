@@ -1,4 +1,5 @@
 "use client"
+import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { useState, useMemo } from "react"
@@ -150,7 +151,8 @@ export function ProductsManagementTab() {
         </div>
       </div>
 
-      {/* Stats */}
+      <MobileSummary label="Resumo dos produtos">
+{/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Total de Produtos</div>
@@ -170,7 +172,8 @@ export function ProductsManagementTab() {
         </div>
       </div>
 
-      {/* Filters */}
+      </MobileSummary>
+{/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -215,7 +218,7 @@ export function ProductsManagementTab() {
         />
       ) : (
         <div className="rounded-md border">
-          <Table mobileColumns={["Nome", "Categoria", "Preço", "Código de barras", "Estoque", "Ações"]}>
+          <Table mobilePreview={["Nome", "Preço", "Estoque"]} mobileColumns={["Nome", "Categoria", "Preço", "Código de barras", "Estoque", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>

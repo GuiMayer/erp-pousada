@@ -1,5 +1,6 @@
 "use client"
 
+import { MobileFilters } from "@/components/mobile-filters"
 import { useState, useMemo, useEffect, Fragment } from "react"
 import { getDataConfig } from "@/lib/data/config"
 import { useAuth } from "@/lib/auth-context"
@@ -255,6 +256,7 @@ export function AuditLogTab() {
               </Button>
             </div>
 
+            <MobileFilters active={[filterUser !== "all", filterOperation !== "all", filterEntityType !== "all", !!from, !!to].filter(Boolean).length}>
             <div className="flex gap-2 flex-wrap">
               <label className="text-sm w-[calc(50%-4px)] sm:w-auto">De<Input aria-label="Data inicial" type="date" value={from} onChange={e => { setPage(1); setFrom(e.target.value) }} /></label>
               <label className="text-sm w-[calc(50%-4px)] sm:w-auto">Até<Input aria-label="Data final" type="date" value={to} onChange={e => { setPage(1); setTo(e.target.value) }} /></label>
@@ -301,6 +303,7 @@ export function AuditLogTab() {
                 </SelectContent>
               </Select>
             </div>
+            </MobileFilters>
           </div>
         </CardHeader>
 

@@ -105,7 +105,7 @@ export function GuestsManagement() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <Table mobileColumns={["Nome", "CPF", "Estadias", "Ticket Médio", "No-shows", "Ações"]} mobilePreview={["Nome", "Estadias", "Ticket Médio"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>

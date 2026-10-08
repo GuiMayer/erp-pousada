@@ -346,7 +346,7 @@ export function ReservationsTab() {
       {/* Reservations table */}
       <Card>
         <CardContent className="p-0">
-          <Table mobileColumns={["ID", "Hóspede", "Quarto", "Check-in", "Check-out", "Valor", "Status", "Ações"]}>
+          <Table mobilePreview={["Hóspede", "Quarto", "Check-in", "Check-out", "Status"]} mobileColumns={["ID", "Hóspede", "Quarto", "Check-in", "Check-out", "Valor", "Status", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
@@ -468,7 +468,7 @@ export function ReservationsTab() {
 
       {/* Edit Modal */}
       <Dialog open={!!editModal} onOpenChange={v => { if (!v) setEditModal(null) }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent mobileTask protectDraft className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Reserva {editModal?.id}</DialogTitle>
             <DialogDescription>

@@ -68,6 +68,8 @@ export function POSTab() {
   const { checkCashPayment, checkChangeAmount } = useBusinessRules()
   const { toast } = useToast()
 
+  const [mobileCartOpen, setMobileCartOpen] = useState(false)
+  const cartRef = useRef<HTMLDivElement>(null)
   // Cart state
   const [cart, setCart] = useState<POSCartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -494,6 +496,7 @@ export function POSTab() {
         </div>
       </div>
 
+      <Button className={`mobile-cart-bar sm:hidden ${mobileCartOpen ? "mobile-cart-bar-review" : ""}`} onClick={() => { setMobileCartOpen(true); requestAnimationFrame(() => cartRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })) }}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Ver carrinho</Button>
       {/* Main POS Layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         {/* Left: Product Selection */}
@@ -542,7 +545,7 @@ export function POSTab() {
             </div>
           </CardHeader>
 
-          <CardContent className="max-h-[45dvh] overflow-y-auto p-4 lg:max-h-none">
+          <CardContent className="mobile-catalog max-h-[45dvh] overflow-y-auto p-4 lg:max-h-none">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               {filteredProducts.map(product => (
                 <button
@@ -574,7 +577,8 @@ export function POSTab() {
         </Card>
 
         {/* Right: Cart */}
-        <Card className="flex flex-col">
+        <Card ref={cartRef} className={`mobile-cart flex flex-col ${mobileCartOpen ? "mobile-cart-open" : ""}`}>
+          <Button variant="outline" className="sm:hidden mx-4" onClick={() => setMobileCartOpen(false)}>Voltar aos produtos</Button>
           <CardHeader className="border-b border-border bg-muted/30 pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -636,7 +640,7 @@ export function POSTab() {
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 animate-fade-in"
+                    className="mobile-cart-item flex items-center gap-3 rounded-lg border border-border bg-card p-3 animate-fade-in"
                   >
                     <div className="flex flex-1 flex-col gap-0.5 min-w-0">
                       <span className="text-sm font-medium text-foreground truncate">
@@ -667,11 +671,12 @@ export function POSTab() {
                       </div>
                     </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="mobile-cart-duplicate flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="icon"
                       className="size-7"
+                      aria-label={`Diminuir quantidade de ${item.product.name}`}
                       onClick={() => updateQuantity(item.id, -1)}
                     >
                       <Minus className="size-3" />
@@ -683,6 +688,7 @@ export function POSTab() {
                       variant="outline"
                       size="icon"
                       className="size-7"
+                      aria-label={`Aumentar quantidade de ${item.product.name}`}
                       onClick={() => updateQuantity(item.id, 1)}
                     >
                       <Plus className="size-3" />
@@ -694,7 +700,8 @@ export function POSTab() {
                         variant="outline"
                         size="icon"
                         className="size-7"
-                        onClick={() => updateQuantity(item.id, -1)}
+                        aria-label={`Diminuir quantidade de ${item.product.name}`}
+                      onClick={() => updateQuantity(item.id, -1)}
                       >
                         <Minus className="size-3" />
                       </Button>
@@ -705,7 +712,8 @@ export function POSTab() {
                         variant="outline"
                         size="icon"
                         className="size-7"
-                        onClick={() => updateQuantity(item.id, 1)}
+                        aria-label={`Aumentar quantidade de ${item.product.name}`}
+                      onClick={() => updateQuantity(item.id, 1)}
                       >
                         <Plus className="size-3" />
                       </Button>
@@ -720,6 +728,7 @@ export function POSTab() {
                           variant="ghost"
                           size="icon"
                           className="size-6 text-muted-foreground hover:text-primary"
+                          aria-label={`Desconto de ${item.product.name}`}
                           onClick={() => openItemDiscount(item)}
                         >
                           <Percent className="size-3" />
@@ -728,6 +737,7 @@ export function POSTab() {
                           variant="ghost"
                           size="icon"
                           className="size-6 text-muted-foreground hover:text-destructive"
+                          aria-label={`Remover ${item.product.name}`}
                           onClick={() => removeFromCart(item.id)}
                         >
                           <Trash2 className="size-3" />
@@ -802,7 +812,7 @@ export function POSTab() {
 
       {/* Payment Modal */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent mobileTask protectDraft className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="size-5 text-primary" />

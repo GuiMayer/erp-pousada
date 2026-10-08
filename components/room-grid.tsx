@@ -1,11 +1,13 @@
 "use client"
 import { PermissionGate } from "@/components/permission-gate"
 
+import { usePhoneLayout } from "@/hooks/use-phone-layout"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { RoomCard } from "./room-card"
 import { RoomFilters, type Filter } from "./room-filters"
 import { ManageRoomsModal } from "./manage-rooms-modal"
+import { Input } from "./ui/input"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Settings2 } from "lucide-react"
 import type { RoomStatus } from "@/lib/store"
@@ -37,19 +39,26 @@ function getWeekDates(offset: number) {
 
 export function RoomGrid() {
   const { rooms } = useApp()
+  const phone = usePhoneLayout()
   const [filter, setFilter] = useState<Filter>("todos")
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
   const [manageRoomsOpen, setManageRoomsOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const [agenda, setAgenda] = useState(false)
   const weekDates = getWeekDates(weekOffset)
 
   const filtered =
-    filter === "todos" ? rooms : rooms.filter((r) => r.status === filter)
+    rooms.filter(r => (filter === "todos" || r.status === filter) && `${r.number} ${r.guest ?? ""}`.toLocaleLowerCase("pt-BR").includes((phone ? search : "").toLocaleLowerCase("pt-BR")))
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
+    <div className="room-map flex flex-col gap-6 animate-fade-in">
+      <div className="sm:hidden space-y-2">
+        <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "long" })} · {rooms.filter(r => r.status === "disponivel").length} livres</span><Button variant="outline" size="sm" onClick={() => setAgenda(v => !v)} aria-expanded={agenda}>Agenda</Button><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
+        <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
+      </div>
       {/* Interactive date selector */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className={`${agenda ? "flex" : "hidden"} sm:flex items-center gap-3 flex-wrap`}>
         <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto pb-1">
           <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p - 1)}>
             <ChevronLeft className="size-4" />
@@ -84,15 +93,15 @@ export function RoomGrid() {
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="room-filter-bar flex items-center justify-between gap-4 flex-wrap">
         <RoomFilters active={filter} onChange={setFilter} />
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3">
           <p className="text-sm text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "quarto" : "quartos"}
           </p>
           <PermissionGate permission="rooms.edit"><Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setManageRoomsOpen(true)}>
             <Settings2 className="size-3.5" />
-            Gerenciar Quartos
+            <span className="hidden sm:inline">Gerenciar Quartos</span><span className="sm:hidden">Gerenciar</span>
           </Button></PermissionGate>
         </div>
       </div>

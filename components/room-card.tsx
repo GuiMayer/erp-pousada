@@ -202,7 +202,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
 
   return (
     <>
-      <Card className={`group relative overflow-hidden transition-all duration-200 hover:shadow-md ${config.borderClass} flex flex-col`}>
+      <Card className={`mobile-room-card group relative overflow-hidden transition-all duration-200 hover:shadow-md ${config.borderClass} flex flex-col`}>
         <div className={`absolute inset-x-0 top-0 h-1 ${config.accent}`} />
 
         <CardHeader className="pb-0 pt-5">
@@ -296,7 +296,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
                 <PermissionGate permission="hospitality.checkin"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setCheckinOpen(true)}>
                   <LogIn className="size-3.5" /> Check-in
                 </Button></PermissionGate>
-                <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => { setBlockSnapshot(room); setBlockModalOpen(true) }}>
+                <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" aria-label={`Bloquear quarto ${room.number}`} className="gap-1.5 text-xs" onClick={() => { setBlockSnapshot(room); setBlockModalOpen(true) }}>
                   <Lock className="size-3.5" />
                 </Button></PermissionGate>
               </>
@@ -335,7 +335,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
         <div className="flex-1" />
 
         {room.status === "ocupado" && reservations.filter(reservation => reservation.roomId === room.id && reservation.status === "checkin").map(reservation => <div key={reservation.id} className="px-4 pb-2"><ReservationPaymentButton reservation={reservation} /></div>)}
-        <CardFooter className="flex-col items-stretch gap-0 pb-4 pt-0">
+        <CardFooter className="hidden sm:flex flex-col items-stretch gap-0 pb-4 pt-0">
           <Separator className="mb-3 mt-3" />
           <MiniTimeline days={timeline} highlightDate={selectedDate} />
         </CardFooter>
