@@ -221,7 +221,7 @@ if ($SelfTest) {
   $status=Get-Content -LiteralPath $statusFile -Raw | ConvertFrom-Json
   Update-Status $status
   Remove-Item -LiteralPath $statusFile
-  Write-Output 'Painel criado; controles e atualização de estado validados.' 
+  Write-Output 'Painel criado; controles e atualização de estado validados.'
   $form.Show()
   [Windows.Forms.Application]::DoEvents()
   $preview=New-Object Drawing.Bitmap($form.Width,$form.Height)
