@@ -2,6 +2,7 @@
 
 import { BedDouble, CheckCircle2, Users, SprayCan, Lock, LogOut, UserCheck, UserX, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PROFILES } from "@/lib/permissions"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
 import { useUserPreferences } from "@/contexts/user-preferences-context"
@@ -30,7 +31,7 @@ function countStatuses(rooms: Room[]): StatusCount {
 
 export function DashboardHeader({ rooms }: { rooms: Room[] }) {
   const counts = countStatuses(rooms)
-  const { username, role, logout } = useAuth()
+  const { user, username, role, logout, can } = useAuth()
   const { systemSettings, customers, accountsReceivable } = useApp()
   const { preferences } = useUserPreferences()
   const today = new Date()
@@ -72,7 +73,7 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
           <div className="rounded-lg bg-secondary px-3 py-1.5 text-xs">
             <span className="text-muted-foreground">Logado como </span>
             <span className="font-semibold capitalize text-foreground">{username}</span>
-            <span className="ml-1 text-muted-foreground">({role})</span>
+            <span className="ml-1 text-muted-foreground">({PROFILES[user?.accessProfile ?? ""]?.label ?? role})</span>
           </div>
           <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5 text-xs text-muted-foreground">
             <LogOut className="size-3.5" />
@@ -82,7 +83,7 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
       </div>
 
       {/* Room Metrics - Can be hidden via settings */}
-      {preferences.showRoomMetrics && (
+      {can("rooms.read") && preferences.showRoomMetrics && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <StatPill label="Total" value={counts.total} icon={<BedDouble className="size-4" />} variant="default" />
           <StatPill label="Disponivel" value={counts.disponivel} icon={<CheckCircle2 className="size-4" />} variant="success" />

@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
@@ -89,10 +90,10 @@ export function RoomGrid() {
           <p className="text-sm text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "quarto" : "quartos"}
           </p>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setManageRoomsOpen(true)}>
+          <PermissionGate permission="rooms.edit"><Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setManageRoomsOpen(true)}>
             <Settings2 className="size-3.5" />
             Gerenciar Quartos
-          </Button>
+          </Button></PermissionGate>
         </div>
       </div>
 

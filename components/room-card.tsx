@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 import { ReservationPaymentButton } from "./reservation-payment-button"
 import { getDataConfig } from "@/lib/data/config"
 
@@ -289,17 +290,17 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
           <div className="mt-3 flex flex-wrap gap-2">
             {room.status === "disponivel" && (
               <>
-                <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setCheckinOpen(true)}>
+                <PermissionGate permission="hospitality.checkin"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setCheckinOpen(true)}>
                   <LogIn className="size-3.5" /> Check-in
-                </Button>
-                <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setBlockModalOpen(true)}>
+                </Button></PermissionGate>
+                <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setBlockModalOpen(true)}>
                   <Lock className="size-3.5" />
-                </Button>
+                </Button></PermissionGate>
               </>
             )}
             {room.status === "ocupado" && (
               <>
-                <Button
+                <PermissionGate permission="hospitality.checkout"><Button
                   size="sm"
                   variant="outline"
                   className="gap-1.5 text-xs flex-1"
@@ -308,21 +309,21 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
                   title={consumptionTotal > 0 ? "Quite o consumo antes do check-out" : undefined}
                 >
                   <LogOutIcon className="size-3.5" /> Check-out
-                </Button>
-                <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setConsumptionOpen(true)}>
+                </Button></PermissionGate>
+                <PermissionGate permission="consumptions.read"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setConsumptionOpen(true)}>
                   <ShoppingCart className="size-3.5" /> Consumo
-                </Button>
+                </Button></PermissionGate>
               </>
             )}
             {room.status === "limpeza" && (
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={handleRelease}>
+              <PermissionGate permission="hospitality.release"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={handleRelease}>
                 <CheckCircle2 className="size-3.5" /> Liberar Quarto
-              </Button>
+              </Button></PermissionGate>
             )}
             {room.status === "bloqueado" && (
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setBlockModalOpen(true)}>
+              <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setBlockModalOpen(true)}>
                 <Eye className="size-3.5" /> Detalhes / Desbloquear
-              </Button>
+              </Button></PermissionGate>
             )}
           </div>
         </CardContent>

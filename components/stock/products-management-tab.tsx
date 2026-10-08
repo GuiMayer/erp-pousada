@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { useState, useMemo } from "react"
 import { Package, Plus, Search, Edit, Trash2, Tag } from "lucide-react"
@@ -38,7 +39,7 @@ import type { POSProduct } from "@/lib/store"
 
 export function ProductsManagementTab() {
   const { posProducts, stockItems, removePOSProduct, productCategories } = useApp()
-  
+
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [stockFilter, setStockFilter] = useState("all")
@@ -137,14 +138,14 @@ export function ProductsManagementTab() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setCategoriesModalOpen(true)}>
+          <PermissionGate permission="productCategories.edit"><Button variant="outline" onClick={() => setCategoriesModalOpen(true)}>
             <Tag className="h-4 w-4 mr-2" />
             Categorias
-          </Button>
-          <Button onClick={handleAdd}>
+          </Button></PermissionGate>
+          <PermissionGate permission="posProducts.create"><Button onClick={handleAdd}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Produto
-          </Button>
+          </Button></PermissionGate>
         </div>
       </div>
 
@@ -257,20 +258,20 @@ export function ProductsManagementTab() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
+                      <PermissionGate permission="posProducts.edit"><Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleEdit(product)}
                       >
                         <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
+                      </Button></PermissionGate>
+                      <PermissionGate permission="posProducts.delete"><Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleDelete(product)}
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </Button></PermissionGate>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -1,5 +1,6 @@
 "use client"
 
+import { OperationApproval } from "@/components/operation-approval"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { AppProvider } from "@/lib/app-context"
 import { AlertProvider } from "@/lib/alert-context"
@@ -25,6 +26,7 @@ function AppContent() {
           <main className="min-h-screen bg-background">
             <DashboardShell />
           </main>
+          <OperationApproval />
           <Toaster />
         </AlertProvider>
       </NotificationProvider>

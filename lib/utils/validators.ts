@@ -204,29 +204,11 @@ export function validateSupervisorPassword(password: string): boolean {
 
 /**
  * Validates supervisor password using secure server-side authentication
- * Calls the /api/auth/supervisor endpoint which uses bcrypt hashing
+ * Production approval is performed by the scoped operation flow; only demo validates here.
  */
 export async function validateSupervisorPasswordAsync(password: string): Promise<boolean> {
   if (getDataConfig().adapter === "demo-localStorage") return password === "adm123"
-  try {
-    const response = await fetch('/api/auth/supervisor', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ password }),
-    })
-
-    if (!response.ok) {
-      return false
-    }
-
-    const data = await response.json()
-    return data.success === true
-  } catch (error) {
-    console.error('Error validating supervisor password:', error)
-    return false
-  }
+  return false // Production approvals require exact operation data and a named approver.
 }
 
 /**

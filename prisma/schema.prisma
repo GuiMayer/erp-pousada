@@ -16,6 +16,10 @@ model LocalDataEntry {
 }
 
 model User {
+  accessProfile String?
+  permissionOverrides Json @default("{}")
+  accessVersion Int @default(0)
+  recordVersion Int @default(0)
   id        String   @id
   username  String   @unique
   password  String
@@ -75,6 +79,7 @@ model UserSession {
 }
 
 model SystemSettings {
+  recordVersion Int @default(0)
   id                       String  @id
   pousadaName              String
   checkInTime              String
@@ -113,6 +118,7 @@ model AuditEntry {
 }
 
 model Room {
+  recordVersion Int @default(0)
   id               Int       @id
   number           String    @unique
   type             String
@@ -136,6 +142,7 @@ model Room {
 }
 
 model GuestProfile {
+  recordVersion Int @default(0)
   creditValue Decimal @default(0) @db.Decimal(12, 2)
   cpf        String @id
   name       String
@@ -149,6 +156,7 @@ model GuestProfile {
 }
 
 model Reservation {
+  recordVersion Int @default(0)
   cancellationFee Decimal @default(0) @db.Decimal(12, 2)
   originalValue   Decimal? @db.Decimal(12, 2)
   paidValue       Decimal @default(0) @db.Decimal(12, 2)
@@ -196,6 +204,7 @@ model RoomConsumptionItem {
 }
 
 model ExpenseCategory {
+  recordVersion Int @default(0)
   id    String @id
   label String @unique
 
@@ -203,6 +212,7 @@ model ExpenseCategory {
 }
 
 model Supplier {
+  recordVersion Int @default(0)
   id           String  @id
   name         String
   cnpj         String?
@@ -220,6 +230,7 @@ model Supplier {
 }
 
 model Customer {
+  recordVersion Int @default(0)
   id        String   @id
   name      String
   cpfCnpj   String
@@ -245,6 +256,7 @@ model Customer {
 }
 
 model Expense {
+  recordVersion Int @default(0)
   id          String   @id
   description String
   category    String
@@ -278,6 +290,7 @@ model ExpenseInstallment {
 }
 
 model BankAccount {
+  recordVersion Int @default(0)
   id             String  @id
   name           String
   type           String
@@ -298,6 +311,7 @@ model BankAccount {
 }
 
 model CostCenter {
+  recordVersion Int @default(0)
   id          String  @id
   name        String
   description String?
@@ -338,6 +352,7 @@ model Transaction {
 }
 
 model CashClose {
+  responsibleUserId String?
   status        String @default("fechado")
   openedAt      DateTime?
   closedAt      DateTime?
@@ -354,6 +369,7 @@ model CashClose {
 }
 
 model AccountReceivable {
+  recordVersion Int @default(0)
   id            String   @id
   customerId    String
   customerName  String
@@ -409,6 +425,7 @@ model BankTransfer {
 }
 
 model Budget {
+  recordVersion Int @default(0)
   id     String @id
   name   String
   year   Int
@@ -438,6 +455,7 @@ model BudgetCategory {
 }
 
 model RecurringTransaction {
+  recordVersion Int @default(0)
   id            String   @id
   description   String
   value         Decimal  @db.Decimal(12, 2)
@@ -460,6 +478,7 @@ model RecurringTransaction {
 }
 
 model ProductCategory {
+  recordVersion Int @default(0)
   id           String  @id
   name         String
   color        String
@@ -474,6 +493,7 @@ model ProductCategory {
 }
 
 model POSProduct {
+  recordVersion Int @default(0)
   id         String  @id
   name       String
   categoryId String
@@ -532,6 +552,7 @@ model POSSaleItem {
 }
 
 model RestaurantTable {
+  recordVersion Int @default(0)
   id             Int       @id
   number         String    @unique
   capacity       Int
@@ -592,6 +613,7 @@ model RestaurantOrderItem {
 }
 
 model StockItem {
+  recordVersion Int @default(0)
   id                String   @id
   productId         String
   productName       String
@@ -631,6 +653,7 @@ model StockMovement {
 }
 
 model Recipe {
+  recordVersion Int @default(0)
   id              String   @id
   name            String
   category        String
@@ -687,6 +710,7 @@ model Production {
 }
 
 model Employee {
+  recordVersion Int @default(0)
   id               String  @id
   name             String
   cpf              String  @unique
@@ -735,4 +759,21 @@ model EmployeeConsumptionItem {
   @@index([consumptionId])
   @@index([productId])
   @@map("employee_consumption_items")
+}
+
+model OperationApproval {
+  id String @id @default(uuid())
+  sessionId String
+  requesterId String
+  approverId String
+  approverVersion Int
+  requestId String
+  requestHash String
+  resourceHash String
+  permission String
+  expiresAt DateTime
+  usedAt DateTime?
+  @@index([sessionId, requestId])
+  @@index([approverId])
+  @@map("operation_approvals")
 }

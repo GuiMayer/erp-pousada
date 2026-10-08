@@ -178,6 +178,7 @@ export interface TimelineDay {
 }
 
 export interface Room {
+  recordVersion?: number
   id: number
   number: string
   type: string
@@ -194,6 +195,7 @@ export interface Room {
 }
 
 export interface Reservation {
+  recordVersion?: number
   cancellationFee?: number
   originalValue?: number
   paidValue?: number
@@ -210,6 +212,7 @@ export interface Reservation {
 }
 
 export interface GuestProfile {
+  recordVersion?: number
   creditValue?: number
   cpf: string
   name: string
@@ -219,6 +222,7 @@ export interface GuestProfile {
 }
 
 export interface Expense {
+  recordVersion?: number
   id: string
   description: string
   category: string
@@ -279,6 +283,7 @@ export interface AuditEntry {
 }
 
 export interface CashClose {
+  responsibleUserId?: string
   status?: "aberto" | "fechado"
   openedAt?: string
   closedAt?: string
@@ -292,11 +297,13 @@ export interface CashClose {
 }
 
 export interface ExpenseCategory {
+  recordVersion?: number
   id: string
   label: string
 }
 
 export interface Supplier {
+  recordVersion?: number
   id: string
   name: string
   cnpj?: string
@@ -309,6 +316,7 @@ export interface Supplier {
 }
 
 export interface Customer {
+  recordVersion?: number
   id: string
   name: string
   cpfCnpj: string
@@ -328,6 +336,7 @@ export interface Customer {
 }
 
 export interface AccountReceivable {
+  recordVersion?: number
   id: string
   customerId: string
   customerName: string
@@ -353,6 +362,7 @@ export interface AccountReceivableInstallment {
 }
 
 export interface BankAccount {
+  recordVersion?: number
   id: string
   name: string
   type: "caixa" | "conta_corrente" | "poupanca" | "cartao"
@@ -375,6 +385,7 @@ export interface BankTransfer {
 }
 
 export interface CostCenter {
+  recordVersion?: number
   id: string
   name: string
   description?: string
@@ -382,6 +393,7 @@ export interface CostCenter {
 }
 
 export interface Budget {
+  recordVersion?: number
   id: string
   name: string
   year: number
@@ -400,6 +412,7 @@ export interface BudgetCategory {
 }
 
 export interface RecurringTransaction {
+  recordVersion?: number
   id: string
   description: string
   value: number
@@ -428,6 +441,7 @@ export interface RoomConsumption {
 }
 
 export interface POSProduct {
+  recordVersion?: number
   id: string
   name: string
   categoryId: string // References ProductCategory.id
@@ -468,6 +482,7 @@ export type EmployeeRole = "caixa" | "cozinha" | "atendimento" | "gerente" | "su
 export type ConsumptionPaymentType = "beneficio" | "desconto" | "pago"
 
 export interface ProductCategory {
+  recordVersion?: number
   id: string
   name: string
   color: string
@@ -477,6 +492,7 @@ export interface ProductCategory {
 }
 
 export interface RestaurantTable {
+  recordVersion?: number
   id: number
   number: string
   capacity: number
@@ -516,6 +532,7 @@ export interface RestaurantOrder {
 }
 
 export interface StockItem {
+  recordVersion?: number
   id: string
   productId: string
   productName: string
@@ -553,6 +570,7 @@ export interface RecipeIngredient {
 }
 
 export interface Recipe {
+  recordVersion?: number
   id: string
   name: string
   category: string
@@ -582,6 +600,7 @@ export interface Production {
 }
 
 export interface Employee {
+  recordVersion?: number
   id: string
   name: string
   cpf: string
@@ -598,6 +617,10 @@ export interface Employee {
 
 // ─── User Management Types ─────────────────────────────────────────────
 export interface User {
+  accessProfile?: string | null
+  permissionOverrides?: import("./permissions").PermissionOverrides
+  accessVersion?: number
+  recordVersion?: number
   id: string
   username: string
   password?: string // Write-only; never returned by the production API
@@ -619,6 +642,7 @@ export interface UserSession {
 }
 
 export interface SystemSettings {
+  recordVersion?: number
   id: string
   pousadaName: string
   checkInTime: string // HH:mm format

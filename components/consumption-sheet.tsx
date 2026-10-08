@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { getDataConfig } from "@/lib/data/config"
 import { useToast } from "@/hooks/use-toast"
@@ -36,7 +37,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     runOperation, clearConsumption, addTransaction, posProducts,
     getCategoryName,
   } = useApp()
-  const { username } = useAuth()
+  const { username, can } = useAuth()
   const { toast } = useToast()
   const [paying, setPaying] = useState(false)
   const [paymentAccountId, setPaymentAccountId] = useState("")
@@ -173,6 +174,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {filteredProducts.map((product) => (
                 <button
+                  disabled={!can("consumptions.create")}
                   key={product.id}
                   onClick={() => handleAddCatalogItem(product.name, product.price)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent hover:border-primary"
@@ -220,7 +222,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                 onChange={e => setCustomQty(e.target.value)}
                 className="w-16"
               />
-              <Button
+              <PermissionGate permission="consumptions.custom"><Button
                 variant="outline"
                 size="icon"
                 className="shrink-0"
@@ -228,7 +230,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                 onClick={handleAddCustomItem}
               >
                 <Plus className="size-4" />
-              </Button>
+              </Button></PermissionGate>
             </div>
           </div>
 
@@ -255,14 +257,14 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                       </span>
                     </div>
                     <CurrencyDisplay value={item.unitPrice * item.quantity} size="sm" className="font-semibold" />
-                    <Button
+                    <PermissionGate permission="consumptions.remove" approval><Button
                       variant="ghost"
                       size="icon"
                       className="size-7 text-muted-foreground hover:text-destructive shrink-0"
                       onClick={() => handleRemoveItem(item.id)}
                     >
                       <Trash2 className="size-3.5" />
-                    </Button>
+                    </Button></PermissionGate>
                   </div>
                 ))}
               </div>
@@ -275,7 +277,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <select aria-label="Forma de pagamento" className="rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
             </select>
-            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><Button disabled={paying} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button>
+            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={paying} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
           </div>}
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">

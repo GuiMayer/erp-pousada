@@ -55,7 +55,8 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
     setError("")
   }, [product, open])
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
+    try {
     e.preventDefault()
     setError("")
 
@@ -97,17 +98,19 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
 
     if (product) {
       // Update existing product
-      updatePOSProduct(product.id, productData)
+      await updatePOSProduct(product.id, { ...productData, recordVersion: product.recordVersion })
     } else {
       // Create new product
       const newProduct: POSProduct = {
         id: `P${Date.now()}`,
         ...productData as Required<Omit<POSProduct, 'id' | 'barcode'>>
       }
-      addPOSProduct(newProduct)
+      await addPOSProduct(newProduct)
     }
 
     onClose()
+
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   return (

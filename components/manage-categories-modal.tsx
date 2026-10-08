@@ -206,6 +206,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
     }
 
     await updateProductCategory(editingCategory.id, {
+      recordVersion: editingCategory.recordVersion,
       name: categoryName.trim(),
       color: categoryColor,
       icon: categoryIcon

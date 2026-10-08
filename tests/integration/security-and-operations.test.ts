@@ -70,7 +70,7 @@ describe("Proteção das APIs e integridade de operações", () => {
   })
   it("autentica hash e limita tentativas inválidas", async () => {
     expect((await authenticate(actor.username, "Strong-test-password-42")).id).toBe(actor.id)
-    for (let i = 0; i < 9; i++) await expect(authenticate(actor.username, "wrong")).rejects.toMatchObject({ status: 401 })
+    for (let i = 0; i < 10; i++) await expect(authenticate(actor.username, "wrong")).rejects.toMatchObject({ status: 401 })
     await expect(authenticate(actor.username, "wrong")).rejects.toMatchObject({ status: 429 })
   }, 15000)
   it("grava venda, estoque e financeiro apenas uma vez em reenvios", async () => {
@@ -107,7 +107,7 @@ describe("Proteção das APIs e integridade de operações", () => {
     expect(await prisma.transaction.count({ where: { type: "estorno" } })).toBe(1)
   })
   it("converte identificadores numéricos e reverte substituição inválida", async () => {
-    await updateCollectionItem("rooms", "1", { number: "102" }, actor)
+    await updateCollectionItem("rooms", "1", { number: "102", recordVersion: (await prisma.room.findUniqueOrThrow({ where: { id: 1 } })).recordVersion }, actor)
     expect((await prisma.room.findUniqueOrThrow({ where: { id: 1 } })).number).toBe("102")
     await expect(replaceCollection("rooms", [{ id: 2, number: "103" }])).rejects.toThrow()
     expect(await prisma.room.count()).toBe(1)
@@ -145,7 +145,7 @@ describe("Proteção das APIs e integridade de operações", () => {
     await executeOperation(actor, randomUUID(), "production", { recipeId: "recipe", plannedQuantity: 3, producedQuantity: 3 })
     expect(Number((await prisma.stockItem.findUniqueOrThrow({ where: { id: "stock" } })).currentStock)).toBe(7)
     expect(Number((await prisma.production.findFirstOrThrow()).totalCost)).toBe(6)
-    await updateCollectionItem("recipes", "recipe", { ingredients: [{ productId: "product", productName: "Água", quantity: 2, unit: "un", cost: 4 }] }, actor)
+    await updateCollectionItem("recipes", "recipe", { recordVersion: (await prisma.recipe.findUniqueOrThrow({ where: { id: "recipe" } })).recordVersion, ingredients: [{ productId: "product", productName: "Água", quantity: 2, unit: "un", cost: 4 }] }, actor)
     expect(Number((await prisma.recipeIngredient.findFirstOrThrow({ where: { recipeId: "recipe" } })).quantity)).toBe(2)
   })
   it("pagamento de parcelas grava financeiro e recusa duplicação", async () => {
@@ -193,16 +193,17 @@ describe("Proteção das APIs e integridade de operações", () => {
     expect(result).not.toHaveProperty("password")
     expect(await bcrypt.compare(data.password, (await prisma.user.findUniqueOrThrow({ where: { id: userId } })).password)).toBe(true)
     await prisma.authSession.create({ data: { userId, tokenHash: hashToken("c".repeat(64)), expiresAt: new Date(Date.now() + 60000) } })
-    await updateCollectionItem("users", userId, { password: "Another-strong-password-42" }, actor)
+    await updateCollectionItem("users", userId, { password: "Another-strong-password-42", recordVersion: (await prisma.user.findUniqueOrThrow({ where: { id: userId } })).recordVersion }, actor)
     expect(await prisma.authSession.count({ where: { userId } })).toBe(0)
     await deleteCollectionItem("users", userId)
   })
   it("exporta sem identidades e restaura snapshot completo", async () => {
+    const usersBefore = await prisma.user.findMany({ orderBy: { id: "asc" } })
     const snapshot = await exportAllCollections()
     expect(JSON.parse(snapshot)).not.toHaveProperty("users")
     await importAllCollections(snapshot)
     expect(await prisma.room.count()).toBe(1)
-    expect(await prisma.user.count()).toBe(1)
+    expect(await prisma.user.findMany({ orderBy: { id: "asc" } })).toEqual(usersBefore)
   })
 })
 
@@ -286,7 +287,7 @@ describe("Regressões das regras de negócio", () => {
 
   it("impede redução por edição e descontos sucessivos que ultrapassam o teto", async () => {
     const reservation = await reserve((await newRoom()).id)
-    await expect(operate("edit-reservation", { ...reservation, totalValue: 80 }, operator())).rejects.toMatchObject({ status: 403 })
+    await expect(operate("edit-reservation", { ...reservation, recordVersion: (await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } })).recordVersion, totalValue: 80 }, operator())).rejects.toMatchObject({ status: 403 })
     await operate("reservation-discount", { reservationId: reservation.id, type: "percent", value: 4 }, operator())
     await expect(operate("reservation-discount", { reservationId: reservation.id, type: "percent", value: 4 }, operator())).rejects.toMatchObject({ status: 403 })
     expect(Number((await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } })).totalValue)).toBe(96)

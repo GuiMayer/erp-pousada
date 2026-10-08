@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
@@ -19,6 +20,7 @@ export function SuppliersManagement() {
   const { username } = useAuth()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+  const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
 
   const [formData, setFormData] = useState({
@@ -48,9 +50,11 @@ export function SuppliersManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+    try {
 
     if (editingSupplier) {
-      await updateSupplier(editingSupplier.id, formData)
+      await updateSupplier(editingSupplier.id, { ...formData, recordVersion: editingSupplier.recordVersion })
       await addAuditEntry({
         user: username || "sistema",
         action: formData.active ? "Fornecedor editado" : "Fornecedor desativado",
@@ -70,6 +74,7 @@ export function SuppliersManagement() {
 
     setIsDialogOpen(false)
     resetForm()
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   const handleEdit = (supplier: Supplier) => {
@@ -143,6 +148,7 @@ export function SuppliersManagement() {
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
+              {error && <p role="alert" className="text-destructive">{error}</p>}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                       <Label htmlFor="name">Nome *</Label>
@@ -267,20 +273,20 @@ export function SuppliersManagement() {
                         <TableCell>{supplier.paymentTerms || "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
+                            <PermissionGate permission="suppliers.edit"><Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEdit(supplier)}
                             >
                               <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
+                            </Button></PermissionGate>
+                            <PermissionGate permission="suppliers.delete"><Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(supplier.id)}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </Button></PermissionGate>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -317,20 +323,20 @@ export function SuppliersManagement() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
+                            <PermissionGate permission="suppliers.edit"><Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEdit(supplier)}
                             >
                               <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
+                            </Button></PermissionGate>
+                            <PermissionGate permission="suppliers.delete"><Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(supplier.id)}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </Button></PermissionGate>
                           </div>
                         </TableCell>
                       </TableRow>

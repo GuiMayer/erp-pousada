@@ -197,7 +197,9 @@ const AppContext = createContext<AppContextType | null>(null)
 export { AppContext }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { user, isLoggedIn, isSupervisor } = useAuth()
+  const { user, isLoggedIn, can: authCan } = useAuth()
+  const can = useCallback((key: string) => authCan ? authCan(key) : getDataConfig().adapter === "demo-localStorage", [authCan])
+  const accessKey = JSON.stringify([user?.id, user?.accessVersion, user?.permissions])
 
   // Initialize data store with user context
   const { dataStore, isLoading, isHydrated, isSyncing, exportData, importData, clearAllData, getStorageUsage } = useDataStore({
@@ -242,12 +244,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([])
 
-  const currentUser = useRef(user?.id)
-  useEffect(() => { currentUser.current = user?.id }, [user?.id])
+  const currentUser = useRef(accessKey)
+  useEffect(() => { currentUser.current = accessKey }, [accessKey])
 
   // Load data from repositories on mount and when syncing
   const loadAllData = useCallback(async () => {
-    const loadingUser = user?.id
+    const loadingUser = accessKey
     try {
       const [
         roomsData, reservationsData, guestsData, expensesData, transactionsData,
@@ -260,37 +262,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
         suppliersData, customersData, accountsReceivableData,
         bankAccountsData, bankTransfersData, costCentersData, budgetsData, recurringTransactionsData
       ] = await Promise.all([
-        dataStore.rooms.getAll(),
-        dataStore.reservations.getAll(),
-        dataStore.guests.getAll(),
-        dataStore.expenses.getAll(),
-        dataStore.transactions.getAll(),
-        dataStore.auditLog.getAll(),
-        dataStore.categories.getAll(),
-        dataStore.cashCloses.getAll(),
-        dataStore.consumptions.getAll(),
-        dataStore.posProducts.getAll(),
-        dataStore.posSales.getAll(),
-        dataStore.productCategories.getAll(),
-        dataStore.restaurantTables.getAll(),
-        dataStore.restaurantOrders.getAll(),
-        dataStore.stockItems.getAll(),
-        dataStore.stockMovements.getAll(),
-        dataStore.recipes.getAll(),
-        dataStore.productions.getAll(),
-        isSupervisor ? dataStore.employees.getAll() : Promise.resolve([]),
-        isSupervisor ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
-        isSupervisor ? dataStore.users.getAll() : Promise.resolve([]),
-        isSupervisor ? dataStore.userSessions.getAll() : Promise.resolve([]),
-        dataStore.systemSettings.getAll(),
-        dataStore.suppliers.getAll(),
-        dataStore.customers.getAll(),
-        dataStore.accountsReceivable.getAll(),
-        dataStore.bankAccounts.getAll(),
-        dataStore.bankTransfers.getAll(),
-        dataStore.costCenters.getAll(),
-        dataStore.budgets.getAll(),
-        dataStore.recurringTransactions.getAll()
+        (can("rooms.read")) ? dataStore.rooms.getAll() : Promise.resolve([]),
+        (can("reservations.read")) ? dataStore.reservations.getAll() : Promise.resolve([]),
+        (can("guests.read")) ? dataStore.guests.getAll() : Promise.resolve([]),
+        (can("expenses.read")) ? dataStore.expenses.getAll() : Promise.resolve([]),
+        (can("transactions.read")) ? dataStore.transactions.getAll() : Promise.resolve([]),
+        (can("auditLog.read")) ? dataStore.auditLog.getAll() : Promise.resolve([]),
+        (can("categories.read")) ? dataStore.categories.getAll() : Promise.resolve([]),
+        (can("cashCloses.read")) ? dataStore.cashCloses.getAll() : Promise.resolve([]),
+        (can("consumptions.read")) ? dataStore.consumptions.getAll() : Promise.resolve([]),
+        (can("posProducts.read")) ? dataStore.posProducts.getAll() : Promise.resolve([]),
+        (can("posSales.read")) ? dataStore.posSales.getAll() : Promise.resolve([]),
+        (can("productCategories.read")) ? dataStore.productCategories.getAll() : Promise.resolve([]),
+        (can("restaurantTables.read")) ? dataStore.restaurantTables.getAll() : Promise.resolve([]),
+        (can("restaurantOrders.read")) ? dataStore.restaurantOrders.getAll() : Promise.resolve([]),
+        (can("stockItems.read")) ? dataStore.stockItems.getAll() : Promise.resolve([]),
+        (can("stockMovements.read")) ? dataStore.stockMovements.getAll() : Promise.resolve([]),
+        (can("recipes.read")) ? dataStore.recipes.getAll() : Promise.resolve([]),
+        (can("productions.read")) ? dataStore.productions.getAll() : Promise.resolve([]),
+        (can("employees.read")) ? dataStore.employees.getAll() : Promise.resolve([]),
+        (can("employeeConsumptions.read")) ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
+        (can("users.read")) ? dataStore.users.getAll() : Promise.resolve([]),
+        (can("userSessions.read")) ? dataStore.userSessions.getAll() : Promise.resolve([]),
+        (can("systemSettings.read")) ? dataStore.systemSettings.getAll() : Promise.resolve([]),
+        (can("suppliers.read")) ? dataStore.suppliers.getAll() : Promise.resolve([]),
+        (can("customers.read")) ? dataStore.customers.getAll() : Promise.resolve([]),
+        (can("accountsReceivable.read")) ? dataStore.accountsReceivable.getAll() : Promise.resolve([]),
+        (can("bankAccounts.read") || can("bankAccounts.use")) ? dataStore.bankAccounts.getAll() : Promise.resolve([]),
+        (can("bankTransfers.read")) ? dataStore.bankTransfers.getAll() : Promise.resolve([]),
+        (can("costCenters.read")) ? dataStore.costCenters.getAll() : Promise.resolve([]),
+        (can("budgets.read")) ? dataStore.budgets.getAll() : Promise.resolve([]),
+        (can("recurringTransactions.read")) ? dataStore.recurringTransactions.getAll() : Promise.resolve([])
       ])
 
       if (loadingUser !== currentUser.current) return
@@ -330,7 +332,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDataError(error instanceof Error ? error.message : 'Não foi possível carregar os dados')
       throw error
     }
-  }, [dataStore, isSupervisor, user?.id])
+  }, [dataStore, can, accessKey])
 
   const pendingOperationIds = useRef(new Map<string, string>())
   const runOperation = useCallback(async <T,>(kind: string, payload: unknown, requestId?: string): Promise<T> => {
@@ -348,7 +350,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     pendingOperationIds.current.clear()
     setIsInitialized(false)
     setRooms([]); setReservations([]); setGuests([]); setExpenses([]); setTransactions([]); setAuditLog([]); setCategories([]); setCashCloses([]); setConsumptions([]); setPOSProducts([]); setPOSSales([]); setProductCategories([]); setRestaurantTables([]); setRestaurantOrders([]); setStockItems([]); setStockMovements([]); setRecipes([]); setProductions([]); setEmployees([]); setEmployeeConsumptions([]); setUsers([]); setUserSessions([]); setSuppliers([]); setCustomers([]); setAccountsReceivable([]); setBankAccounts([]); setBankTransfers([]); setCostCenters([]); setBudgets([]); setRecurringTransactions([])
-  }, [user?.id])
+    setSystemSettings(initialSystemSettings); setDataError(null)
+  }, [accessKey])
 
   useEffect(() => {
     if (!isLoggedIn || getDataConfig().adapter !== "database") return
@@ -393,6 +396,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Audit methods - MUST be defined before other callbacks that use it
   const addAuditEntry = useCallback(async (entry: Omit<AuditEntry, "id" | "date">) => {
+    if (getDataConfig().adapter === "database") return // Server records mutations atomically.
     const newEntry: AuditEntry = {
       ...entry,
       id: "", // Will be generated by repository
@@ -468,7 +472,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const current = reservations.find(r => r.id === id)
       if (!current) throw new Error("Reserva não encontrada")
       const merged = { ...current, ...data }
-      const input = { id, roomId: merged.roomId, cpf: merged.cpf, guestName: merged.guestName, checkIn: merged.checkIn, checkOut: merged.checkOut, totalValue: merged.totalValue, status: merged.status }
+      const input = { id, roomId: merged.roomId, cpf: merged.cpf, guestName: merged.guestName, checkIn: merged.checkIn, checkOut: merged.checkOut, totalValue: merged.totalValue, status: merged.status, recordVersion: data.recordVersion ?? current.recordVersion }
       await runOperation("edit-reservation", input); return
     }
     const before = await dataStore.reservations.getById(id)

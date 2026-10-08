@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
@@ -58,7 +59,7 @@ export function POSTab() {
     runOperation, addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
     addConsumptionItem, getCategoryName, productCategories,
   } = useApp()
-  const { username, role } = useAuth()
+  const { username, role, can } = useAuth()
   const {
     processStockForSale,
     restoreStockForSale,
@@ -395,7 +396,7 @@ export function POSTab() {
 
   async function confirmCancelSale() {
     if (!saleToCancel) return
-    if (role !== "supervisor" && !await validateSupervisorPasswordAsync(supervisorPassword)) {
+    if (getDataConfig().adapter === "demo-localStorage" && role !== "supervisor" && !await validateSupervisorPasswordAsync(supervisorPassword)) {
       toast({ title: "Aprovação recusada", variant: "destructive" }); return
     }
     if (getDataConfig().adapter === "database") {
@@ -1095,8 +1096,8 @@ export function POSTab() {
                       {sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(", ")}
                     </div>
 
-                    {sale.status === "concluida" && role === "supervisor" && (
-                      <Button
+                    {sale.status === "concluida" && can("pos.refund") && (
+                      <PermissionGate permission="pos.refund" approval><Button
                         variant="ghost"
                         size="sm"
                         className="mt-2 h-7 w-full text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -1104,10 +1105,10 @@ export function POSTab() {
                       >
                         <XCircle className="mr-1 size-3" />
                         Cancelar Venda
-                      </Button>
+                      </Button></PermissionGate>
                     )}
-                    {sale.status === "concluida" && role !== "supervisor" && (
-                      <Button
+                    {sale.status === "concluida" && !can("pos.refund") && (
+                      <PermissionGate permission="pos.refund" approval><Button
                         variant="ghost"
                         size="sm"
                         className="mt-2 h-7 w-full text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -1115,7 +1116,7 @@ export function POSTab() {
                       >
                         <XCircle className="mr-1 size-3" />
                         Cancelar Venda (Supervisor)
-                      </Button>
+                      </Button></PermissionGate>
                     )}
                     {sale.cancelReason && (
                       <p className="mt-2 text-xs italic text-destructive">
@@ -1154,7 +1155,7 @@ export function POSTab() {
               />
             </div>
 
-            {role !== "supervisor" && (
+            {getDataConfig().adapter === "demo-localStorage" && role !== "supervisor" && (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="supervisorPwd">Senha do Supervisor *</Label>
                 <Input
@@ -1175,7 +1176,7 @@ export function POSTab() {
             <Button
               variant="destructive"
               onClick={confirmCancelSale}
-              disabled={!cancelReason || (role !== "supervisor" && !supervisorPassword)}
+              disabled={!cancelReason || (getDataConfig().adapter === "demo-localStorage" && role !== "supervisor" && !supervisorPassword)}
             >
               Confirmar Cancelamento
             </Button>

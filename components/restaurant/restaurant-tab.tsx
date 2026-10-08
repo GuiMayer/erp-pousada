@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { getDataConfig } from "@/lib/data/config"
 
@@ -36,7 +37,7 @@ export function RestaurantTab() {
     addAuditEntry,
     restaurantOrders,
   } = useApp()
-  const { username } = useAuth()
+  const { username, can } = useAuth()
   const { toast } = useToast()
   const {
     tables,
@@ -104,6 +105,7 @@ export function RestaurantTab() {
 
   const handleTableClick = async (table: RestaurantTable) => {
     if (table.status === "livre") {
+      if (!can("restaurant.open")) return
       // Open new order
       const orderId = generateOrderId()
       const newOrder: RestaurantOrder = {
@@ -180,7 +182,7 @@ export function RestaurantTab() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
+          <PermissionGate permission="production.register"><Button
             variant="outline"
             size="sm"
             className="gap-2"
@@ -188,8 +190,8 @@ export function RestaurantTab() {
           >
             <Factory className="size-4" />
             Produção
-          </Button>
-          <Button
+          </Button></PermissionGate>
+          <PermissionGate permission="employees.consume"><Button
             variant="outline"
             size="sm"
             className="gap-2"
@@ -197,8 +199,8 @@ export function RestaurantTab() {
           >
             <Coffee className="size-4" />
             Consumo
-          </Button>
-          <Button
+          </Button></PermissionGate>
+          <PermissionGate permission="recipes.edit"><Button
             variant="outline"
             size="sm"
             className="gap-2"
@@ -206,8 +208,8 @@ export function RestaurantTab() {
           >
             <ChefHat className="size-4" />
             Receitas
-          </Button>
-          <Button
+          </Button></PermissionGate>
+          <PermissionGate permission="employees.edit"><Button
             variant="outline"
             size="sm"
             className="gap-2"
@@ -215,8 +217,8 @@ export function RestaurantTab() {
           >
             <Users className="size-4" />
             Funcionários
-          </Button>
-          <Button
+          </Button></PermissionGate>
+          <PermissionGate permission="restaurantTables.edit"><Button
             variant="outline"
             size="sm"
             className="gap-2"
@@ -224,7 +226,7 @@ export function RestaurantTab() {
           >
             <Settings className="size-4" />
             Gerenciar Mesas
-          </Button>
+          </Button></PermissionGate>
         </div>
       </div>
 
@@ -287,8 +289,8 @@ export function RestaurantTab() {
                   <div className="text-xs text-muted-foreground">{new Date(production.timestamp).toLocaleString("pt-BR")} - {formatCurrency(production.totalCost)}</div>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => updateProductionNotes(production.id)}><Pencil className="size-4" /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => archiveProduction(production.id)}><Trash2 className="size-4" /></Button>
+                  {getDataConfig().adapter === "demo-localStorage" && (<Button size="sm" variant="ghost" onClick={() => updateProductionNotes(production.id)}><Pencil className="size-4" /></Button>)}
+                  {getDataConfig().adapter === "demo-localStorage" && (<Button size="sm" variant="ghost" onClick={() => archiveProduction(production.id)}><Trash2 className="size-4" /></Button>)}
                 </div>
               </div>
             ))}
@@ -309,8 +311,8 @@ export function RestaurantTab() {
                   <div className="text-xs text-muted-foreground">{new Date(consumption.timestamp).toLocaleString("pt-BR")} - {formatCurrency(consumption.total)}</div>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => updateConsumptionNotes(consumption.id)}><Pencil className="size-4" /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => removeConsumption(consumption.id)}><Trash2 className="size-4" /></Button>
+                  {getDataConfig().adapter === "demo-localStorage" && (<Button size="sm" variant="ghost" onClick={() => updateConsumptionNotes(consumption.id)}><Pencil className="size-4" /></Button>)}
+                  {getDataConfig().adapter === "demo-localStorage" && (<Button size="sm" variant="ghost" onClick={() => removeConsumption(consumption.id)}><Trash2 className="size-4" /></Button>)}
                 </div>
               </div>
             ))}

@@ -138,13 +138,14 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
     return true
   }
 
-  function handleAdd() {
+  async function handleAdd() {
+    try {
     if (!validateForm()) return
 
     const newId = crypto.randomUUID()
     const cleanCPF = cpfValue.replace(/\D/g, "")
 
-    addEmployee({
+    await addEmployee({
       id: newId,
       name: name.trim(),
       cpf: cleanCPF,
@@ -166,14 +167,18 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
 
     resetForm()
     setMode("list")
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  function handleEdit() {
+  async function handleEdit() {
+    try {
     if (!editingEmployee || !validateForm()) return
 
     const cleanCPF = cpfValue.replace(/\D/g, "")
 
-    updateEmployee(editingEmployee.id, {
+    await updateEmployee(editingEmployee.id, {
+      recordVersion: editingEmployee.recordVersion,
       name: name.trim(),
       cpf: cleanCPF,
       role,
@@ -193,6 +198,8 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
 
     resetForm()
     setMode("list")
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   function handleDelete(employee: Employee) {

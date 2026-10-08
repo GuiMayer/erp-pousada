@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { useState, useMemo } from "react"
 import { getDataConfig } from "@/lib/data/config"
@@ -110,7 +111,7 @@ export function ReservationsTab() {
     runOperation, reservations, rooms, addReservation, updateReservation,
     findGuest, addAuditEntry,
   } = useApp()
-  const { username } = useAuth()
+  const { username, can } = useAuth()
 
   const [showNewForm, setShowNewForm] = useState(false)
   const [cancelModal, setCancelModal] = useState<Reservation | null>(null)
@@ -212,7 +213,7 @@ export function ReservationsTab() {
   async function handleSaveEdit() {
     if (!editModal || pending) return
     setPending(true); setOperationError("")
-    try { await updateReservation(editModal.id, { checkIn: editCheckIn, checkOut: editCheckOut, totalValue: Number(editTotal) || 0 }); setEditModal(null) }
+    try { await updateReservation(editModal.id, { recordVersion: editModal.recordVersion, checkIn: editCheckIn, checkOut: editCheckOut, totalValue: Number(editTotal) || 0 }); setEditModal(null) }
     catch (error) { setOperationError(error instanceof Error ? error.message : "Edição não concluída") }
     finally { setPending(false) }
   }
@@ -231,10 +232,10 @@ export function ReservationsTab() {
     <div className="flex flex-col gap-6 animate-fade-in">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-lg font-semibold text-foreground">Reservas</h2>
-        <Button size="sm" className="gap-1.5" onClick={() => setShowNewForm(!showNewForm)}>
+        <PermissionGate permission="reservations.create"><Button size="sm" className="gap-1.5" onClick={() => setShowNewForm(!showNewForm)}>
           <Plus className="size-4" />
           Nova Reserva
-        </Button>
+        </Button></PermissionGate>
       </div>
 
       {operationError && <p role="alert" className="text-sm text-destructive">{operationError}</p>}
@@ -380,26 +381,26 @@ export function ReservationsTab() {
                     <div className="flex gap-1 justify-end">
                       {(r.status === "confirmada" || r.status === "checkin") && (
                         <>
-                          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => openEdit(r)}>
+                          <PermissionGate permission="reservations.edit"><Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => openEdit(r)}>
                             <Pencil className="size-3.5" /> Editar
-                          </Button>
-                          <Button
+                          </Button></PermissionGate>
+                          <PermissionGate permission="reservations.cancel"><Button
                             variant="ghost" size="sm"
                             className="gap-1 text-xs text-destructive hover:text-destructive"
                             onClick={() => { setCancelModal(r); setCancelTreatment(""); setNoShow(false); setCancellationFee("0"); setOperationError("") }}
                           >
                             <XCircle className="size-3.5" /> Cancelar
-                          </Button>
+                          </Button></PermissionGate>
                         </>
                       )}
                       {isCheckInOverdue(r) && (
-                        <Button
+                        <PermissionGate permission="reservations.cancel"><Button
                           variant="ghost" size="sm"
                           className="gap-1 text-xs text-destructive hover:text-destructive"
                           onClick={() => handleNoShow(r)}
                         >
                           <UserX className="size-3.5" /> No-Show
-                        </Button>
+                        </Button></PermissionGate>
                       )}
                     </div>
                   </TableCell>
@@ -446,16 +447,16 @@ export function ReservationsTab() {
                 <div className="flex gap-2 pt-2">
                   {(detailSheet.status === "confirmada" || detailSheet.status === "checkin") && (
                     <>
-                      <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={() => { openEdit(detailSheet); setDetailSheet(null) }}>
+                      <PermissionGate permission="reservations.edit"><Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={() => { openEdit(detailSheet); setDetailSheet(null) }}>
                         <Pencil className="size-3.5" /> Editar
-                      </Button>
-                      <Button
+                      </Button></PermissionGate>
+                      <PermissionGate permission="reservations.cancel"><Button
                         variant="outline" size="sm"
                         className="gap-1.5 flex-1 text-destructive hover:text-destructive"
                         onClick={() => { setCancelModal(detailSheet); setCancelTreatment(""); setNoShow(false); setCancellationFee("0"); setOperationError(""); setDetailSheet(null) }}
                       >
                         <XCircle className="size-3.5" /> Cancelar
-                      </Button>
+                      </Button></PermissionGate>
                     </>
                   )}
                 </div>
@@ -513,16 +514,16 @@ export function ReservationsTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="estorno">Estorno Integral</SelectItem>
-                <SelectItem value="multa">Retencao (Multa)</SelectItem>
-                <SelectItem value="credito">Credito para Proxima Estadia</SelectItem>
+                <SelectItem disabled={!can("reservations.feeCredit")} value="multa">Retencao (Multa)</SelectItem>
+                <SelectItem disabled={!can("reservations.feeCredit")} value="credito">Credito para Proxima Estadia</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <Label>Multa definida pelo supervisor (R$)<Input aria-label="Multa de cancelamento" type="number" min="0" max={cancelModal?.paidValue ?? 0} step="0.01" value={cancelTreatment === "estorno" ? "0" : cancellationFee} disabled={cancelTreatment === "estorno"} onChange={event => setCancellationFee(event.target.value)} /></Label>
+          <Label>Multa definida pelo supervisor (R$)<Input aria-label="Multa de cancelamento" type="number" min="0" max={cancelModal?.paidValue ?? 0} step="0.01" value={cancelTreatment === "estorno" ? "0" : cancellationFee} disabled={cancelTreatment === "estorno" || !can("reservations.feeCredit")} onChange={event => setCancellationFee(event.target.value)} /></Label>
           <p className="text-sm text-muted-foreground">Recebido: R$ {(cancelModal?.paidValue ?? 0).toFixed(2)} · Saldo para {cancelTreatment === "credito" ? "crédito" : "reembolso"}: R$ {Math.max(0, (cancelModal?.paidValue ?? 0) - (cancelTreatment === "estorno" ? 0 : Number(cancellationFee) || 0)).toFixed(2)}</p>
           {operationError && <p role="alert" className="text-destructive">{operationError}</p>}
           <DialogFooter>
-            <Button variant="outline" disabled={pending} onClick={() => setCancelModal(null)}>Voltar</Button>
+            <PermissionGate permission="reservations.cancel"><Button variant="outline" disabled={pending} onClick={() => setCancelModal(null)}>Voltar</Button></PermissionGate>
             <Button variant="destructive" disabled={!cancelTreatment || pending} onClick={handleCancel}>Confirmar Cancelamento</Button>
           </DialogFooter>
         </DialogContent>
