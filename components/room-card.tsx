@@ -106,6 +106,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
 
   async function handleCheckOut() {
     if (consumptionTotal > 0) {
+      toast({ title: "Check-out bloqueado", description: "Quite o consumo antes do check-out.", variant: "destructive" })
       sendNotification(
         'payment',
         'Check-out bloqueado',
@@ -141,8 +142,9 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
     )
   }
 
-  function handleRelease() {
-    updateRoom(room.id, { status: "disponivel" })
+  async function handleRelease() {
+    try { await updateRoom(room.id, { status: "disponivel" }) }
+    catch (error) { toast({ title: "Quarto não liberado", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
     addAuditEntry({
       user: username || "sistema",
       action: "Quarto liberado (limpeza concluida)",
@@ -157,11 +159,11 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
     )
   }
 
-  function handleBlock(endDate: string, responsible: string, reason: string) {
-    updateRoom(room.id, {
+  async function handleBlock(endDate: string, responsible: string, reason: string) {
+    try { await updateRoom(room.id, {
       status: "bloqueado",
       blockEndDate: endDate, blockResponsible: responsible, blockReason: reason,
-    })
+    }) } catch (error) { toast({ title: "Bloqueio não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
     addAuditEntry({
       user: username || "sistema",
       action: "Quarto bloqueado",
@@ -177,11 +179,11 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
     setBlockModalOpen(false)
   }
 
-  function handleUnblock() {
-    updateRoom(room.id, {
+  async function handleUnblock() {
+    try { await updateRoom(room.id, {
       status: "disponivel",
       blockEndDate: undefined, blockResponsible: undefined, blockReason: undefined,
-    })
+    }) } catch (error) { toast({ title: "Desbloqueio não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
     addAuditEntry({
       user: username || "sistema",
       action: "Desbloqueio de quarto",

@@ -1,5 +1,6 @@
 "use client"
 
+import { ruleSchema } from "@/lib/notification-policy"
 import { PROFILES, effectivePermissions, type PermissionOverrides } from "@/lib/permissions"
 import { UserPermissionsEditor } from "./user-permissions-editor"
 import { useState, useEffect, useRef } from "react"
@@ -142,6 +143,7 @@ export function AdminTab() {
     const nameError = validatePousadaName(formData.pousadaName)
     if (nameError) newErrors.pousadaName = nameError
 
+    if (!ruleSchema.safeParse(formData.notificationRules ?? {}).success) newErrors.notificationRules = "Revise os limites: crítico deve ser mais grave que aviso."
     const checkInError = validateTime(formData.checkInTime)
     if (checkInError) newErrors.checkInTime = checkInError
 
@@ -165,7 +167,7 @@ export function AdminTab() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleFieldChange = (field: keyof SystemSettings, value: string | number | boolean) => {
+  const handleFieldChange = (field: keyof SystemSettings, value: string | number | boolean | Record<string, number>) => {
     // Prevent syncing with context while editing
     shouldSyncRef.current = false
     
@@ -674,6 +676,15 @@ export function AdminTab() {
               onCheckedChange={(checked) => handleFieldChange("notifyPendingPayments", checked)}
             />
           </div>
+          <Separator />
+          <p className="text-sm font-medium">Limites dos alertas operacionais</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {Object.entries({ stockCriticalLevel: "Estoque crítico (% do mínimo)", stockLowLevel: "Estoque baixo (% do mínimo)", cashDifferenceWarning: "Diferença de caixa: aviso (R$)", cashDifferenceCritical: "Diferença de caixa: crítico (R$)", openOrderWarningHours: "Comanda: aviso (horas)", openOrderCriticalHours: "Comanda: crítico (horas)", yieldWarningPercentage: "Rendimento: aviso abaixo de (%)", yieldCriticalPercentage: "Rendimento: crítico abaixo de (%)" }).map(([key, label]) => <div key={key} className="space-y-1">
+              <Label htmlFor={`rule-${key}`}>{label}</Label>
+              <Input id={`rule-${key}`} type="number" min="0" step="0.1" value={formData.notificationRules?.[key] ?? (ruleSchema.parse({}) as Record<string, number>)[key]} onChange={e => handleFieldChange("notificationRules", { ...formData.notificationRules, [key]: Number(e.target.value) })} />
+            </div>)}
+          </div>
+          {errors.notificationRules && <p role="alert" className="text-sm text-destructive">{errors.notificationRules}</p>}
         </CardContent>
       </Card>
 

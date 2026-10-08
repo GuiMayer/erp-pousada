@@ -240,3 +240,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 Para contribuir, abra uma issue descrevendo o problema ou a proposta e envie um pull request com contexto e validação da alteração. Mantenha os exemplos fictícios e documente mudanças de configuração ou persistência.
 
 O repositório ainda não possui um arquivo de licença. A disponibilização pública do código não substitui a definição de uma licença de uso e distribuição.
+
+### Notificações
+
+Eventos confirmados e alertas operacionais possuem histórico no PostgreSQL, leitura individual e acesso conforme as permissões atuais. O worker Docker mantém os lembretes sem navegador conectado. Consulte [o guia da central](docs/NOTIFICACOES.md).

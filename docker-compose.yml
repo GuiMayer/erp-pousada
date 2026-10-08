@@ -62,9 +62,27 @@ services:
         condition: service_completed_successfully
     environment:
       PGPASSWORD: ${DB_ADMIN_PASSWORD:?Defina DB_ADMIN_PASSWORD}
+      DB_WORKER_PASSWORD: ${DB_WORKER_PASSWORD:?Defina DB_WORKER_PASSWORD}
     volumes:
       - ./scripts/db-runtime-grants.sql:/scripts/db-runtime-grants.sql:ro
-    command: ["psql", "-h", "postgres", "-U", "pousada_admin", "-d", "pousada", "-v", "ON_ERROR_STOP=1", "-f", "/scripts/db-runtime-grants.sql"]
+      - ./scripts/db-configure-permissions.sh:/scripts/db-configure-permissions.sh:ro
+    command: ["sh", "/scripts/db-configure-permissions.sh"]
+  notification-worker:
+    image: erp-pousada:${APP_VERSION:-local}
+    restart: unless-stopped
+    depends_on:
+      database-permissions:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://pousada_notifications:${DB_WORKER_PASSWORD:?Defina DB_WORKER_PASSWORD}@postgres:5432/pousada
+    command: ["./node_modules/.bin/tsx", "scripts/notification-worker.ts"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "const fs=require('fs');process.exit(fs.existsSync('/tmp/notification-worker-success') && Date.now()-Number(fs.readFileSync('/tmp/notification-worker-success','utf8'))<180000?0:1)"]
+      interval: 60s
+      start_period: 60s
+      timeout: 5s
+      retries: 3
   backup-worker:
     build:
       context: .

@@ -341,6 +341,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (pendingOperationIds.current.size > 100) pendingOperationIds.current.clear()
     pendingOperationIds.current.set(key, operationId)
     const result = await submitOperation<T>(kind, payload, operationId)
+    window.dispatchEvent(new Event("erp:operation-completed"))
     pendingOperationIds.current.delete(key)
     await loadAllData().catch(() => {})
     return result

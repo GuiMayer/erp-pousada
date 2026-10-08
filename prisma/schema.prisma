@@ -31,6 +31,8 @@ model User {
   createdBy String
   lastLogin DateTime?
 
+  notifications UserNotification[]
+  notificationPreference NotificationPreference?
   sessions UserSession[]
   authSessions AuthSession[]
 
@@ -92,6 +94,7 @@ model SystemSettings {
   razaoSocial              String?
   inscricaoEstadual        String?
   logoUrl                  String?
+  notificationRules Json @default("{}")
   notifyCheckInReminder    Boolean @default(true)
   notifyCheckOutReminder   Boolean @default(true)
   notifyLowStock           Boolean @default(true)
@@ -776,4 +779,48 @@ model OperationApproval {
   @@index([sessionId, requestId])
   @@index([approverId])
   @@map("operation_approvals")
+}
+
+
+model NotificationEvent {
+  id String @id @default(uuid())
+  dedupKey String @unique
+  type String
+  title String
+  message String
+  priority String @default("medium")
+  reference String?
+  module String
+  actorId String?
+  requiredPermissions String[]
+  conditionKey String? @unique
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  recipients UserNotification[]
+  @@index([createdAt, id])
+  @@map("notification_events")
+}
+model UserNotification {
+  id String @id @default(uuid())
+  eventId String
+  userId String
+  readAt DateTime?
+  archivedAt DateTime?
+  event NotificationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([eventId, userId])
+  @@index([userId, archivedAt, readAt])
+  @@map("user_notifications")
+}
+model NotificationPreference {
+  userId String @id
+  value Json @default("{}")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("notification_preferences")
+}
+model NotificationWorkerState {
+  id String @id
+  lastSuccess DateTime?
+  lastError String?
+  @@map("notification_worker_state")
 }

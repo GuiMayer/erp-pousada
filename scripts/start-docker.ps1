@@ -3,6 +3,14 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $projectRoot
 $environmentFile = Join-Path $projectRoot '.env.docker.local'
 if (!(Test-Path -LiteralPath $environmentFile)) { throw 'Execute scripts/setup-docker.ps1 primeiro.' }
+# Upgrade existing installations without replacing any existing credential.
+if (!(Select-String -LiteralPath $environmentFile -Pattern '^DB_WORKER_PASSWORD=' -Quiet)) {
+  $workerBytes = New-Object byte[] 24
+  $workerGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  try { $workerGenerator.GetBytes($workerBytes) } finally { $workerGenerator.Dispose() }
+  $workerSecret = [BitConverter]::ToString($workerBytes).Replace('-', '').ToLowerInvariant()
+  Add-Content -LiteralPath $environmentFile -Value "DB_WORKER_PASSWORD=$workerSecret"
+}
 & docker info --format '{{.ServerVersion}}' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Inicie o Docker Desktop antes da instalação.' }
 $composeArguments = @('compose','--env-file',$environmentFile,'-f','docker-compose.yml','-f','compose.lan.yml')

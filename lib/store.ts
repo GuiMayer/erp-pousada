@@ -655,6 +655,7 @@ export interface SystemSettings {
   razaoSocial?: string
   inscricaoEstadual?: string
   logoUrl?: string // URL ou base64 da logo
+  notificationRules?: Record<string, number>
   notifyCheckInReminder?: boolean
   notifyCheckOutReminder?: boolean
   notifyLowStock?: boolean

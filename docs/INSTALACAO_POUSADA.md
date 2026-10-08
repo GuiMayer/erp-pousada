@@ -85,3 +85,7 @@ Cadastre quartos, produtos, contas e usuários com seus perfis. Confira login co
 Somente após essas verificações a instalação está pronta para uso real. A Vercel não participa da implantação.
 
 Referências: [Caddy TLS interno](https://caddyserver.com/docs/caddyfile/directives/tls), [rclone crypt](https://rclone.org/crypt/) e [perfis do PostgreSQL](https://www.postgresql.org/docs/16/role-membership.html).
+
+## Central de notificações
+
+O serviço `notification-worker` avalia lembretes mesmo sem usuários conectados. Para configurações, retenção, permissões e limites de avisos do navegador, consulte [Notificações operacionais](NOTIFICACOES.md). A atualização por `scripts/start-docker.ps1` acrescenta a credencial restrita do worker em instalações existentes sem substituir senhas.

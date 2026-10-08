@@ -12,4 +12,6 @@ if ($health.status -ne 'ok') { throw 'Banco não responde.' }
 & docker @composeArguments exec -T backup-worker sh -c 'test -f /backups/last-success && find /backups/last-success -mmin -${BACKUP_INTERVAL_MINUTES} | grep -q . && test ! -f /backups/last-error'
 if ($LASTEXITCODE -ne 0) { throw 'Backup ainda não confirmado ou com falha.' }
 if (!$configuration.BACKUP_REMOTE) { Write-Host 'Cópia externa criptografada ainda precisa de configuração.' }
-Write-Host 'Aplicação, banco e último backup verificados.'
+& docker @composeArguments exec -T notification-worker node -e "const fs=require('fs');process.exit(fs.existsSync('/tmp/notification-worker-success') && Date.now()-Number(fs.readFileSync('/tmp/notification-worker-success','utf8'))<180000?0:1)"
+if ($LASTEXITCODE -ne 0) { throw 'O serviço de notificações ainda não confirmou uma execução recente.' }
+Write-Host 'Aplicação, banco, notificações e último backup verificados.'

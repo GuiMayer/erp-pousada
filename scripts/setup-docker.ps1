@@ -13,7 +13,7 @@ function New-LocalSecret {
   return [BitConverter]::ToString($secretBytes).Replace('-', '').ToLowerInvariant()
 }
 $secretValues = @{}
-foreach ($key in @('DB_ADMIN_PASSWORD','DB_MIGRATOR_PASSWORD','DB_APP_PASSWORD','DB_BACKUP_PASSWORD')) { $secretValues[$key] = New-LocalSecret }
+foreach ($key in @('DB_ADMIN_PASSWORD','DB_MIGRATOR_PASSWORD','DB_APP_PASSWORD','DB_BACKUP_PASSWORD','DB_WORKER_PASSWORD')) { $secretValues[$key] = New-LocalSecret }
 $configuration = @("DOMAIN=$Domain", "LAN_BIND_ADDRESS=$BindAddress", "APP_URL=https://$Domain", 'BACKUP_HOST_DIR=./backups', 'BACKUP_INTERVAL_MINUTES=30', 'BACKUP_RETENTION_DAYS=14', 'BACKUP_REMOTE=', 'ALERT_WEBHOOK_URL=')
 foreach ($key in $secretValues.Keys) { $configuration += "$key=$($secretValues[$key])" }
 [IO.File]::WriteAllLines($environmentFile, $configuration)

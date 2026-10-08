@@ -1,3 +1,6 @@
+import { ruleSchema } from "@/lib/notification-policy"
+import { roomStatusEvent } from "../notifications/service"
+import { evaluateStock } from "../notifications/rules"
 import { ALL_PERMISSIONS, PROFILES, effectivePermissions, operationalCollections } from "@/lib/permissions"
 import { can, demand } from "../permissions"
 import { Prisma } from "@prisma/client"
@@ -87,6 +90,8 @@ async function mappedInput(key: string, item: unknown, partial: boolean, actor?:
   for (const field of Object.keys(input)) if (field.startsWith("_")) delete input[field]
   delete input.recordVersion
   delete input.accessVersion
+  if (key === "systemSettings") for (const field of ["checkInTime", "checkOutTime"]) if (input[field] !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(input[field]))) throw new HttpError(400, "Horário inválido")
+  if (key === "systemSettings" && input.notificationRules !== undefined) input.notificationRules = ruleSchema.parse(input.notificationRules)
   if (partial) { delete input.id; delete input.createdAt; delete input.createdBy }
   if (key === "users") {
     if (input.accessProfile !== undefined && (typeof input.accessProfile !== "string" || !PROFILES[input.accessProfile])) throw new HttpError(400, "Perfil de acesso inválido")
@@ -171,6 +176,7 @@ export async function createCollectionItem(key: string, item: unknown, actor?: A
   if (key === "users") await checkUserChange(client, undefined, item as Row, actor)
   const row = await model(key, client).create({ data: await mappedInput(key, item, false, actor), include: collectionMapper(key).include })
   await mutationAudit(client, actor, key, "create", String(row.id ?? row.cpf), null, row)
+  if (key === "stockItems" && actor) await evaluateStock(client)
   return toApp(key, row)
 }
 // Compatibility name used by the migration script. Creation is deliberately not an upsert.
@@ -218,6 +224,8 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
     else if (input.accessVersion) await client.operationApproval.deleteMany({ where: { approverId: id } })
   }
   await mutationAudit(client, actor, key, "update", id, snapshot, updated)
+  if (key === "rooms") await roomStatusEvent(client, actor, id, snapshot?.status, updated.status)
+  if (key === "stockItems") await evaluateStock(client)
   return toApp(key, updated)
 }
 export async function deleteCollectionItem(key: string, id: string, client: Client = prisma, actor?: Actor): Promise<void> {

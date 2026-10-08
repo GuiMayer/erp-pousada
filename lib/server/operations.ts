@@ -1,3 +1,5 @@
+import { emitOperation } from "./notifications/service"
+import { evaluateStock, evaluateTimed } from "./notifications/rules"
 import { approvalResourceHash, approvalReview } from "./approval-scope"
 import { effectivePermissions } from "@/lib/permissions"
 import { demand, demandOperation, DELEGATABLE } from "./permissions"
@@ -404,6 +406,9 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
           if (error instanceof HttpError && error.details?.approvalRequired) error.details = { ...error.details, ...await approvalReview(tx, actor, kind, payload) }
           throw error
         }
+        await emitOperation(tx, actor, requestId, kind, payload, result)
+        await evaluateStock(tx)
+        await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await tx.auditEntry.create({ data: { id: randomUUID(), user: actor.username, action: "Operação aprovada", reference: kind, entityId: requestId, metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } } })

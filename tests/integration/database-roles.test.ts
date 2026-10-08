@@ -21,7 +21,20 @@ describe("Credenciais separadas do PostgreSQL", () => {
       await client.query("DELETE FROM rooms WHERE id = 99999")
       await expect(client.query("CREATE TABLE role_forbidden (id int)")).rejects.toMatchObject({ code: "42501" })
       await expect(client.query("SELECT * FROM _prisma_migrations")).rejects.toMatchObject({ code: "42501" })
+      await expect(client.query("DELETE FROM notification_events WHERE false")).rejects.toMatchObject({ code: "42501" })
+      await expect(client.query("UPDATE notification_events SET message = 'forbidden' WHERE false")).rejects.toMatchObject({ code: "42501" })
       await expect(client.query("DELETE FROM audit_entries WHERE false")).rejects.toMatchObject({ code: "42501" })
+    } finally { await client.end() }
+  })
+  it("worker avalia regras sem modificar cadastros, finanças ou conteúdo de eventos", async () => {
+    const client = await connectAs("pousada_notifications", process.env.DB_WORKER_PASSWORD || "ci-worker-only")
+    try {
+      await client.query("SELECT * FROM stock_items LIMIT 1")
+      await expect(client.query("SELECT password FROM users LIMIT 1")).rejects.toMatchObject({ code: "42501" })
+      await expect(client.query("UPDATE stock_items SET \"currentStock\" = 0 WHERE false")).rejects.toMatchObject({ code: "42501" })
+      await expect(client.query("UPDATE notification_events SET message = 'forbidden' WHERE false")).rejects.toMatchObject({ code: "42501" })
+      await expect(client.query("DELETE FROM users WHERE false")).rejects.toMatchObject({ code: "42501" })
+      await expect(client.query("SELECT * FROM _prisma_migrations")).rejects.toMatchObject({ code: "42501" })
     } finally { await client.end() }
   })
   it("backup consulta os dados, mas não os modifica", async () => {

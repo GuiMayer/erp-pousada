@@ -38,7 +38,7 @@ jobs:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           docker exec -i "$POSTGRES_CONTAINER" psql -U testadmin -d erp_test -v ON_ERROR_STOP=1 -v app_password=ci-app-only -v migrator_password=ci-migrator-only -v backup_password=ci-backup-only < scripts/db-roles.sql
-          docker exec -i "$POSTGRES_CONTAINER" psql -U testadmin -d erp_test -v ON_ERROR_STOP=1 < scripts/db-runtime-grants.sql
+          docker exec -i "$POSTGRES_CONTAINER" psql -U testadmin -d erp_test -v ON_ERROR_STOP=1 -v worker_password=ci-worker-only < scripts/db-runtime-grants.sql
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test:run
@@ -76,6 +76,7 @@ jobs:
           DB_APP_PASSWORD: ci-app-only
           DB_MIGRATOR_PASSWORD: ci-migrator-only
           DB_BACKUP_PASSWORD: ci-backup-only
+          DB_WORKER_PASSWORD: ci-worker-only
           APP_URL: https://localhost
         run: |
           docker rm -f erp-smoke

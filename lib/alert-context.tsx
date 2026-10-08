@@ -3,6 +3,10 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react"
 import type { Alert, AlertType, AlertPriority, AlertThresholds } from "./types/alerts"
 import { DEFAULT_THRESHOLDS } from "./types/alerts"
+import { useAuth } from "./auth-context"
+import { getDataConfig } from "./data/config"
+import { useApp } from "./app-context"
+import { ruleSchema } from "./notification-policy"
 import { useToast } from "@/hooks/use-toast"
 
 interface AlertContextType {
@@ -18,16 +22,23 @@ interface AlertContextType {
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined)
 
-const STORAGE_KEY = "pousada:alerts"
-const THRESHOLDS_KEY = "pousada:alert-thresholds"
 
 export function AlertProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
+  const { systemSettings: settings } = useApp()
+  const demo = getDataConfig().adapter === "demo-localStorage"
+  const THRESHOLDS_KEY = `erp:demo:alert-thresholds:${user?.id}`
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [thresholds, setThresholds] = useState<AlertThresholds>(DEFAULT_THRESHOLDS)
   const { toast } = useToast()
 
   // Load thresholds from localStorage on mount
   useEffect(() => {
+    if (!demo) {
+      const result = ruleSchema.safeParse((settings as unknown as { notificationRules?: unknown }).notificationRules ?? {})
+      if (result.success) setThresholds({ ...DEFAULT_THRESHOLDS, ...result.data })
+      return
+    }
     const stored = localStorage.getItem(THRESHOLDS_KEY)
     if (stored) {
       try {
@@ -37,16 +48,17 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         console.error("Failed to load alert thresholds:", error)
       }
     }
-  }, [])
+  }, [demo, THRESHOLDS_KEY, settings])
 
   // Save thresholds to localStorage when changed
   const updateThresholds = useCallback((newThresholds: Partial<AlertThresholds>) => {
+    if (!demo) return
     setThresholds(prev => {
       const updated = { ...prev, ...newThresholds }
       localStorage.setItem(THRESHOLDS_KEY, JSON.stringify(updated))
       return updated
     })
-  }, [])
+  }, [demo, THRESHOLDS_KEY])
 
   const addAlert = useCallback((alertData: Omit<Alert, 'id' | 'timestamp' | 'dismissed'>) => {
     const newAlert: Alert = {

@@ -6,7 +6,6 @@ import { PROFILES } from "@/lib/permissions"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
 import { useUserPreferences } from "@/contexts/user-preferences-context"
-import { AlertBadge } from "@/components/alert-badge"
 import { NotificationCenter } from "@/components/notification-center"
 import type { Room, RoomStatus } from "@/lib/store"
 
@@ -68,7 +67,6 @@ export function DashboardHeader({ rooms }: { rooms: Room[] }) {
           </p>
         </div>
         <div className="flex min-w-0 items-center gap-1 sm:gap-3">
-          <AlertBadge />
           <NotificationCenter />
           <div className="min-w-0 flex-1 truncate rounded-lg bg-secondary px-2 py-1.5 text-xs sm:flex-none sm:px-3">
             <span className="hidden text-muted-foreground sm:inline">Logado como </span>

@@ -20,6 +20,7 @@ const salePayload = (quantity = 1) => ({ sale: { id: randomUUID(), items: [{ id:
 
 beforeAll(async () => {
   await clearAllCollections()
+  await prisma.systemSettings.deleteMany()
   await prisma.$executeRawUnsafe('TRUNCATE TABLE "users", "operation_receipts", "auth_rate_limits", "rooms", "product_categories", "transactions", "audit_entries" CASCADE')
   const user = await prisma.user.create({ data: { id: "supervisor", username: "supervisor-test", password: await bcrypt.hash("Strong-test-password-42", 12), role: "supervisor", active: true, createdBy: "test", fullName: "Supervisor de teste" } })
   const session = await prisma.authSession.create({ data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 3600000) } })
