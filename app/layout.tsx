@@ -25,6 +25,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
+        {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && (
+          <div role="status" className="bg-amber-100 text-amber-950 px-4 py-2 text-center text-sm font-medium">
+            Demonstração · Dados fictícios. As alterações serão descartadas ao encerrar este ambiente.
+          </div>
+        )}
         {children}
       </body>
     </html>

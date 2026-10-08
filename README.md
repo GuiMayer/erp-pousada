@@ -246,3 +246,5 @@ O repositório ainda não possui um arquivo de licença. A disponibilização p�
 Eventos confirmados e alertas operacionais possuem histórico no PostgreSQL, leitura individual e acesso conforme as permissões atuais. O worker Docker mantém os lembretes sem navegador conectado. Consulte [o guia da central](docs/NOTIFICACOES.md).
 
 Consulte [Auditoria e logs](docs/LOGS.md) para filtros do histórico, diagnóstico de erros e política de retenção.
+
+Para apresentações sem alterar os dados operacionais, consulte [Demonstração temporária](docs/DEMONSTRACAO.md).

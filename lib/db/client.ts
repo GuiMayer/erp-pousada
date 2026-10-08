@@ -1,3 +1,4 @@
+import { assertDemoTarget } from "../server/demo-guard"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "@prisma/client"
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
@@ -5,6 +6,7 @@ function client() {
   if (globalForPrisma.prisma) return globalForPrisma.prisma
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) throw new Error("DATABASE_URL é obrigatória para acessar o banco")
+  if (process.env.DEMO_MODE === "true") assertDemoTarget(connectionString, process.env.DEMO_MODE)
   const instance = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
   globalForPrisma.prisma = instance
   return instance

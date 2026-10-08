@@ -1,3 +1,4 @@
+import { sessionCookieName } from "./session-config"
 import { setLogActor, logEvent } from "./logging"
 import { createHash, randomBytes } from "node:crypto"
 import bcrypt from "bcryptjs"
@@ -7,7 +8,7 @@ import { effectivePermissions, APPROVAL_PERMISSIONS, type PermissionOverrides } 
 import { demand } from "./permissions"
 import { assertSameOrigin, HttpError } from "./http"
 
-export const SESSION_COOKIE = "erp_session"
+export const SESSION_COOKIE = sessionCookieName(process.env.DEMO_MODE === "true")
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex")
 const SESSION_SECONDS = 8 * 60 * 60
 const dummyHash = bcrypt.hashSync(randomBytes(32).toString("hex"), 12)
