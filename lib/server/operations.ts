@@ -1,4 +1,5 @@
-import { setLogOperation } from "./logging"
+import { requireVersion, retryDelay } from "./concurrency"
+import { logEvent, setLogOperation } from "./logging"
 import { recordAudit } from "./audit"
 import { emitOperation } from "./notifications/service"
 import { evaluateStock, evaluateTimed } from "./notifications/rules"
@@ -107,7 +108,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     let originalValue = decimal(input.totalValue)
     if (kind === "edit-reservation") {
       const current = await tx.reservation.findUniqueOrThrow({ where: { id: input.id } })
-      if (input.recordVersion !== current.recordVersion) throw new HttpError(409, "Reserva alterada por outro usuário. Reabra o formulário.")
+      requireVersion(input.recordVersion, current.recordVersion)
       originalValue = Prisma.Decimal.max(current.originalValue ?? current.totalValue, current.totalValue, input.totalValue)
       if (current.status !== "confirmada") throw new HttpError(409, "Somente reserva confirmada pode ser editada")
       if (current.paidValue.gt(0) && current.cpf !== input.cpf) throw new HttpError(409, "Reserva paga não permite trocar o titular")
@@ -224,7 +225,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const discount = round(subtotal.mul(input.discountPercent).div(100))
     await tx.restaurantOrderItem.deleteMany({ where: { orderId: order.id } })
     await tx.restaurantOrder.update({ where: { id: order.id }, data: { version: { increment: 1 }, items: { create: items }, subtotal, discount, total: subtotal.minus(discount) } })
-    await audit(tx, actor, "Comanda editada", order.id, { entityType: "restaurantOrders", entityId: order.id, operation: "update", metadata: { before: { items: order.items, subtotal: Number(order.subtotal), discount: Number(order.discount), total: Number(order.total), version: order.version }, after: { items, subtotal: Number(subtotal), discount: Number(discount), total: Number(subtotal.minus(discount)), version: order.version + 1 } } })
+    await audit(tx, actor, "Comanda editada", order.id, { entityType: "restaurantOrders", entityId: order.id, operation: "update", metadata: { before: { items: order.items, subtotal: Number(order.subtotal), discount: Number(order.discount), total: Number(order.total), version: order.version }, after: { items, subtotal: Number(subtotal), discount: Number(discount), total: Number(subtotal.minus(discount)), version: (await tx.restaurantOrder.findUniqueOrThrow({ where: { id: order.id } })).version } } })
     return { success: true }
   }
   if (kind === "close-order" || kind === "cancel-order") {
@@ -281,8 +282,9 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "pay-expense") {
-    const input = z.object({ expenseId: id, installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
+    const input = z.object({ expenseId: id, recordVersion: z.number().int().nonnegative().optional(), installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
     const expense = await tx.expense.findUniqueOrThrow({ where: { id: input.expenseId }, include: { installments: true } })
+    if (input.recordVersion !== undefined) requireVersion(input.recordVersion, expense.recordVersion)
     let value = expense.value
     let reference = expense.id
     if (input.installmentId) {
@@ -342,7 +344,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const recipe = await tx.recipe.findUniqueOrThrow({ where: { id: input.recipeId }, include: { ingredients: true } })
     if (!recipe.active || recipe.expectedYield.lte(0) || !recipe.ingredients.length || recipe.ingredients.some(item => item.quantity.lte(0))) throw new HttpError(409, "Receita inválida ou inativa")
     const productionId = randomUUID(); let totalCost = decimal(0)
-    for (const ingredient of recipe.ingredients) {
+    for (const ingredient of [...recipe.ingredients].sort((a, b) => a.productId.localeCompare(b.productId))) {
       const stock = await tx.stockItem.findUniqueOrThrow({ where: { productId: ingredient.productId } })
       let factor: number
       try { factor = unitFactor(ingredient.unit, stock.unit) } catch (error) { throw new HttpError(400, (error as Error).message) }
@@ -409,8 +411,10 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
           throw error
         }
         await emitOperation(tx, actor, requestId, kind, payload, result)
-        await evaluateStock(tx)
-        await evaluateTimed(tx)
+        // Avoid scanning unrelated modules while a user's transaction holds locks.
+        // The existing worker still performs a full reconciliation every 30 seconds.
+        if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production"].includes(kind)) await evaluateStock(tx)
+        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })
@@ -420,7 +424,11 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 })
     } catch (error) {
       const code = (error as { code?: string }).code
-      if (attempt < 2 && ["P2034", "P2002"].includes(code ?? "")) continue
+      if (attempt < 2 && code === "P2034") { logEvent("info", "concurrency.retry", {}, error); await retryDelay(attempt); continue }
+      if (code === "P2002") {
+        const receipt = await prisma.operationReceipt.findUnique({ where: { id: receiptId } })
+        if (receipt && receipt.requestHash === fingerprint && attempt < 2) continue
+      }
       throw error
     }
   }

@@ -260,7 +260,7 @@ export default function CustomersManagement() {
         return
       }
 
-      await updateCustomer(customer.id, { active: false })
+      await updateCustomer(customer.id, { recordVersion: customer.recordVersion, active: false })
       await addAuditEntry({
         user: auditUser,
         action: "Cliente desativado",
@@ -273,7 +273,7 @@ export default function CustomersManagement() {
       return
     }
 
-    await removeCustomer(customer.id)
+    await removeCustomer(customer.id, customer.recordVersion)
     await addAuditEntry({
       user: auditUser,
       action: "Cliente removido",

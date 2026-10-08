@@ -254,23 +254,23 @@ export function FinancialCadastrosManagement() {
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  async function removeCadastro(type: DialogType, id: string, reference: string) {
+  async function removeCadastro(type: DialogType, id: string, reference: string, expectedVersion?: number) {
     if (!confirm(`Excluir "${reference}"?`)) return
 
     if (type === "bankAccount") {
-      await removeBankAccount(id)
+      await removeBankAccount(id, expectedVersion)
       await addAuditEntry({ user: auditUser, action: "Conta bancaria removida", reference })
     } else if (type === "bankTransfer") {
       await removeBankTransfer(id)
       await addAuditEntry({ user: auditUser, action: "Transferencia removida", reference })
     } else if (type === "costCenter") {
-      await removeCostCenter(id)
+      await removeCostCenter(id, expectedVersion)
       await addAuditEntry({ user: auditUser, action: "Centro de custo removido", reference })
     } else if (type === "budget") {
-      await removeBudget(id)
+      await removeBudget(id, expectedVersion)
       await addAuditEntry({ user: auditUser, action: "Orcamento removido", reference })
     } else {
-      await removeRecurringTransaction(id)
+      await removeRecurringTransaction(id, expectedVersion)
       await addAuditEntry({ user: auditUser, action: "Recorrencia removida", reference })
     }
   }
@@ -289,7 +289,7 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{account.name}</div>
                 <div className="text-xs text-muted-foreground">{formatCurrency(account.currentBalance)}</div>
               </div>
-              <RowActions active={account.active} onEdit={() => openBankAccount(account)} onDelete={() => removeCadastro("bankAccount", account.id, account.name)} />
+              <RowActions active={account.active} onEdit={() => openBankAccount(account)} onDelete={() => removeCadastro("bankAccount", account.id, account.name, account.recordVersion)} />
             </div>
           ))}
           {bankAccounts.length === 0 && <EmptyState label="Nenhuma conta cadastrada." />}
@@ -327,7 +327,7 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{costCenter.name}</div>
                 <div className="text-xs text-muted-foreground">{costCenter.description || "Sem descricao"}</div>
               </div>
-              <RowActions active={costCenter.active} onEdit={() => openCostCenter(costCenter)} onDelete={() => removeCadastro("costCenter", costCenter.id, costCenter.name)} />
+              <RowActions active={costCenter.active} onEdit={() => openCostCenter(costCenter)} onDelete={() => removeCadastro("costCenter", costCenter.id, costCenter.name, costCenter.recordVersion)} />
             </div>
           ))}
           {costCenters.length === 0 && <EmptyState label="Nenhum centro de custo cadastrado." />}
@@ -346,7 +346,7 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{budget.name}</div>
                 <div className="text-xs text-muted-foreground">{budget.month ? `${budget.month}/` : ""}{budget.year} - {budget.categories.length} categoria(s)</div>
               </div>
-              <RowActions active={budget.status === "ativo"} onEdit={() => openBudget(budget)} onDelete={() => removeCadastro("budget", budget.id, budget.name)} />
+              <RowActions active={budget.status === "ativo"} onEdit={() => openBudget(budget)} onDelete={() => removeCadastro("budget", budget.id, budget.name, budget.recordVersion)} />
             </div>
           ))}
           {budgets.length === 0 && <EmptyState label="Nenhum orcamento cadastrado." />}
@@ -365,7 +365,7 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{transaction.description}</div>
                 <div className="text-xs text-muted-foreground">{transaction.frequency} - {formatCurrency(transaction.value)}</div>
               </div>
-              <RowActions active={transaction.active} onEdit={() => openRecurringTransaction(transaction)} onDelete={() => removeCadastro("recurringTransaction", transaction.id, transaction.description)} />
+              <RowActions active={transaction.active} onEdit={() => openRecurringTransaction(transaction)} onDelete={() => removeCadastro("recurringTransaction", transaction.id, transaction.description, transaction.recordVersion)} />
             </div>
           ))}
           {recurringTransactions.length === 0 && <EmptyState label="Nenhuma recorrencia cadastrada." />}

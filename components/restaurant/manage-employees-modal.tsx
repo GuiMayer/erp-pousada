@@ -202,7 +202,8 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
     } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  function handleDelete(employee: Employee) {
+  async function handleDelete(employee: Employee) {
+    try {
     if (hardDelete) {
       // Hard delete - not recommended if has consumption history
       const hasConsumption = employeeConsumptions.some(c => c.employeeId === employee.id)
@@ -218,7 +219,7 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
       })
     } else {
       // Soft delete
-      updateEmployee(employee.id, { active: false })
+      await updateEmployee(employee.id, { recordVersion: employee.recordVersion, active: false })
       addAuditEntry({
         user: username || "sistema",
         action: "Funcionário desativado",
@@ -228,15 +229,20 @@ export function ManageEmployeesModal({ open, onClose }: Props) {
 
     setDeleteConfirm(null)
     setHardDelete(false)
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }
   }
 
-  function handleToggleActive(employee: Employee) {
-    updateEmployee(employee.id, { active: !employee.active })
+  async function handleToggleActive(employee: Employee) {
+    try {
+    await updateEmployee(employee.id, { recordVersion: employee.recordVersion, active: !employee.active })
     addAuditEntry({
       user: username || "sistema",
       action: employee.active ? "Funcionário desativado" : "Funcionário reativado",
       reference: `${employee.name}`,
     })
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }
   }
 
   function openEdit(employee: Employee) {

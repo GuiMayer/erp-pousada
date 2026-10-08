@@ -228,14 +228,14 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
         setFormError("Nao e possivel excluir uma categoria em uso.")
         return
       }
-      await removeProductCategory(category.id)
+      await removeProductCategory(category.id, category.recordVersion)
       addAuditEntry({
         user: username || "sistema",
         action: "Categoria removida",
         reference: category.name
       })
     } else {
-      await updateProductCategory(category.id, { active: false })
+      await updateProductCategory(category.id, { recordVersion: category.recordVersion, active: false })
       addAuditEntry({
         user: username || "sistema",
         action: "Categoria desativada",
@@ -372,7 +372,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                                 size="sm" variant="ghost"
                                 className="size-8 p-0"
                                 onClick={async () => {
-                                  await updateProductCategory(category.id, { active: true })
+                                  await updateProductCategory(category.id, { recordVersion: category.recordVersion, active: true })
                                   addAuditEntry({
                                     user: username || "sistema",
                                     action: "Categoria reativada",

@@ -239,17 +239,20 @@ export function ManageRecipesModal({ open, onClose }: Props) {
     } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  function handleDelete(recipe: Recipe, hard: boolean) {
+  async function handleDelete(recipe: Recipe, hard: boolean) {
+    try {
     if (hard) {
       // Hard delete not implemented for recipes - would need to check productions
       setFormError("Exclusao permanente de receitas nao e permitida.")
       return
     } else {
-      updateRecipe(recipe.id, { active: false })
+      await updateRecipe(recipe.id, { recordVersion: recipe.recordVersion, active: false })
       addAuditEntry({ user: username || "sistema", action: "Receita desativada", reference: recipe.name })
     }
     setDeleteConfirm(null)
     setHardDelete(false)
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }
   }
 
   function openEdit(recipe: Recipe) {

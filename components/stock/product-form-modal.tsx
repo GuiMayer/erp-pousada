@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,8 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
     barcode: "",
     trackStock: false
   })
+  const wasOpen = useRef(false)
+  const original = useRef(product)
   const [error, setError] = useState("")
 
   // Filter categories based on type
@@ -35,6 +37,9 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
   )
 
   useEffect(() => {
+    if (!open) { wasOpen.current = false; return }
+    if (wasOpen.current) return
+    wasOpen.current = true; original.current = product
     if (product) {
       setFormData({
         name: product.name,
@@ -98,7 +103,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
 
     if (product) {
       // Update existing product
-      await updatePOSProduct(product.id, { ...productData, recordVersion: product.recordVersion })
+      await updatePOSProduct(product.id, { ...productData, recordVersion: original.current?.recordVersion })
     } else {
       // Create new product
       const newProduct: POSProduct = {

@@ -51,3 +51,7 @@ O cliente deve ter acesso autorizado pelo Tailscale apenas ao site demonstrativo
 Não são copiadas informações do banco principal. O PostgreSQL não publica sua porta; o aplicativo publica somente `127.0.0.1:3001`. O banco e os serviços auxiliares ficam em uma rede Docker interna. Somente o servidor web participa também de uma rede própria de acesso para publicar a porta local. As redes demonstrativas não compartilham volumes de dados ou serviços com a instalação operacional. A conta do aplicativo mantém restrições de produção, inclusive a proibição de alterar ou apagar auditoria. O seed e o cliente demonstrativo recusam conexão que não seja `postgres-demo/pousada_demo` com o modo explicitamente habilitado.
 
 O banco temporário tem limite de 256 MB de arquivos; apresentações muito longas com grande volume de dados podem esgotar esse espaço. Os dados ativos são temporários, mas Docker, sistema operacional e arquivo de troca podem manter resíduos técnicos: este modo não é uma ferramenta de apagamento seguro. Utilize exclusivamente dados fictícios.
+
+## Testar alterações simultâneas
+
+A demonstração inclui as proteções de [concorrência e sincronização](CONCORRENCIA.md). Abra o mesmo cadastro em dois dispositivos, altere e salve no primeiro; tente salvar o segundo. A aplicação deve preservar o rascunho e pedir revisão dos dados atuais. Use contas distintas para validar as permissões de cada setor.

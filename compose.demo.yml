@@ -87,6 +87,7 @@ services:
       DEMO_MODE: "true"
       DATABASE_URL: postgresql://pousada_app:${DEMO_DB_APP_PASSWORD:?Use start-demo.ps1}@postgres-demo:5432/pousada_demo
       APP_URL: ${DEMO_APP_URL:-http://localhost:3001}
+      SYNC_EVENTS_ENABLED: ${SYNC_EVENTS_ENABLED:-true}
     ports:
       - "127.0.0.1:3001:3000"
     networks:

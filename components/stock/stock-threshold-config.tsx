@@ -49,7 +49,8 @@ export function StockThresholdConfig() {
     setDialogOpen(false)
   }
 
-  function handleSave() {
+  async function handleSave() {
+    try {
     if (!editingItem) return
 
     const newMinimum = Number(minimumStock)
@@ -64,7 +65,8 @@ export function StockThresholdConfig() {
 
     const oldMinimum = editingItem.minimumStock
 
-    updateStockItem(editingItem.id, {
+    await updateStockItem(editingItem.id, {
+      recordVersion: editingItem.recordVersion,
       minimumStock: newMinimum,
     })
 
@@ -88,6 +90,8 @@ export function StockThresholdConfig() {
     })
 
     closeDialog()
+
+    } catch (failure) { toast({ title: "Alteração não salva", description: failure instanceof Error ? failure.message : "Tente novamente", variant: "destructive" }) }
   }
 
   function getStatusBadge(status: "critical" | "low" | "warning" | "normal") {

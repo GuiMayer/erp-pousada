@@ -1,3 +1,4 @@
+import { requireVersion } from "./concurrency"
 import { recordAudit } from "./audit"
 import { can, demand } from "./permissions"
 import { randomUUID } from "node:crypto"
@@ -67,8 +68,9 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     return collectionMapper("cashCloses").toApp(closed)
   }
   if (kind === "pay-reservation") {
-    const input = z.object({ reservationId: id, value: positiveMoney, paymentMethod: paymentSchema.or(z.literal("credito_hospede")), accountId: id.optional() }).strict().parse(payload)
+    const input = z.object({ reservationId: id, recordVersion: z.number().int().nonnegative().optional(), value: positiveMoney, paymentMethod: paymentSchema.or(z.literal("credito_hospede")), accountId: id.optional() }).strict().parse(payload)
     const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: input.reservationId } })
+    if (input.recordVersion !== undefined) requireVersion(input.recordVersion, reservation.recordVersion)
     if (!["confirmada", "checkin"].includes(reservation.status)) throw new HttpError(409, "Reserva não permite recebimento")
     if (D(input.value).gt(reservation.totalValue.minus(reservation.paidValue))) throw new HttpError(409, "Valor excede o saldo da hospedagem")
     if (input.paymentMethod === "credito_hospede") {
@@ -113,8 +115,9 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
   }
   if (kind === "receive-account") {
     demand(actor, "accountsReceivable.receive")
-    const input = z.object({ accountReceivableId: id, installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
+    const input = z.object({ accountReceivableId: id, recordVersion: z.number().int().nonnegative().optional(), installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
     const account = await tx.accountReceivable.findUniqueOrThrow({ where: { id: input.accountReceivableId }, include: { installments: true } })
+    if (input.recordVersion !== undefined) requireVersion(input.recordVersion, account.recordVersion)
     if (!["pendente", "vencido"].includes(account.status)) throw new HttpError(409, "Título já recebido ou cancelado")
     let value = account.value, reference = account.id
     if (account.installments.length) {

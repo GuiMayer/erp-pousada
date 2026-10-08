@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string, public details?: { approvalRequired?: boolean; permission?: string; resourceHash?: string; summary?: { label: string; value: string }[] }) { super(message) }
+  constructor(public status: number, message: string, public details?: { code?: string; approvalRequired?: boolean; permission?: string; resourceHash?: string; summary?: { label: string; value: string }[] }) { super(message) }
 }
 
 export function assertSameOrigin(request: NextRequest) {
@@ -46,13 +46,13 @@ async function routeResponse(action: () => Promise<Response>): Promise<Response>
       if ([403, 429].includes(error.status) || error.status === 401 && ["/api/auth/login", "/api/auth/supervisor"].includes(context?.route ?? "")) {
         logEvent("warn", "security.denied", { status: error.status, permission: error.details?.permission })
       }
-      return NextResponse.json({ error: error.message, ...error.details }, { status: error.status })
+      return NextResponse.json({ code: error.status === 409 ? "BUSINESS_CONFLICT" : undefined, error: error.message, ...error.details }, { status: error.status })
     }
     if (error instanceof ZodError) return NextResponse.json({ error: "Dados inválidos", issues: error.flatten() }, { status: 400 })
     if (error instanceof Error && error.name === "PrismaClientValidationError") return NextResponse.json({ error: "Dados inválidos" }, { status: 400 })
     const code = (error as { code?: string })?.code
-    if (code === "P2025") return NextResponse.json({ error: "Registro não encontrado" }, { status: 404 })
-    if (code === "P2002" || code === "P2003" || code === "P2034") return NextResponse.json({ error: "Conflito de dados. Atualize e tente novamente." }, { status: 409 })
+    if (code === "P2025") return NextResponse.json({ code: "RESOURCE_REMOVED", error: "Registro não encontrado" }, { status: 404 })
+    if (code === "P2002" || code === "P2003" || code === "P2034") return NextResponse.json({ code: code === "P2034" ? "TEMPORARY_CONTENTION" : "BUSINESS_CONFLICT", error: "Conflito de dados. Atualize e tente novamente." }, { status: 409 })
     logEvent("error", "request.failed", { status: 500 }, error)
     return NextResponse.json({ error: "Não foi possível concluir a operação" }, { status: 500 })
   }

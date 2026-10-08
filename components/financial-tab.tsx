@@ -92,7 +92,7 @@ export function FinancialTab() {
   const [discountReservationId, setDiscountReservationId] = useState("")
   const [discountError, setDiscountError] = useState("")
 
-  const [payingExpense, setPayingExpense] = useState<ExpenseRow | null>(null)
+  const [payingExpense, setPayingExpense] = useState<(ExpenseRow & { recordVersion?: number }) | null>(null)
   // Due filter (toggle group)
   const [dueFilter, setDueFilter] = useState<DueFilter>("todos")
 
@@ -234,7 +234,7 @@ export function FinancialTab() {
   async function handleMarkPaid(expenseRow: ExpenseRow) {
     if (expenseRow.paid) return
     if (getDataConfig().adapter === "database") {
-      try { setPayingExpense(expenseRow) }
+      try { setPayingExpense({ ...expenseRow, recordVersion: expenses.find(item => item.id === expenseRow.expenseId)?.recordVersion }) }
       catch (error) { alert(error instanceof Error ? error.message : "Pagamento não concluído") }
       return
     }
@@ -763,7 +763,7 @@ export function FinancialTab() {
       {/* Refund modal */}
       <PaymentDialog open={!!payingExpense} onClose={() => setPayingExpense(null)} title={`Pagar despesa — ${payingExpense?.description || ""} · R$ ${(payingExpense?.value ?? 0).toFixed(2)}`} onConfirm={async (paymentMethod, accountId) => {
         if (!payingExpense) return
-        await runOperation("pay-expense", { expenseId: payingExpense.expenseId, installmentId: payingExpense.installmentId, paymentMethod, accountId })
+        await runOperation("pay-expense", { expenseId: payingExpense.expenseId, recordVersion: payingExpense.recordVersion, installmentId: payingExpense.installmentId, paymentMethod, accountId })
       }} />
       <Dialog open={!!refundModal} onOpenChange={v => { if (!v) setRefundModal(null) }}>
         <DialogContent className="sm:max-w-md">

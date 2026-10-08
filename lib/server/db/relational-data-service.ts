@@ -1,3 +1,4 @@
+import { requireVersion, removed } from "../concurrency"
 import { recordAudit } from "../audit"
 import { ruleSchema } from "@/lib/notification-policy"
 import { roomStatusEvent } from "../notifications/service"
@@ -121,7 +122,9 @@ async function mappedInput(key: string, item: unknown, partial: boolean, actor?:
   }
   if (key === "auditLog" && actor) input.user = actor.username
   const mapper = collectionMapper(key)
-  const data = partial ? mapper.toUpdate(input) : mapper.toCreate(input)
+  const mapped = partial ? mapper.toUpdate(input) : mapper.toCreate(input)
+  // Omitted PATCH fields must never be populated by create-mapper defaults.
+  const data = partial ? Object.fromEntries(Object.entries(mapped).filter(([field]) => Object.hasOwn(input, field))) : mapped
   return validateMappedData(mapper.prismaModel, data, partial)
 }
 export async function getCollection(key: string, client: Client = prisma): Promise<unknown[]> {
@@ -187,9 +190,10 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   actor = await mutationActor(client, actor, key, "edit")
   const input = await mappedInput(key, data, true, actor)
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
-  if (snapshot?.recordVersion !== undefined) {
+  if (!snapshot) throw removed()
+  if (snapshot.recordVersion !== undefined) {
     const expected = (data as Row).recordVersion
-    if (actor && expected !== snapshot.recordVersion) throw new HttpError(409, "Registro alterado por outro usuário. Reabra o formulário.")
+    if (actor) requireVersion(expected, snapshot.recordVersion)
     input.recordVersion = { increment: 1 }
   }
   if (key === "users") {
@@ -209,6 +213,7 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
     if (key === "expenses" && await client.expenseInstallment.count({ where: { expenseId: id, paid: true } })) throw new HttpError(409, "Título possui parcelas pagas e não pode ser alterado")
     if (key === "accountsReceivable" && await client.accountReceivableInstallment.count({ where: { accountReceivableId: id, status: "pago" } })) throw new HttpError(409, "Título possui parcelas recebidas e não pode ser alterado")
   }
+  let updated = await model(key, client).update({ where: { ...itemWhere(key, id), ...(actor && snapshot.recordVersion !== undefined ? { recordVersion: snapshot.recordVersion } : {}) }, data: input, include: collectionMapper(key).include })
   if (key === "recipes" && (data as Row).ingredients !== undefined) {
     const ingredients = (data as Row).ingredients
     if (!Array.isArray(ingredients) || ingredients.length > 100) throw new HttpError(400, "Ingredientes inválidos")
@@ -218,8 +223,9 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
     })
     await client.recipeIngredient.deleteMany({ where: { recipeId: id } })
     for (const row of rows) await client.recipeIngredient.create({ data: row as unknown as Prisma.RecipeIngredientUncheckedCreateInput })
+    updated = (await model(key, client).findUnique({ where: itemWhere(key, id), include: collectionMapper(key).include }))!
   }
-  const updated = await model(key, client).update({ where: itemWhere(key, id), data: input, include: collectionMapper(key).include })
+
   if (key === "users") {
     if (input.password || input.active === false) await revokeUserSessions(client, id)
     else if (input.accessVersion) await client.operationApproval.deleteMany({ where: { approverId: id } })
@@ -229,9 +235,12 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   if (key === "stockItems") await evaluateStock(client)
   return toApp(key, updated)
 }
-export async function deleteCollectionItem(key: string, id: string, client: Client = prisma, actor?: Actor): Promise<void> {
-  if (client === prisma) return prisma.$transaction(tx => deleteCollectionItem(key, id, tx, actor), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+export async function deleteCollectionItem(key: string, id: string, client: Client = prisma, actor?: Actor, expectedVersion?: number): Promise<void> {
+  if (client === prisma) return prisma.$transaction(tx => deleteCollectionItem(key, id, tx, actor, expectedVersion), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   actor = await mutationActor(client, actor, key, "delete")
+  const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
+  if (!snapshot) throw removed()
+  if (actor && snapshot.recordVersion !== undefined) requireVersion(expectedVersion, snapshot.recordVersion)
   if (key === "users") {
     await checkUserChange(client, id, {}, actor, true)
     await revokeUserSessions(client, id)
@@ -245,7 +254,7 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
   }
   if (key === "expenses" && await client.expenseInstallment.count({ where: { expenseId: id, paid: true } })) throw new HttpError(409, "Título possui parcelas pagas")
   if (key === "accountsReceivable" && await client.accountReceivableInstallment.count({ where: { accountReceivableId: id, status: "pago" } })) throw new HttpError(409, "Título possui parcelas recebidas")
-  await model(key, client).delete({ where: itemWhere(key, id) })
+  await model(key, client).delete({ where: { ...itemWhere(key, id), ...(actor && snapshot.recordVersion !== undefined ? { recordVersion: snapshot.recordVersion } : {}) } })
   await mutationAudit(client, actor, key, "delete", id)
 }
 export async function replaceCollection(key: string, value: unknown) {
@@ -271,6 +280,7 @@ export async function importAllCollections(json: string, actor?: Actor) {
   // Partial replacement would break references: portable imports are full snapshots.
   if (portableKeys.some(k => !Array.isArray(data[k]))) throw new HttpError(400, "Envie uma exportação completa")
   await prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(74192026)`
     actor = await currentActor(tx, actor)
     if (actor) demand(actor, "data.restore")
     for (const key of [...portableKeys].reverse()) await model(key, tx).deleteMany()
@@ -280,6 +290,7 @@ export async function importAllCollections(json: string, actor?: Actor) {
 }
 export async function clearAllCollections(actor?: Actor) {
   await prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(74192026)`
     actor = await currentActor(tx, actor)
     if (actor) demand(actor, "data.restore")
     for (const key of [...portableKeys].reverse()) await model(key, tx).deleteMany()

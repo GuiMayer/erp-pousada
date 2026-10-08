@@ -140,9 +140,9 @@ export function AccountsReceivableManagement() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, expectedVersion?: number) => {
     if (confirm("Tem certeza que deseja excluir esta conta a receber?")) {
-      await removeAccountReceivable(id)
+      await removeAccountReceivable(id, expectedVersion)
     }
   }
 
@@ -223,7 +223,7 @@ export function AccountsReceivableManagement() {
         <PaymentDialog open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} onConfirm={async (paymentMethod, accountId) => {
         if (!payingAccount) return
         const installment = payingAccount.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]
-        await runOperation("receive-account", { accountReceivableId: payingAccount.id, installmentId: installment?.id, paymentMethod, accountId })
+        await runOperation("receive-account", { accountReceivableId: payingAccount.id, recordVersion: payingAccount.recordVersion, installmentId: installment?.id, paymentMethod, accountId })
       }} />
       <Card>
           <CardHeader className="pb-2">
@@ -469,7 +469,7 @@ export function AccountsReceivableManagement() {
                           <PermissionGate permission="accountsReceivable.delete"><Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(ar.id)}
+                            onClick={() => handleDelete(ar.id, ar.recordVersion)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button></PermissionGate>

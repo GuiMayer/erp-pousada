@@ -250,7 +250,7 @@ export function AdminTab() {
     try {
       // Re-enable syncing before restoring
       shouldSyncRef.current = true
-      await updateSystemSettings(initialSystemSettings)
+      await updateSystemSettings({ ...initialSystemSettings, recordVersion: formData.recordVersion })
       
       await addAuditEntry({
         user: username || "sistema",

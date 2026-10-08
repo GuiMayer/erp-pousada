@@ -92,12 +92,12 @@ export function SuppliersManagement() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, expectedVersion?: number) => {
     const supplier = suppliers.find(s => s.id === id)
     if (!supplier) return
 
     if (confirm("Tem certeza que deseja excluir este fornecedor?")) {
-      await removeSupplier(id)
+      await removeSupplier(id, expectedVersion)
       await addAuditEntry({
         user: username || "sistema",
         action: "Fornecedor removido",
@@ -283,7 +283,7 @@ export function SuppliersManagement() {
                             <PermissionGate permission="suppliers.delete"><Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(supplier.id)}
+                              onClick={() => handleDelete(supplier.id, supplier.recordVersion)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button></PermissionGate>
@@ -333,7 +333,7 @@ export function SuppliersManagement() {
                             <PermissionGate permission="suppliers.delete"><Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(supplier.id)}
+                              onClick={() => handleDelete(supplier.id, supplier.recordVersion)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button></PermissionGate>

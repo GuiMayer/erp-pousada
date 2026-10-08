@@ -85,7 +85,7 @@ export function GuestsManagement() {
 
   async function handleDelete(guest: GuestProfile) {
     if (!confirm(`Excluir hospede "${guest.name}"?`)) return
-    await removeGuest(guest.cpf)
+    await removeGuest(guest.cpf, guest.recordVersion)
     await addAuditEntry({
       user: username || "sistema",
       action: "Hospede removido",

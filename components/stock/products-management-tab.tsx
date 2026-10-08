@@ -103,11 +103,12 @@ export function ProductsManagementTab() {
     setDeleteConfirm(product)
   }
 
-  function confirmDelete() {
-    if (deleteConfirm) {
-      removePOSProduct(deleteConfirm.id)
+  async function confirmDelete() {
+    if (!deleteConfirm) return
+    try {
+      await removePOSProduct(deleteConfirm.id, deleteConfirm.recordVersion)
       setDeleteConfirm(null)
-    }
+    } catch (failure) { window.alert(failure instanceof Error ? failure.message : "Não foi possível remover") }
   }
 
   function hasStockItem(productId: string): boolean {

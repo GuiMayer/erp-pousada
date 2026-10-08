@@ -44,7 +44,8 @@ export function ManageTablesModal({ open, onClose }: Props) {
     setEditingTable(null)
   }
 
-  function handleAdd() {
+  async function handleAdd() {
+    try {
     if (!tableNumber || !capacity) {
       setFormError("Preencha todos os campos.")
       return
@@ -60,7 +61,7 @@ export function ManageTablesModal({ open, onClose }: Props) {
       return
     }
     const newId = Math.max(...restaurantTables.map(t => t.id), 0) + 1
-    addRestaurantTable({
+    await addRestaurantTable({
       id: newId,
       number: tableNumber,
       capacity: capacityNum,
@@ -69,9 +70,12 @@ export function ManageTablesModal({ open, onClose }: Props) {
     addAuditEntry({ user: username || "sistema", action: "Mesa adicionada", reference: `Mesa ${tableNumber} (${capacityNum} pessoas)` })
     resetForm()
     setMode("list")
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }
   }
 
-  function handleEdit() {
+  async function handleEdit() {
+    try {
     if (!editingTable || !tableNumber || !capacity) return
     const capacityNum = parseInt(capacity)
     if (isNaN(capacityNum) || capacityNum < 1 || capacityNum > 20) {
@@ -87,23 +91,27 @@ export function ManageTablesModal({ open, onClose }: Props) {
       setFormError("Nao e possivel editar uma mesa ocupada.")
       return
     }
-    updateRestaurantTable(editingTable.id, {
+    await updateRestaurantTable(editingTable.id, {
       recordVersion: editingTable.recordVersion, number: tableNumber, capacity: capacityNum })
     addAuditEntry({ user: username || "sistema", action: "Mesa editada", reference: `Mesa ${tableNumber}` })
     resetForm()
     setMode("list")
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Mesa não salva") }
   }
 
-  function handleDelete(table: RestaurantTable) {
+  async function handleDelete(table: RestaurantTable) {
+    try {
     if (table.status === "ocupada") {
       setFormError("Nao e possivel remover uma mesa ocupada.")
       setDeleteConfirm(null)
       return
     }
 
-    removeRestaurantTable(table.id)
+    await removeRestaurantTable(table.id, table.recordVersion)
     addAuditEntry({ user: username || "sistema", action: "Mesa removida", reference: `Mesa ${table.number}` })
     setDeleteConfirm(null)
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }
   }
 
   function openEdit(table: RestaurantTable) {

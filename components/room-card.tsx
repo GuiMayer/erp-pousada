@@ -90,6 +90,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   const { username } = useAuth()
   const { sendNotification } = useNotifications()
   const [blockModalOpen, setBlockModalOpen] = useState(false)
+  const [blockSnapshot, setBlockSnapshot] = useState<Room | null>(null)
   const [checkinOpen, setCheckinOpen] = useState(false)
   const [consumptionOpen, setConsumptionOpen] = useState(false)
 
@@ -121,7 +122,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
       try { await runOperation("check-out", { roomId: room.id }) }
       catch (error) { toast({ title: "Check-out não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
     } else {
-    await updateRoom(room.id, {
+    await updateRoom(room.id, { recordVersion: room.recordVersion,
       status: "limpeza",
       guest: undefined, guestCpf: undefined,
       checkIn: undefined, checkOut: undefined,
@@ -143,7 +144,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   }
 
   async function handleRelease() {
-    try { await updateRoom(room.id, { status: "disponivel" }) }
+    try { await updateRoom(room.id, { recordVersion: room.recordVersion, status: "disponivel" }) }
     catch (error) { toast({ title: "Quarto não liberado", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
     addAuditEntry({
       user: username || "sistema",
@@ -160,7 +161,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   }
 
   async function handleBlock(endDate: string, responsible: string, reason: string) {
-    try { await updateRoom(room.id, {
+    try { await updateRoom(room.id, { recordVersion: blockSnapshot?.recordVersion,
       status: "bloqueado",
       blockEndDate: endDate, blockResponsible: responsible, blockReason: reason,
     }) } catch (error) { toast({ title: "Bloqueio não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
@@ -180,7 +181,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   }
 
   async function handleUnblock() {
-    try { await updateRoom(room.id, {
+    try { await updateRoom(room.id, { recordVersion: blockSnapshot?.recordVersion,
       status: "disponivel",
       blockEndDate: undefined, blockResponsible: undefined, blockReason: undefined,
     }) } catch (error) { toast({ title: "Desbloqueio não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
@@ -295,7 +296,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
                 <PermissionGate permission="hospitality.checkin"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setCheckinOpen(true)}>
                   <LogIn className="size-3.5" /> Check-in
                 </Button></PermissionGate>
-                <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setBlockModalOpen(true)}>
+                <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => { setBlockSnapshot(room); setBlockModalOpen(true) }}>
                   <Lock className="size-3.5" />
                 </Button></PermissionGate>
               </>
@@ -323,7 +324,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
               </Button></PermissionGate>
             )}
             {room.status === "bloqueado" && (
-              <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setBlockModalOpen(true)}>
+              <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => { setBlockSnapshot(room); setBlockModalOpen(true) }}>
                 <Eye className="size-3.5" /> Detalhes / Desbloquear
               </Button></PermissionGate>
             )}
@@ -340,11 +341,11 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
         </CardFooter>
       </Card>
 
-      <BlockRoomModal
-        room={room} open={blockModalOpen}
+      {blockModalOpen && <BlockRoomModal
+        room={blockSnapshot ?? room} open={blockModalOpen}
         onClose={() => setBlockModalOpen(false)}
         onConfirmBlock={handleBlock} onUnblock={handleUnblock}
-      />
+      />}
       <CheckinModal
         room={room} open={checkinOpen}
         onClose={() => setCheckinOpen(false)}

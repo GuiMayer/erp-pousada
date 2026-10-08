@@ -108,10 +108,13 @@ export function ManageRoomsModal({ open, onClose }: Props) {
     } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  function handleDelete(room: Room) {
-    removeRoom(room.id)
+  async function handleDelete(room: Room) {
+    try {
+    await removeRoom(room.id, room.recordVersion)
     addAuditEntry({ user: username || "sistema", action: "Quarto removido", reference: `Quarto ${room.number}` })
     setDeleteConfirm(null)
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }
   }
 
   function openEdit(room: Room) {

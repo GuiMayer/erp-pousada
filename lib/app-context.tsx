@@ -107,7 +107,7 @@ type AppContextType = {
   isHydrated: boolean
   updateRoom: (id: number, data: Partial<Room>) => Promise<void>
   addRoom: (room: Room) => Promise<void>
-  removeRoom: (id: number) => Promise<void>
+  removeRoom: (id: number, expectedVersion?: number) => Promise<void>
   getRoomTimeline: (roomId: number, startDate: string, days?: number) => TimelineDay[]
   addReservation: (r: Reservation) => Promise<void>
   updateReservation: (id: string, data: Partial<Reservation>) => Promise<void>
@@ -121,7 +121,7 @@ type AppContextType = {
   findGuest: (cpf: string) => GuestProfile | undefined
   addGuest: (g: GuestProfile) => Promise<void>
   updateGuest: (cpf: string, data: Partial<GuestProfile>) => Promise<void>
-  removeGuest: (cpf: string) => Promise<void>
+  removeGuest: (cpf: string, expectedVersion?: number) => Promise<void>
   setDiscountCeiling: (v: number) => void
   addConsumptionItem: (roomId: number, item: ConsumptionItem) => Promise<void>
   removeConsumptionItem: (roomId: number, itemId: string) => Promise<void>
@@ -129,16 +129,16 @@ type AppContextType = {
   clearConsumption: (roomId: number) => Promise<void>
   addPOSProduct: (p: POSProduct) => Promise<void>
   updatePOSProduct: (id: string, data: Partial<POSProduct>) => Promise<void>
-  removePOSProduct: (id: string) => Promise<void>
+  removePOSProduct: (id: string, expectedVersion?: number) => Promise<void>
   addPOSSale: (s: POSSale) => Promise<void>
   updatePOSSale: (id: string, data: Partial<POSSale>) => Promise<void>
   addProductCategory: (c: ProductCategory) => Promise<void>
   updateProductCategory: (id: string, data: Partial<ProductCategory>) => Promise<void>
-  removeProductCategory: (id: string) => Promise<void>
+  removeProductCategory: (id: string, expectedVersion?: number) => Promise<void>
   getCategoryName: (categoryId: string) => string
   addRestaurantTable: (t: RestaurantTable) => Promise<void>
   updateRestaurantTable: (id: number, data: Partial<RestaurantTable>) => Promise<void>
-  removeRestaurantTable: (id: number) => Promise<void>
+  removeRestaurantTable: (id: number, expectedVersion?: number) => Promise<void>
   addRestaurantOrder: (o: RestaurantOrder) => Promise<void>
   updateRestaurantOrder: (id: string, data: Partial<RestaurantOrder>) => Promise<void>
   addOrderItem: (orderId: string, item: RestaurantOrderItem) => Promise<void>
@@ -163,28 +163,28 @@ type AppContextType = {
   updateSystemSettings: (data: Partial<SystemSettings>) => Promise<void>
   addSupplier: (s: Supplier) => Promise<void>
   updateSupplier: (id: string, data: Partial<Supplier>) => Promise<void>
-  removeSupplier: (id: string) => Promise<void>
+  removeSupplier: (id: string, expectedVersion?: number) => Promise<void>
   addCustomer: (c: Customer) => Promise<Customer>
   updateCustomer: (id: string, data: Partial<Customer>) => Promise<void>
-  removeCustomer: (id: string) => Promise<void>
+  removeCustomer: (id: string, expectedVersion?: number) => Promise<void>
   addAccountReceivable: (ar: AccountReceivable) => Promise<void>
   updateAccountReceivable: (id: string, data: Partial<AccountReceivable>) => Promise<void>
-  removeAccountReceivable: (id: string) => Promise<void>
+  removeAccountReceivable: (id: string, expectedVersion?: number) => Promise<void>
   addBankAccount: (account: BankAccount) => Promise<void>
   updateBankAccount: (id: string, data: Partial<BankAccount>) => Promise<void>
-  removeBankAccount: (id: string) => Promise<void>
+  removeBankAccount: (id: string, expectedVersion?: number) => Promise<void>
   addBankTransfer: (transfer: BankTransfer) => Promise<void>
   updateBankTransfer: (id: string, data: Partial<BankTransfer>) => Promise<void>
   removeBankTransfer: (id: string) => Promise<void>
   addCostCenter: (costCenter: CostCenter) => Promise<void>
   updateCostCenter: (id: string, data: Partial<CostCenter>) => Promise<void>
-  removeCostCenter: (id: string) => Promise<void>
+  removeCostCenter: (id: string, expectedVersion?: number) => Promise<void>
   addBudget: (budget: Budget) => Promise<void>
   updateBudget: (id: string, data: Partial<Budget>) => Promise<void>
-  removeBudget: (id: string) => Promise<void>
+  removeBudget: (id: string, expectedVersion?: number) => Promise<void>
   addRecurringTransaction: (transaction: RecurringTransaction) => Promise<void>
   updateRecurringTransaction: (id: string, data: Partial<RecurringTransaction>) => Promise<void>
-  removeRecurringTransaction: (id: string) => Promise<void>
+  removeRecurringTransaction: (id: string, expectedVersion?: number) => Promise<void>
   exportData: () => Promise<string>
   importData: (json: string) => Promise<void>
   clearAllData: () => Promise<void>
@@ -248,7 +248,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { currentUser.current = accessKey }, [accessKey])
 
   // Load data from repositories on mount and when syncing
-  const loadAllData = useCallback(async () => {
+  const loadGeneration = useRef(0)
+  const loadAllData = useCallback(async (keys?: ReadonlySet<string>) => {
+    const generation = ++loadGeneration.current
     const loadingUser = accessKey
     try {
       const [
@@ -262,73 +264,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
         suppliersData, customersData, accountsReceivableData,
         bankAccountsData, bankTransfersData, costCentersData, budgetsData, recurringTransactionsData
       ] = await Promise.all([
-        (can("rooms.read")) ? dataStore.rooms.getAll() : Promise.resolve([]),
-        (can("reservations.read")) ? dataStore.reservations.getAll() : Promise.resolve([]),
-        (can("guests.read")) ? dataStore.guests.getAll() : Promise.resolve([]),
-        (can("expenses.read")) ? dataStore.expenses.getAll() : Promise.resolve([]),
-        (can("transactions.read")) ? dataStore.transactions.getAll() : Promise.resolve([]),
-        (can("auditLog.read") && getDataConfig().adapter !== "database") ? dataStore.auditLog.getAll() : Promise.resolve([]),
-        (can("categories.read")) ? dataStore.categories.getAll() : Promise.resolve([]),
-        (can("cashCloses.read")) ? dataStore.cashCloses.getAll() : Promise.resolve([]),
-        (can("consumptions.read")) ? dataStore.consumptions.getAll() : Promise.resolve([]),
-        (can("posProducts.read")) ? dataStore.posProducts.getAll() : Promise.resolve([]),
-        (can("posSales.read")) ? dataStore.posSales.getAll() : Promise.resolve([]),
-        (can("productCategories.read")) ? dataStore.productCategories.getAll() : Promise.resolve([]),
-        (can("restaurantTables.read")) ? dataStore.restaurantTables.getAll() : Promise.resolve([]),
-        (can("restaurantOrders.read")) ? dataStore.restaurantOrders.getAll() : Promise.resolve([]),
-        (can("stockItems.read")) ? dataStore.stockItems.getAll() : Promise.resolve([]),
-        (can("stockMovements.read")) ? dataStore.stockMovements.getAll() : Promise.resolve([]),
-        (can("recipes.read")) ? dataStore.recipes.getAll() : Promise.resolve([]),
-        (can("productions.read")) ? dataStore.productions.getAll() : Promise.resolve([]),
-        (can("employees.read")) ? dataStore.employees.getAll() : Promise.resolve([]),
-        (can("employeeConsumptions.read")) ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
-        (can("users.read")) ? dataStore.users.getAll() : Promise.resolve([]),
-        (can("userSessions.read")) ? dataStore.userSessions.getAll() : Promise.resolve([]),
-        (can("systemSettings.read")) ? dataStore.systemSettings.getAll() : Promise.resolve([]),
-        (can("suppliers.read")) ? dataStore.suppliers.getAll() : Promise.resolve([]),
-        (can("customers.read")) ? dataStore.customers.getAll() : Promise.resolve([]),
-        (can("accountsReceivable.read")) ? dataStore.accountsReceivable.getAll() : Promise.resolve([]),
-        (can("bankAccounts.read") || can("bankAccounts.use")) ? dataStore.bankAccounts.getAll() : Promise.resolve([]),
-        (can("bankTransfers.read")) ? dataStore.bankTransfers.getAll() : Promise.resolve([]),
-        (can("costCenters.read")) ? dataStore.costCenters.getAll() : Promise.resolve([]),
-        (can("budgets.read")) ? dataStore.budgets.getAll() : Promise.resolve([]),
-        (can("recurringTransactions.read")) ? dataStore.recurringTransactions.getAll() : Promise.resolve([])
+        keys && !keys.has("rooms") ? Promise.resolve(null) : (can("rooms.read")) ? dataStore.rooms.getAll() : Promise.resolve([]),
+        keys && !keys.has("reservations") ? Promise.resolve(null) : (can("reservations.read")) ? dataStore.reservations.getAll() : Promise.resolve([]),
+        keys && !keys.has("guests") ? Promise.resolve(null) : (can("guests.read")) ? dataStore.guests.getAll() : Promise.resolve([]),
+        keys && !keys.has("expenses") ? Promise.resolve(null) : (can("expenses.read")) ? dataStore.expenses.getAll() : Promise.resolve([]),
+        keys && !keys.has("transactions") ? Promise.resolve(null) : (can("transactions.read")) ? dataStore.transactions.getAll() : Promise.resolve([]),
+        keys && !keys.has("auditLog") ? Promise.resolve(null) : (can("auditLog.read") && getDataConfig().adapter !== "database") ? dataStore.auditLog.getAll() : Promise.resolve([]),
+        keys && !keys.has("categories") ? Promise.resolve(null) : (can("categories.read")) ? dataStore.categories.getAll() : Promise.resolve([]),
+        keys && !keys.has("cashCloses") ? Promise.resolve(null) : (can("cashCloses.read")) ? dataStore.cashCloses.getAll() : Promise.resolve([]),
+        keys && !keys.has("consumptions") ? Promise.resolve(null) : (can("consumptions.read")) ? dataStore.consumptions.getAll() : Promise.resolve([]),
+        keys && !keys.has("posProducts") ? Promise.resolve(null) : (can("posProducts.read")) ? dataStore.posProducts.getAll() : Promise.resolve([]),
+        keys && !keys.has("posSales") ? Promise.resolve(null) : (can("posSales.read")) ? dataStore.posSales.getAll() : Promise.resolve([]),
+        keys && !keys.has("productCategories") ? Promise.resolve(null) : (can("productCategories.read")) ? dataStore.productCategories.getAll() : Promise.resolve([]),
+        keys && !keys.has("restaurantTables") ? Promise.resolve(null) : (can("restaurantTables.read")) ? dataStore.restaurantTables.getAll() : Promise.resolve([]),
+        keys && !keys.has("restaurantOrders") ? Promise.resolve(null) : (can("restaurantOrders.read")) ? dataStore.restaurantOrders.getAll() : Promise.resolve([]),
+        keys && !keys.has("stockItems") ? Promise.resolve(null) : (can("stockItems.read")) ? dataStore.stockItems.getAll() : Promise.resolve([]),
+        keys && !keys.has("stockMovements") ? Promise.resolve(null) : (can("stockMovements.read")) ? dataStore.stockMovements.getAll() : Promise.resolve([]),
+        keys && !keys.has("recipes") ? Promise.resolve(null) : (can("recipes.read")) ? dataStore.recipes.getAll() : Promise.resolve([]),
+        keys && !keys.has("productions") ? Promise.resolve(null) : (can("productions.read")) ? dataStore.productions.getAll() : Promise.resolve([]),
+        keys && !keys.has("employees") ? Promise.resolve(null) : (can("employees.read")) ? dataStore.employees.getAll() : Promise.resolve([]),
+        keys && !keys.has("employeeConsumptions") ? Promise.resolve(null) : (can("employeeConsumptions.read")) ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
+        keys && !keys.has("users") ? Promise.resolve(null) : (can("users.read")) ? dataStore.users.getAll() : Promise.resolve([]),
+        keys && !keys.has("userSessions") ? Promise.resolve(null) : (can("userSessions.read")) ? dataStore.userSessions.getAll() : Promise.resolve([]),
+        keys && !keys.has("systemSettings") ? Promise.resolve(null) : (can("systemSettings.read")) ? dataStore.systemSettings.getAll() : Promise.resolve([]),
+        keys && !keys.has("suppliers") ? Promise.resolve(null) : (can("suppliers.read")) ? dataStore.suppliers.getAll() : Promise.resolve([]),
+        keys && !keys.has("customers") ? Promise.resolve(null) : (can("customers.read")) ? dataStore.customers.getAll() : Promise.resolve([]),
+        keys && !keys.has("accountsReceivable") ? Promise.resolve(null) : (can("accountsReceivable.read")) ? dataStore.accountsReceivable.getAll() : Promise.resolve([]),
+        keys && !keys.has("bankAccounts") ? Promise.resolve(null) : (can("bankAccounts.read") || can("bankAccounts.use")) ? dataStore.bankAccounts.getAll() : Promise.resolve([]),
+        keys && !keys.has("bankTransfers") ? Promise.resolve(null) : (can("bankTransfers.read")) ? dataStore.bankTransfers.getAll() : Promise.resolve([]),
+        keys && !keys.has("costCenters") ? Promise.resolve(null) : (can("costCenters.read")) ? dataStore.costCenters.getAll() : Promise.resolve([]),
+        keys && !keys.has("budgets") ? Promise.resolve(null) : (can("budgets.read")) ? dataStore.budgets.getAll() : Promise.resolve([]),
+        keys && !keys.has("recurringTransactions") ? Promise.resolve(null) : (can("recurringTransactions.read")) ? dataStore.recurringTransactions.getAll() : Promise.resolve([])
       ])
 
-      if (loadingUser !== currentUser.current) return
-      setRooms(roomsData)
-      setReservations(reservationsData)
-      setGuests(guestsData)
-      setExpenses(expensesData)
-      setTransactions(transactionsData)
-      setAuditLog(auditLogData)
-      setCategories(categoriesData)
-      setCashCloses(cashClosesData)
-      setConsumptions(consumptionsData)
-      setPOSProducts(posProductsData)
-      setPOSSales(posSalesData)
-      setProductCategories(productCategoriesData)
-      setRestaurantTables(restaurantTablesData)
-      setRestaurantOrders(restaurantOrdersData)
-      setStockItems(stockItemsData)
-      setStockMovements(stockMovementsData)
-      setRecipes(recipesData)
-      setProductions(productionsData)
-      setEmployees(employeesData)
-      setEmployeeConsumptions(employeeConsumptionsData)
-      setUsers(usersData)
-      setUserSessions(userSessionsData)
-      setSystemSettings(systemSettingsData[0] || initialSystemSettings)
-      setSuppliers(suppliersData)
-      setCustomers(customersData)
-      setAccountsReceivable(accountsReceivableData)
-      setBankAccounts(bankAccountsData)
-      setBankTransfers(bankTransfersData)
-      setCostCenters(costCentersData)
-      setBudgets(budgetsData)
-      setRecurringTransactions(recurringTransactionsData)
+      if (loadingUser !== currentUser.current || generation !== loadGeneration.current) return
+      if (roomsData !== null) setRooms(roomsData)
+      if (reservationsData !== null) setReservations(reservationsData)
+      if (guestsData !== null) setGuests(guestsData)
+      if (expensesData !== null) setExpenses(expensesData)
+      if (transactionsData !== null) setTransactions(transactionsData)
+      if (auditLogData !== null) setAuditLog(auditLogData)
+      if (categoriesData !== null) setCategories(categoriesData)
+      if (cashClosesData !== null) setCashCloses(cashClosesData)
+      if (consumptionsData !== null) setConsumptions(consumptionsData)
+      if (posProductsData !== null) setPOSProducts(posProductsData)
+      if (posSalesData !== null) setPOSSales(posSalesData)
+      if (productCategoriesData !== null) setProductCategories(productCategoriesData)
+      if (restaurantTablesData !== null) setRestaurantTables(restaurantTablesData)
+      if (restaurantOrdersData !== null) setRestaurantOrders(restaurantOrdersData)
+      if (stockItemsData !== null) setStockItems(stockItemsData)
+      if (stockMovementsData !== null) setStockMovements(stockMovementsData)
+      if (recipesData !== null) setRecipes(recipesData)
+      if (productionsData !== null) setProductions(productionsData)
+      if (employeesData !== null) setEmployees(employeesData)
+      if (employeeConsumptionsData !== null) setEmployeeConsumptions(employeeConsumptionsData)
+      if (usersData !== null) setUsers(usersData)
+      if (userSessionsData !== null) setUserSessions(userSessionsData)
+      if (systemSettingsData !== null) setSystemSettings(systemSettingsData[0] || initialSystemSettings)
+      if (suppliersData !== null) setSuppliers(suppliersData)
+      if (customersData !== null) setCustomers(customersData)
+      if (accountsReceivableData !== null) setAccountsReceivable(accountsReceivableData)
+      if (bankAccountsData !== null) setBankAccounts(bankAccountsData)
+      if (bankTransfersData !== null) setBankTransfers(bankTransfersData)
+      if (costCentersData !== null) setCostCenters(costCentersData)
+      if (budgetsData !== null) setBudgets(budgetsData)
+      if (recurringTransactionsData !== null) setRecurringTransactions(recurringTransactionsData)
       setDataError(null)
     } catch (error) {
+      if (generation !== loadGeneration.current) return
       setDataError(error instanceof Error ? error.message : 'Não foi possível carregar os dados')
       throw error
     }
@@ -357,15 +360,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoggedIn || getDataConfig().adapter !== "database") return
     let running = false
-    const refresh = async () => {
+    const refresh = async (keys?: ReadonlySet<string>) => {
       if (running || document.hidden) return
       running = true
-      try { await loadAllData() } catch { /* dataError is shown in the dashboard */ }
+      try { await loadAllData(keys) } catch { /* dataError is shown in the dashboard */ }
       finally { running = false }
     }
+    let debounce: ReturnType<typeof setTimeout>
+    const events = typeof EventSource === "undefined" ? undefined : new EventSource("/api/sync/events")
+    const dirty = new Set<string>()
+    let fullRefresh = false
+    const invalidate = (event?: Event) => {
+      const changedModule = event instanceof MessageEvent ? JSON.parse(event.data).module : "reconnected"
+      if (changedModule === "reconnected") fullRefresh = true
+      else if (changedModule === "notifications") window.dispatchEvent(new Event("erp:operation-completed"))
+      else dirty.add(changedModule)
+      clearTimeout(debounce)
+      debounce = setTimeout(() => {
+        if (running) { invalidate(); return }
+        const keys = fullRefresh ? undefined : new Set(dirty)
+        fullRefresh = false; dirty.clear(); void refresh(keys)
+      }, 200)
+    }
+    events?.addEventListener("invalidate", invalidate)
+    if (events) events.onopen = () => { window.dispatchEvent(new CustomEvent("erp:sync-status", { detail: true })); invalidate() }
+    if (events) events.onerror = () => window.dispatchEvent(new CustomEvent("erp:sync-status", { detail: false }))
     const timer = setInterval(() => void refresh(), 15000)
-    window.addEventListener("focus", refresh)
-    return () => { clearInterval(timer); window.removeEventListener("focus", refresh) }
+    const focused = () => void refresh()
+    window.addEventListener("focus", focused)
+    return () => { events?.close(); clearTimeout(debounce); clearInterval(timer); window.removeEventListener("focus", focused) }
   }, [isLoggedIn, loadAllData])
 
   // Initial data load and seed if empty
@@ -409,7 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Room methods
   const updateRoom = useCallback(async (id: number, data: Partial<Room>) => {
-    if (getDataConfig().adapter === "database" && data.status === "disponivel") {
+    if (getDataConfig().adapter === "database" && data.status === "disponivel" && !Object.hasOwn(data, "blockEndDate")) {
       await runOperation("release-room", { roomId: id }); return
     }
     await dataStore.rooms.update(id, data)
@@ -421,8 +444,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRooms(await dataStore.rooms.getAll())
   }, [dataStore])
 
-  const removeRoom = useCallback(async (id: number) => {
-    await dataStore.rooms.delete(id)
+  const removeRoom = useCallback(async (id: number, expectedVersion?: number) => {
+    await dataStore.rooms.delete(id, expectedVersion)
     setRooms(await dataStore.rooms.getAll())
   }, [dataStore])
 
@@ -473,7 +496,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const current = reservations.find(r => r.id === id)
       if (!current) throw new Error("Reserva não encontrada")
       const merged = { ...current, ...data }
-      const input = { id, roomId: merged.roomId, cpf: merged.cpf, guestName: merged.guestName, checkIn: merged.checkIn, checkOut: merged.checkOut, totalValue: merged.totalValue, status: merged.status, recordVersion: data.recordVersion ?? current.recordVersion }
+      const input = { id, roomId: merged.roomId, cpf: merged.cpf, guestName: merged.guestName, checkIn: merged.checkIn, checkOut: merged.checkOut, totalValue: merged.totalValue, status: merged.status, recordVersion: data.recordVersion }
       await runOperation("edit-reservation", input); return
     }
     const before = await dataStore.reservations.getById(id)
@@ -682,8 +705,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setGuests(await dataStore.guests.getAll())
   }, [dataStore])
 
-  const removeGuest = useCallback(async (cpf: string) => {
-    await dataStore.guests.delete(cpf)
+  const removeGuest = useCallback(async (cpf: string, expectedVersion?: number) => {
+    await dataStore.guests.delete(cpf, expectedVersion)
     setGuests(await dataStore.guests.getAll())
   }, [dataStore])
 
@@ -732,8 +755,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPOSProducts(await dataStore.posProducts.getAll())
   }, [dataStore])
 
-  const removePOSProduct = useCallback(async (id: string) => {
-    await dataStore.posProducts.delete(id)
+  const removePOSProduct = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.posProducts.delete(id, expectedVersion)
     setPOSProducts(await dataStore.posProducts.getAll())
   }, [dataStore])
 
@@ -759,8 +782,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProductCategories(await dataStore.productCategories.getAll())
   }, [dataStore])
 
-  const removeProductCategory = useCallback(async (id: string) => {
-    await dataStore.productCategories.delete(id)
+  const removeProductCategory = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.productCategories.delete(id, expectedVersion)
     setProductCategories(await dataStore.productCategories.getAll())
   }, [dataStore])
 
@@ -783,8 +806,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRestaurantTables(await dataStore.restaurantTables.getAll())
   }, [runOperation, dataStore])
 
-  const removeRestaurantTable = useCallback(async (id: number) => {
-    await dataStore.restaurantTables.delete(id)
+  const removeRestaurantTable = useCallback(async (id: number, expectedVersion?: number) => {
+    await dataStore.restaurantTables.delete(id, expectedVersion)
     setRestaurantTables(await dataStore.restaurantTables.getAll())
   }, [dataStore])
 
@@ -1033,8 +1056,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSuppliers(await dataStore.suppliers.getAll())
   }, [dataStore])
 
-  const removeSupplier = useCallback(async (id: string) => {
-    await dataStore.suppliers.delete(id)
+  const removeSupplier = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.suppliers.delete(id, expectedVersion)
     setSuppliers(await dataStore.suppliers.getAll())
   }, [dataStore])
 
@@ -1050,8 +1073,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCustomers(await dataStore.customers.getAll())
   }, [dataStore])
 
-  const removeCustomer = useCallback(async (id: string) => {
-    await dataStore.customers.delete(id)
+  const removeCustomer = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.customers.delete(id, expectedVersion)
     setCustomers(await dataStore.customers.getAll())
   }, [dataStore])
 
@@ -1066,8 +1089,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAccountsReceivable(await dataStore.accountsReceivable.getAll())
   }, [dataStore])
 
-  const removeAccountReceivable = useCallback(async (id: string) => {
-    await dataStore.accountsReceivable.delete(id)
+  const removeAccountReceivable = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.accountsReceivable.delete(id, expectedVersion)
     setAccountsReceivable(await dataStore.accountsReceivable.getAll())
   }, [dataStore])
 
@@ -1082,8 +1105,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBankAccounts(await dataStore.bankAccounts.getAll())
   }, [dataStore])
 
-  const removeBankAccount = useCallback(async (id: string) => {
-    await dataStore.bankAccounts.delete(id)
+  const removeBankAccount = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.bankAccounts.delete(id, expectedVersion)
     setBankAccounts(await dataStore.bankAccounts.getAll())
   }, [dataStore])
 
@@ -1113,8 +1136,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCostCenters(await dataStore.costCenters.getAll())
   }, [dataStore])
 
-  const removeCostCenter = useCallback(async (id: string) => {
-    await dataStore.costCenters.delete(id)
+  const removeCostCenter = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.costCenters.delete(id, expectedVersion)
     setCostCenters(await dataStore.costCenters.getAll())
   }, [dataStore])
 
@@ -1128,8 +1151,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBudgets(await dataStore.budgets.getAll())
   }, [dataStore])
 
-  const removeBudget = useCallback(async (id: string) => {
-    await dataStore.budgets.delete(id)
+  const removeBudget = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.budgets.delete(id, expectedVersion)
     setBudgets(await dataStore.budgets.getAll())
   }, [dataStore])
 
@@ -1143,8 +1166,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRecurringTransactions(await dataStore.recurringTransactions.getAll())
   }, [dataStore])
 
-  const removeRecurringTransaction = useCallback(async (id: string) => {
-    await dataStore.recurringTransactions.delete(id)
+  const removeRecurringTransaction = useCallback(async (id: string, expectedVersion?: number) => {
+    await dataStore.recurringTransactions.delete(id, expectedVersion)
     setRecurringTransactions(await dataStore.recurringTransactions.getAll())
   }, [dataStore])
 
