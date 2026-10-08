@@ -13,8 +13,8 @@ export async function PATCH(request: NextRequest, context: Context) {
 export async function DELETE(request: NextRequest, context: Context) {
   return handleRoute(async () => {
     const { key, id } = await context.params
-    await authorizeCollection(request, key)
-    await deleteCollectionItem(key, id)
+    const actor = await authorizeCollection(request, key)
+    await deleteCollectionItem(key, id, undefined, actor)
     return NextResponse.json({ success: true })
   })
 }

@@ -57,7 +57,9 @@ export class ApiAdapter implements IStorageAdapter {
         if (response.status === 404) {
           return null
         }
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
 
       return await response.json()
@@ -81,7 +83,9 @@ export class ApiAdapter implements IStorageAdapter {
 
       if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
       console.error(`[ApiAdapter] Error setting ${key}:`, error)
@@ -99,7 +103,9 @@ export class ApiAdapter implements IStorageAdapter {
 
     if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+      if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
     }
 
     return await response.json()
@@ -115,7 +121,9 @@ export class ApiAdapter implements IStorageAdapter {
 
     if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+      if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
     }
 
     return await response.json()
@@ -129,7 +137,9 @@ export class ApiAdapter implements IStorageAdapter {
     })
 
     if (!response.ok && response.status !== 404) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+      if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
     }
   }
 
@@ -145,7 +155,9 @@ export class ApiAdapter implements IStorageAdapter {
       })
 
       if (!response.ok && response.status !== 404) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
       console.error(`[ApiAdapter] Error removing ${key}:`, error)
@@ -166,7 +178,9 @@ export class ApiAdapter implements IStorageAdapter {
 
       if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
       console.error(`[ApiAdapter] Error clearing data:`, error)
@@ -187,7 +201,9 @@ export class ApiAdapter implements IStorageAdapter {
 
       if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
 
       return await response.json()
@@ -210,7 +226,9 @@ export class ApiAdapter implements IStorageAdapter {
 
       if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
 
       return await response.text()
@@ -234,7 +252,9 @@ export class ApiAdapter implements IStorageAdapter {
 
       if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
     } catch (error) {
       console.error(`[ApiAdapter] Error importing data:`, error)
@@ -255,7 +275,9 @@ export class ApiAdapter implements IStorageAdapter {
 
       if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:session-expired"))
     if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403 && typeof window !== "undefined") window.dispatchEvent(new Event("erp:permissions-changed"))
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.error || `API error: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()

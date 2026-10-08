@@ -22,7 +22,7 @@ export class UserRepository extends BaseRepository<User> {
       return { valid: false, error: "Username é obrigatório" }
     }
     if (user.password !== undefined && user.password.length < 12) {
-      return { valid: false, error: "Senha deve ter no mínimo 4 caracteres" }
+      return { valid: false, error: "Senha deve ter no mínimo 12 caracteres" }
     }
     if (!user.role || !["operador", "supervisor"].includes(user.role)) {
       return { valid: false, error: "Role inválido" }

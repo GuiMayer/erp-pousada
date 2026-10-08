@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
@@ -40,6 +41,7 @@ import {
 } from "@/lib/utils/cpf-cnpj-validator"
 
 interface CustomerFormData {
+  recordVersion?: number
   name: string
   cpfCnpj: string
   email: string
@@ -124,6 +126,7 @@ export default function CustomersManagement() {
     if (customer) {
       setEditingId(customer.id)
       setFormData({
+        recordVersion: customer.recordVersion,
         name: customer.name,
         cpfCnpj: customer.cpfCnpj,
         email: customer.email || "",
@@ -309,10 +312,10 @@ export default function CustomersManagement() {
             Gerencie seus clientes (pessoas físicas e jurídicas)
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <PermissionGate permission="customers.create"><Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Cliente
-        </Button>
+        </Button></PermissionGate>
       </div>
 
       {/* Filters */}
@@ -394,22 +397,22 @@ export default function CustomersManagement() {
                         >
                           <History className="h-4 w-4" />
                         </Button>
-                        <Button
+                        <PermissionGate permission="customers.edit"><Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleOpenDialog(customer)}
                           title="Editar"
                         >
                           <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
+                        </Button></PermissionGate>
+                        <PermissionGate permission="customers.delete"><Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(customer)}
                           title={getCustomerAccountsReceivable(customer.id).length > 0 ? "Desativar" : "Excluir"}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button></PermissionGate>
                       </div>
                     </TableCell>
                   </TableRow>

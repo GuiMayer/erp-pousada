@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { getDataConfig } from "@/lib/data/config"
 
@@ -194,9 +195,9 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                   />
                 </div>
                 <div className="flex items-end">
-                  <Button onClick={handleAddItem} disabled={!selectedProduct}>
+                  <PermissionGate permission="restaurant.edit"><Button onClick={handleAddItem} disabled={!selectedProduct}>
                     <Plus className="h-4 w-4" />
-                  </Button>
+                  </Button></PermissionGate>
                 </div>
               </div>
             </div>
@@ -223,28 +224,28 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button
+                        <PermissionGate permission="restaurant.edit"><Button
                           size="icon"
                           variant="outline"
                           onClick={() => updateItemQuantity(item.id, Math.max(1, item.quantity - 1))}
                         >
                           <Minus className="h-4 w-4" />
-                        </Button>
+                        </Button></PermissionGate>
                         <span className="w-8 text-center font-medium">{item.quantity}</span>
-                        <Button
+                        <PermissionGate permission="restaurant.edit"><Button
                           size="icon"
                           variant="outline"
                           onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
                         >
                           <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
+                        </Button></PermissionGate>
+                        <PermissionGate permission="restaurant.edit"><Button
                           size="icon"
                           variant="destructive"
                           onClick={() => removeItem(item.id)}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button></PermissionGate>
                       </div>
                       <div className="font-semibold w-24 text-right">
                         R$ {item.subtotal.toFixed(2)}
@@ -271,10 +272,10 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
                       onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
                     />
                   </div>
-                  <Button onClick={handleApplyDiscount} variant="outline">
+                  <PermissionGate permission="restaurant.edit"><Button onClick={handleApplyDiscount} variant="outline">
                     <Percent className="h-4 w-4 mr-2" />
                     Aplicar
-                  </Button>
+                  </Button></PermissionGate>
                 </div>
 
                 <Separator />
@@ -301,19 +302,19 @@ export function OrderSheet({ open, onOpenChange, table, onClose, onPaid, onCance
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <Button
+                  <PermissionGate permission="restaurant.cancel" approval><Button
                     variant="outline"
                     className="flex-1"
                     onClick={() => setShowCancelDialog(true)}
                   >
                     Cancelar
-                  </Button>
-                  <Button
+                  </Button></PermissionGate>
+                  <PermissionGate permission="restaurant.receive"><Button
                     className="flex-1"
                     onClick={() => setShowCloseDialog(true)}
                   >
                     Fechar Comanda
-                  </Button>
+                  </Button></PermissionGate>
                 </div>
               </div>
             )}

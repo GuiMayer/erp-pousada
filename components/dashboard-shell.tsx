@@ -1,4 +1,6 @@
 "use client"
+import { useEffect } from "react"
+import { tabPermissions } from "@/lib/permissions"
 
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -19,92 +21,94 @@ import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, P
 
 export function DashboardShell() {
   const { rooms, dataError } = useApp()
-  const { isSupervisor } = useAuth()
+  const { can } = useAuth()
+  const visible = (tab: string) => tabPermissions[tab]?.some(can)
+  const permittedTab = Object.keys(tabPermissions).find(visible)
   const { activeTab, setActiveTab } = useActiveTab()
+  useEffect(() => {
+    if (!tabPermissions[activeTab]?.some(can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
+  }, [activeTab, can, permittedTab, setActiveTab])
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
       {dataError && <div role="alert" className="rounded-lg border border-destructive p-4 text-destructive">Não foi possível atualizar os dados: {dataError}. Recarregue a página para tentar novamente.</div>}
       <DashboardHeader rooms={rooms} />
+      {!permittedTab && <p role="status">Nenhum módulo foi liberado para seu usuário. Procure o administrador.</p>}
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col gap-6">
+      <Tabs value={visible(activeTab) ? activeTab : permittedTab ?? ""} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col gap-6">
           <TabsList className="w-fit">
-          <TabsTrigger value="mapa" className="gap-1.5">
+          {visible("mapa") && (<TabsTrigger value="mapa" className="gap-1.5">
             <Map className="size-3.5" />
             Mapa
-          </TabsTrigger>
-          <TabsTrigger value="reservas" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("reservas") && (<TabsTrigger value="reservas" className="gap-1.5">
             <CalendarDays className="size-3.5" />
             Reservas
-          </TabsTrigger>
-          <TabsTrigger value="pdv" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("pdv") && (<TabsTrigger value="pdv" className="gap-1.5">
             <ShoppingCart className="size-3.5" />
             Frente de Caixa
-          </TabsTrigger>
-          <TabsTrigger value="restaurante" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("restaurante") && (<TabsTrigger value="restaurante" className="gap-1.5">
             <UtensilsCrossed className="size-3.5" />
             Restaurante
-          </TabsTrigger>
-          <TabsTrigger value="estoque" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("estoque") && (<TabsTrigger value="estoque" className="gap-1.5">
             <Package className="size-3.5" />
             Estoque
-          </TabsTrigger>
-          <TabsTrigger value="financeiro" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("financeiro") && (<TabsTrigger value="financeiro" className="gap-1.5">
             <DollarSign className="size-3.5" />
             Financeiro
-          </TabsTrigger>
-          <TabsTrigger value="relatorios" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("relatorios") && (<TabsTrigger value="relatorios" className="gap-1.5">
             <BarChart3 className="size-3.5" />
             Relatórios
-          </TabsTrigger>
-          <TabsTrigger value="configuracoes" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("configuracoes") && (<TabsTrigger value="configuracoes" className="gap-1.5">
             <Settings className="size-3.5" />
             Configurações
-          </TabsTrigger>
-          {isSupervisor && (
-            <TabsTrigger value="administracao" className="gap-1.5">
+          </TabsTrigger>)}
+          {visible("administracao") && (<TabsTrigger value="administracao" className="gap-1.5">
               <Shield className="size-3.5" />
               Administração
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="auditoria" className="gap-1.5">
+            </TabsTrigger>)}
+          {visible("auditoria") && (<TabsTrigger value="auditoria" className="gap-1.5">
             <Shield className="size-3.5" />
             Auditoria
-          </TabsTrigger>
+          </TabsTrigger>)}
         </TabsList>
 
-        <TabsContent value="mapa">
+        {visible("mapa") && (<TabsContent value="mapa">
           <RoomGrid />
-        </TabsContent>
-        <TabsContent value="reservas">
+        </TabsContent>)}
+        {visible("reservas") && (<TabsContent value="reservas">
           <ReservationsTab />
-        </TabsContent>
-        <TabsContent value="pdv">
+        </TabsContent>)}
+        {visible("pdv") && (<TabsContent value="pdv">
           <POSTab />
-        </TabsContent>
-        <TabsContent value="restaurante">
+        </TabsContent>)}
+        {visible("restaurante") && (<TabsContent value="restaurante">
           <RestaurantTab />
-        </TabsContent>
-        <TabsContent value="estoque">
+        </TabsContent>)}
+        {visible("estoque") && (<TabsContent value="estoque">
           <StockTab />
-        </TabsContent>
-        <TabsContent value="financeiro">
+        </TabsContent>)}
+        {visible("financeiro") && (<TabsContent value="financeiro">
           <FinancialTab />
-        </TabsContent>
-        <TabsContent value="relatorios">
+        </TabsContent>)}
+        {visible("relatorios") && (<TabsContent value="relatorios">
           <ReportsTab />
-        </TabsContent>
-        <TabsContent value="configuracoes">
+        </TabsContent>)}
+        {visible("configuracoes") && (<TabsContent value="configuracoes">
           <SettingsTab />
-        </TabsContent>
-        {isSupervisor && (
-          <TabsContent value="administracao">
+        </TabsContent>)}
+        {visible("administracao") && (<TabsContent value="administracao">
             <AdminTab />
-          </TabsContent>
-        )}
-        <TabsContent value="auditoria">
+          </TabsContent>)}
+        {visible("auditoria") && (<TabsContent value="auditoria">
           <AuditLogTab />
-        </TabsContent>
+        </TabsContent>)}
       </Tabs>
     </div>
   )

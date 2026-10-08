@@ -87,7 +87,8 @@ export function ManageTablesModal({ open, onClose }: Props) {
       setFormError("Nao e possivel editar uma mesa ocupada.")
       return
     }
-    updateRestaurantTable(editingTable.id, { number: tableNumber, capacity: capacityNum })
+    updateRestaurantTable(editingTable.id, {
+      recordVersion: editingTable.recordVersion, number: tableNumber, capacity: capacityNum })
     addAuditEntry({ user: username || "sistema", action: "Mesa editada", reference: `Mesa ${tableNumber}` })
     resetForm()
     setMode("list")

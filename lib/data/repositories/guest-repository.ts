@@ -57,7 +57,7 @@ export class GuestRepository implements IDataRepository<GuestProfile> {
     }
 
     const itemAdapter = this.adapter as IStorageAdapter & { updateItem?: <T>(key: string, id: string, data: Partial<T>) => Promise<T> }
-    if (itemAdapter.updateItem) return itemAdapter.updateItem("guests", String(cpf), data)
+    if (itemAdapter.updateItem) return itemAdapter.updateItem("guests", String(cpf), { ...data, recordVersion: data.recordVersion ?? guests[index].recordVersion })
     const updated = { ...guests[index], ...data, cpf: guests[index].cpf }
     guests[index] = updated
     await this.saveToStorage(guests)

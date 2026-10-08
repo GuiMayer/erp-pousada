@@ -1,5 +1,7 @@
 "use client"
 
+import { PROFILES, effectivePermissions, type PermissionOverrides } from "@/lib/permissions"
+import { UserPermissionsEditor } from "./user-permissions-editor"
 import { useState, useEffect, useRef } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -45,6 +47,8 @@ type UserFormData = {
   username: string
   password: string
   role: UserRole
+  accessProfile: string
+  permissionOverrides: PermissionOverrides
   fullName: string
   email: string
   active: boolean
@@ -54,6 +58,8 @@ const emptyUserForm: UserFormData = {
   username: "",
   password: "",
   role: "operador",
+  accessProfile: "recepcao",
+  permissionOverrides: {},
   fullName: "",
   email: "",
   active: true,
@@ -61,8 +67,9 @@ const emptyUserForm: UserFormData = {
 
 export function AdminTab() {
   const { systemSettings, updateSystemSettings, users, addUser, updateUser, addAuditEntry } = useApp()
-  const { username } = useAuth()
-  
+  const { username, can } = useAuth()
+  const [isUserSaving, setUserSaving] = useState(false)
+
   const [formData, setFormData] = useState<SystemSettings>(systemSettings)
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -72,7 +79,7 @@ export function AdminTab() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [userForm, setUserForm] = useState<UserFormData>(emptyUserForm)
   const [userErrors, setUserErrors] = useState<Record<string, string>>({})
-  
+
   // Use ref to track if we should sync with context
   const shouldSyncRef = useRef(true)
 
@@ -267,6 +274,8 @@ export function AdminTab() {
       username: userToEdit.username,
       password: "",
       role: userToEdit.role,
+      accessProfile: userToEdit.accessProfile || (userToEdit.role === "supervisor" ? "administrador" : "operador_legado"),
+      permissionOverrides: userToEdit.permissionOverrides ?? {},
       fullName: userToEdit.fullName,
       email: userToEdit.email ?? "",
       active: userToEdit.active,
@@ -287,28 +296,33 @@ export function AdminTab() {
     const trimmedUsername = userForm.username.trim()
     const trimmedFullName = userForm.fullName.trim()
 
-    if (!trimmedUsername) nextErrors.username = "Usuario e obrigatorio"
+    if (!trimmedUsername) nextErrors.username = "Usuário e obrigatorio"
     if (!trimmedFullName) nextErrors.fullName = "Nome completo e obrigatorio"
     if (!editingUser && !userForm.password.trim()) nextErrors.password = "Senha inicial e obrigatoria"
-    if (userForm.password && userForm.password.length < 4) nextErrors.password = "Senha deve ter pelo menos 4 caracteres"
+    if (userForm.password && (userForm.password.length < 12 || new TextEncoder().encode(userForm.password).length > 72)) nextErrors.password = "Use pelo menos 12 caracteres e no máximo 72 bytes"
     if (userForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userForm.email)) nextErrors.email = "Email invalido"
 
     const duplicate = users.find(userItem =>
       userItem.username.toLowerCase() === trimmedUsername.toLowerCase() && userItem.id !== editingUser?.id
     )
-    if (duplicate) nextErrors.username = "Usuario ja cadastrado"
+    if (duplicate) nextErrors.username = "Usuário ja cadastrado"
 
     setUserErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
   const handleSaveUser = async () => {
-    if (!validateUserForm()) return
+    if (isUserSaving || !validateUserForm()) return
+    setUserSaving(true)
+    try {
 
     const auditUser = username || "sistema"
     const userData = {
       username: userForm.username.trim(),
-      role: userForm.role,
+      role: (["administrador", "supervisor"].includes(userForm.accessProfile) ? "supervisor" : "operador") as UserRole,
+      accessProfile: userForm.accessProfile,
+      permissionOverrides: userForm.permissionOverrides,
+      ...(editingUser ? { recordVersion: editingUser.recordVersion } : {}),
       fullName: userForm.fullName.trim(),
       email: userForm.email.trim() || undefined,
       active: userForm.active,
@@ -321,7 +335,7 @@ export function AdminTab() {
       )
       await addAuditEntry({
         user: auditUser,
-        action: userForm.active ? "Usuario editado" : "Usuario desativado",
+        action: userForm.active ? "Usuário editado" : "Usuário desativado",
         reference: userData.username,
       })
     } else {
@@ -334,25 +348,29 @@ export function AdminTab() {
       })
       await addAuditEntry({
         user: auditUser,
-        action: "Usuario criado",
+        action: "Usuário criado",
         reference: userData.username,
       })
     }
 
     closeUserDialog()
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar o usuário") }
+    finally { setUserSaving(false) }
   }
 
   const handleDeactivateUser = async (targetUser: User) => {
     if (!targetUser.active) return
-    if (!confirm(`Desativar o usuario "${targetUser.username}"?`)) return
+    if (!confirm(`Desativar o usuário "${targetUser.username}"?`)) return
 
     const auditUser = username || "sistema"
-    await updateUser(targetUser.id, { active: false })
+    try {
+    await updateUser(targetUser.id, { active: false, recordVersion: targetUser.recordVersion })
     await addAuditEntry({
       user: auditUser,
-      action: "Usuario desativado",
+      action: "Usuário desativado",
       reference: targetUser.username,
     })
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível desativar o usuário") }
   }
 
   return (
@@ -365,6 +383,7 @@ export function AdminTab() {
         </h2>
       </div>
 
+      {can("systemSettings.edit") && <>
       {/* Informações da Pousada */}
       <Card>
         <CardHeader>
@@ -658,27 +677,28 @@ export function AdminTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      </>}
+      {can("users.manage") && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserCog className="size-4" />
-            Usuarios
+            Usuários
           </CardTitle>
           <CardDescription>
-            Cadastre operadores e supervisores com registro no log de auditoria.
+            Defina perfis por setor e exceções individuais. Alterações são registradas automaticamente na auditoria.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-end">
-            <Button size="sm" className="gap-2" onClick={() => openUserDialog()}>
+            <Button size="sm" className="gap-2" disabled={!can("users.create")} onClick={() => openUserDialog()}>
               <Plus className="size-4" />
-              Novo Usuario
+              Novo Usuário
             </Button>
           </div>
 
           <div className="rounded-md border divide-y">
             {users.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground">Nenhum usuario cadastrado.</div>
+              <div className="p-4 text-sm text-muted-foreground">Nenhum usuário cadastrado.</div>
             ) : users.map(userItem => (
               <div key={userItem.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
@@ -687,20 +707,20 @@ export function AdminTab() {
                     <Badge variant={userItem.active ? "default" : "secondary"}>
                       {userItem.active ? "Ativo" : "Inativo"}
                     </Badge>
-                    <Badge variant="outline">{userItem.role}</Badge>
+                    <Badge variant="outline">{PROFILES[userItem.accessProfile || (userItem.role === "supervisor" ? "administrador" : "operador_legado")]?.label}</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {userItem.username}{userItem.email ? ` - ${userItem.email}` : ""}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => openUserDialog(userItem)}>
+                  <Button variant="ghost" size="sm" aria-label={`Editar ${userItem.username}`} disabled={!can("users.edit")} onClick={() => openUserDialog(userItem)}>
                     <Pencil className="size-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!userItem.active}
+                    disabled={!userItem.active || !can("users.edit")}
                     onClick={() => handleDeactivateUser(userItem)}
                   >
                     Desativar
@@ -710,10 +730,11 @@ export function AdminTab() {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       <Separator />
 
+      {can("systemSettings.edit") && <>
       {/* Action Buttons */}
       <div className="flex gap-3">
         <Button 
@@ -753,12 +774,12 @@ export function AdminTab() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog></>}
 
       <Dialog open={isUserDialogOpen} onOpenChange={(open) => { if (!open) closeUserDialog() }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingUser ? "Editar Usuario" : "Novo Usuario"}</DialogTitle>
+            <DialogTitle>{editingUser ? "Editar Usuário" : "Novo Usuário"}</DialogTitle>
             <DialogDescription>
               Defina os dados de acesso e o perfil operacional.
             </DialogDescription>
@@ -767,7 +788,7 @@ export function AdminTab() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="userUsername">Usuario</Label>
+                <Label htmlFor="userUsername">Usuário</Label>
                 <Input
                   id="userUsername"
                   value={userForm.username}
@@ -779,14 +800,9 @@ export function AdminTab() {
 
               <div className="space-y-2">
                 <Label htmlFor="userRole">Perfil</Label>
-                <Select value={userForm.role} onValueChange={(value) => setUserForm(prev => ({ ...prev, role: value as UserRole }))}>
-                  <SelectTrigger id="userRole">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="operador">Operador</SelectItem>
-                    <SelectItem value="supervisor">Supervisor</SelectItem>
-                  </SelectContent>
+                <Select value={userForm.accessProfile} onValueChange={(value) => setUserForm(prev => ({ ...prev, accessProfile: value }))}>
+                  <SelectTrigger id="userRole"><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(PROFILES).map(([key, profile]) => <SelectItem key={key} value={key} disabled={effectivePermissions({ accessProfile: key }).some(permission => !can(permission))}>{profile.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
@@ -814,6 +830,8 @@ export function AdminTab() {
               {userErrors.email && <p className="text-sm text-destructive">{userErrors.email}</p>}
             </div>
 
+            <UserPermissionsEditor profile={userForm.accessProfile} overrides={userForm.permissionOverrides} onChange={permissionOverrides => setUserForm(previous => ({ ...previous, permissionOverrides }))} />
+
             <div className="space-y-2">
               <Label htmlFor="userPassword">{editingUser ? "Nova senha" : "Senha inicial"}</Label>
               <Input
@@ -829,8 +847,8 @@ export function AdminTab() {
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <Label htmlFor="userActive">Usuario ativo</Label>
-                <p className="text-sm text-muted-foreground">Usuarios inativos nao devem acessar o sistema.</p>
+                <Label htmlFor="userActive">Usuário ativo</Label>
+                <p className="text-sm text-muted-foreground">Usuários inativos nao devem acessar o sistema.</p>
               </div>
               <Switch
                 id="userActive"
@@ -842,7 +860,7 @@ export function AdminTab() {
 
           <DialogFooter>
             <Button variant="outline" onClick={closeUserDialog}>Cancelar</Button>
-            <Button onClick={handleSaveUser}>Salvar</Button>
+            <Button disabled={isUserSaving} onClick={handleSaveUser}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

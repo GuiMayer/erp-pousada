@@ -250,7 +250,7 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
 
     const itemAdapter = this.getItemAdapter()
     if (itemAdapter) {
-      const updated = await itemAdapter.updateItem<T>(this.getStorageKey(), id, data)
+      const updated = await itemAdapter.updateItem<T>(this.getStorageKey(), id, { ...data, recordVersion: (data as any).recordVersion ?? (existing as any).recordVersion } as Partial<T>)
       this.invalidateCache()
       this.emit({ action: 'update', id, data: updated })
       return updated

@@ -1,3 +1,4 @@
+import { getDataConfig } from "../data/config"
 import { useState, useCallback } from "react"
 import { validateDiscount, requiresSupervisorApproval, validateSupervisorPasswordAsync } from "../utils/validators"
 
@@ -9,8 +10,8 @@ export function useDiscount(discountCeiling: number) {
   const [supervisorPassword, setSupervisorPassword] = useState("")
   const [isApproved, setIsApproved] = useState(false)
 
-  const needsApproval = requiresSupervisorApproval(discountValue, discountCeiling)
-  const isValid = validateDiscount(discountValue, discountCeiling) || (needsApproval && isApproved)
+  const needsApproval = getDataConfig().adapter === "demo-localStorage" && requiresSupervisorApproval(discountValue, discountCeiling)
+  const isValid = getDataConfig().adapter === "database" || validateDiscount(discountValue, discountCeiling) || (needsApproval && isApproved)
 
   const handleDiscountChange = useCallback((value: number) => {
     setDiscountValue(value)

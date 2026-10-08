@@ -1,5 +1,7 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
+import { ProductionModal } from "@/components/restaurant/production-modal"
 import { useState } from "react"
 import { Package, Plus, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,6 +35,7 @@ export function StockTab() {
   const { stockItems, filter, setFilter, stats, getStockStatus } = useStockControl()
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [movementModalOpen, setMovementModalOpen] = useState(false)
+  const [productionOpen, setProductionOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("products")
 
   const handleAddMovement = (item: StockItem) => {
@@ -82,7 +85,9 @@ export function StockTab() {
             Gerencie produtos e controle de estoque
           </p>
         </div>
+        <PermissionGate permission="production.register"><Button onClick={() => setProductionOpen(true)}>Registrar produção</Button></PermissionGate>
       </div>
+      <ProductionModal open={productionOpen} onClose={() => setProductionOpen(false)} />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -179,14 +184,14 @@ export function StockTab() {
                   <TableCell>R$ {item.averageCost.toFixed(2)}</TableCell>
                   <TableCell>{getStatusBadge(item)}</TableCell>
                   <TableCell className="text-right">
-                    <Button
+                    <PermissionGate permission="stock.adjust"><Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleAddMovement(item)}
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Movimentar
-                    </Button>
+                    </Button></PermissionGate>
                   </TableCell>
                 </TableRow>
               ))}

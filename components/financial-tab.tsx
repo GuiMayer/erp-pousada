@@ -1,4 +1,5 @@
 "use client"
+import { PermissionGate } from "@/components/permission-gate"
 
 import { getDataConfig } from "@/lib/data/config"
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
@@ -61,7 +62,9 @@ export function FinancialTab() {
     runOperation, discountCeiling, addExpense, updateExpense, markInstallmentAsPaid, addTransaction,
     addAuditEntry, addCategory, addCashClose, setDiscountCeiling,
   } = useApp()
-  const { isSupervisor, username } = useAuth()
+  const { isSupervisor, username, can } = useAuth()
+  const financialTabs: Record<string, string[]> = { vencimentos: ["expenses.read"], transacoes: ["transactions.read"], fornecedores: ["suppliers.read"], clientes: ["customers.read"], hospedes: ["guests.read"], "contas-receber": ["accountsReceivable.read"], cadastros: ["bankAccounts.read", "categories.read", "costCenters.read"], "fechar-turno": ["cash.open", "cash.close"] }
+  const visible = (tab: string) => financialTabs[tab]?.some(can)
 
   // New expense modal
   const [showNewExpense, setShowNewExpense] = useState(false)
@@ -271,7 +274,7 @@ export function FinancialTab() {
 
   async function handleRefund() {
     if (!refundModal) return
-    if (!await validateSupervisorPasswordAsync(supervisorPass)) {
+    if (getDataConfig().adapter === "demo-localStorage" && !await validateSupervisorPasswordAsync(supervisorPass)) {
       setRefundError("Senha de supervisor incorreta")
       return
     }
@@ -323,42 +326,42 @@ export function FinancialTab() {
   }
 
   const discountNeedsSupervisor =
-    !isSupervisor && (discountType === "percent" ? Number(discountValue) : Number(discountValue) / (reservations.find(r => r.id === discountReservationId)?.totalValue || 1) * 100) > discountCeiling
+    getDataConfig().adapter === "demo-localStorage" && !isSupervisor && (discountType === "percent" ? Number(discountValue) : Number(discountValue) / (reservations.find(r => r.id === discountReservationId)?.totalValue || 1) * 100) > discountCeiling
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <h2 className="text-lg font-semibold text-foreground">Financeiro</h2>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {can("transactions.read") && <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCard label="Receitas" value={totalReceitas} icon={<TrendingUp className="size-4" />} variant="success" />
         <SummaryCard label="Despesas" value={totalDespesas} icon={<TrendingDown className="size-4" />} variant="destructive" />
         <SummaryCard label="Estornos" value={totalEstornos} icon={<Undo2 className="size-4" />} variant="warning" />
-        {isSupervisor && (
+        {can("transactions.read") && (
           <SummaryCard label="Liquido" value={netResult} icon={<DollarSign className="size-4" />} variant="primary" />
         )}
-      </div>
+      </div>}
 
-      <Tabs defaultValue="vencimentos">
+      <Tabs defaultValue={Object.keys(financialTabs).find(visible)}>
         <TabsList>
-          <TabsTrigger value="vencimentos">Vencimentos</TabsTrigger>
-          <TabsTrigger value="transacoes">Transacoes</TabsTrigger>
-          <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
-          <TabsTrigger value="clientes">Clientes</TabsTrigger>
-          <TabsTrigger value="hospedes">Hospedes</TabsTrigger>
-          <TabsTrigger value="contas-receber">Contas a Receber</TabsTrigger>
-          <TabsTrigger value="cadastros">Cadastros</TabsTrigger>
-          <TabsTrigger value="fechar-turno">Fechar Turno</TabsTrigger>
+          {visible("vencimentos") && (<TabsTrigger value="vencimentos">Vencimentos</TabsTrigger>)}
+          {visible("transacoes") && (<TabsTrigger value="transacoes">Transacoes</TabsTrigger>)}
+          {visible("fornecedores") && (<TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>)}
+          {visible("clientes") && (<TabsTrigger value="clientes">Clientes</TabsTrigger>)}
+          {visible("hospedes") && (<TabsTrigger value="hospedes">Hospedes</TabsTrigger>)}
+          {visible("contas-receber") && (<TabsTrigger value="contas-receber">Contas a Receber</TabsTrigger>)}
+          {visible("cadastros") && (<TabsTrigger value="cadastros">Cadastros</TabsTrigger>)}
+          {visible("fechar-turno") && (<TabsTrigger value="fechar-turno">Fechar Turno</TabsTrigger>)}
         </TabsList>
 
         {/* Upcoming payments */}
-        <TabsContent value="vencimentos">
+        {visible("vencimentos") && (<TabsContent value="vencimentos">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <h3 className="text-sm font-semibold text-foreground">Vencimentos</h3>
-              <Button size="sm" className="gap-1.5" onClick={() => setShowNewExpense(true)}>
+              <PermissionGate permission="expenses.create"><Button size="sm" className="gap-1.5" onClick={() => setShowNewExpense(true)}>
                 <Plus className="size-4" /> Nova Despesa
-              </Button>
+              </Button></PermissionGate>
             </div>
 
             {/* Toggle group filter */}
@@ -466,10 +469,10 @@ export function FinancialTab() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </TabsContent>)}
 
         {/* Transactions */}
-        <TabsContent value="transacoes">
+        {visible("transacoes") && (<TabsContent value="transacoes">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <h3 className="text-sm font-semibold text-foreground">Historico de Transacoes</h3>
@@ -527,7 +530,7 @@ export function FinancialTab() {
                       <TableHead>Descricao</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Tipo</TableHead>
-                      {isSupervisor && <TableHead className="text-right">Acoes</TableHead>}
+                      {can("transactions.refund") && <TableHead className="text-right">Acoes</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -554,7 +557,7 @@ export function FinancialTab() {
                             {movementLabels[t.type]}
                           </Badge>
                         </TableCell>
-                        {isSupervisor && (
+                        {can("transactions.refund") && (
                           <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                             {t.type === "receita" && !/^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(t.refId ?? "") && (
                               <Button
@@ -571,7 +574,7 @@ export function FinancialTab() {
                     ))}
                     {filteredTransactions.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={isSupervisor ? 6 : 5} className="py-8 text-center text-muted-foreground">
+                        <TableCell colSpan={can("transactions.refund") ? 6 : 5} className="py-8 text-center text-muted-foreground">
                           Nenhuma transacao encontrada para os filtros selecionados
                         </TableCell>
                       </TableRow>
@@ -585,33 +588,33 @@ export function FinancialTab() {
               {filteredTransactions.length} transacao(oes) encontrada(s)
             </p>
           </div>
-        </TabsContent>
+        </TabsContent>)}
 
         {/* Suppliers */}
-        <TabsContent value="fornecedores">
+        {visible("fornecedores") && (<TabsContent value="fornecedores">
           <SuppliersManagement />
-        </TabsContent>
+        </TabsContent>)}
 
         {/* Customers */}
-        <TabsContent value="clientes">
+        {visible("clientes") && (<TabsContent value="clientes">
           <CustomersManagement />
-        </TabsContent>
+        </TabsContent>)}
 
-        <TabsContent value="hospedes">
+        {visible("hospedes") && (<TabsContent value="hospedes">
           <GuestsManagement />
-        </TabsContent>
+        </TabsContent>)}
 
         {/* Accounts Receivable */}
-        <TabsContent value="contas-receber">
+        {visible("contas-receber") && (<TabsContent value="contas-receber">
           <AccountsReceivableManagement />
-        </TabsContent>
+        </TabsContent>)}
 
-        <TabsContent value="cadastros">
+        {visible("cadastros") && (<TabsContent value="cadastros">
           <FinancialCadastrosManagement />
-        </TabsContent>
+        </TabsContent>)}
 
         {/* Cash close */}
-        <TabsContent value="fechar-turno"><CashSessionPanel /></TabsContent>
+        {visible("fechar-turno") && (<TabsContent value="fechar-turno"><CashSessionPanel /></TabsContent>)}
       </Tabs>
 
       {/* Transaction detail sheet */}
@@ -686,7 +689,7 @@ export function FinancialTab() {
                     ))}
                   </SelectContent>
                 </Select>
-                {isSupervisor && (
+                {can("categories.create") && (
                   <Button variant="outline" size="icon" className="shrink-0" onClick={() => setShowNewCategory(true)}>
                     <Plus className="size-4" />
                   </Button>
@@ -775,15 +778,15 @@ export function FinancialTab() {
               <Lock className="size-4 text-warning-foreground" />
               <span className="text-sm text-warning-foreground">Acao restrita ao Supervisor</span>
             </div>
-            <div className="flex flex-col gap-1.5">
+{getDataConfig().adapter === "demo-localStorage" && (            <div className="flex flex-col gap-1.5">
               <Label>Senha do Supervisor</Label>
               <Input type="password" value={supervisorPass} onChange={e => { setSupervisorPass(e.target.value); setRefundError("") }} placeholder="Digite a senha" />
               {refundError && <p className="text-xs text-destructive">{refundError}</p>}
-            </div>
+            </div>)}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRefundModal(null)}>Cancelar</Button>
-            <Button variant="destructive" disabled={!supervisorPass} onClick={handleRefund}>Confirmar Estorno</Button>
+            <Button variant="destructive" disabled={getDataConfig().adapter === "demo-localStorage" && !supervisorPass} onClick={handleRefund}>Confirmar Estorno</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

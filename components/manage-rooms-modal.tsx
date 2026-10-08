@@ -47,7 +47,7 @@ type Props = {
 
 export function ManageRoomsModal({ open, onClose }: Props) {
   const { rooms, addRoom, updateRoom, removeRoom, addAuditEntry } = useApp()
-  const { username, isSupervisor } = useAuth()
+  const { username, can } = useAuth()
 
   const [mode, setMode] = useState<"list" | "add" | "edit">("list")
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
@@ -65,7 +65,8 @@ export function ManageRoomsModal({ open, onClose }: Props) {
     setEditingRoom(null)
   }
 
-  function handleAdd() {
+  async function handleAdd() {
+    try {
     if (!roomNumber || !roomType) {
       setFormError("Preencha todos os campos.")
       return
@@ -76,7 +77,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
       return
     }
     const newId = Math.max(...rooms.map(r => r.id), 0) + 1
-    addRoom({
+    await addRoom({
       id: newId,
       number: roomNumber,
       type: roomType,
@@ -86,19 +87,25 @@ export function ManageRoomsModal({ open, onClose }: Props) {
     addAuditEntry({ user: username || "sistema", action: "Quarto adicionado", reference: `Quarto ${roomNumber} (${roomType})` })
     resetForm()
     setMode("list")
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  function handleEdit() {
+  async function handleEdit() {
+    try {
     if (!editingRoom || !roomNumber || !roomType) return
     const duplicate = rooms.find(r => r.number === roomNumber && r.id !== editingRoom.id)
     if (duplicate) {
       setFormError("Ja existe um quarto com esse numero.")
       return
     }
-    updateRoom(editingRoom.id, { number: roomNumber, type: roomType })
+    await updateRoom(editingRoom.id, {
+      recordVersion: editingRoom.recordVersion, number: roomNumber, type: roomType })
     addAuditEntry({ user: username || "sistema", action: "Quarto editado", reference: `Quarto ${roomNumber}` })
     resetForm()
     setMode("list")
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   function handleDelete(room: Room) {
@@ -165,7 +172,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
                         <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(room)}>
                           <Pencil className="size-3.5" />
                         </Button>
-                        {isSupervisor && (
+                        {can("rooms.delete") && (
                           <Button
                             variant="ghost" size="icon"
                             className="size-7 text-muted-foreground hover:text-destructive"

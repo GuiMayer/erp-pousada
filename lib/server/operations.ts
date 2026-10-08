@@ -1,3 +1,6 @@
+import { approvalResourceHash, approvalReview } from "./approval-scope"
+import { effectivePermissions } from "@/lib/permissions"
+import { demand, demandOperation } from "./permissions"
 import { financeOperation, recordLedger, paymentFields } from "./business-finance"
 import { normalizePayment } from "../utils/business-values"
 import { unitFactor } from "../utils/units"
@@ -21,7 +24,6 @@ const payment = z.enum(["dinheiro", "pix", "debito", "credito", "Dinheiro", "PIX
 const cartItem = z.object({ id, product: z.object({ id }).passthrough(), quantity: integer, discount: percent }).passthrough()
 const saleInput = z.object({ sale: z.object({ id, items: z.array(cartItem).min(1).max(100), total: money, paymentMethod: payment, accountId: id.optional(), amountPaid: money, customer: z.string().max(200).optional() }).passthrough(), globalDiscount: percent })
 const checkinInput = z.object({ roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money }).strict()
-const approved = (actor: Actor) => actor.role === "supervisor" || !!actor.approvedUntil && actor.approvedUntil > new Date()
 const decimal = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n)
 const round = (n: Prisma.Decimal) => n.toDecimalPlaces(2)
 type Tx = Prisma.TransactionClient
@@ -31,7 +33,7 @@ async function audit(tx: Tx, actor: Actor, action: string, reference: string) {
 }
 async function checkDiscount(tx: Tx, actor: Actor, value: number) {
   const settings = await tx.systemSettings.findFirst()
-  if (value - (settings?.discountCeiling ?? 0) > 0.000001 && !approved(actor)) throw new HttpError(403, "Desconto exige aprovação do supervisor")
+  if (value - (settings?.discountCeiling ?? 0) > 0.000001) demand(actor, "discount.override")
 }
 async function moveStock(tx: Tx, productId: string, quantity: number, actor: Actor, reference: string, restore = false) {
   const product = await tx.pOSProduct.findUniqueOrThrow({ where: { id: productId } })
@@ -50,6 +52,7 @@ async function assertRoomPeriod(tx: Tx, room: { id: number; status: string; bloc
 }
 
 export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload: unknown): Promise<unknown> {
+  demandOperation(actor, kind)
   const financeResult = await financeOperation(tx, actor, kind, payload)
   if (financeResult !== undefined) return financeResult
   if (kind === "reserve-group") {
@@ -82,7 +85,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return collectionMapper("posSales").toApp(result)
   }
   if (kind === "cancel-sale") {
-    if (!approved(actor)) throw new HttpError(403, "Estorno exige supervisor")
+    demandOperation(actor, kind)
     const input = z.object({ saleId: id, reason: text, returnToStock: z.boolean() }).strict().parse(payload)
     const sale = await tx.pOSSale.findUniqueOrThrow({ where: { id: input.saleId }, include: { items: true } })
     if (sale.status !== "concluida") throw new HttpError(409, "Venda já estornada")
@@ -94,13 +97,14 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "reserve" || kind === "edit-reservation") {
-    const input = z.object({ id: id.optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money, status: z.enum(["confirmada", "cancelada", "noshow"]).default("confirmada"), cancelTreatment: z.string().max(200).optional() }).strict().parse(payload)
+    const input = z.object({ id: id.optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money, status: z.enum(["confirmada", "cancelada", "noshow"]).default("confirmada"), cancelTreatment: z.string().max(200).optional(), recordVersion: z.number().int().nonnegative().optional() }).strict().parse(payload)
     const checkIn = new Date(input.checkIn), checkOut = new Date(input.checkOut)
     if (!Number.isFinite(checkIn.getTime()) || !Number.isFinite(checkOut.getTime()) || checkOut <= checkIn) throw new HttpError(400, "Período inválido")
     const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
     let originalValue = decimal(input.totalValue)
     if (kind === "edit-reservation") {
       const current = await tx.reservation.findUniqueOrThrow({ where: { id: input.id } })
+      if (input.recordVersion !== current.recordVersion) throw new HttpError(409, "Reserva alterada por outro usuário. Reabra o formulário.")
       originalValue = Prisma.Decimal.max(current.originalValue ?? current.totalValue, current.totalValue, input.totalValue)
       if (current.status !== "confirmada") throw new HttpError(409, "Somente reserva confirmada pode ser editada")
       if (current.paidValue.gt(0) && current.cpf !== input.cpf) throw new HttpError(409, "Reserva paga não permite trocar o titular")
@@ -114,8 +118,9 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       if (overlap) throw new HttpError(409, "Reserva conflita com outra hospedagem")
     }
     await tx.guestProfile.upsert({ where: { cpf: input.cpf }, create: { cpf: input.cpf, name: input.guestName }, update: { name: input.guestName } })
-    const data = { ...input, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number, originalValue }
-    const result = kind === "reserve" ? await tx.reservation.create({ data }) : await tx.reservation.update({ where: { id: input.id }, data })
+    const { recordVersion: _version, ...fields } = input
+    const data = { ...fields, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number, originalValue }
+    const result = kind === "reserve" ? await tx.reservation.create({ data }) : await tx.reservation.update({ where: { id: input.id }, data: { ...data, recordVersion: { increment: 1 } } })
     await audit(tx, actor, kind === "reserve" ? "Reserva criada" : "Reserva alterada", result.id)
     return collectionMapper("reservations").toApp(result)
   }
@@ -161,7 +166,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
     const product = await tx.pOSProduct.findFirst({ where: { name: item.label } })
     if (product) item.unitPrice = Number(product.price)
-    else if (actor.role !== "supervisor") throw new HttpError(403, "Item personalizado exige supervisor")
+    else demand(actor, "consumptions.custom")
     if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number}`)
     const consumption = await tx.roomConsumption.upsert({ where: { roomId }, create: { id: randomUUID(), roomId }, update: {} })
     await tx.roomConsumptionItem.create({ data: { ...item, consumptionId: consumption.id } })
@@ -169,7 +174,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "remove-consumption") {
-    if (!approved(actor)) throw new HttpError(403, "Remoção exige supervisor")
+    demandOperation(actor, kind)
     const input = z.object({ roomId: integer, itemId: id }).strict().parse(payload)
     const item = await tx.roomConsumptionItem.findUniqueOrThrow({ where: { id: input.itemId }, include: { consumption: true } })
     if (item.consumption.roomId !== input.roomId) throw new HttpError(404, "Item não encontrado")
@@ -231,7 +236,8 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.restaurantOrder.update({ where: { id: order.id }, data: { status: "fechada", total, discount: order.discount, paymentMethod: normalizePayment(input.paymentMethod), amountPaid: input.amountPaid, change: normalizePayment(input.paymentMethod) === "Dinheiro" ? decimal(input.amountPaid).minus(total) : 0, customer: input.customer, closedAt: new Date() } })
       await ledger(tx, actor, `Comanda ${order.id}`, total, "receita", input.paymentMethod, input.accountId)
     } else {
-      if (!approved(actor) || !input.reason) throw new HttpError(403, "Cancelamento exige supervisor e motivo")
+      demand(actor, "restaurant.cancel")
+      if (!input.reason) throw new HttpError(400, "Informe o motivo do cancelamento")
       await tx.restaurantOrder.update({ where: { id: order.id }, data: { status: "cancelada", cancelReason: input.reason, closedAt: new Date() } })
     }
     await tx.restaurantTable.update({ where: { id: order.tableId }, data: { status: "livre", currentOrderId: null, openedAt: null } })
@@ -246,7 +252,6 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "stock-movement") {
-    if (actor.role !== "supervisor") throw new HttpError(403, "Estoque exige supervisor")
     const input = z.object({ productId: id, type: z.enum(["entrada", "saida", "ajuste", "perda"]), quantity: z.number().finite().nonnegative().max(999999), reason: text, cost: money.optional(), invoiceNumber: z.string().max(200).optional(), expirationDate: z.string().optional(), notes: z.string().max(2000).optional() }).strict().parse(payload)
     const stock = await tx.stockItem.findUniqueOrThrow({ where: { productId: input.productId } })
     const next = input.type === "entrada" ? stock.currentStock.plus(input.quantity) : input.type === "ajuste" ? decimal(input.quantity) : stock.currentStock.minus(input.quantity)
@@ -271,7 +276,6 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "pay-expense") {
-    if (actor.role !== "supervisor") throw new HttpError(403, "Pagamento exige supervisor")
     const input = z.object({ expenseId: id, installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
     const expense = await tx.expense.findUniqueOrThrow({ where: { id: input.expenseId }, include: { installments: true } })
     let value = expense.value
@@ -292,7 +296,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "refund-transaction") {
-    if (!approved(actor)) throw new HttpError(403, "Estorno exige supervisor")
+    demandOperation(actor, kind)
     const { transactionId } = z.object({ transactionId: id }).strict().parse(payload)
     const transaction = await tx.transaction.findUniqueOrThrow({ where: { id: transactionId } })
     if (transaction.type !== "receita" || /^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(transaction.refId ?? "")) throw new HttpError(409, "Utilize o estorno da operação original")
@@ -302,7 +306,6 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "employee-consumption") {
-    if (actor.role !== "supervisor") throw new HttpError(403, "Consumo de funcionário exige supervisor")
     const input = z.object({ employeeId: id, category: z.enum(["almoco", "jantar", "lanche", "outros"]), paymentType: z.enum(["beneficio", "desconto", "pago"]), items: z.array(z.object({ productId: id, quantity: integer })).min(1).max(100) }).strict().parse(payload)
     const employee = await tx.employee.findUniqueOrThrow({ where: { id: input.employeeId } })
     if (!employee.active) throw new HttpError(409, "Funcionário inativo")
@@ -330,7 +333,6 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "production") {
-    if (actor.role !== "supervisor") throw new HttpError(403, "Produção exige supervisor")
     const input = z.object({ recipeId: id, plannedQuantity: z.number().positive().finite(), producedQuantity: z.number().positive().finite(), notes: z.string().max(2000).optional() }).strict().parse(payload)
     const recipe = await tx.recipe.findUniqueOrThrow({ where: { id: input.recipeId }, include: { ingredients: true } })
     if (!recipe.active || recipe.expectedYield.lte(0) || !recipe.ingredients.length || recipe.ingredients.some(item => item.quantity.lte(0))) throw new HttpError(409, "Receita inválida ou inativa")
@@ -352,9 +354,10 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   }
   // Corrections of non-operational records are still validated and audited server-side.
   if (kind === "admin-create" || kind === "admin-update") {
-    if (actor.role !== "supervisor") throw new HttpError(403, "Acesso restrito")
     const input = z.object({ key: id, id: id.optional(), data: z.record(z.unknown()) }).strict().parse(payload)
     if (["auditLog", "userSessions", "posSales", "transactions", "stockMovements", "reservations", "cashCloses", "bankTransfers", "restaurantOrders", "consumptions", "productions", "employeeConsumptions"].includes(input.key)) throw new HttpError(403, "Utilize o fluxo específico desta operação")
+    demand(actor, `${input.key}.${kind === "admin-create" ? "create" : "edit"}`)
+    if (input.key === "users") demand(actor, "users.manage")
     const result = kind === "admin-create" ? await createCollectionItem(input.key, input.data, actor, tx) : await updateCollectionItem(input.key, input.id ?? "", input.data, actor, tx)
     await audit(tx, actor, kind, input.key)
     return result
@@ -373,7 +376,29 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
           if (receipt.requestHash !== fingerprint) throw new HttpError(409, "Identificador reutilizado com dados diferentes")
           return receipt.result
         }
-        const result = JSON.parse(JSON.stringify(await applyOperation(tx, actor, kind, payload))) as Prisma.InputJsonValue
+        if (actor.permissions) {
+          const current = await tx.user.findUnique({ where: { id: actor.id } })
+          const session = await tx.authSession.findUnique({ where: { id: actor.sessionId } })
+          if (!current?.active || !session || session.expiresAt <= new Date()) throw new HttpError(401, "Sessão expirada")
+          actor = { ...actor, permissions: effectivePermissions(current), permissionOverrides: current.permissionOverrides as Actor["permissionOverrides"] }
+        }
+        const grants = await tx.operationApproval.findMany({ where: { sessionId: actor.sessionId, requesterId: actor.id, requestId, requestHash: fingerprint, usedAt: null, expiresAt: { gt: new Date() } } })
+        const valid = []
+        for (const grant of grants) {
+          const approver = await tx.user.findUnique({ where: { id: grant.approverId } })
+          if (grant.resourceHash === await approvalResourceHash(tx, kind, payload) && approver?.active && approver.accessVersion === grant.approverVersion && effectivePermissions(approver).includes("approvals.issue") && effectivePermissions(approver).includes(grant.permission)) valid.push(grant)
+        }
+        const scopedActor = { ...actor, grantedPermissions: valid.map(grant => grant.permission) }
+        let result: Prisma.InputJsonValue
+        try { result = JSON.parse(JSON.stringify(await applyOperation(tx, scopedActor, kind, payload))) as Prisma.InputJsonValue }
+        catch (error) {
+          if (error instanceof HttpError && error.details?.approvalRequired) error.details = { ...error.details, ...await approvalReview(tx, actor, kind, payload) }
+          throw error
+        }
+        for (const grant of valid) {
+          await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
+          await tx.auditEntry.create({ data: { id: randomUUID(), user: actor.username, action: "Operação aprovada", reference: kind, entityId: requestId, metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } } })
+        }
         await tx.operationReceipt.create({ data: { id: receiptId, userId: actor.id, requestHash: fingerprint, result } })
         return result
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 })

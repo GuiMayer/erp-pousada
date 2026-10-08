@@ -1,3 +1,4 @@
+import { can, demand } from "./permissions"
 import { randomUUID } from "node:crypto"
 import { Prisma } from "@prisma/client"
 import { z } from "zod"
@@ -12,7 +13,6 @@ const money = z.number().finite().nonnegative().max(999999999).refine(value => M
 const positiveMoney = money.refine(value => value > 0, "Valor deve ser positivo")
 export const paymentSchema = z.enum(["dinheiro", "pix", "debito", "credito", "Dinheiro", "PIX", "Cartao Debito", "Cartao Credito", "Cartão Débito", "Cartão Crédito"])
 export const paymentFields = { paymentMethod: paymentSchema, accountId: id.optional() }
-const approved = (actor: Actor) => actor.role === "supervisor" || !!actor.approvedUntil && actor.approvedUntil > new Date()
 const D = (value: Prisma.Decimal.Value) => new Prisma.Decimal(value)
 
 async function audit(tx: Tx, actor: Actor, action: string, reference: string) {
@@ -52,7 +52,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     const { openingValue } = z.object({ openingValue: money }).strict().parse(payload)
     if (await tx.cashClose.count({ where: { status: "aberto" } })) throw new HttpError(409, "Já existe um caixa aberto")
     const now = new Date()
-    const session = await tx.cashClose.create({ data: { id: randomUUID(), status: "aberto", date: now, openedAt: now, operator: actor.username, openingValue, physicalValue: 0, expectedValue: openingValue, divergence: 0 } })
+    const session = await tx.cashClose.create({ data: { id: randomUUID(), status: "aberto", date: now, openedAt: now, operator: actor.username, responsibleUserId: actor.id, openingValue, physicalValue: 0, expectedValue: openingValue, divergence: 0 } })
     await audit(tx, actor, "Caixa aberto", session.id)
     return collectionMapper("cashCloses").toApp(session)
   }
@@ -60,7 +60,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     const { sessionId, physicalValue } = z.object({ sessionId: id, physicalValue: money }).strict().parse(payload)
     const session = await tx.cashClose.findUniqueOrThrow({ where: { id: sessionId } })
     if (session.status !== "aberto") throw new HttpError(409, "Caixa já fechado")
-    if (session.operator !== actor.username && actor.role !== "supervisor") throw new HttpError(403, "Somente o responsável ou supervisor pode fechar este caixa")
+    if (session.responsibleUserId !== actor.id && !can(actor, "cash.closeAny")) throw new HttpError(403, "Somente o responsável ou supervisor pode fechar este caixa")
     const entries = await tx.transaction.findMany({ where: { cashSessionId: session.id } })
     const expectedValue = entries.reduce((sum, entry) => entry.type === "receita" ? sum.plus(entry.value) : sum.minus(entry.value), session.openingValue)
     const closed = await tx.cashClose.update({ where: { id: session.id }, data: { status: "fechado", date: new Date(), closedAt: new Date(), physicalValue, expectedValue, divergence: D(physicalValue).minus(expectedValue) } })
@@ -86,8 +86,8 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: input.reservationId } })
     if (reservation.status !== "confirmada") throw new HttpError(409, "Somente reserva confirmada pode ser cancelada")
     if (input.status === "noshow" && reservation.checkIn.toISOString().slice(0, 10) > businessDay()) throw new HttpError(409, "Não registre no-show antes da chegada prevista")
-    if ((input.fee > 0 || input.treatment === "credito") && actor.role !== "supervisor") throw new HttpError(403, "Multa e crédito são definidos pelo supervisor")
-    if (reservation.paidValue.gt(0) && !approved(actor)) throw new HttpError(403, "Cancelamento pago exige aprovação do supervisor")
+    if (input.fee > 0 || input.treatment === "credito") demand(actor, "reservations.feeCredit")
+    if (reservation.paidValue.gt(0)) demand(actor, "reservations.paidCancel")
     if (D(input.fee).gt(reservation.paidValue) || (input.treatment === "estorno" && input.fee !== 0)) throw new HttpError(400, "Multa não pode exceder o recebido; estorno integral não admite multa")
     const remainder = reservation.paidValue.minus(input.fee)
     if (input.treatment === "credito") {
@@ -113,7 +113,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     return { success: true }
   }
   if (kind === "receive-account") {
-    if (actor.role !== "supervisor") throw new HttpError(403, "Recebimento exige supervisor")
+    demand(actor, "accountsReceivable.receive")
     const input = z.object({ accountReceivableId: id, installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
     const account = await tx.accountReceivable.findUniqueOrThrow({ where: { id: input.accountReceivableId }, include: { installments: true } })
     if (!["pendente", "vencido"].includes(account.status)) throw new HttpError(409, "Título já recebido ou cancelado")
@@ -133,7 +133,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     return { success: true }
   }
   if (kind === "bank-transfer") {
-    if (actor.role !== "supervisor") throw new HttpError(403, "Transferência exige supervisor")
+    demand(actor, "bankAccounts.transfer")
     const input = z.object({ fromAccountId: id, toAccountId: id, value: positiveMoney, description: id }).strict().parse(payload)
     if (input.fromAccountId === input.toAccountId) throw new HttpError(400, "Escolha contas diferentes")
     const transferId = randomUUID()

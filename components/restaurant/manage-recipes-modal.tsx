@@ -147,7 +147,8 @@ export function ManageRecipesModal({ open, onClose }: Props) {
     return { available: missing.length === 0, missing }
   }
 
-  function handleAdd() {
+  async function handleAdd() {
+    try {
     if (!recipeName || !category || !expectedYield || !preparationTime) {
       setFormError("Preencha todos os campos obrigatorios.")
       return
@@ -186,13 +187,16 @@ export function ManageRecipesModal({ open, onClose }: Props) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    addRecipe(newRecipe)
+    await addRecipe(newRecipe)
     addAuditEntry({ user: username || "sistema", action: "Receita adicionada", reference: `${recipeName} (v1)` })
     resetForm()
     setMode("list")
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  function handleEdit() {
+  async function handleEdit() {
+    try {
     if (!editingRecipe || !recipeName || !category || !expectedYield || !preparationTime) {
       setFormError("Preencha todos os campos obrigatorios.")
       return
@@ -216,7 +220,8 @@ export function ManageRecipesModal({ open, onClose }: Props) {
       setFormError("Ja existe uma receita com esse nome.")
       return
     }
-    updateRecipe(editingRecipe.id, {
+    await updateRecipe(editingRecipe.id, {
+      recordVersion: editingRecipe.recordVersion,
       name: recipeName,
       category,
       ingredients,
@@ -230,6 +235,8 @@ export function ManageRecipesModal({ open, onClose }: Props) {
     addAuditEntry({ user: username || "sistema", action: "Receita editada", reference: `${recipeName} (v${editingRecipe.version + 1})` })
     resetForm()
     setMode("list")
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   function handleDelete(recipe: Recipe, hard: boolean) {

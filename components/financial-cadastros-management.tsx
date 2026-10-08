@@ -139,6 +139,7 @@ export function FinancialCadastrosManagement() {
   }
 
   async function saveBankAccount() {
+    try {
     if (!bankForm.name.trim()) {
       setError("Informe o nome da conta.")
       return
@@ -152,9 +153,12 @@ export function FinancialCadastrosManagement() {
       await addAuditEntry({ user: auditUser, action: "Conta bancaria criada", reference: bankForm.name })
     }
     closeDialog()
+
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   async function saveCostCenter() {
+    try {
     if (!costCenterForm.name.trim()) {
       setError("Informe o nome do centro de custo.")
       return
@@ -168,9 +172,12 @@ export function FinancialCadastrosManagement() {
       await addAuditEntry({ user: auditUser, action: "Centro de custo criado", reference: costCenterForm.name })
     }
     closeDialog()
+
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   async function saveBankTransfer() {
+    try {
     if (!transferForm.fromAccountId || !transferForm.toAccountId || transferForm.fromAccountId === transferForm.toAccountId || transferForm.value <= 0) {
       setError("Informe contas diferentes e valor maior que zero.")
       return
@@ -181,9 +188,12 @@ export function FinancialCadastrosManagement() {
       await addBankTransfer({ id: crypto.randomUUID(), ...transferForm, description: transferForm.description || "Transferência entre contas", responsible: transferForm.responsible || auditUser })
       closeDialog()
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Transferência não concluída") }
+
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   async function saveBudget() {
+    try {
     if (!budgetForm.name.trim() || budgetForm.year < 2000) {
       setError("Informe nome e ano validos para o orcamento.")
       return
@@ -197,6 +207,8 @@ export function FinancialCadastrosManagement() {
       await addAuditEntry({ user: auditUser, action: "Orcamento criado", reference: budgetForm.name })
     }
     closeDialog()
+
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   function addBudgetCategory() {
@@ -224,6 +236,7 @@ export function FinancialCadastrosManagement() {
   }
 
   async function saveRecurringTransaction() {
+    try {
     if (!recurringForm.description.trim() || !recurringForm.category.trim() || recurringForm.value <= 0) {
       setError("Informe descricao, categoria e valor maior que zero.")
       return
@@ -237,6 +250,8 @@ export function FinancialCadastrosManagement() {
       await addAuditEntry({ user: auditUser, action: "Recorrencia criada", reference: recurringForm.description })
     }
     closeDialog()
+
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   async function removeCadastro(type: DialogType, id: string, reference: string) {

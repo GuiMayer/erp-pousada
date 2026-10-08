@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertTriangle } from "lucide-react"
 import { useState } from "react"
+import { getDataConfig } from "@/lib/data/config"
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
 type SupervisorApprovalDialogProps = {
@@ -35,7 +36,7 @@ export function SupervisorApprovalDialog({
   const [error, setError] = useState("")
 
   const handleApprove = async () => {
-    if (await validateSupervisorPasswordAsync(password)) {
+    if (getDataConfig().adapter === "database" || await validateSupervisorPasswordAsync(password)) {
       setError("")
       setPassword("")
       onApprove()
@@ -62,7 +63,7 @@ export function SupervisorApprovalDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        {getDataConfig().adapter === "demo-localStorage" && <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="supervisor-password">Senha do Supervisor</Label>
             <Input
@@ -75,7 +76,7 @@ export function SupervisorApprovalDialog({
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-        </div>
+        </div>}
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>

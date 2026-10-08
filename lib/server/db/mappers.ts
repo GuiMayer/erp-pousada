@@ -142,6 +142,7 @@ const reservationMapper: CollectionMapper<Reservation> = {
   prismaModel: "reservation",
   orderBy: { checkIn: "asc" },
   toApp: row => ({
+    recordVersion: row.recordVersion,
     id: row.id,
     roomId: row.roomId,
     roomNumber: row.roomNumber,
@@ -380,7 +381,8 @@ const customerMapper: CollectionMapper<Customer> = {
 const cashCloseMapper: CollectionMapper<CashClose> = {
   prismaModel: "cashClose",
   orderBy: { date: "desc" },
-  toApp: row => ({ ...row, date: dateString(row.date), openedAt: optionalDateString(row.openedAt), closedAt: optionalDateString(row.closedAt), openingValue: numberValue(row.openingValue), physicalValue: numberValue(row.physicalValue), expectedValue: numberValue(row.expectedValue), divergence: numberValue(row.divergence) } as CashClose),
+  toApp: row => ({
+    responsibleUserId: optional(row.responsibleUserId), ...row, date: dateString(row.date), openedAt: optionalDateString(row.openedAt), closedAt: optionalDateString(row.closedAt), openingValue: numberValue(row.openingValue), physicalValue: numberValue(row.physicalValue), expectedValue: numberValue(row.expectedValue), divergence: numberValue(row.divergence) } as CashClose),
   toCreate: item => stripUndefined({ ...item, date: dateValue(item.date), openedAt: dateValue(item.openedAt), closedAt: dateValue(item.closedAt) }),
   toUpdate: item => cashCloseMapper.toCreate(item as CashClose),
 }

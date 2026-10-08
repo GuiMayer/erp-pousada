@@ -53,6 +53,7 @@ export function GuestsManagement() {
   }
 
   async function handleSave() {
+    try {
     const auditUser = username || "sistema"
     const cpf = form.cpf.replace(/\D/g, "")
 
@@ -61,8 +62,9 @@ export function GuestsManagement() {
       return
     }
 
+    const { creditValue: _credit, ...editable } = form
     const guestData = {
-      ...form,
+      ...editable,
       cpf,
       name: form.name.trim(),
       totalStays: Number(form.totalStays) || 0,
@@ -78,6 +80,7 @@ export function GuestsManagement() {
       await addAuditEntry({ user: auditUser, action: "Hospede criado", reference: `${guestData.name} (${guestData.cpf})` })
     }
     closeDialog()
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
   async function handleDelete(guest: GuestProfile) {
