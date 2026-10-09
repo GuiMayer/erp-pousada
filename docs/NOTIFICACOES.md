@@ -10,13 +10,15 @@ A caixa atualiza a cada 15 segundos enquanto a página estiver visível, ao reto
 
 Cada usuário recebe apenas eventos dos módulos cujas permissões de leitura possuía na criação. A consulta revalida os acessos atuais: revogar acesso oculta mensagens e contadores; concedê-lo não libera histórico anterior. A aprovação temporária de uma ação não concede acesso ao histórico.
 
+O restaurante está arquivado: eventos antigos de comandas e produção são excluídos da lista e do contador de não lidos. As rotinas ativas não avaliam duração de comandas nem estoque de produtos classificados como restaurante.
+
 ## Eventos e condições
 
-Reservas individuais/grupos, alterações, descontos, cancelamentos, check-in/out, liberação/bloqueio de quarto, consumo/recebimento, venda/estorno, comandas, fechamento de caixa e produção geram eventos dentro da mesma transação das operações. Reenvios do mesmo pedido não duplicam eventos e rollback não deixa aviso de sucesso.
+Reservas individuais/grupos, alterações, descontos, cancelamentos, check-in/out, liberação/bloqueio de quarto, consumo/recebimento, venda/estorno e fechamento de caixa geram eventos dentro da mesma transação das operações. Reenvios do mesmo pedido não duplicam eventos e rollback não deixa aviso de sucesso.
 
 Estoque baixo/crítico nasce em movimentos confirmados e é reavaliado pelo worker; reposição resolve a ocorrência. Agravamento gera nova ocorrência e encerra a anterior. Uma nova queda após recuperação cria outro alerta.
 
-O worker avalia entradas previstas a partir do horário de check-in, saídas e saldo de hospedagem a partir do horário de check-out, títulos após o dia de vencimento e duração de comandas. Usa America/Sao_Paulo. Fechamento com divergência e produção abaixo do rendimento geram avisos conforme os limites globais da Administração. Condições resolvem com as operações correspondentes. Alertas críticos de caixa/produção exigem conferência de usuário com `approvals.issue`; a resolução é auditada. Alertas de estoque/comandas não podem ser resolvidos manualmente.
+O worker avalia entradas previstas a partir do horário de check-in, saídas e saldo de hospedagem a partir do horário de check-out, títulos após o dia de vencimento. Usa America/Sao_Paulo. Fechamentos com divergência geram avisos conforme os limites globais da Administração. Condições resolvem com as operações correspondentes. Alertas críticos de caixa exigem conferência de usuário com `approvals.issue`; a resolução é auditada. Alertas de estoque não podem ser resolvidos manualmente.
 
 Preferências pessoais em Configurações controlam avisos comuns por categoria. Alertas críticos ativos continuam visíveis e não podem ser arquivados. Marcar como lido não resolve a condição. As opções globais e limites da Administração dirigem as regras automáticas e não são substituídos por preferências pessoais.
 

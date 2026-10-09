@@ -10,10 +10,11 @@ No modo `database`, a autorização é verificada no servidor em cada consulta e
 | Supervisor | Operação e supervisão dos setores, auditoria e configurações; sem administração de usuários nem exportação/restauração completa. |
 | Recepção | Quartos, reservas, hóspedes, consumos e recebimentos de hospedagem; abertura e fechamento do próprio caixa. |
 | Caixa | PDV, histórico de vendas, clientes e próprio caixa. |
-| Restaurante | Mesas, comandas, cardápio e recebimentos do restaurante. |
-| Estoque | Estoque, catálogo, categorias de produtos, fornecedores, receitas e registro de produção. |
+| Estoque | Estoque, catálogo, categorias de produtos, fornecedores da pousada. |
 | Personalizado | Nenhum acesso inicial; cada permissão é concedida individualmente. |
 | Operador — acessos anteriores | Mantém a abrangência do operador antigo durante a migração. Deve ser revisado pelo administrador. |
+
+O restaurante foi arquivado. Suas permissões e perfis legados continuam no servidor por compatibilidade, mas não aparecem como opções ativas no editor de acessos.
 
 O perfil fornece uma base. Em **Administração → Usuários → Editar**, escolha **Herdar**, **Permitir** ou **Bloquear** para cada ação. A busca facilita localizar permissões; a prévia mostra o resultado antes de salvar. Um bloqueio individual prevalece sobre a herança e sobre aprovações temporárias.
 
@@ -37,7 +38,7 @@ O nome de login serve para apresentação. A propriedade do turno de caixa usa o
 
 Quando a operação permite aprovação, a tela solicita o **usuário e a senha do responsável** e apresenta os valores a conferir. O responsável deve ter tanto `approvals.issue` quanto a permissão específica.
 
-São elegíveis: desconto acima do teto, estorno de venda ou recebimento, cancelamento de comanda, remoção de consumo e cancelamento de reserva paga. Definição de multa/crédito, administração de acessos e restauração de dados exigem a permissão diretamente no usuário executor.
+São elegíveis: desconto acima do teto, estorno de venda ou recebimento, remoção de consumo e cancelamento de reserva paga. Definição de multa/crédito, administração de acessos e restauração de dados exigem a permissão diretamente no usuário executor.
 
 A autorização:
 
