@@ -20,7 +20,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
   const { posProducts, addPOSProduct, updatePOSProduct, productCategories } = useApp()
 
   const [formData, setFormData] = useState({
-    name: "",
+    active: true, unit: "un" as NonNullable<POSProduct["unit"]>, name: "",
     categoryId: "",
     price: "",
     barcode: "",
@@ -41,7 +41,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
     wasOpen.current = true; original.current = product
     if (product) {
       setFormData({
-        name: product.name,
+        active: product.active !== false, unit: product.unit ?? "un", name: product.name,
         categoryId: product.categoryId,
         price: product.price.toString(),
         barcode: product.barcode || "",
@@ -49,7 +49,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
       })
     } else {
       setFormData({
-        name: "",
+        active: true, unit: "un", name: "",
         categoryId: "",
         price: "",
         barcode: "",
@@ -93,7 +93,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
     }
 
     const productData: Partial<POSProduct> = {
-      name: formData.name.trim(),
+      active: formData.active, unit: formData.unit, name: formData.name.trim(),
       categoryId: formData.categoryId,
       price: price,
       barcode: formData.barcode.trim() || undefined,
@@ -106,7 +106,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
     } else {
       // Create new product
       const newProduct: POSProduct = {
-        id: `P${Date.now()}`,
+        id: crypto.randomUUID(),
         ...productData as Required<Omit<POSProduct, 'id' | 'barcode'>>
       }
       await addPOSProduct(newProduct)
@@ -122,7 +122,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
       <DialogContent mobileTask protectDraft className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {product ? "Editar Produto" : "Novo Produto"}
+            {product ? "Editar bebida" : "Nova bebida"}
           </DialogTitle>
         </DialogHeader>
 
@@ -163,7 +163,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Preço (R$) *</Label>
+            <Label htmlFor="price">Preço padrão de venda (R$) *</Label>
             <Input
               id="price"
               type="number"
@@ -185,6 +185,8 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
             />
           </div>
 
+          <div className="space-y-2"><Label htmlFor="product-unit">Unidade base de venda e estoque</Label><select id="product-unit" className="h-11 w-full rounded-md border bg-background px-2" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value as NonNullable<POSProduct['unit']> })}><option value="un">Unidade (garrafa, lata, copo)</option><option value="ml">Mililitro</option><option value="l">Litro</option></select><p className="text-xs text-muted-foreground">A venda baixa a quantidade nesta unidade. Bebida com estoque conserva sua unidade base.</p></div>
+          <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={formData.active} onChange={e => setFormData({ ...formData, active: e.target.checked })} />Disponível para venda</label>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="trackStock"

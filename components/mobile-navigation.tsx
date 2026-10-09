@@ -15,6 +15,7 @@ export const mobileModules = [
   { key: "reservas", label: "Reservas", icon: CalendarDays, group: "Operação" },
   { key: "pdv", label: "Caixa", icon: ShoppingCart, group: "Operação" },
   { key: "estoque", label: "Estoque", icon: Package, group: "Operação" },
+  { key: "cadastros", label: "Cadastros", icon: UserRound, group: "Gestão" },
   { key: "financeiro", label: "Financeiro", icon: DollarSign, group: "Gestão" },
   { key: "relatorios", label: "Relatórios", icon: BarChart3, group: "Gestão" },
   { key: "configuracoes", label: "Configurações", icon: Settings, group: "Administração" },

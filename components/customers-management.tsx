@@ -1,4 +1,5 @@
 "use client"
+import { CnpjLookup } from "./cnpj-lookup"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { useState } from "react"
@@ -35,12 +36,13 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Search, Building2, User, History, DollarSign, Calendar, Trash2 } from "lucide-react"
 import type { Customer, AccountReceivable } from "@/lib/store"
 import { 
-  formatCpfCnpj, 
+  normalizeDocument, formatCpfCnpj,
   validateCpfCnpj, 
   getDocumentType 
 } from "@/lib/utils/cpf-cnpj-validator"
 
 interface CustomerFormData {
+  roles: NonNullable<Customer["roles"]>
   recordVersion?: number
   name: string
   cpfCnpj: string
@@ -58,6 +60,7 @@ interface CustomerFormData {
 }
 
 const emptyForm: CustomerFormData = {
+  roles: ["payer"],
   name: "",
   cpfCnpj: "",
   email: "",
@@ -75,7 +78,8 @@ const emptyForm: CustomerFormData = {
 
 export default function CustomersManagement() {
   const { customers, addCustomer, updateCustomer, removeCustomer, accountsReceivable, addAuditEntry } = useApp()
-  const { username } = useAuth()
+  const { username, can } = useAuth()
+  const [pending, setPending] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -88,7 +92,7 @@ export default function CustomersManagement() {
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.cpfCnpj.includes(searchTerm)
+      normalizeDocument(customer.cpfCnpj).includes(normalizeDocument(searchTerm))
     const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "active" && customer.active) ||
@@ -103,18 +107,18 @@ export default function CustomersManagement() {
       newErrors.name = "Nome é obrigatório"
     }
 
-    if (!formData.cpfCnpj.trim()) {
+    if (!formData.cpfCnpj.trim() && formData.roles.some(r => r !== "supplier")) {
       newErrors.cpfCnpj = "CPF/CNPJ é obrigatório"
-    } else if (!validateCpfCnpj(formData.cpfCnpj)) {
+    } else if (formData.cpfCnpj && !validateCpfCnpj(formData.cpfCnpj)) {
       newErrors.cpfCnpj = "CPF/CNPJ inválido"
     }
 
     // Check for duplicate CPF/CNPJ
-    const cleanCpfCnpj = formData.cpfCnpj.replace(/\D/g, "")
+    const cleanCpfCnpj = normalizeDocument(formData.cpfCnpj)
     const duplicate = customers.find(
-      (c) => c.cpfCnpj.replace(/\D/g, "") === cleanCpfCnpj && c.id !== editingId
+      (c) => normalizeDocument(c.cpfCnpj) === cleanCpfCnpj && c.id !== editingId
     )
-    if (duplicate) {
+    if (cleanCpfCnpj && duplicate) {
       newErrors.cpfCnpj = "CPF/CNPJ já cadastrado"
     }
 
@@ -127,7 +131,7 @@ export default function CustomersManagement() {
       setEditingId(customer.id)
       setFormData({
         recordVersion: customer.recordVersion,
-        name: customer.name,
+        roles: customer.roles ?? ["payer"], name: customer.name,
         cpfCnpj: customer.cpfCnpj,
         email: customer.email || "",
         phone: customer.phone || "",
@@ -157,14 +161,16 @@ export default function CustomersManagement() {
   }
 
   const handleSubmit = async () => {
+    if (pending) return
     if (!validateForm()) {
       return
     }
 
+    setPending(true)
     try {
       const customerData = {
         ...formData,
-        cpfCnpj: formData.cpfCnpj.replace(/\D/g, ""), // Store without formatting
+        cpfCnpj: normalizeDocument(formData.cpfCnpj), // Store without formatting
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         phone2: formData.phone2 || undefined,
@@ -219,13 +225,14 @@ export default function CustomersManagement() {
       handleCloseDialog()
     } catch (error) {
       console.error("Error saving customer:", error)
-      setErrors({ submit: "Erro ao salvar cliente" })
+      setErrors({ submit: error instanceof Error ? error.message : "Erro ao salvar pessoa" })
     }
+    finally { setPending(false) }
   }
 
   const handleCpfCnpjChange = (value: string) => {
     // Allow only numbers and formatting characters
-    const cleaned = value.replace(/[^\d./-]/g, "")
+    const cleaned = value.toUpperCase().replace(/[^A-Z0-9./-]/g, "")
     setFormData({ ...formData, cpfCnpj: cleaned })
     
     // Clear error when user starts typing
@@ -269,7 +276,7 @@ export default function CustomersManagement() {
       return
     }
 
-    if (!confirm(`Tem certeza que deseja excluir o cliente "${customer.name}"?`)) {
+    if (!confirm(`Tem certeza que deseja inativar o cliente "${customer.name}"?`)) {
       return
     }
 
@@ -314,7 +321,7 @@ export default function CustomersManagement() {
         </div>
         <PermissionGate permission="customers.create"><Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Cliente
+          Nova pessoa / empresa
         </Button></PermissionGate>
       </div>
 
@@ -374,7 +381,7 @@ export default function CustomersManagement() {
                         <Building2 className="h-4 w-4 text-purple-500" />
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell className="font-medium">{customer.name}<div className="mt-1 flex flex-wrap gap-1">{(customer.roles ?? ["payer"]).map(role => <Badge key={role} variant="secondary">{{ guest: "Hóspede", payer: "Pagador", supplier: "Fornecedor" }[role]}</Badge>)}</div></TableCell>
                     <TableCell className="font-mono text-sm">
                       {formatCpfCnpj(customer.cpfCnpj)}
                     </TableCell>
@@ -428,7 +435,7 @@ export default function CustomersManagement() {
         <DialogContent mobileTask className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Editar Cliente" : "Novo Cliente"}
+              {editingId ? "Editar pessoa / empresa" : "Nova pessoa / empresa"}
             </DialogTitle>
             <DialogDescription>
               {editingId
@@ -441,7 +448,9 @@ export default function CustomersManagement() {
             {/* Basic Info */}
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">
+                <div className="mb-4 space-y-2"><Label>Usar este cadastro como</Label><div className="flex flex-wrap gap-4">
+     {([['guest', 'Hóspede'], ['payer', 'Pagador / cliente'], ['supplier', 'Fornecedor']] as const).map(([role, title]) => <label key={role} className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={formData.roles.includes(role)} disabled={role === 'supplier' && !formData.roles.includes(role) && !can('suppliers.create')} onChange={e => setFormData({ ...formData, roles: e.target.checked ? [...formData.roles, role] : formData.roles.filter(r => r !== role) })} />{title}</label>)}
+     </div></div><Label htmlFor="name">
                   Nome / Razão Social <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -456,7 +465,7 @@ export default function CustomersManagement() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="cpfCnpj">
+                <CnpjLookup document={formData.cpfCnpj} onApply={company => setFormData({ ...formData, ...company })} /><Label htmlFor="cpfCnpj">
                   CPF/CNPJ <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -605,7 +614,7 @@ export default function CustomersManagement() {
             <Button variant="outline" onClick={handleCloseDialog}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button disabled={pending || !formData.roles.length} onClick={handleSubmit}>
               {editingId ? "Salvar" : "Criar"}
             </Button>
           </DialogFooter>

@@ -60,7 +60,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     setCategoryFilter,
     categories,
     filteredProducts
-  } = useProductSearch(pousadaProducts(posProducts, productCategories), getCategoryName)
+  } = useProductSearch(pousadaProducts(posProducts, productCategories).filter(p => p.active !== false), getCategoryName)
 
   const {
     total,

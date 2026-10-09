@@ -1,4 +1,6 @@
 "use client"
+import { CustomerCombobox } from "./customer-combobox"
+import { LodgingQuotePreview, previewLodging } from "./lodging-quote-preview"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { useState, useMemo } from "react"
@@ -108,7 +110,7 @@ function RoomCombobox({ rooms, value, onChange }: { rooms: Room[]; value: string
 
 export function ReservationsTab() {
   const {
-    runOperation, reservations, rooms, addReservation, updateReservation,
+    customers, lodgingTariffs, runOperation, reservations, rooms, addReservation, updateReservation,
     findGuest, addAuditEntry,
   } = useApp()
   const { username, can } = useAuth()
@@ -124,6 +126,12 @@ export function ReservationsTab() {
   const [editModal, setEditModal] = useState<Reservation | null>(null)
 
   // New reservation form state
+  const [guestId, setGuestId] = useState("")
+  const [payerId, setPayerId] = useState("")
+  const [occupancies, setOccupancies] = useState<Record<string, number>>({})
+  const [exception, setException] = useState(false)
+  const [exceptionReason, setExceptionReason] = useState("")
+  const [editReason, setEditReason] = useState("")
   const [newCpf, setNewCpf] = useState("")
   const [foundGuest, setFoundGuest] = useState<GuestProfile | undefined>()
   const [newGuestName, setNewGuestName] = useState("")
@@ -161,12 +169,21 @@ export function ReservationsTab() {
     if (!chosen.length) return
     setPending(true); setOperationError("")
     try {
-      if (getDataConfig().adapter === "database") await runOperation("reserve-group", { rooms: chosen.map(roomId => ({ roomId, totalValue: Number(newTotal) || 0 })), cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut })
-      else for (const roomId of chosen) {
+      const prices = chosen.map(roomId => {
+        const room = rooms.find(r => r.id === roomId)!, guestCount = occupancies[String(roomId)] ?? 1
+        if (!room.capacity || guestCount > room.capacity) throw new Error('Configure a capacidade do quarto e respeite sua lotação')
+        const result = previewLodging(room, lodgingTariffs, guestCount, newCheckIn, newCheckOut)
+        if (!exception && !result.quote) throw new Error(result.error || 'Informe o período')
+        if (exception && (!can('lodgingTariffs.override') || exceptionReason.trim().length < 5)) throw new Error('Preço excepcional exige permissão e motivo de pelo menos 5 caracteres')
+        return { roomId, guestCount, totalValue: exception ? Number(newTotal) : result.quote!.total, priceExceptionReason: exception ? exceptionReason : undefined, nightlyPrices: result.quote?.nights }
+      })
+      if (getDataConfig().adapter === "database") await runOperation("reserve-group", { payerId: payerId || guestId || undefined, rooms: prices.map(({ nightlyPrices: _prices, ...p }) => p), cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut })
+      else for (const price of prices) {
+        const { roomId, ...pricing } = price
         const room = rooms.find(item => item.id === roomId)!
-        await addReservation({ id: crypto.randomUUID(), roomId, roomNumber: room.number, cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut, totalValue: Number(newTotal) || 0, status: "confirmada" })
+        await addReservation({ id: crypto.randomUUID(), roomId, roomNumber: room.number, cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut, ...pricing, payerId: payerId || guestId, status: "confirmada" })
       }
-      setNewCpf(""); setFoundGuest(undefined); setNewGuestName(""); setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal(""); setShowNewForm(false)
+      setGuestId(""); setPayerId(""); setException(false); setExceptionReason(""); setOccupancies({}); setNewCpf(""); setFoundGuest(undefined); setNewGuestName(""); setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal(""); setShowNewForm(false)
     } catch (error) { setOperationError(error instanceof Error ? error.message : "Reserva não concluída") }
     finally { setPending(false) }
   }
@@ -205,6 +222,7 @@ export function ReservationsTab() {
 
   function openEdit(r: Reservation) {
     setEditModal(r)
+    setEditReason("")
     setEditCheckIn(r.checkIn)
     setEditCheckOut(r.checkOut)
     setEditTotal(String(r.totalValue))
@@ -213,7 +231,7 @@ export function ReservationsTab() {
   async function handleSaveEdit() {
     if (!editModal || pending) return
     setPending(true); setOperationError("")
-    try { await updateReservation(editModal.id, { recordVersion: editModal.recordVersion, checkIn: editCheckIn, checkOut: editCheckOut, totalValue: Number(editTotal) || 0 }); setEditModal(null) }
+    try { await updateReservation(editModal.id, { recordVersion: editModal.recordVersion, checkIn: editCheckIn, checkOut: editCheckOut, totalValue: Number(editTotal) || 0, priceExceptionReason: editReason || undefined }); setEditModal(null) }
     catch (error) { setOperationError(error instanceof Error ? error.message : "Edição não concluída") }
     finally { setPending(false) }
   }
@@ -248,17 +266,14 @@ export function ReservationsTab() {
           <CardContent className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <Label>CPF / CNPJ</Label>
+                <Label htmlFor="reservation-cpf">CPF do hóspede</Label>
                 <div className="flex gap-2">
-                  <Input placeholder="000.000.000-00" value={newCpf} onChange={e => handleCpfSearch(e.target.value)} />
-                  <Button variant="outline" size="icon" className="shrink-0">
-                    <Search className="size-4" />
-                  </Button>
+                  <Input id="reservation-cpf" inputMode="numeric" placeholder="000.000.000-00" value={newCpf} onChange={e => handleCpfSearch(e.target.value)} />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Nome do Hospede</Label>
-                <Input value={newGuestName} onChange={e => setNewGuestName(e.target.value)} placeholder="Nome completo" />
+                <Label htmlFor="reservation-guest">Nome do hóspede</Label>
+                <Input id="reservation-guest" value={newGuestName} onChange={e => setNewGuestName(e.target.value)} placeholder="Nome completo" />
               </div>
             </div>
 
@@ -280,11 +295,12 @@ export function ReservationsTab() {
               </div>
             )}
 
+            <div className="grid gap-4 sm:grid-cols-2"><div><Label>Buscar ou cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={id => { const person = customers.find(c => c.id === id); if (person) { setGuestId(id); handleCpfSearch(person.cpfCnpj); setNewGuestName(person.name) } }} /></div><div><Label>Quem paga a hospedagem?</Label><CustomerCombobox value={payerId || guestId} onChange={id => setPayerId(id)} /><p className="mt-1 text-xs text-muted-foreground">Pode ser o próprio hóspede ou uma empresa. Cobrança empresarial após a saída entra na sprint 2.</p></div></div>
             {/* Room selection with group support */}
             <div className="flex flex-col gap-3">
               <Label>Quartos</Label>
               {selectedRooms.map((roomId, index) => (
-                <div key={index} className="flex items-center gap-2">
+                <div key={index} className="flex flex-wrap items-start gap-2">
                   <div className="flex-1">
                     <RoomCombobox
                       rooms={availableRooms.filter(r => !usedRoomIds.has(String(r.id)) || String(r.id) === roomId)}
@@ -292,6 +308,8 @@ export function ReservationsTab() {
                       onChange={(v) => handleRoomChange(index, v)}
                     />
                   </div>
+                  <div className="w-28"><Label htmlFor={'occupancy-'+index}>Pessoas</Label><Input id={'occupancy-'+index} type="number" min={1} max={rooms.find(r => String(r.id) === roomId)?.capacity ?? 100} value={occupancies[roomId] ?? 1} onChange={e => setOccupancies({ ...occupancies, [roomId]: Number(e.target.value) })} /></div>
+                  {roomId && <div className="w-full"><LodgingQuotePreview result={previewLodging(rooms.find(r => String(r.id) === roomId), lodgingTariffs, occupancies[roomId] ?? 1, newCheckIn, newCheckOut)} /></div>}
                   {selectedRooms.length > 1 && (
                     <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveRoomSlot(index)}>
                       <XCircle className="size-4" />
@@ -310,19 +328,19 @@ export function ReservationsTab() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="flex flex-col gap-1.5">
-                <Label>Check-in</Label>
-                <Input type="date" value={newCheckIn} onChange={e => setNewCheckIn(e.target.value)} />
+                <Label htmlFor="reservation-start">Check-in</Label>
+                <Input id="reservation-start" type="date" value={newCheckIn} onChange={e => setNewCheckIn(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Check-out</Label>
-                <Input type="date" value={newCheckOut} onChange={e => setNewCheckOut(e.target.value)} />
+                <Label htmlFor="reservation-end">Check-out</Label>
+                <Input id="reservation-end" type="date" value={newCheckOut} onChange={e => setNewCheckOut(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Valor por quarto (R$)</Label>
-                <Input type="number" value={newTotal} onChange={e => setNewTotal(e.target.value)} placeholder="0,00" />
+                <Label>Preço</Label><p className="py-2 text-sm text-muted-foreground">Calculado pela tarifa de cada quarto.</p>
               </div>
             </div>
 
+            {can('lodgingTariffs.override') && <div className="space-y-2 rounded-lg border p-3"><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={exception} onChange={e => setException(e.target.checked)} />Usar preço excepcional autorizado</label>{exception && <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="exception-value">Total acordado por quarto (R$)</Label><Input id="exception-value" type="number" min={0} step="0.01" value={newTotal} onChange={e => setNewTotal(e.target.value)} /></div><div><Label htmlFor="exception-reason">Motivo</Label><Input id="exception-reason" value={exceptionReason} onChange={e => setExceptionReason(e.target.value)} /></div></div>}</div>}
             {selectedRooms.filter(Boolean).length > 1 && (
               <div className="rounded-lg bg-primary/5 px-3 py-2 text-xs text-primary">
                 Reserva de grupo: {selectedRooms.filter(Boolean).length} quartos selecionados
@@ -439,6 +457,9 @@ export function ReservationsTab() {
                   <DetailRow icon={<CalendarDays className="size-4" />} label="Check-out" value={formatDateBR(detailSheet.checkOut)} />
                   <Separator />
                   <DetailRow icon={<DollarSign className="size-4" />} label="Valor Total" value={formatCurrency(detailSheet.totalValue)} />
+                  <p className="text-sm">Pagador: {customers.find(c => c.id === detailSheet.payerId)?.name ?? 'Titular legado'} · Pessoas: {detailSheet.guestCount ?? 'não informadas no registro antigo'}</p>
+                  {detailSheet.nightlyPrices && <LodgingQuotePreview result={{ quote: { nights: detailSheet.nightlyPrices, total: detailSheet.nightlyPrices.reduce((sum, n) => sum + n.total, 0) } }} />}
+                  {detailSheet.priceExceptionReason && <p className="text-sm">Preço autorizado: {detailSheet.priceExceptionReason}</p>}
                   {detailSheet.cancelTreatment && (
                     <DetailRow icon={<AlertTriangle className="size-4" />} label="Tratativa" value={detailSheet.cancelTreatment} />
                   )}
@@ -489,6 +510,7 @@ export function ReservationsTab() {
               <Input type="number" value={editTotal} onChange={e => setEditTotal(e.target.value)} />
             </div>
           </div>
+          {editModal?.guestCount && <div className="space-y-2"><p className="text-sm text-muted-foreground">O preço acordado é mantido. Ao mudar datas, recalcule a tarifa ou autorize uma exceção.</p><LodgingQuotePreview result={previewLodging(rooms.find(r => r.id === editModal.roomId), lodgingTariffs, editModal.guestCount, editCheckIn, editCheckOut)} /><Button variant="outline" onClick={() => { const result = previewLodging(rooms.find(r => r.id === editModal.roomId), lodgingTariffs, editModal.guestCount!, editCheckIn, editCheckOut); if (result.quote) setEditTotal(String(result.quote.total)); else setOperationError(result.error ?? '') }}>Aplicar tarifa atual</Button>{can('lodgingTariffs.override') && <div><Label htmlFor="edit-price-reason">Motivo para preço excepcional</Label><Input id="edit-price-reason" value={editReason} onChange={e => setEditReason(e.target.value)} /></div>}</div>}
           <DialogFooter>
             {operationError && <p role="alert" className="text-destructive">{operationError}</p>}
             <Button variant="outline" onClick={() => setEditModal(null)}>Cancelar</Button>

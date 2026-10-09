@@ -1,4 +1,5 @@
 "use client"
+import { RegistrationsTab } from "./registrations-tab"
 import { MobileNavigation } from "./mobile-navigation"
 import { usePhoneLayout } from "@/hooks/use-phone-layout"
 import { useEffect, useState } from "react"
@@ -60,6 +61,7 @@ export function DashboardShell() {
             <Package className="size-3.5" />
             Estoque
           </TabsTrigger>)}
+          {visible("cadastros") && <TabsTrigger value="cadastros">Cadastros</TabsTrigger>}
           {visible("financeiro") && (<TabsTrigger value="financeiro" className="gap-1.5">
             <DollarSign className="size-3.5" />
             Financeiro
@@ -94,6 +96,7 @@ export function DashboardShell() {
         {visible("estoque") && (<TabsContent forceMount={phone && visited.has("estoque") ? true : undefined} value="estoque">
           <StockTab />
         </TabsContent>)}
+        {visible("cadastros") && <TabsContent forceMount={phone && visited.has("cadastros") ? true : undefined} value="cadastros"><RegistrationsTab /></TabsContent>}
         {visible("financeiro") && (<TabsContent forceMount={phone && visited.has("financeiro") ? true : undefined} value="financeiro">
           <FinancialTab />
         </TabsContent>)}

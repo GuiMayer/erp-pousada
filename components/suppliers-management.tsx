@@ -1,4 +1,6 @@
 "use client"
+import { CnpjLookup } from "./cnpj-lookup"
+import { CustomerCombobox } from "./customer-combobox"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { useState } from "react"
@@ -16,7 +18,7 @@ import { Plus, Pencil, Trash2, Building2 } from "lucide-react"
 import type { Supplier } from "@/lib/store"
 
 export function SuppliersManagement() {
-  const { suppliers, addSupplier, updateSupplier, removeSupplier, addAuditEntry } = useApp()
+  const { customers, suppliers, addSupplier, updateSupplier, removeSupplier, addAuditEntry } = useApp()
   const { username } = useAuth()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
@@ -96,7 +98,7 @@ export function SuppliersManagement() {
     const supplier = suppliers.find(s => s.id === id)
     if (!supplier) return
 
-    if (confirm("Tem certeza que deseja excluir este fornecedor?")) {
+    if (confirm("Inativar este fornecedor? O histórico será preservado.")) {
       await removeSupplier(id, expectedVersion)
       await addAuditEntry({
         user: username || "sistema",
@@ -160,7 +162,9 @@ export function SuppliersManagement() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="cnpj">CNPJ</Label>
+                      <Label>Reutilizar pessoa / empresa existente</Label><CustomerCombobox purpose="supplier" allowCreate={false} onChange={id => { const person = customers.find(c => c.id === id); if (person) setFormData({ ...formData, name: person.name, cnpj: person.cpfCnpj, email: person.email ?? '', phone: person.phone ?? '', address: person.address ?? '' }) }} />
+                      <CnpjLookup document={formData.cnpj} onApply={company => setFormData({ ...formData, name: company.name, cnpj: company.cpfCnpj, email: company.email, phone: company.phone, address: company.address })} />
+                      <Label htmlFor="cnpj">CPF / CNPJ (opcional)</Label>
                       <Input
                         id="cnpj"
                         value={formData.cnpj}

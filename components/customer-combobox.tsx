@@ -1,4 +1,5 @@
 "use client"
+import { CnpjLookup } from "./cnpj-lookup"
 
 import { useState, useMemo } from "react"
 import { useApp } from "@/lib/app-context"
@@ -27,15 +28,17 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Check, ChevronsUpDown, Plus, Building2, User } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 import type { Customer } from "@/lib/store"
 import { 
-  formatCpfCnpj, 
+  normalizeDocument, formatCpfCnpj,
   validateCpfCnpj, 
   getDocumentType 
 } from "@/lib/utils/cpf-cnpj-validator"
 
 interface CustomerComboboxProps {
+  purpose?: "guest" | "payer" | "supplier"
   value?: string
   onChange: (customerId: string, customerName: string) => void
   allowCreate?: boolean
@@ -49,6 +52,10 @@ interface QuickCustomerFormData {
   cpfCnpj: string
   email: string
   phone: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
 }
 
 const emptyQuickForm: QuickCustomerFormData = {
@@ -59,7 +66,7 @@ const emptyQuickForm: QuickCustomerFormData = {
 }
 
 export function CustomerCombobox({
-  value,
+  purpose = "payer", value,
   onChange,
   allowCreate = true,
   filterActive = true,
@@ -67,6 +74,8 @@ export function CustomerCombobox({
   error,
 }: CustomerComboboxProps) {
   const { customers, addCustomer } = useApp()
+  const { can } = useAuth()
+  const [pending, setPending] = useState(false)
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -74,19 +83,19 @@ export function CustomerCombobox({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   const filteredCustomers = useMemo(() => {
-    let list = filterActive ? customers.filter((c) => c.active) : customers
+    let list = (filterActive ? customers.filter(c => c.active) : [...customers]).filter(c => purpose === "guest" ? getDocumentType(c.cpfCnpj) === "CPF" : purpose === "supplier" || (c.roles ?? ["payer"]).includes("payer"))
     
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
       list = list.filter(
         (c) =>
           c.name.toLowerCase().includes(term) ||
-          c.cpfCnpj.includes(term.replace(/\D/g, ""))
+          c.cpfCnpj.includes(normalizeDocument(term))
       )
     }
     
     return list.sort((a, b) => a.name.localeCompare(b.name))
-  }, [customers, filterActive, searchTerm])
+  }, [customers, filterActive, searchTerm, purpose])
 
   const selectedCustomer = customers.find((c) => c.id === value)
 
@@ -104,9 +113,9 @@ export function CustomerCombobox({
     }
 
     // Check for duplicate CPF/CNPJ
-    const cleanCpfCnpj = quickFormData.cpfCnpj.replace(/\D/g, "")
+    const cleanCpfCnpj = normalizeDocument(quickFormData.cpfCnpj)
     const duplicate = customers.find(
-      (c) => c.cpfCnpj.replace(/\D/g, "") === cleanCpfCnpj
+      (c) => normalizeDocument(c.cpfCnpj) === cleanCpfCnpj
     )
     if (duplicate) {
       newErrors.cpfCnpj = "CPF/CNPJ já cadastrado"
@@ -130,16 +139,22 @@ export function CustomerCombobox({
   }
 
   const handleQuickCreate = async () => {
+    if (pending) return
     if (!validateQuickForm()) {
       return
     }
 
+    setPending(true)
     try {
       const customerData = {
-        name: quickFormData.name,
-        cpfCnpj: quickFormData.cpfCnpj.replace(/\D/g, ""),
+        roles: purpose === "guest" ? ["guest", "payer"] : [purpose], name: quickFormData.name,
+        cpfCnpj: normalizeDocument(quickFormData.cpfCnpj),
         email: quickFormData.email || undefined,
         phone: quickFormData.phone || undefined,
+        address: quickFormData.address,
+        city: quickFormData.city,
+        state: quickFormData.state,
+        zipCode: quickFormData.zipCode,
         active: true,
       }
 
@@ -148,12 +163,13 @@ export function CustomerCombobox({
       handleCloseDialog()
     } catch (error) {
       console.error("Error creating customer:", error)
-      setFormErrors({ submit: "Erro ao criar cliente" })
+      setFormErrors({ submit: error instanceof Error ? error.message : "Erro ao criar pessoa" })
     }
+    finally { setPending(false) }
   }
 
   const handleCpfCnpjChange = (value: string) => {
-    const cleaned = value.replace(/[^\d./-]/g, "")
+    const cleaned = value.toUpperCase().replace(/[^A-Z0-9./-]/g, "")
     setQuickFormData({ ...quickFormData, cpfCnpj: cleaned })
     
     if (formErrors.cpfCnpj) {
@@ -240,7 +256,7 @@ export function CustomerCombobox({
                   )
                 })}
               </CommandGroup>
-              {allowCreate && (
+              {allowCreate && can("customers.create") && (
                 <CommandGroup>
                   <CommandItem onSelect={handleOpenQuickCreate}>
                     <Plus className="mr-2 h-4 w-4" />
@@ -282,7 +298,7 @@ export function CustomerCombobox({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="quick-cpfCnpj">
+              <CnpjLookup document={quickFormData.cpfCnpj} onApply={company => setQuickFormData({ ...quickFormData, ...company })} /><Label htmlFor="quick-cpfCnpj">
                 CPF/CNPJ <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -331,7 +347,7 @@ export function CustomerCombobox({
             <Button variant="outline" onClick={handleCloseDialog}>
               Cancelar
             </Button>
-            <Button onClick={handleQuickCreate}>Criar Cliente</Button>
+            <Button disabled={pending} onClick={handleQuickCreate}>Criar Cliente</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

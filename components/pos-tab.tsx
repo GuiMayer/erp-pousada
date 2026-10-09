@@ -60,7 +60,7 @@ export function POSTab() {
     runOperation, addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
     addConsumptionItem, getCategoryName, productCategories,
   } = useApp()
-  const posProducts = useMemo(() => pousadaProducts(allProducts, productCategories), [allProducts, productCategories])
+  const posProducts = useMemo(() => pousadaProducts(allProducts, productCategories).filter(p => p.active !== false), [allProducts, productCategories])
   const { username, role, can } = useAuth()
   const {
     processStockForSale,

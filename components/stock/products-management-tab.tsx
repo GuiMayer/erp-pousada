@@ -146,7 +146,7 @@ export function ProductsManagementTab() {
           </Button></PermissionGate>
           <PermissionGate permission="posProducts.create"><Button onClick={handleAdd}>
             <Plus className="h-4 w-4 mr-2" />
-            Novo Produto
+            Nova bebida
           </Button></PermissionGate>
         </div>
       </div>
@@ -232,7 +232,7 @@ export function ProductsManagementTab() {
             <TableBody>
               {filteredProducts.map(product => (
                 <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell className="font-medium">{product.name}<p className="text-xs font-normal text-muted-foreground">{product.unit ?? "un"} · {product.active === false ? "Inativa" : "Ativa"}</p></TableCell>
                   <TableCell>
                     <Badge 
                       variant="outline"
@@ -306,7 +306,7 @@ export function ProductsManagementTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o produto <strong>{deleteConfirm?.name}</strong>?
+              Inativar a bebida <strong>{deleteConfirm?.name}</strong>? Ela deixará de aparecer nas vendas e seu histórico será preservado.
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
