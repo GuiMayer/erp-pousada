@@ -1,3 +1,5 @@
+import { prepareContact, syncContact } from "../contacts"
+import { validateTariff } from "../lodging-pricing"
 import { requireVersion, removed } from "../concurrency"
 import { recordAudit } from "../audit"
 import { ruleSchema } from "@/lib/notification-policy"
@@ -24,7 +26,7 @@ type Model = {
   delete(args: unknown): Promise<Row>
   deleteMany(args?: unknown): Promise<unknown>
 }
-export const collectionOrder = ["rooms", "guests", "suppliers", "customers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
+export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
 export const portableKeys = collectionOrder.filter(key => !["users", "userSessions", "auditLog", "systemSettings"].includes(key))
 export function collectionMapper(key: string) {
   const mapper = getCollectionMapper(key)
@@ -127,6 +129,23 @@ async function mappedInput(key: string, item: unknown, partial: boolean, actor?:
   const data = partial ? Object.fromEntries(Object.entries(mapped).filter(([field]) => Object.hasOwn(input, field))) : mapped
   return validateMappedData(mapper.prismaModel, data, partial)
 }
+async function validateCatalog(client: Client, key: string, data: Row, current?: Row) {
+  if (key === "rooms" && data.capacity !== undefined && data.capacity !== null && (!Number.isInteger(data.capacity) || Number(data.capacity) < 1 || Number(data.capacity) > 100)) throw new HttpError(400, "Capacidade deve ser de 1 a 100 pessoas")
+  if (key === "rooms" && current && data.capacity !== undefined) {
+    if (data.capacity === null && current.capacity !== null) throw new HttpError(409, "Um quarto configurado deve conservar sua capacidade")
+    if (data.capacity !== null && await client.reservation.count({ where: { roomId: Number(current.id), status: { in: ["confirmada", "checkin"] }, guestCount: { gt: Number(data.capacity) }, checkOut: { gt: new Date(businessDay()) } } })) throw new HttpError(409, "Capacidade inferior à ocupação de reserva ativa")
+  }
+  if (key !== "posProducts") return
+  if (data.name !== undefined && !String(data.name).trim()) throw new HttpError(400, "Informe o nome da bebida")
+  if (data.price !== undefined && (Number(data.price) <= 0 || Math.abs(Number(data.price) * 100 - Math.round(Number(data.price) * 100)) > .00001)) throw new HttpError(400, "Preço deve ser positivo, com até duas casas decimais")
+  if (data.unit !== undefined && !["un", "ml", "l"].includes(String(data.unit))) throw new HttpError(400, "Unidade inválida")
+  if (data.unit !== undefined && current && data.unit !== current.unit && await client.stockItem.findUnique({ where: { productId: String(current.id) } })) throw new HttpError(409, "Bebida com estoque: preserve a unidade base para manter o histórico")
+  if (data.barcode !== undefined) {
+    const barcode = String(data.barcode ?? "").trim()
+    if (barcode && await client.pOSProduct.findFirst({ where: { barcode, ...(current ? { id: { not: String(current.id) } } : {}) } })) throw new HttpError(409, "Código de barras já cadastrado")
+    data.barcode = barcode || null
+  }
+}
 export async function getCollection(key: string, client: Client = prisma): Promise<unknown[]> {
   const mapper = collectionMapper(key)
   return (await model(key, client).findMany({ include: mapper.include, orderBy: mapper.orderBy })).map(row => toApp(key, row))
@@ -178,7 +197,14 @@ export async function createCollectionItem(key: string, item: unknown, actor?: A
   if (client === prisma && actor) return prisma.$transaction(tx => createCollectionItem(key, item, actor, tx), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   actor = await mutationActor(client, actor, key, "create")
   if (key === "users") await checkUserChange(client, undefined, item as Row, actor)
-  const row = await model(key, client).create({ data: await mappedInput(key, item, false, actor), include: collectionMapper(key).include })
+  const input = await mappedInput(key, item, false, actor)
+  if (actor) await prepareContact(client, key, input, null, actor)
+  if (key === "lodgingTariffs") await validateTariff(client, input)
+  await validateCatalog(client, key, input)
+  let row = await model(key, client).create({ data: input, include: collectionMapper(key).include })
+  if (actor) await syncContact(client, key, row)
+  if (actor && ["suppliers", "guests"].includes(key) && row.customerId) await syncContact(client, "customers", await client.customer.findUniqueOrThrow({ where: { id: String(row.customerId) } }) as unknown as Row)
+  if (actor && ["suppliers", "guests"].includes(key)) row = (await model(key, client).findUnique({ where: itemWhere(key, String(row.id ?? row.cpf)), include: collectionMapper(key).include }))!
   await mutationAudit(client, actor, key, "create", String(row.id ?? row.cpf), null, row)
   if (key === "stockItems" && actor) await evaluateStock(client)
   return toApp(key, row)
@@ -191,6 +217,9 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   const input = await mappedInput(key, data, true, actor)
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
+  if (actor) await prepareContact(client, key, input, snapshot, actor)
+  if (key === "lodgingTariffs") await validateTariff(client, input, snapshot)
+  await validateCatalog(client, key, input, snapshot)
   if (snapshot.recordVersion !== undefined) {
     const expected = (data as Row).recordVersion
     if (actor) requireVersion(expected, snapshot.recordVersion)
@@ -214,6 +243,9 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
     if (key === "accountsReceivable" && await client.accountReceivableInstallment.count({ where: { accountReceivableId: id, status: "pago" } })) throw new HttpError(409, "Título possui parcelas recebidas e não pode ser alterado")
   }
   let updated = await model(key, client).update({ where: { ...itemWhere(key, id), ...(actor && snapshot.recordVersion !== undefined ? { recordVersion: snapshot.recordVersion } : {}) }, data: input, include: collectionMapper(key).include })
+  if (actor) await syncContact(client, key, updated)
+  if (actor && ["suppliers", "guests"].includes(key) && updated.customerId) await syncContact(client, "customers", await client.customer.findUniqueOrThrow({ where: { id: String(updated.customerId) } }) as unknown as Row)
+  if (actor && ["suppliers", "guests"].includes(key)) updated = (await model(key, client).findUnique({ where: itemWhere(key, id), include: collectionMapper(key).include }))!
   if (key === "recipes" && (data as Row).ingredients !== undefined) {
     const ingredients = (data as Row).ingredients
     if (!Array.isArray(ingredients) || ingredients.length > 100) throw new HttpError(400, "Ingredientes inválidos")
@@ -241,6 +273,18 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
   if (actor && snapshot.recordVersion !== undefined) requireVersion(expectedVersion, snapshot.recordVersion)
+  if (key === "rooms" && await client.lodgingTariff.count({ where: { roomId: Number(id) } })) throw new HttpError(409, "Quarto possui tarifas vinculadas; preserve o cadastro e seu histórico")
+  if (["customers", "suppliers", "guests", "posProducts", "lodgingTariffs"].includes(key)) {
+    const updated = await model(key, client).update({ where: itemWhere(key, id), data: { active: false, recordVersion: { increment: 1 } } })
+    if (actor) await syncContact(client, key, updated)
+    if (["suppliers", "guests"].includes(key) && snapshot.customerId) {
+      if (actor) demand(actor, "customers.edit")
+      const person = await client.customer.update({ where: { id: String(snapshot.customerId) }, data: { active: false, recordVersion: { increment: 1 } } })
+      await syncContact(client, "customers", person as unknown as Row)
+    }
+    await mutationAudit(client, actor, key, "update", id, snapshot, updated)
+    return
+  }
   if (key === "users") {
     await checkUserChange(client, id, {}, actor, true)
     await revokeUserSessions(client, id)

@@ -1,5 +1,6 @@
 export const collectionLabels: Record<string, string> = {
   rooms: "Quartos",
+  lodgingTariffs: "Tarifas de hospedagem",
   reservations: "Reservas",
   guests: "Hóspedes",
   posProducts: "Produtos",
@@ -75,6 +76,7 @@ const specialLabels: Record<string, string> = {
   "data.backup": "Exportar cópia completa",
   "data.restore": "Restaurar ou apagar dados",
   "approvals.issue": "Aprovar operações",
+  "lodgingTariffs.override": "Autorizar preço excepcional de hospedagem",
   "discount.override": "Desconto acima do teto",
   "cash.closeAny": "Fechar caixa de outro responsável",
   "reservations.feeCredit": "Definir multa e crédito",
@@ -115,10 +117,10 @@ export const PROFILES: Record<string, { label: string; permissions: string[] }> 
   personalizado: { label: "Personalizado (sem acessos iniciais)", permissions: [] },
   administrador: { label: "Administrador", permissions: ALL_PERMISSIONS },
   supervisor: { label: "Supervisor", permissions: ALL_PERMISSIONS.filter(key => !key.startsWith("users.") && !key.startsWith("userSessions.") && !key.startsWith("data.")) },
-  recepcao: { label: "Recepção", permissions: [...common, ...reads("rooms", "reservations", "guests", "consumptions", "cashCloses"), ...crud("guests"), ...daily.filter(key => !key.startsWith("pos.") && !key.startsWith("restaurant."))] },
+  recepcao: { label: "Recepção", permissions: [...common, ...reads("rooms", "reservations", "guests", "consumptions", "cashCloses"), ...crud("guests"), ...crud("customers"), ...reads("lodgingTariffs"), ...daily.filter(key => !key.startsWith("pos.") && !key.startsWith("restaurant."))] },
   caixa: { label: "Caixa", permissions: [...common, ...reads("posSales", "cashCloses", "customers"), ...crud("customers"), "pos.sell", "cash.open", "cash.close"] },
   restaurante: { label: "Restaurante", permissions: [...common, ...reads("restaurantTables", "restaurantOrders", "recipes"), "restaurant.open", "restaurant.edit", "restaurant.receive"] },
-  estoque: { label: "Estoque", permissions: [...common, ...crud("stockItems", "recipes", "suppliers", "posProducts", "productCategories"), ...reads("stockMovements", "productions"), "stock.adjust", "production.register"] },
+  estoque: { label: "Estoque", permissions: [...common, ...crud("customers", "stockItems", "recipes", "suppliers", "posProducts", "productCategories"), ...reads("stockMovements", "productions"), "stock.adjust", "production.register"] },
   operador_legado: { label: "Operador (acessos anteriores)", permissions: [...reads(...Object.keys(collectionLabels).filter(key => !["users", "userSessions", "employees", "employeeConsumptions"].includes(key))), ...crud("guests", "customers"), ...daily] },
 }
 export function effectivePermissions(user: { role?: string; accessProfile?: string | null; permissionOverrides?: unknown }): string[] {
@@ -134,6 +136,7 @@ export function effectivePermissions(user: { role?: string; accessProfile?: stri
 }
 export const tabPermissions: Record<string, string[]> = {
   mapa: ["rooms.read"],
+  cadastros: ["customers.read", "suppliers.read", "lodgingTariffs.read", "posProducts.read"],
   reservas: ["reservations.read"],
   pdv: ["pos.sell"],
   estoque: ["stockItems.read"],

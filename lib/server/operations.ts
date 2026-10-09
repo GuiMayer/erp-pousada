@@ -1,3 +1,5 @@
+import { ensureGuest } from "./contacts"
+import { agreedPrice } from "./lodging-pricing"
 import { requireVersion, retryDelay } from "./concurrency"
 import { logEvent, setLogOperation } from "./logging"
 import { recordAudit } from "./audit"
@@ -28,12 +30,16 @@ const percent = z.number().finite().min(0).max(100)
 const payment = z.enum(["dinheiro", "pix", "debito", "credito", "Dinheiro", "PIX", "Cartao Debito", "Cartao Credito", "Cartão Débito", "Cartão Crédito"])
 const cartItem = z.object({ id, product: z.object({ id }).passthrough(), quantity: integer, discount: percent }).passthrough()
 const saleInput = z.object({ sale: z.object({ id, items: z.array(cartItem).min(1).max(100), total: money, paymentMethod: payment, accountId: id.optional(), amountPaid: money, customer: z.string().max(200).optional() }).passthrough(), globalDiscount: percent })
-const checkinInput = z.object({ roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money }).strict()
+const checkinInput = z.object({ guestCount: z.number().int().min(1).max(100).optional(), payerId: id.optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money }).strict()
 const decimal = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n)
 const round = (n: Prisma.Decimal) => n.toDecimalPlaces(2)
 type Tx = Prisma.TransactionClient
 
 const audit = recordAudit
+async function assertPayer(tx: Tx, payerId: string) {
+  const payer = await tx.customer.findUnique({ where: { id: payerId } })
+  if (!payer?.active || !Array.isArray(payer.roles) || !payer.roles.includes("payer")) throw new HttpError(409, "Selecione uma pessoa ativa com papel de pagador")
+}
 async function checkDiscount(tx: Tx, actor: Actor, value: number) {
   const settings = await tx.systemSettings.findFirst()
   if (value - (settings?.discountCeiling ?? 0) > 0.000001) demand(actor, "discount.override")
@@ -60,10 +66,10 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   const financeResult = await financeOperation(tx, actor, kind, payload)
   if (financeResult !== undefined) return financeResult
   if (kind === "reserve-group") {
-    const input = z.object({ rooms: z.array(z.object({ roomId: integer, totalValue: money })).min(1).max(50), cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date() }).strict().parse(payload)
+    const input = z.object({ payerId: id.optional(), rooms: z.array(z.object({ guestCount: z.number().int().min(1).max(100).optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, totalValue: money })).min(1).max(50), cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date() }).strict().parse(payload)
     if (new Set(input.rooms.map(room => room.roomId)).size !== input.rooms.length) throw new HttpError(400, "Quartos repetidos")
     const results = []
-    for (const room of input.rooms) results.push(await applyOperation(tx, actor, "reserve", { ...room, cpf: input.cpf, guestName: input.guestName, checkIn: input.checkIn, checkOut: input.checkOut }))
+    for (const room of input.rooms) results.push(await applyOperation(tx, actor, "reserve", { ...room, payerId: input.payerId, cpf: input.cpf, guestName: input.guestName, checkIn: input.checkIn, checkOut: input.checkOut }))
     return results
   }
   if (kind === "sale") {
@@ -73,7 +79,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     let subtotal = decimal(0)
     const items = sale.items.map(item => {
       const product = products.find(p => p.id === item.product.id)
-      if (!product) throw new HttpError(404, "Produto não encontrado")
+      if (!product || !product.active) throw new HttpError(404, "Produto inativo ou não encontrado")
       const itemSubtotal = round(product.price.mul(item.quantity).mul(decimal(1).minus(decimal(item.discount).div(100))))
       subtotal = subtotal.plus(itemSubtotal)
       return { id: item.id, productId: product.id, quantity: item.quantity, discount: item.discount, unitPrice: product.price, subtotal: itemSubtotal }
@@ -101,17 +107,17 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "reserve" || kind === "edit-reservation") {
-    const input = z.object({ id: id.optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money, status: z.enum(["confirmada", "cancelada", "noshow"]).default("confirmada"), cancelTreatment: z.string().max(200).optional(), recordVersion: z.number().int().nonnegative().optional() }).strict().parse(payload)
+    const input = z.object({ guestCount: z.number().int().min(1).max(100).optional(), payerId: id.optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), id: id.optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money, status: z.enum(["confirmada", "cancelada", "noshow"]).default("confirmada"), cancelTreatment: z.string().max(200).optional(), recordVersion: z.number().int().nonnegative().optional() }).strict().parse(payload)
     const checkIn = new Date(input.checkIn), checkOut = new Date(input.checkOut)
     if (!Number.isFinite(checkIn.getTime()) || !Number.isFinite(checkOut.getTime()) || checkOut <= checkIn) throw new HttpError(400, "Período inválido")
     const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
     let originalValue = decimal(input.totalValue)
+    let current: Awaited<ReturnType<typeof tx.reservation.findUniqueOrThrow>> | null = null
     if (kind === "edit-reservation") {
-      const current = await tx.reservation.findUniqueOrThrow({ where: { id: input.id } })
+      current = await tx.reservation.findUniqueOrThrow({ where: { id: input.id } })
       requireVersion(input.recordVersion, current.recordVersion)
       originalValue = Prisma.Decimal.max(current.originalValue ?? current.totalValue, current.totalValue, input.totalValue)
       if (current.status !== "confirmada") throw new HttpError(409, "Somente reserva confirmada pode ser editada")
-      if (current.paidValue.gt(0) && current.cpf !== input.cpf) throw new HttpError(409, "Reserva paga não permite trocar o titular")
       if (input.totalValue < Number(current.totalValue)) await checkDiscount(tx, actor, Number((current.originalValue ?? current.totalValue).minus(input.totalValue).div(current.originalValue ?? current.totalValue).mul(100)))
       if (current.paidValue.gt(input.totalValue)) throw new HttpError(409, "Valor inferior ao recebido; faça a conciliação antes")
     }
@@ -121,9 +127,14 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       const overlap = await tx.reservation.count({ where: { ...(kind === "edit-reservation" ? { id: { not: input.id } } : {}), roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: checkOut }, checkOut: { gt: checkIn } } })
       if (overlap) throw new HttpError(409, "Reserva conflita com outra hospedagem")
     }
-    await tx.guestProfile.upsert({ where: { cpf: input.cpf }, create: { cpf: input.cpf, name: input.guestName }, update: { name: input.guestName } })
+    const nightlyPrices = await agreedPrice(tx, actor, input, current)
+    if (room.capacity && input.guestCount === undefined && !current) throw new HttpError(400, "Informe a quantidade de hóspedes")
+    const guest = await ensureGuest(tx, actor, input.cpf, input.guestName)
+    if (current?.paidValue.gt(0) && current.cpf !== guest.cpf) throw new HttpError(409, "Reserva paga não permite trocar o titular")
+    const payerId = input.payerId ?? current?.payerId ?? guest.customerId!
+    await assertPayer(tx, payerId)
     const { recordVersion: _version, ...fields } = input
-    const data = { ...fields, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number, originalValue }
+    const data = { ...fields, guestName: guest.name, cpf: guest.cpf, payerId, nightlyPrices, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number, originalValue }
     const result = kind === "reserve" ? await tx.reservation.create({ data }) : await tx.reservation.update({ where: { id: input.id }, data: { ...data, recordVersion: { increment: 1 } } })
     await audit(tx, actor, kind === "reserve" ? "Reserva criada" : "Reserva alterada", result.id, { entityType: "reservations", entityId: result.id, operation: kind === "reserve" ? "create" : "update" })
     return collectionMapper("reservations").toApp(result)
@@ -135,13 +146,20 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
     if (room.status !== "disponivel") throw new HttpError(409, "Quarto indisponível")
     await assertRoomPeriod(tx, room, checkIn, checkOut)
-    const existing = await tx.reservation.findFirst({ where: { roomId: room.id, cpf: input.cpf, status: "confirmada", checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
+    const guest = await ensureGuest(tx, actor, input.cpf, input.guestName)
+    const existing = await tx.reservation.findFirst({ where: { roomId: room.id, cpf: guest.cpf, status: "confirmada", checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
     if (existing && !existing.totalValue.equals(input.totalValue)) throw new HttpError(409, "Use o valor confirmado da reserva ou edite-a antes do check-in")
     const overlap = await tx.reservation.count({ where: { ...(existing ? { id: { not: existing.id } } : {}), roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: new Date(input.checkOut) }, checkOut: { gt: new Date(input.checkIn) } } })
     if (overlap) throw new HttpError(409, "Reserva conflita com outra hospedagem")
-    await tx.guestProfile.upsert({ where: { cpf: input.cpf }, create: { cpf: input.cpf, name: input.guestName, totalStays: 1 }, update: { name: input.guestName, totalStays: { increment: 1 } } })
-    await tx.room.update({ where: { id: room.id }, data: { status: "ocupado", guest: input.guestName, guestCpf: input.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
-    const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin" } }) : await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, guestName: input.guestName, cpf: input.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut), status: "checkin", totalValue: input.totalValue, originalValue: input.totalValue } })
+    const nightlyPrices = existing ? existing.nightlyPrices ?? undefined : await agreedPrice(tx, actor, input)
+    if (!existing && room.capacity && input.guestCount === undefined) throw new HttpError(400, "Informe a quantidade de hóspedes")
+    if (existing && input.guestCount !== undefined && input.guestCount !== existing.guestCount) throw new HttpError(409, "Ocupação diferente da reserva; edite-a antes do check-in")
+    if (existing && input.payerId !== undefined && input.payerId !== existing.payerId) throw new HttpError(409, "Pagador diferente da reserva; edite-a antes do check-in")
+    const payerId = existing?.payerId ?? input.payerId ?? guest.customerId!
+    if (!existing) await assertPayer(tx, payerId)
+    await tx.guestProfile.update({ where: { cpf: guest.cpf }, data: { totalStays: { increment: 1 } } })
+    await tx.room.update({ where: { id: room.id }, data: { status: "ocupado", guest: guest.name, guestCpf: guest.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
+    const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin" } }) : await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, guestName: guest.name, cpf: guest.cpf, guestCount: input.guestCount, payerId, nightlyPrices, priceExceptionReason: input.priceExceptionReason, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut), status: "checkin", totalValue: input.totalValue, originalValue: input.totalValue } })
     await audit(tx, actor, "Check-in realizado", `${room.number}: ${reservation.id}`, { entityType: "reservations", entityId: reservation.id, operation: "update" })
     return collectionMapper("reservations").toApp(reservation)
   }
@@ -169,6 +187,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const room = await tx.room.findUniqueOrThrow({ where: { id: roomId } })
     if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
     const product = await tx.pOSProduct.findFirst({ where: { name: item.label } })
+    if (product && !product.active) throw new HttpError(409, "Bebida inativa; selecione um produto disponível")
     if (product) item.unitPrice = Number(product.price)
     else demand(actor, "consumptions.custom")
     if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number}`)

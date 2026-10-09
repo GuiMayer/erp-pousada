@@ -1,3 +1,5 @@
+import type { LodgingTariff } from "./lodging-pricing"
+import { normalizeDocument } from "./utils/cpf-cnpj-validator"
 import seed from "./seed-data.json"
 import {
   initialCategories, initialProductCategories, initialPOSProducts,
@@ -17,7 +19,7 @@ export function createDemoData(now = new Date()) {
   }
   const timestamp = (offset: number, hour = 12) => `${date(offset)}T${String(hour).padStart(2, "0")}:00:00.000Z`
   const rooms: Room[] = seed.rooms.map((room) => ({
-    id: room.id, number: room.number, type: room.type, status: room.status as Room["status"],
+    capacity: 3, id: room.id, number: room.number, type: room.type, status: room.status as Room["status"],
     guest: "guest" in room ? room.guest : undefined,
     guestCpf: "guestCpf" in room ? room.guestCpf : undefined,
     checkIn: typeof room.checkInOffset === "number" ? date(room.checkInOffset) : undefined,
@@ -114,10 +116,15 @@ export function createDemoData(now = new Date()) {
   const restaurantOrders: RestaurantOrder[] = []
   const restaurantTables: RestaurantTable[] = []
   const customers: Customer[] = guests.map((guest, index) => ({
-    id: `DEMO-CLI${index + 1}`, name: guest.name, cpfCnpj: guest.cpf,
+    roles: ["guest", "payer"], id: `DEMO-CLI${index + 1}`, name: guest.name, cpfCnpj: normalizeDocument(guest.cpf),
     email: `hospede${index + 1}@example.com`, notes: "Cadastro fictício para demonstração",
     active: true, createdAt: timestamp(-30), updatedAt: timestamp(0),
   }))
+  guests.forEach((guest, index) => { guest.customerId = customers[index].id; guest.active = true })
+  const lodgingTariffs: LodgingTariff[] = [...new Set(rooms.map(r => r.type))].flatMap((roomType, index) => [
+    { id: 'DEMO-T'+index+'-one', name: roomType+' · uma pessoa', roomType, minGuests: 1, maxGuests: 1, pricePerPerson: 120, validFrom: date(-365), active: true },
+    { id: 'DEMO-T'+index+'-group', name: roomType+' · duas ou três pessoas', roomType, minGuests: 2, maxGuests: 3, pricePerPerson: 100, validFrom: date(-365), active: true },
+  ])
   const accountsReceivable: AccountReceivable[] = [0, 2, 5].map((index) => ({
     id: `DEMO-AR${index}`, customerId: customers[index].id, customerName: customers[index].name,
     description: "Saldo de hospedagem — exemplo", value: [320, 480, 650][index % 3],
@@ -125,7 +132,7 @@ export function createDemoData(now = new Date()) {
     status: index === 0 ? "vencido" : "pendente", category: "Hospedagem",
   }))
   return {
-    rooms, reservations, guests, expenses, transactions, posProducts, posSales,
+    lodgingTariffs, rooms, reservations, guests, expenses, transactions, posProducts, posSales,
     restaurantTables, restaurantOrders, stockItems, stockMovements, customers, accountsReceivable,
     categories: structuredClone(initialCategories), productCategories: structuredClone(initialProductCategories.filter(category => !category.isRestaurant)),
     employees: [], users: structuredClone(initialUsers), userSessions: [],

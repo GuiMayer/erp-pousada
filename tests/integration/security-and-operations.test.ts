@@ -117,7 +117,9 @@ describe("Proteção das APIs e integridade de operações", () => {
   it("hospedagem impede saída com consumo e grava pagamento antes do check-out", async () => {
     await prisma.room.update({ where: { id: 1 }, data: { status: "disponivel", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
     const operator = { ...actor, role: "operador" as const }
-    await executeOperation(operator, randomUUID(), "check-in", { roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2026-10-07", checkOut: "2026-10-09", totalValue: 300 })
+    const legacyStay = { roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2026-10-07", checkOut: "2026-10-09", totalValue: 300 }
+    await executeOperation(actor, randomUUID(), "reserve", legacyStay)
+    await executeOperation(operator, randomUUID(), "check-in", legacyStay)
     const rooms = await getCollection("rooms")
     expect(rooms[0]).toHaveProperty("checkOut", "2026-10-09")
     await executeOperation(operator, randomUUID(), "add-consumption", { roomId: 1, item: { id: randomUUID(), label: "Água", unitPrice: 1, quantity: 1 } })
@@ -341,7 +343,7 @@ describe("Regressões das regras de negócio", () => {
 
   it("recebimento é atômico, protege parcelas pagas e recusa recebimento duplicado", async () => {
     const customerId = randomUUID(), accountId = randomUUID(), part1 = randomUUID(), part2 = randomUUID()
-    await prisma.customer.create({ data: { id: customerId, name: "Cliente fictício", cpfCnpj: "52998224725" } })
+    await prisma.customer.create({ data: { id: customerId, name: "Cliente fictício", cpfCnpj: "11222333000181" } })
     await prisma.accountReceivable.create({ data: { id: accountId, customerId, customerName: "Cliente", description: "Teste", value: 100, status: "pendente", issueDate: new Date(), dueDate: new Date(), installments: { create: [part1, part2].map((id, index) => ({ id, installmentNumber: index + 1, value: 50, dueDate: new Date(), status: "pendente" })) } } })
     await prisma.bankAccount.update({ where: { id: "test-bank" }, data: { active: false } })
     await expect(operate("receive-account", { accountReceivableId: accountId, installmentId: part1, paymentMethod: "pix", accountId: "test-bank" })).rejects.toMatchObject({ status: 409 })

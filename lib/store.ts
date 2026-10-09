@@ -178,6 +178,7 @@ export interface TimelineDay {
 }
 
 export interface Room {
+  capacity?: number | null
   recordVersion?: number
   id: number
   number: string
@@ -195,6 +196,10 @@ export interface Room {
 }
 
 export interface Reservation {
+  guestCount?: number | null
+  payerId?: string | null
+  nightlyPrices?: import("./lodging-pricing").NightlyPrice[] | null
+  priceExceptionReason?: string | null
   recordVersion?: number
   cancellationFee?: number
   originalValue?: number
@@ -212,6 +217,8 @@ export interface Reservation {
 }
 
 export interface GuestProfile {
+  customerId?: string | null
+  active?: boolean
   recordVersion?: number
   creditValue?: number
   cpf: string
@@ -303,6 +310,7 @@ export interface ExpenseCategory {
 }
 
 export interface Supplier {
+  customerId?: string | null
   recordVersion?: number
   id: string
   name: string
@@ -316,6 +324,7 @@ export interface Supplier {
 }
 
 export interface Customer {
+  roles?: ("guest" | "payer" | "supplier")[]
   recordVersion?: number
   id: string
   name: string
@@ -441,6 +450,8 @@ export interface RoomConsumption {
 }
 
 export interface POSProduct {
+  active?: boolean
+  unit?: "un" | "ml" | "l"
   recordVersion?: number
   id: string
   name: string

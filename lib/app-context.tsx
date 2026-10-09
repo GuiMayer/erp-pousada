@@ -28,7 +28,10 @@ import {
   type TimelineDay,
   calculateRoomTimeline,
 } from "./store"
+import type { LodgingTariff } from "./lodging-pricing"
+import { normalizeDocument } from "./utils/cpf-cnpj-validator"
 import { isPousadaPermission } from "./pousada-scope"
+import { syncDemoContact, saveDemoSupplier } from "./data/demo-contacts"
 import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
 import { getDataConfig } from "./data/config"
@@ -70,6 +73,8 @@ function assertReservationAvailability(
 }
 
 type AppContextType = {
+  lodgingTariffs: LodgingTariff[]
+  saveTariff: (tariff: LodgingTariff, editing?: boolean) => Promise<void>
   rooms: Room[]
   reservations: Reservation[]
   guests: GuestProfile[]
@@ -237,6 +242,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userSessions, setUserSessions] = useState<UserSession[]>([])
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(initialSystemSettings)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [lodgingTariffs, setLodgingTariffs] = useState<LodgingTariff[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [accountsReceivable, setAccountsReceivable] = useState<AccountReceivable[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
@@ -255,7 +261,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const loadingUser = accessKey
     try {
       const [
-        roomsData, reservationsData, guestsData, expensesData, transactionsData,
+        tariffsData, roomsData, reservationsData, guestsData, expensesData, transactionsData,
         auditLogData, categoriesData, cashClosesData, consumptionsData,
         posProductsData, posSalesData, productCategoriesData,
         restaurantTablesData, restaurantOrdersData,
@@ -265,6 +271,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         suppliersData, customersData, accountsReceivableData,
         bankAccountsData, bankTransfersData, costCentersData, budgetsData, recurringTransactionsData
       ] = await Promise.all([
+        keys && !keys.has("lodgingTariffs") ? Promise.resolve(null) : can("lodgingTariffs.read") ? dataStore.lodgingTariffs.getAll() : Promise.resolve([]),
         keys && !keys.has("rooms") ? Promise.resolve(null) : (can("rooms.read")) ? dataStore.rooms.getAll() : Promise.resolve([]),
         keys && !keys.has("reservations") ? Promise.resolve(null) : (can("reservations.read")) ? dataStore.reservations.getAll() : Promise.resolve([]),
         keys && !keys.has("guests") ? Promise.resolve(null) : (can("guests.read")) ? dataStore.guests.getAll() : Promise.resolve([]),
@@ -299,6 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ])
 
       if (loadingUser !== currentUser.current || generation !== loadGeneration.current) return
+      if (tariffsData !== null) setLodgingTariffs(tariffsData)
       if (roomsData !== null) setRooms(roomsData)
       if (reservationsData !== null) setReservations(reservationsData)
       if (guestsData !== null) setGuests(guestsData)
@@ -354,7 +362,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     pendingOperationIds.current.clear()
     setIsInitialized(false)
-    setRooms([]); setReservations([]); setGuests([]); setExpenses([]); setTransactions([]); setAuditLog([]); setCategories([]); setCashCloses([]); setConsumptions([]); setPOSProducts([]); setPOSSales([]); setProductCategories([]); setRestaurantTables([]); setRestaurantOrders([]); setStockItems([]); setStockMovements([]); setRecipes([]); setProductions([]); setEmployees([]); setEmployeeConsumptions([]); setUsers([]); setUserSessions([]); setSuppliers([]); setCustomers([]); setAccountsReceivable([]); setBankAccounts([]); setBankTransfers([]); setCostCenters([]); setBudgets([]); setRecurringTransactions([])
+    setLodgingTariffs([]); setRooms([]); setReservations([]); setGuests([]); setExpenses([]); setTransactions([]); setAuditLog([]); setCategories([]); setCashCloses([]); setConsumptions([]); setPOSProducts([]); setPOSSales([]); setProductCategories([]); setRestaurantTables([]); setRestaurantOrders([]); setStockItems([]); setStockMovements([]); setRecipes([]); setProductions([]); setEmployees([]); setEmployeeConsumptions([]); setUsers([]); setUserSessions([]); setSuppliers([]); setCustomers([]); setAccountsReceivable([]); setBankAccounts([]); setBankTransfers([]); setCostCenters([]); setBudgets([]); setRecurringTransactions([])
     setSystemSettings(initialSystemSettings); setDataError(null)
   }, [accessKey])
 
@@ -497,7 +505,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const current = reservations.find(r => r.id === id)
       if (!current) throw new Error("Reserva não encontrada")
       const merged = { ...current, ...data }
-      const input = { id, roomId: merged.roomId, cpf: merged.cpf, guestName: merged.guestName, checkIn: merged.checkIn, checkOut: merged.checkOut, totalValue: merged.totalValue, status: merged.status, recordVersion: data.recordVersion }
+      const input = { guestCount: merged.guestCount ?? undefined, payerId: merged.payerId ?? undefined, priceExceptionReason: data.priceExceptionReason ?? undefined, id, roomId: merged.roomId, cpf: merged.cpf, guestName: merged.guestName, checkIn: merged.checkIn, checkOut: merged.checkOut, totalValue: merged.totalValue, status: merged.status, recordVersion: data.recordVersion }
       await runOperation("edit-reservation", input); return
     }
     const before = await dataStore.reservations.getById(id)
@@ -672,8 +680,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Guest methods
   const findGuest = useCallback((cpf: string) => {
-    return guests.find(g => g.cpf === cpf)
-  }, [guests])
+    const person = customers.find(c => c.cpfCnpj === normalizeDocument(cpf))
+    return guests.find(g => person ? g.customerId === person.id || normalizeDocument(g.cpf) === normalizeDocument(cpf) : normalizeDocument(g.cpf) === normalizeDocument(cpf))
+  }, [guests, customers])
 
   const addGuest = useCallback(async (g: GuestProfile) => {
     const existing = await dataStore.guests.findByCPF(g.cpf)
@@ -757,7 +766,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [dataStore])
 
   const removePOSProduct = useCallback(async (id: string, expectedVersion?: number) => {
-    await dataStore.posProducts.delete(id, expectedVersion)
+    if (getDataConfig().adapter === "demo-localStorage") await dataStore.posProducts.update(id, { active: false })
+    else await dataStore.posProducts.delete(id, expectedVersion)
     setPOSProducts(await dataStore.posProducts.getAll())
   }, [dataStore])
 
@@ -1048,36 +1058,65 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Supplier methods
   const addSupplier = useCallback(async (s: Supplier) => {
-    await dataStore.suppliers.create(s)
+    if (getDataConfig().adapter === "demo-localStorage") await saveDemoSupplier(dataStore, s)
+    else await dataStore.suppliers.create(s)
     setSuppliers(await dataStore.suppliers.getAll())
-  }, [dataStore])
+    if (can("customers.read")) setCustomers(await dataStore.customers.getAll())
+  }, [dataStore, can])
 
   const updateSupplier = useCallback(async (id: string, data: Partial<Supplier>) => {
-    await dataStore.suppliers.update(id, data)
+    if (getDataConfig().adapter === "demo-localStorage") {
+      const current = await dataStore.suppliers.getById(id)
+      if (current) await saveDemoSupplier(dataStore, { ...current, ...data }, true)
+    } else await dataStore.suppliers.update(id, data)
     setSuppliers(await dataStore.suppliers.getAll())
-  }, [dataStore])
+    if (can("customers.read")) setCustomers(await dataStore.customers.getAll())
+  }, [dataStore, can])
 
   const removeSupplier = useCallback(async (id: string, expectedVersion?: number) => {
-    await dataStore.suppliers.delete(id, expectedVersion)
+    if (getDataConfig().adapter === "demo-localStorage") {
+      const supplier = await dataStore.suppliers.getById(id)
+      if (supplier?.customerId) {
+        const person = await dataStore.customers.update(supplier.customerId, { active: false })
+        await syncDemoContact(dataStore, person)
+      } else await dataStore.suppliers.update(id, { active: false })
+    } else await dataStore.suppliers.delete(id, expectedVersion)
     setSuppliers(await dataStore.suppliers.getAll())
-  }, [dataStore])
+    if (can("customers.read")) setCustomers(await dataStore.customers.getAll())
+  }, [dataStore, can])
 
   // Customer methods
+  const saveTariff = useCallback(async (tariff: LodgingTariff, editing = false) => {
+    if (editing) await dataStore.lodgingTariffs.update(tariff.id, tariff)
+    else await dataStore.lodgingTariffs.create(tariff)
+    setLodgingTariffs(await dataStore.lodgingTariffs.getAll())
+  }, [dataStore])
   const addCustomer = useCallback(async (c: Customer) => {
     const created = await dataStore.customers.create(c)
+    if (getDataConfig().adapter === "demo-localStorage") await syncDemoContact(dataStore, created)
     setCustomers(await dataStore.customers.getAll())
+    if (can("guests.read")) setGuests(await dataStore.guests.getAll())
+    if (can("suppliers.read")) setSuppliers(await dataStore.suppliers.getAll())
     return created
-  }, [dataStore])
+  }, [dataStore, can])
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
-    await dataStore.customers.update(id, data)
+    const updated = await dataStore.customers.update(id, data)
+    if (getDataConfig().adapter === "demo-localStorage") await syncDemoContact(dataStore, updated)
     setCustomers(await dataStore.customers.getAll())
-  }, [dataStore])
+    if (can("guests.read")) setGuests(await dataStore.guests.getAll())
+    if (can("suppliers.read")) setSuppliers(await dataStore.suppliers.getAll())
+  }, [dataStore, can])
 
   const removeCustomer = useCallback(async (id: string, expectedVersion?: number) => {
-    await dataStore.customers.delete(id, expectedVersion)
+    if (getDataConfig().adapter === "demo-localStorage") {
+      const updated = await dataStore.customers.update(id, { active: false })
+      await syncDemoContact(dataStore, updated)
+    } else await dataStore.customers.delete(id, expectedVersion)
     setCustomers(await dataStore.customers.getAll())
-  }, [dataStore])
+    if (can("guests.read")) setGuests(await dataStore.guests.getAll())
+    if (can("suppliers.read")) setSuppliers(await dataStore.suppliers.getAll())
+  }, [dataStore, can])
 
   // Account Receivable methods
   const addAccountReceivable = useCallback(async (ar: AccountReceivable) => {
@@ -1174,7 +1213,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
-    runOperation, dataError, rooms, reservations, guests, expenses, transactions,
+    saveTariff, lodgingTariffs, runOperation, dataError, rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
     productCategories, restaurantTables, restaurantOrders,
@@ -1207,7 +1246,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRecurringTransaction, updateRecurringTransaction, removeRecurringTransaction,
     exportData, importData, clearAllData, getStorageUsage,
   }), [
-    runOperation, dataError, rooms, reservations, guests, expenses, transactions,
+    saveTariff, lodgingTariffs, runOperation, dataError, rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
     productCategories, restaurantTables, restaurantOrders,
