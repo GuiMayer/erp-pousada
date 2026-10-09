@@ -1,6 +1,6 @@
 import seed from "./seed-data.json"
 import {
-  initialCategories, initialEmployees, initialProductCategories, initialPOSProducts,
+  initialCategories, initialProductCategories, initialPOSProducts,
   initialSystemSettings, initialUsers,
   type Room, type Reservation, type GuestProfile, type POSProduct, type POSSale,
   type RestaurantTable, type RestaurantOrder, type StockItem, type StockMovement,
@@ -47,19 +47,8 @@ export function createDemoData(now = new Date()) {
     { cpf: "000.000.000-02", name: "Felipe Rocha", totalStays: 1, avgTicket: 1350, noShows: 0 },
   )
 
-  const menu: POSProduct[] = [
-    { id: "DEMO-P01", name: "Bruschetta de tomate", categoryId: "pcat-entradas", price: 24, trackStock: false },
-    { id: "DEMO-P02", name: "Peixe grelhado com legumes", categoryId: "pcat-pratos", price: 68, trackStock: false },
-    { id: "DEMO-P03", name: "Risoto de cogumelos", categoryId: "pcat-pratos", price: 54, trackStock: false },
-    { id: "DEMO-P04", name: "Filé ao molho de ervas", categoryId: "pcat-pratos", price: 76, trackStock: false },
-    { id: "DEMO-P05", name: "Pudim da casa", categoryId: "pcat-sobremesas", price: 18, trackStock: false },
-    { id: "DEMO-P06", name: "Suco de maracujá", categoryId: "pcat-bebidas-rest", price: 12, trackStock: false },
-    { id: "DEMO-P07", name: "Água mineral com gás", categoryId: "pcat-bebidas-rest", price: 6, trackStock: false },
-    { id: "DEMO-P08", name: "Salada verde", categoryId: "pcat-acompanhamentos", price: 16, trackStock: false },
-  ]
   const posProducts: POSProduct[] = [
     ...initialPOSProducts.map((product, index) => ({ ...product, trackStock: index < 12 })),
-    ...menu,
   ]
   const posSales: POSSale[] = []
   const transactions: Transaction[] = []
@@ -99,7 +88,7 @@ export function createDemoData(now = new Date()) {
   }))
   const paidExpenses = [
     { description: "Energia elétrica", category: "Pousada", value: 1850, offset: -6 },
-    { description: "Compra de insumos do restaurante", category: "Restaurante", value: 1240, offset: -3 },
+    { description: "Compra de bebidas", category: "Pousada", value: 1240, offset: -3 },
     { description: "Lavanderia e reposição de enxoval", category: "Manutencao", value: 680, offset: 0 },
   ]
   for (const [index, expense] of paidExpenses.entries()) {
@@ -122,28 +111,8 @@ export function createDemoData(now = new Date()) {
     id: `DEMO-MS${index + 1}`, type: "saida", productId: item.productId, productName: item.productName,
     quantity: 12, unit: item.unit, reason: "Consumo registrado — exemplo", timestamp: timestamp(-1), registeredBy: "operador",
   })))
-  const restaurantOrders: RestaurantOrder[] = [1, 3, 6].map((tableId, index) => {
-    const items = [menu[index + 1], menu[5], menu[4]].map((product, itemIndex) => ({
-      id: `DEMO-OI${tableId}-${itemIndex}`, productId: product.id, productName: product.name,
-      quantity: 2, unitPrice: product.price, subtotal: 2 * product.price,
-      category: initialProductCategories.find((category) => category.id === product.categoryId)!.name,
-    }))
-    const total = items.reduce((sum, item) => sum + item.subtotal, 0)
-    return {
-      id: `DEMO-O${tableId}`, tableId, tableNumber: String(tableId), items,
-      subtotal: total, discount: 0, total, status: "aberta", openedAt: timestamp(0, 11 + index),
-      customer: guests[index].name, operator: "operador",
-    }
-  })
-  const restaurantTables: RestaurantTable[] = Array.from({ length: 10 }, (_, index) => {
-    const id = index + 1
-    const order = restaurantOrders.find((item) => item.tableId === id)
-    return {
-      id, number: String(id), capacity: [4, 2, 6, 4, 2][index % 5],
-      status: order ? "ocupada" : id === 5 || id === 8 ? "reservada" : "livre",
-      currentOrderId: order?.id, openedAt: order?.openedAt,
-    }
-  })
+  const restaurantOrders: RestaurantOrder[] = []
+  const restaurantTables: RestaurantTable[] = []
   const customers: Customer[] = guests.map((guest, index) => ({
     id: `DEMO-CLI${index + 1}`, name: guest.name, cpfCnpj: guest.cpf,
     email: `hospede${index + 1}@example.com`, notes: "Cadastro fictício para demonstração",
@@ -158,8 +127,8 @@ export function createDemoData(now = new Date()) {
   return {
     rooms, reservations, guests, expenses, transactions, posProducts, posSales,
     restaurantTables, restaurantOrders, stockItems, stockMovements, customers, accountsReceivable,
-    categories: structuredClone(initialCategories), productCategories: structuredClone(initialProductCategories),
-    employees: structuredClone(initialEmployees), users: structuredClone(initialUsers), userSessions: [],
+    categories: structuredClone(initialCategories), productCategories: structuredClone(initialProductCategories.filter(category => !category.isRestaurant)),
+    employees: [], users: structuredClone(initialUsers), userSessions: [],
     systemSettings: [{ ...initialSystemSettings, contactEmail: "contato@example.com", contactPhone: "", address: "", notifyLowStock: false }],
     auditLog: seed.auditLog.map((entry) => ({ ...entry, date: new Date(now.getTime() - entry.hoursAgo * 3600000).toISOString() })),
     cashCloses: seed.cashCloses.map((entry) => ({ ...entry, date: new Date(now.getTime() - entry.hoursAgo * 3600000).toISOString() })),

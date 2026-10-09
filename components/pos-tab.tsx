@@ -7,6 +7,7 @@ import { getDataConfig } from "@/lib/data/config"
 
 import { BankAccountPicker } from "./payment-fields"
 import { useState, useMemo, useRef, useEffect } from "react"
+import { pousadaProducts } from "@/lib/pousada-scope"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { useStockIntegration } from "@/lib/hooks/useStockIntegration"
@@ -55,10 +56,11 @@ const PAYMENT_METHODS = [
 
 export function POSTab() {
   const {
-    posProducts, posSales, rooms, stockItems,
+    posProducts: allProducts, posSales, rooms, stockItems,
     runOperation, addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
     addConsumptionItem, getCategoryName, productCategories,
   } = useApp()
+  const posProducts = useMemo(() => pousadaProducts(allProducts, productCategories), [allProducts, productCategories])
   const { username, role, can } = useAuth()
   const {
     processStockForSale,

@@ -13,13 +13,12 @@ import { ReservationsTab } from "./reservations-tab"
 import { FinancialTab } from "./financial-tab"
 import { AuditLogTab } from "./audit-log-tab"
 import { POSTab } from "./pos-tab"
-import { RestaurantTab } from "./restaurant/restaurant-tab"
 import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
 import { SettingsTab } from "./settings-tab"
 import { AdminTab } from "./admin-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
+import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, Package, BarChart3, Settings } from "lucide-react"
 
 export function DashboardShell() {
   const phone = usePhoneLayout()
@@ -57,10 +56,6 @@ export function DashboardShell() {
             <ShoppingCart className="size-3.5" />
             Frente de Caixa
           </TabsTrigger>)}
-          {visible("restaurante") && (<TabsTrigger value="restaurante" className="gap-1.5">
-            <UtensilsCrossed className="size-3.5" />
-            Restaurante
-          </TabsTrigger>)}
           {visible("estoque") && (<TabsTrigger value="estoque" className="gap-1.5">
             <Package className="size-3.5" />
             Estoque
@@ -95,9 +90,6 @@ export function DashboardShell() {
         </TabsContent>)}
         {visible("pdv") && (<TabsContent forceMount={phone && visited.has("pdv") ? true : undefined} value="pdv">
           <POSTab />
-        </TabsContent>)}
-        {visible("restaurante") && (<TabsContent forceMount={phone && visited.has("restaurante") ? true : undefined} value="restaurante">
-          <RestaurantTab />
         </TabsContent>)}
         {visible("estoque") && (<TabsContent forceMount={phone && visited.has("estoque") ? true : undefined} value="estoque">
           <StockTab />

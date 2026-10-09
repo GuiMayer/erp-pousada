@@ -1,3 +1,4 @@
+import { pousadaStock } from "@/lib/pousada-scope"
 import { getDataConfig } from "../data/config"
 import { useState, useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
@@ -8,16 +9,17 @@ import { generateStockMovementId } from "../utils/id-generators"
  * Hook for managing stock control
  * Provides utilities for tracking inventory, movements, and alerts
  */
-export function useStockControl() {
+export function useStockControl({ includeArchived = false }: { includeArchived?: boolean } = {}) {
   const {
-    runOperation, stockItems,
+    runOperation, stockItems: allStockItems,
     stockMovements,
     addStockItem,
     updateStockItem,
     addStockMovement,
-    posProducts,
+    posProducts, productCategories,
   } = useApp()
 
+  const stockItems = useMemo(() => includeArchived ? allStockItems : pousadaStock(allStockItems, posProducts, productCategories), [includeArchived, allStockItems, posProducts, productCategories])
   const [filter, setFilter] = useState<"all" | "critical" | "low" | "ok">("all")
 
   // Get stock status for an item

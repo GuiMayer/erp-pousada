@@ -11,6 +11,19 @@ const response = (data: unknown) => ({ ok: true, json: async () => data })
 const secret = { id: "private-expense", description: "Despesa restrita", value: 40, paid: false, dueDate: "2030-01-01", category: "Exemplo" }
 
 describe("Dados e mudanças de identidade", () => {
+  it("não carrega coleções de restaurante mesmo para um administrador legado", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database")
+    const permissions = ["rooms.read", "posProducts.read", "restaurantTables.read", "restaurantOrders.read", "recipes.read", "productions.read", "employees.read", "employeeConsumptions.read"]
+    const fetcher = vi.fn().mockImplementation(async (url: string) => {
+      if (url === "/api/auth/session") return response({ user: { id: "admin", username: "admin", role: "supervisor", permissions } })
+      return response([])
+    })
+    vi.stubGlobal("fetch", fetcher)
+    const { result } = renderHook(useApp, { wrapper })
+    await waitFor(() => expect(fetcher.mock.calls.some(([url]) => url === "/api/data/posProducts")).toBe(true))
+    for (const key of ["restaurantTables", "restaurantOrders", "recipes", "productions", "employees", "employeeConsumptions"]) expect(fetcher.mock.calls.some(([url]) => url === `/api/data/${key}`)).toBe(false)
+    expect(result.current.restaurantOrders).toEqual([])
+  })
   it("logout de outra aba elimina os dados já carregados", async () => {
     vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database")
     let active = true

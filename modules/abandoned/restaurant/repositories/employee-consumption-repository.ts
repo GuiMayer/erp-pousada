@@ -4,9 +4,9 @@
  * Manages employee consumption records.
  */
 
-import { BaseRepository } from "./base-repository"
-import type { EmployeeConsumption } from "../../store"
-import type { IStorageAdapter } from "../types"
+import { BaseRepository } from "@/lib/data/repositories/base-repository"
+import type { EmployeeConsumption } from "@/lib/store"
+import type { IStorageAdapter } from "@/lib/data/types"
 
 export class EmployeeConsumptionRepository extends BaseRepository<EmployeeConsumption> {
   constructor(adapter: IStorageAdapter, userId?: string) {

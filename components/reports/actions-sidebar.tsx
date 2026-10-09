@@ -32,7 +32,6 @@ interface ActionsSidebarProps {
   // PDF Report handlers
   onGenerateReservationsPDF: () => void
   onGenerateStockPDF: () => void
-  onGenerateRestaurantPDF: () => void
   
   // Conditional visibility
   showRevenueTrend?: boolean
@@ -52,7 +51,6 @@ export function ActionsSidebar({
   onExportStockAlerts,
   onGenerateReservationsPDF,
   onGenerateStockPDF,
-  onGenerateRestaurantPDF,
   showRevenueTrend = false,
   isExporting = false,
   isGeneratingPDF = false,
@@ -233,20 +231,6 @@ export function ActionsSidebar({
             Estoque
           </Button>
           
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full justify-start"
-            onClick={onGenerateRestaurantPDF}
-            disabled={isGeneratingPDF}
-          >
-            {isGeneratingPDF ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <DollarSign className="h-4 w-4 mr-2" />
-            )}
-            Restaurante
-          </Button>
 
           <div className="pt-2 text-xs text-muted-foreground">
             Os PDFs usam o período selecionado no filtro acima

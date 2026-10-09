@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react"
-import { useApp } from "../app-context"
-import type { RestaurantTable, TableStatus } from "../store"
+import { useApp } from "@/lib/app-context"
+import type { RestaurantTable, TableStatus } from "@/lib/store"
 
 /**
  * Hook for managing restaurant tables

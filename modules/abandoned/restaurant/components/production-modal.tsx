@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
-import { useProduction } from "@/lib/hooks/useProduction"
+import { useProduction } from "@/modules/abandoned/restaurant/hooks/useProduction"
 import { ChefHat, AlertTriangle, CheckCircle2, Search } from "lucide-react"
 import type { Recipe, Production } from "@/lib/store"
 

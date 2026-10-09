@@ -9,6 +9,12 @@ const wrapper = ({ children }: { children: React.ReactNode }) => <StrictMode><No
 beforeEach(() => { localStorage.clear(); auth.user = { id: "a", accessVersion: 0, permissions: ["reservations.read"] }; vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage") })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 describe("Isolamento e tolerância a falhas", () => {
+  it("oculta alertas legados do restaurante e os exclui do contador", async () => {
+    localStorage.setItem("erp:demo:notifications:a", JSON.stringify(["restaurant", "production", "pos"].map(type => ({ id: type, type, title: type, message: "Teste", timestamp: new Date(), read: false, priority: "medium" }))))
+    const { result } = renderHook(useNotifications, { wrapper })
+    await waitFor(() => expect(result.current.unreadCount).toBe(1))
+    expect(result.current.notifications.map(notification => notification.type)).toEqual(["pos"])
+  })
   it("preserva histórico durante montagem StrictMode", async () => {
     localStorage.setItem("erp:demo:notifications:a", JSON.stringify([{ id: "existing", type: "reservation", title: "Teste", message: "Teste", timestamp: new Date(), read: false, priority: "medium" }]))
     const { result } = renderHook(useNotifications, { wrapper }); await waitFor(() => expect(result.current.notifications).toHaveLength(1))

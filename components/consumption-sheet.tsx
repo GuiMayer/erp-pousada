@@ -5,6 +5,7 @@ import { getDataConfig } from "@/lib/data/config"
 import { useToast } from "@/hooks/use-toast"
 
 import { BankAccountPicker } from "./payment-fields"
+import { pousadaProducts } from "@/lib/pousada-scope"
 import { useState } from "react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -35,7 +36,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   const {
     addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry,
     runOperation, clearConsumption, addTransaction, posProducts,
-    getCategoryName,
+    getCategoryName, productCategories,
   } = useApp()
   const { username, can } = useAuth()
   const { toast } = useToast()
@@ -59,7 +60,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     setCategoryFilter,
     categories,
     filteredProducts
-  } = useProductSearch(posProducts, getCategoryName)
+  } = useProductSearch(pousadaProducts(posProducts, productCategories), getCategoryName)
 
   const {
     total,

@@ -13,7 +13,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('Mobile interface', () => {
   it('retains the administrator operational shortcuts', () => {
-    expect(phoneDestinations(() => true).slice(0, 4).map(item => item.key)).toEqual(['mapa', 'reservas', 'pdv', 'restaurante'])
+    expect(phoneDestinations(() => true).slice(0, 4).map(item => item.key)).toEqual(['mapa', 'reservas', 'pdv', 'estoque'])
     expect(phoneDestinations(() => false)).toEqual([])
   })
   it('offers stock workers their allowed module without financial or administration access', () => {
@@ -22,6 +22,11 @@ describe('Mobile interface', () => {
     expect(modules.slice(0, 4)).toContain('estoque')
     expect(modules).not.toContain('financeiro')
     expect(modules).not.toContain('administracao')
+  })
+  it('never exposes the archived restaurant, even when old permissions are retained', () => {
+    expect(phoneDestinations(permission => permission.startsWith('restaurant'))).toEqual([])
+    const permissions = effectivePermissions({ accessProfile: 'caixa' })
+    expect(phoneDestinations(permission => permissions.includes(permission)).map(item => item.key)).toContain('pdv')
   })
   function form() {
     const close = vi.fn()

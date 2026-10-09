@@ -4,9 +4,9 @@
  * Manages restaurant table data.
  */
 
-import { BaseRepository } from "./base-repository"
-import type { RestaurantTable } from "../../store"
-import type { IStorageAdapter } from "../types"
+import { BaseRepository } from "@/lib/data/repositories/base-repository"
+import type { RestaurantTable } from "@/lib/store"
+import type { IStorageAdapter } from "@/lib/data/types"
 
 export class RestaurantTableRepository extends BaseRepository<RestaurantTable> {
   constructor(adapter: IStorageAdapter, userId?: string) {

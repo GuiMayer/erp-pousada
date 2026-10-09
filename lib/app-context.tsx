@@ -28,6 +28,7 @@ import {
   type TimelineDay,
   calculateRoomTimeline,
 } from "./store"
+import { isPousadaPermission } from "./pousada-scope"
 import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
 import { getDataConfig } from "./data/config"
@@ -276,14 +277,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         keys && !keys.has("posProducts") ? Promise.resolve(null) : (can("posProducts.read")) ? dataStore.posProducts.getAll() : Promise.resolve([]),
         keys && !keys.has("posSales") ? Promise.resolve(null) : (can("posSales.read")) ? dataStore.posSales.getAll() : Promise.resolve([]),
         keys && !keys.has("productCategories") ? Promise.resolve(null) : (can("productCategories.read")) ? dataStore.productCategories.getAll() : Promise.resolve([]),
-        keys && !keys.has("restaurantTables") ? Promise.resolve(null) : (can("restaurantTables.read")) ? dataStore.restaurantTables.getAll() : Promise.resolve([]),
-        keys && !keys.has("restaurantOrders") ? Promise.resolve(null) : (can("restaurantOrders.read")) ? dataStore.restaurantOrders.getAll() : Promise.resolve([]),
+        keys && !keys.has("restaurantTables") ? Promise.resolve(null) : (isPousadaPermission("restaurantTables.read") && can("restaurantTables.read")) ? dataStore.restaurantTables.getAll() : Promise.resolve([]),
+        keys && !keys.has("restaurantOrders") ? Promise.resolve(null) : (isPousadaPermission("restaurantOrders.read") && can("restaurantOrders.read")) ? dataStore.restaurantOrders.getAll() : Promise.resolve([]),
         keys && !keys.has("stockItems") ? Promise.resolve(null) : (can("stockItems.read")) ? dataStore.stockItems.getAll() : Promise.resolve([]),
         keys && !keys.has("stockMovements") ? Promise.resolve(null) : (can("stockMovements.read")) ? dataStore.stockMovements.getAll() : Promise.resolve([]),
-        keys && !keys.has("recipes") ? Promise.resolve(null) : (can("recipes.read")) ? dataStore.recipes.getAll() : Promise.resolve([]),
-        keys && !keys.has("productions") ? Promise.resolve(null) : (can("productions.read")) ? dataStore.productions.getAll() : Promise.resolve([]),
-        keys && !keys.has("employees") ? Promise.resolve(null) : (can("employees.read")) ? dataStore.employees.getAll() : Promise.resolve([]),
-        keys && !keys.has("employeeConsumptions") ? Promise.resolve(null) : (can("employeeConsumptions.read")) ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
+        keys && !keys.has("recipes") ? Promise.resolve(null) : (isPousadaPermission("recipes.read") && can("recipes.read")) ? dataStore.recipes.getAll() : Promise.resolve([]),
+        keys && !keys.has("productions") ? Promise.resolve(null) : (isPousadaPermission("productions.read") && can("productions.read")) ? dataStore.productions.getAll() : Promise.resolve([]),
+        keys && !keys.has("employees") ? Promise.resolve(null) : (isPousadaPermission("employees.read") && can("employees.read")) ? dataStore.employees.getAll() : Promise.resolve([]),
+        keys && !keys.has("employeeConsumptions") ? Promise.resolve(null) : (isPousadaPermission("employeeConsumptions.read") && can("employeeConsumptions.read")) ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
         keys && !keys.has("users") ? Promise.resolve(null) : (can("users.read")) ? dataStore.users.getAll() : Promise.resolve([]),
         keys && !keys.has("userSessions") ? Promise.resolve(null) : (can("userSessions.read")) ? dataStore.userSessions.getAll() : Promise.resolve([]),
         keys && !keys.has("systemSettings") ? Promise.resolve(null) : (can("systemSettings.read")) ? dataStore.systemSettings.getAll() : Promise.resolve([]),

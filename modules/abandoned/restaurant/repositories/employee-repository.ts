@@ -4,10 +4,10 @@
  * Manages employee data.
  */
 
-import { BaseRepository } from "./base-repository"
-import type { Employee } from "../../store"
-import type { IStorageAdapter } from "../types"
-import { validateEmployee } from "../../utils/validators"
+import { BaseRepository } from "@/lib/data/repositories/base-repository"
+import type { Employee } from "@/lib/store"
+import type { IStorageAdapter } from "@/lib/data/types"
+import { validateEmployee } from "@/lib/utils/validators"
 
 export class EmployeeRepository extends BaseRepository<Employee> {
   constructor(adapter: IStorageAdapter, userId?: string) {

@@ -4,10 +4,10 @@
  * Manages recipe data for production.
  */
 
-import { BaseRepository } from "./base-repository"
-import type { Recipe } from "../../store"
-import type { IStorageAdapter } from "../types"
-import { validateRecipe } from "../../utils/validators"
+import { BaseRepository } from "@/lib/data/repositories/base-repository"
+import type { Recipe } from "@/lib/store"
+import type { IStorageAdapter } from "@/lib/data/types"
+import { validateRecipe } from "@/lib/utils/validators"
 
 export class RecipeRepository extends BaseRepository<Recipe> {
   constructor(adapter: IStorageAdapter, userId?: string) {

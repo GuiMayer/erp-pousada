@@ -1,6 +1,6 @@
 "use client"
 
-import { TableCard } from "./table-card"
+import { TableCard } from "@/modules/abandoned/restaurant/components/table-card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { UtensilsCrossed } from "lucide-react"
 import type { RestaurantOrder, RestaurantTable } from "@/lib/store"

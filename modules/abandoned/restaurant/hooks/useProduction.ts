@@ -1,12 +1,12 @@
-import { unitFactor } from "../utils/units"
-import { getDataConfig } from "../data/config"
+import { unitFactor } from "@/lib/utils/units"
+import { getDataConfig } from "@/lib/data/config"
 import { useCallback, useMemo } from "react"
-import { useApp } from "../app-context"
-import type { Recipe, Production, RecipeIngredient } from "../store"
-import { useStockControl } from "./useStockControl"
-import { useStockIntegration } from "./useStockIntegration"
-import { useBusinessRules } from "./useBusinessRules"
-import { generateProductionId } from "../utils/id-generators"
+import { useApp } from "@/lib/app-context"
+import type { Recipe, Production, RecipeIngredient } from "@/lib/store"
+import { useStockControl } from "@/lib/hooks/useStockControl"
+import { useStockIntegration } from "@/modules/abandoned/restaurant/legacy/lib/hooks/useStockIntegration"
+import { useBusinessRules } from "@/modules/abandoned/restaurant/legacy/lib/hooks/useBusinessRules"
+import { generateProductionId } from "@/lib/utils/id-generators"
 
 /**
  * Hook for managing recipe production
@@ -24,7 +24,7 @@ export function useProduction() {
     posProducts,
   } = useApp()
 
-  const { hasStock, getStockByProduct } = useStockControl()
+  const { hasStock, getStockByProduct } = useStockControl({ includeArchived: true })
   const { processStockForProduction } = useStockIntegration()
   const { checkProductionYield } = useBusinessRules()
 

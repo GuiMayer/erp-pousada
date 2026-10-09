@@ -2,7 +2,6 @@
 import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
-import { ProductionModal } from "@/components/restaurant/production-modal"
 import { useState } from "react"
 import { Package, Plus, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -26,7 +25,6 @@ import {
 import { EmptyState } from "@/components/ui/empty-state"
 import { StockMovementModal } from "./stock-movement-modal"
 import { ProductsManagementTab } from "./products-management-tab"
-import { RestaurantProductsTab } from "./restaurant-products-tab"
 import { StockThresholdConfig } from "./stock-threshold-config"
 import { useStockControl } from "@/lib/hooks/useStockControl"
 import type { StockItem } from "@/lib/store"
@@ -36,7 +34,6 @@ export function StockTab() {
   const { stockItems, filter, setFilter, stats, getStockStatus } = useStockControl()
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [movementModalOpen, setMovementModalOpen] = useState(false)
-  const [productionOpen, setProductionOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("products")
 
   const handleAddMovement = (item: StockItem) => {
@@ -86,15 +83,12 @@ export function StockTab() {
             Gerencie produtos e controle de estoque
           </p>
         </div>
-        <PermissionGate permission="production.register"><Button onClick={() => setProductionOpen(true)}>Registrar produção</Button></PermissionGate>
       </div>
-      <ProductionModal open={productionOpen} onClose={() => setProductionOpen(false)} />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="products">Catálogo de Produtos</TabsTrigger>
-          <TabsTrigger value="restaurant">Cardápio do Restaurante</TabsTrigger>
           <TabsTrigger value="movements">Movimentações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
@@ -102,11 +96,6 @@ export function StockTab() {
         {/* Products Tab */}
         <TabsContent value="products" className="space-y-6">
           <ProductsManagementTab />
-        </TabsContent>
-
-        {/* Restaurant Products Tab */}
-        <TabsContent value="restaurant" className="space-y-6">
-          <RestaurantProductsTab />
         </TabsContent>
 
         {/* Movements Tab */}

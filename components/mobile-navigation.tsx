@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { Map, CalendarDays, ShoppingCart, UtensilsCrossed, Package, DollarSign, BarChart3, Settings, Shield, History, Menu, UserRound } from "lucide-react"
+import { Map, CalendarDays, ShoppingCart, Package, DollarSign, BarChart3, Settings, Shield, History, Menu, UserRound } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
 import { useActiveTab } from "@/contexts/active-tab-context"
@@ -14,7 +14,6 @@ export const mobileModules = [
   { key: "mapa", label: "Mapa", icon: Map, group: "Operação" },
   { key: "reservas", label: "Reservas", icon: CalendarDays, group: "Operação" },
   { key: "pdv", label: "Caixa", icon: ShoppingCart, group: "Operação" },
-  { key: "restaurante", label: "Restaurante", icon: UtensilsCrossed, group: "Operação" },
   { key: "estoque", label: "Estoque", icon: Package, group: "Operação" },
   { key: "financeiro", label: "Financeiro", icon: DollarSign, group: "Gestão" },
   { key: "relatorios", label: "Relatórios", icon: BarChart3, group: "Gestão" },

@@ -4,9 +4,9 @@
  * Manages production records.
  */
 
-import { BaseRepository } from "./base-repository"
-import type { Production } from "../../store"
-import type { IStorageAdapter } from "../types"
+import { BaseRepository } from "@/lib/data/repositories/base-repository"
+import type { Production } from "@/lib/store"
+import type { IStorageAdapter } from "@/lib/data/types"
 
 export class ProductionRepository extends BaseRepository<Production> {
   constructor(adapter: IStorageAdapter, userId?: string) {

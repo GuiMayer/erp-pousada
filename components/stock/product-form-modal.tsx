@@ -14,10 +14,9 @@ interface ProductFormModalProps {
   open: boolean
   onClose: () => void
   product?: POSProduct
-  categoryType?: "pdv" | "restaurant"
 }
 
-export function ProductFormModal({ open, onClose, product, categoryType = "pdv" }: ProductFormModalProps) {
+export function ProductFormModal({ open, onClose, product }: ProductFormModalProps) {
   const { posProducts, addPOSProduct, updatePOSProduct, productCategories } = useApp()
 
   const [formData, setFormData] = useState({
@@ -33,7 +32,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
 
   // Filter categories based on type
   const filteredCategories = productCategories.filter(c =>
-    c.active && (categoryType === "restaurant" ? c.isRestaurant : !c.isRestaurant)
+    c.active && !c.isRestaurant
   )
 
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react"
 
-type TabValue = "mapa" | "reservas" | "pdv" | "restaurante" | "estoque" | "financeiro" | "relatorios" | "configuracoes" | "administracao" | "auditoria"
+type TabValue = "mapa" | "reservas" | "pdv" | "estoque" | "financeiro" | "relatorios" | "configuracoes" | "administracao" | "auditoria"
 
 interface ActiveTabContextType {
   activeTab: TabValue

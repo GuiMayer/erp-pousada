@@ -4,7 +4,7 @@
  * Generates PDF reports for restaurant orders with filtering options.
  */
 
-import type { RestaurantOrder, POSProduct, ProductCategory, SystemSettings } from "../store"
+import type { RestaurantOrder, POSProduct, ProductCategory, SystemSettings } from "@/lib/store"
 import {
   createPDFDocument,
   generatePDFHeader,
@@ -13,7 +13,7 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
-} from "../utils/pdf-export"
+} from "@/lib/utils/pdf-export"
 
 export interface RestaurantReportFilters {
   startDate?: string

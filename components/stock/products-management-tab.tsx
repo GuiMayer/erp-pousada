@@ -136,7 +136,7 @@ export function ProductsManagementTab() {
             Catálogo de Produtos
           </h3>
           <p className="text-muted-foreground">
-            Gerencie o catálogo central de produtos usado em todos os sistemas
+            Gerencie o catálogo central de produtos usado em a pousada
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -292,14 +292,12 @@ export function ProductsManagementTab() {
         open={productFormOpen}
         onClose={() => setProductFormOpen(false)}
         product={selectedProduct}
-        categoryType="pdv"
       />
 
       {/* Categories Modal */}
       <ManageCategoriesModal
         open={categoriesModalOpen}
         onClose={() => setCategoriesModalOpen(false)}
-        defaultTab="pdv"
       />
 
       {/* Delete Confirmation */}

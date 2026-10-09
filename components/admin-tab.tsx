@@ -679,7 +679,7 @@ export function AdminTab() {
           <Separator />
           <p className="text-sm font-medium">Limites dos alertas operacionais</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {Object.entries({ stockCriticalLevel: "Estoque crítico (% do mínimo)", stockLowLevel: "Estoque baixo (% do mínimo)", cashDifferenceWarning: "Diferença de caixa: aviso (R$)", cashDifferenceCritical: "Diferença de caixa: crítico (R$)", openOrderWarningHours: "Comanda: aviso (horas)", openOrderCriticalHours: "Comanda: crítico (horas)", yieldWarningPercentage: "Rendimento: aviso abaixo de (%)", yieldCriticalPercentage: "Rendimento: crítico abaixo de (%)" }).map(([key, label]) => <div key={key} className="space-y-1">
+            {Object.entries({ stockCriticalLevel: "Estoque crítico (% do mínimo)", stockLowLevel: "Estoque baixo (% do mínimo)", cashDifferenceWarning: "Diferença de caixa: aviso (R$)", cashDifferenceCritical: "Diferença de caixa: crítico (R$)" }).map(([key, label]) => <div key={key} className="space-y-1">
               <Label htmlFor={`rule-${key}`}>{label}</Label>
               <Input id={`rule-${key}`} type="number" min="0" step="0.1" value={formData.notificationRules?.[key] ?? (ruleSchema.parse({}) as Record<string, number>)[key]} onChange={e => handleFieldChange("notificationRules", { ...formData.notificationRules, [key]: Number(e.target.value) })} />
             </div>)}
@@ -718,7 +718,7 @@ export function AdminTab() {
                     <Badge variant={userItem.active ? "default" : "secondary"}>
                       {userItem.active ? "Ativo" : "Inativo"}
                     </Badge>
-                    <Badge variant="outline">{PROFILES[userItem.accessProfile || (userItem.role === "supervisor" ? "administrador" : "operador_legado")]?.label}</Badge>
+                    <Badge variant="outline">{PROFILES[userItem.accessProfile || (userItem.role === "supervisor" ? "administrador" : "operador_legado")]?.label === "Restaurante" ? "Módulo arquivado" : PROFILES[userItem.accessProfile || (userItem.role === "supervisor" ? "administrador" : "operador_legado")]?.label}</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {userItem.username}{userItem.email ? ` - ${userItem.email}` : ""}
@@ -813,7 +813,7 @@ export function AdminTab() {
                 <Label htmlFor="userRole">Perfil</Label>
                 <Select value={userForm.accessProfile} onValueChange={(value) => setUserForm(prev => ({ ...prev, accessProfile: value }))}>
                   <SelectTrigger id="userRole"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(PROFILES).map(([key, profile]) => <SelectItem key={key} value={key} disabled={effectivePermissions({ accessProfile: key }).some(permission => !can(permission))}>{profile.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{userForm.accessProfile === "restaurante" && <SelectItem value="restaurante" disabled>Módulo arquivado</SelectItem>}{Object.entries(PROFILES).filter(([key]) => key !== "restaurante").map(([key, profile]) => <SelectItem key={key} value={key} disabled={effectivePermissions({ accessProfile: key }).some(permission => !can(permission))}>{profile.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

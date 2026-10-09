@@ -44,11 +44,11 @@ import {
 } from "@/lib/utils/csv-export"
 import { downloadReservationsReport } from "@/lib/reports/reservations-report"
 import { downloadStockReport } from "@/lib/reports/stock-report"
-import { downloadRestaurantReport } from "@/lib/reports/restaurant-report"
+import { pousadaStock } from "@/lib/pousada-scope"
 import { getTodayISO } from "@/lib/utils/constants"
 import { toast } from "sonner"
 import type { StockReportProduct } from "@/lib/reports/stock-report"
-import type { Reservation, RestaurantOrder } from "@/lib/store"
+import type { Reservation } from "@/lib/store"
 
 export function ReportsTab() {
   const { preferences } = useUserPreferences()
@@ -57,7 +57,6 @@ export function ReportsTab() {
     rooms,
     posProducts: products,
     stockItems, productCategories,
-    restaurantOrders,
     systemSettings
   } = useApp()
 
@@ -79,9 +78,6 @@ export function ReportsTab() {
   const [stockType, setStockType] = useState<StockReportProduct["type"] | "all">("all")
   const [stockLowStock, setStockLowStock] = useState(false)
 
-  // PDF Report filters - Restaurant
-  const [restaurantStatus, setRestaurantStatus] = useState<RestaurantOrder["status"] | "all">("all")
-  const [restaurantCategoryId, setRestaurantCategoryId] = useState<string | "all">("all")
 
   const {
     getDailySummary,
@@ -232,7 +228,7 @@ export function ReportsTab() {
     handlePDFWithLoading(() => {
       downloadStockReport(
         {
-          products: stockItems.map(stock => ({ ...stock, name: stock.productName, categoryId: products.find(p => p.id === stock.productId)?.categoryId || "", type: "sellable" as const, unitPrice: stock.averageCost, minimumStock: stock.minimumStock })),
+          products: pousadaStock(stockItems, products, productCategories).map(stock => ({ ...stock, name: stock.productName, categoryId: products.find(p => p.id === stock.productId)?.categoryId || "", type: "sellable" as const, unitPrice: stock.averageCost, minimumStock: stock.minimumStock })),
           categories: productCategories,
           filters: {
             categoryId: stockCategoryId,
@@ -243,26 +239,6 @@ export function ReportsTab() {
         systemSettings
       )
       toast.success("Relatório de estoque gerado com sucesso!")
-    })
-  }
-
-  const handleGenerateRestaurantPDF = () => {
-    handlePDFWithLoading(() => {
-      downloadRestaurantReport(
-        {
-          orders: restaurantOrders,
-          products: products,
-          categories: productCategories,
-          filters: {
-            startDate: startDate || undefined,
-            endDate: endDate || undefined,
-            status: restaurantStatus,
-            categoryId: restaurantCategoryId,
-          },
-        },
-        systemSettings
-      )
-      toast.success("Relatório de restaurante gerado com sucesso!")
     })
   }
 
@@ -299,7 +275,6 @@ export function ReportsTab() {
               onExportStockAlerts={handleExportStockAlerts}
               onGenerateReservationsPDF={handleGenerateReservationsPDF}
               onGenerateStockPDF={handleGenerateStockPDF}
-              onGenerateRestaurantPDF={handleGenerateRestaurantPDF}
               showRevenueTrend={isMultiDay && revenueTrend.length > 0}
               isExporting={isExporting}
               isGeneratingPDF={isGeneratingPDF}
@@ -477,7 +452,6 @@ export function ReportsTab() {
             onExportStockAlerts={handleExportStockAlerts}
             onGenerateReservationsPDF={handleGenerateReservationsPDF}
             onGenerateStockPDF={handleGenerateStockPDF}
-            onGenerateRestaurantPDF={handleGenerateRestaurantPDF}
             showRevenueTrend={isMultiDay && revenueTrend.length > 0}
             isExporting={isExporting}
             isGeneratingPDF={isGeneratingPDF}

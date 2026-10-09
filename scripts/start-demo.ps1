@@ -43,7 +43,7 @@ if ($AppUrl) {
 Protect-DemoFile $environmentFile
 $demoUrl = ($configuration | Where-Object { $_.StartsWith('DEMO_APP_URL=') }).Substring(13)
 $loginPassword = ($configuration | Where-Object { $_.StartsWith('DEMO_LOGIN_PASSWORD=') }).Substring(20)
-[IO.File]::WriteAllLines($credentialFile, @("Endereço: $demoUrl", 'Usuário administrador: teste', 'Usuários por setor: recepcao, restaurante, estoque', "Senha das contas de demonstração: $loginPassword", 'Credenciais exclusivas para dados fictícios; não são utilizadas pela instalação principal.'))
+[IO.File]::WriteAllLines($credentialFile, @("Endereço: $demoUrl", 'Usuário administrador: teste', 'Usuários por setor: recepcao, estoque', "Senha das contas de demonstração: $loginPassword", 'Credenciais exclusivas para dados fictícios; não são utilizadas pela instalação principal.'))
 Protect-DemoFile $credentialFile
 Invoke-DemoDocker info --format '{{.ServerVersion}}' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Inicie o motor Docker pelo painel.' }

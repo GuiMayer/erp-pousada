@@ -17,9 +17,10 @@ async function condition(tx: Tx, key: string, input: Omit<EventInput, "dedupKey"
 export async function evaluateStock(tx: Tx) {
   const settings = await tx.systemSettings.findFirst()
   const rules = ruleSchema.parse(settings?.notificationRules ?? {})
-  const stocks = await tx.stockItem.findMany({ include: { product: true } })
+  const stocks = await tx.stockItem.findMany({ include: { product: { include: { category: true } } } })
   const keys: string[] = []
   for (const stock of stocks) {
+    if (stock.product.category?.isRestaurant) continue
     const key = `stock:${stock.productId}`; keys.push(key)
     const ratio = Number(stock.minimumStock) > 0 ? Number(stock.currentStock) / Number(stock.minimumStock) * 100 : Infinity
     const priority = ratio <= rules.stockCriticalLevel ? "critical" : ratio <= rules.stockLowLevel ? "high" : null
@@ -34,7 +35,6 @@ async function resolveMissing(tx: Tx, prefix: string, keys: string[]) {
 }
 export async function evaluateTimed(tx: Tx, now = new Date()) {
   const settings = await tx.systemSettings.findFirst()
-  const rules = ruleSchema.parse(settings?.notificationRules ?? {})
   const today = businessDay(now)
   const hour = new Intl.DateTimeFormat("en-GB", { timeZone: BUSINESS_TIME_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now)
   const reservations = await tx.reservation.findMany({ where: { status: { in: ["confirmada", "checkin"] } } })
@@ -62,13 +62,4 @@ export async function evaluateTimed(tx: Tx, now = new Date()) {
     await condition(tx, key, overdue && settings?.notifyPendingPayments !== false && account.status !== "cancelado" ? { type: "payment", title: "Recebimento vencido", message: "Há um título vencido. Confira as contas a receber.", module: "financeiro", reference: account.id, requiredPermissions: ["accountsReceivable.read"], priority: "high" } : null)
   }
   await resolveMissing(tx, "receivable:", paymentKeys)
-  const orders = await tx.restaurantOrder.findMany({ where: { status: "aberta" } })
-  const orderKeys: string[] = []
-  for (const order of orders) {
-    const key = `order:${order.id}`; orderKeys.push(key)
-    const hours = (now.getTime() - order.openedAt.getTime()) / 3600000
-    await condition(tx, key, hours >= rules.openOrderWarningHours ? { type: "restaurant", title: "Comanda aberta há muito tempo", message: `Mesa ${order.tableNumber}: confira o atendimento.`, module: "restaurante", reference: order.id,
-      priority: hours >= rules.openOrderCriticalHours ? "critical" : "high", requiredPermissions: ["restaurantOrders.read"] } : null)
-  }
-  await resolveMissing(tx, "order:", orderKeys)
 }

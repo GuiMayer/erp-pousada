@@ -8,7 +8,6 @@ const TAB_NAMES: Record<string, string> = {
   mapa: "Mapa",
   reservas: "Reservas",
   pdv: "Frente de Caixa",
-  restaurante: "Restaurante",
   estoque: "Estoque",
   financeiro: "Financeiro",
   relatorios: "Relatórios",

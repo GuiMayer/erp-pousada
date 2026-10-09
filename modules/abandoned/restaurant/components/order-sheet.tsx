@@ -3,7 +3,7 @@ import { PermissionGate } from "@/components/permission-gate"
 
 import { getDataConfig } from "@/lib/data/config"
 
-import { BankAccountPicker } from "../payment-fields"
+import { BankAccountPicker } from "@/components/payment-fields"
 import { useState } from "react"
 import { X, Plus, Minus, Trash2, DollarSign, Percent } from "lucide-react"
 import {
@@ -28,8 +28,8 @@ import {
 } from "@/components/ui/select"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useOrderManagement } from "@/lib/hooks/useOrderManagement"
-import { useStockIntegration } from "@/lib/hooks/useStockIntegration"
+import { useOrderManagement } from "@/modules/abandoned/restaurant/hooks/useOrderManagement"
+import { useStockIntegration } from "@/modules/abandoned/restaurant/legacy/lib/hooks/useStockIntegration"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"

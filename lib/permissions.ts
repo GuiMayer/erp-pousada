@@ -136,7 +136,6 @@ export const tabPermissions: Record<string, string[]> = {
   mapa: ["rooms.read"],
   reservas: ["reservations.read"],
   pdv: ["pos.sell"],
-  restaurante: ["restaurantTables.read"],
   estoque: ["stockItems.read"],
   financeiro: ["transactions.read",
   "expenses.read",

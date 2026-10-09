@@ -4,19 +4,16 @@ import { createDataStore } from "../../../lib/data/repositories"
 import { LocalStorageAdapter } from "../../../lib/data/storage-adapter"
 
 describe("demonstration data", () => {
-  it("keeps reservations, occupied tables and order totals consistent", () => {
+  it("keeps reservations and beverage sale totals consistent", () => {
     const data = createDemoData(new Date("2026-10-07T15:00:00Z"))
     for (const reservation of data.reservations) {
       expect(data.rooms.some((room) => room.id === reservation.roomId && room.number === reservation.roomNumber)).toBe(true)
       expect(data.guests.some((guest) => guest.cpf === reservation.cpf)).toBe(true)
       expect(reservation.checkOut > reservation.checkIn).toBe(true)
     }
-    for (const table of data.restaurantTables.filter((table) => table.status === "ocupada")) {
-      const order = data.restaurantOrders.find((order) => order.id === table.currentOrderId)
-      expect(order?.tableId).toBe(table.id)
-      expect(order?.status).toBe("aberta")
-      expect(order?.total).toBe(order?.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0))
-    }
+    expect(data.restaurantTables).toEqual([])
+    expect(data.restaurantOrders).toEqual([])
+    expect(data.productCategories.every(category => !category.isRestaurant)).toBe(true)
     for (const sale of data.posSales) {
       expect(sale.total).toBe(sale.items.reduce((sum, item) => sum + item.quantity * item.product.price, 0))
       expect(data.transactions.some((transaction) => transaction.refId === sale.id && transaction.value === sale.total)).toBe(true)
@@ -34,7 +31,7 @@ describe("demonstration data", () => {
       expect(await store.reservations.getAll()).toHaveLength(10)
       expect(await store.posSales.getAll()).toHaveLength(112)
       expect(await store.stockItems.getAll()).toHaveLength(12)
-      expect(await store.restaurantOrders.getAll()).toHaveLength(3)
+      expect(await store.restaurantOrders.getAll()).toHaveLength(0)
       expect(await seedDemoIfEmpty(store)).toBe(false)
     } finally {
       await adapter.clear()

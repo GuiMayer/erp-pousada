@@ -32,8 +32,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ProductFormModal } from "./product-form-modal"
-import { ManageCategoriesModal } from "../manage-categories-modal"
+import { ProductFormModal } from "@/modules/abandoned/restaurant/legacy/components/stock/product-form-modal"
+import { ManageCategoriesModal } from "@/modules/abandoned/restaurant/legacy/components/manage-categories-modal"
 import { useApp } from "@/lib/app-context"
 import type { POSProduct } from "@/lib/store"
 

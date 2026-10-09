@@ -220,9 +220,9 @@ export function SettingsTab() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="notif-pos">PDV e Restaurante</Label>
+                    <Label htmlFor="notif-pos">Frente de Caixa</Label>
                     <p className="text-xs text-muted-foreground">
-                      Alertas de vendas e pedidos
+                      Alertas de vendas de bebidas
                     </p>
                   </div>
                   <Switch
@@ -235,7 +235,7 @@ export function SettingsTab() {
 
               <Separator />
 
-              {([ ["stock", "Estoque"], ["cash", "Caixa"], ["production", "Produção"] ] as const).map(([key, label]) => <div key={key} className="flex items-center justify-between gap-3">
+              {([ ["stock", "Estoque"], ["cash", "Caixa"] ] as const).map(([key, label]) => <div key={key} className="flex items-center justify-between gap-3">
                 <Label htmlFor={`notif-${key}`}>{label}</Label><Switch id={`notif-${key}`} checked={notificationPrefs[key]} onCheckedChange={checked => updatePreferences({ [key]: checked })} />
               </div>)}
               <div className="flex items-center justify-between">

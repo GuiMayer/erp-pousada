@@ -1,6 +1,6 @@
 import { useCallback } from "react"
 import { useAlerts } from "../alert-context"
-import type { StockItem, RestaurantOrder, CashClose } from "../store"
+import type { StockItem, CashClose } from "../store"
 
 /**
  * Hook for business rules validation and alerts
@@ -93,40 +93,6 @@ export function useBusinessRules() {
   }, [addAlert, thresholds])
 
   /**
-   * Check open order time and alert if too long
-   */
-  const checkOpenOrderTime = useCallback((order: RestaurantOrder) => {
-    if (order.status !== 'aberta') return 'ok'
-
-    const { openOrderWarningHours, openOrderCriticalHours } = thresholds
-    const openedAt = new Date(order.openedAt).getTime()
-    const now = Date.now()
-    const hoursOpen = (now - openedAt) / (1000 * 60 * 60)
-
-    if (hoursOpen >= openOrderCriticalHours) {
-      addAlert({
-        type: 'error',
-        priority: 'critical',
-        title: 'Comanda Aberta Há Muito Tempo',
-        message: `Mesa ${order.tableNumber || order.id}: aberta há ${hoursOpen.toFixed(1)}h`,
-      })
-      return 'critical'
-    }
-
-    if (hoursOpen >= openOrderWarningHours) {
-      addAlert({
-        type: 'warning',
-        priority: 'medium',
-        title: 'Comanda Aberta',
-        message: `Mesa ${order.tableNumber || order.id}: aberta há ${hoursOpen.toFixed(1)}h`,
-      })
-      return 'warning'
-    }
-
-    return 'ok'
-  }, [addAlert, thresholds])
-
-  /**
    * Check cash payment amount and alert if high
    */
   const checkCashPayment = useCallback((amount: number) => {
@@ -164,47 +130,11 @@ export function useBusinessRules() {
     return false
   }, [addAlert, thresholds])
 
-  /**
-   * Check production yield and alert if below threshold
-   */
-  const checkProductionYield = useCallback((
-    plannedQuantity: number,
-    producedQuantity: number,
-    recipeName: string
-  ) => {
-    const { yieldWarningPercentage, yieldCriticalPercentage } = thresholds
-    const yieldPercentage = (producedQuantity / plannedQuantity) * 100
-
-    if (yieldPercentage < yieldCriticalPercentage) {
-      addAlert({
-        type: 'error',
-        priority: 'high',
-        title: 'Rendimento Crítico',
-        message: `${recipeName}: ${yieldPercentage.toFixed(1)}% de rendimento (esperado: ${yieldCriticalPercentage}%+)`,
-      })
-      return 'critical'
-    }
-
-    if (yieldPercentage < yieldWarningPercentage) {
-      addAlert({
-        type: 'warning',
-        priority: 'medium',
-        title: 'Rendimento Baixo',
-        message: `${recipeName}: ${yieldPercentage.toFixed(1)}% de rendimento (esperado: ${yieldWarningPercentage}%+)`,
-      })
-      return 'warning'
-    }
-
-    return 'ok'
-  }, [addAlert, thresholds])
-
   return {
     checkStockLevel,
     checkCashDifference,
     checkWithdrawalAmount,
-    checkOpenOrderTime,
     checkCashPayment,
     checkChangeAmount,
-    checkProductionYield,
   }
 }

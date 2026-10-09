@@ -1,10 +1,10 @@
-import { roundMoney } from "../utils/business-values"
-import { getDataConfig } from "../data/config"
+import { roundMoney } from "@/lib/utils/business-values"
+import { getDataConfig } from "@/lib/data/config"
 import { useCallback, useMemo } from "react"
-import { useApp } from "../app-context"
-import type { RestaurantOrder, RestaurantOrderItem, POSProduct } from "../store"
-import { generateOrderItemId } from "../utils/id-generators"
-import { getTodayISO } from "../utils/constants"
+import { useApp } from "@/lib/app-context"
+import type { RestaurantOrder, RestaurantOrderItem, POSProduct } from "@/lib/store"
+import { generateOrderItemId } from "@/lib/utils/id-generators"
+import { getTodayISO } from "@/lib/utils/constants"
 
 type OrderActionResult = { success: boolean; error?: string }
 
