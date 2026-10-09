@@ -21,7 +21,10 @@ function Invoke-PanelCommand([string]$Executable,[string[]]$Arguments,[int]$Time
   $errorFile=Join-Path $directory "$id.err"
   $process=$null
   try {
-    $quoted=($Arguments | ForEach-Object { ConvertTo-ProcessArgument $_ }) -join ' '
+    # wsl.exe parses its own switches from the raw Windows command line and
+    # treats quoted switches as Linux command text. Keep simple switches bare.
+    $isWsl=[IO.Path]::GetFileName($Executable) -ieq 'wsl.exe'
+    $quoted=($Arguments | ForEach-Object { if($isWsl -and $_ -match '^[A-Za-z0-9_./:+={}=-]+$'){$_}else{ConvertTo-ProcessArgument $_} }) -join ' '
     $process=Start-Process -FilePath $Executable -ArgumentList $quoted -WindowStyle Hidden -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile -PassThru
     $null=$process.Handle
     $deadline=[DateTime]::UtcNow.AddSeconds($TimeoutSeconds)

@@ -1,8 +1,9 @@
 ﻿function Invoke-DemoDocker {
-  param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments)
+  $Arguments=$args
   if(Get-Command Invoke-Docker -ErrorAction SilentlyContinue) { Invoke-Docker $Arguments; $global:LASTEXITCODE=0 }
-  else { & docker @Arguments }
+  else { Invoke-ErpDocker $Arguments }
 }
+. (Join-Path $PSScriptRoot 'docker-runtime.ps1')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $projectRoot

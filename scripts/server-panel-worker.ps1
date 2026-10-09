@@ -1,5 +1,5 @@
 ﻿param(
-  [Parameter(Mandatory=$true)][ValidateSet('Status','StartNormal','StopNormal','StartDemo','StopDemo','ConnectNormal','ConnectDemo','ConfigureBackup','BackupNow')][string]$Action,
+  [Parameter(Mandatory=$true)][ValidateSet('Status','StartEngine','StartNormal','StopNormal','StartDemo','StopDemo','ConnectNormal','ConnectDemo','ConfigureBackup','BackupNow')][string]$Action,
   [Parameter(Mandatory=$true)][string]$ResultFile,
   [string]$ProgressFile='',
   [string]$CancelFile='',
@@ -8,6 +8,7 @@
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 . (Join-Path $PSScriptRoot 'server-panel-process.ps1')
+. (Join-Path $PSScriptRoot 'docker-runtime.ps1')
 $script:ProgressFile=$ProgressFile
 $script:CancelFile=$CancelFile
 $script:OperationDeadline=[DateTime]::UtcNow.AddMinutes(8)
@@ -16,7 +17,8 @@ $script:OperationDeadline=[DateTime]::UtcNow.AddMinutes(8)
 function Invoke-Docker([string[]]$Arguments) {
   $timeout=30
   if($Arguments -contains 'up' -or $Arguments -contains 'down' -or $Arguments -contains 'stop' -or $Arguments -contains 'exec'){$timeout=180}
-  return Invoke-PanelCommand (Get-Command docker.exe -CommandType Application | Select-Object -First 1).Source $Arguments $timeout
+  $invocation=Get-ErpDockerInvocation $Arguments
+  return Invoke-PanelCommand $invocation.Executable $invocation.Arguments $timeout
 }
 function Get-Containers([string]$Project) {
   $lines = Invoke-Docker @('ps','-a','--filter',"label=com.docker.compose.project=$Project",'--format','{{json .}}')
@@ -65,7 +67,11 @@ try {
       }
     } catch { $result.Tailscale=$_.Exception.Message; $result.NormalAccess='Sem acesso pelo Tailscale.'; $result.DemoAccess='Sem acesso pelo Tailscale.' }
   }
-  if (!(Get-Command docker -ErrorAction SilentlyContinue)) { throw 'Docker não instalado. Instale e abra o Docker Desktop.' }
+  if($Action -eq 'StartEngine') {
+    $runtime=Get-ErpDockerRuntime
+    if($runtime.Backend -ne 'wsl'){throw 'Use Abrir Docker Desktop para iniciar o motor antigo.'}
+    Invoke-PanelCommand (Get-Command wsl.exe).Source @('-d',$runtime.Distribution,'-u','root','--exec','systemctl','start','docker') 60 | Out-Null
+  }
   Invoke-Docker @('info','--format','{{.ServerVersion}}') | Out-Null
   if ($Action -eq 'Status') {
     $result.Normal = Get-State 'erp-pousada' 'app'
@@ -86,6 +92,7 @@ try {
     try { $locked = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked=$true }
     if (!$locked) { throw 'Outra operação está em andamento. Aguarde sua conclusão.' }
     switch ($Action) {
+      'StartEngine' { $result.Message='Docker no Debian iniciado. Atualizando os estados…' }
       'StartNormal' {
         Set-PanelStage 'Verificando a instalação e iniciando o banco…'
         $services = @{}
@@ -138,7 +145,7 @@ try {
     @{ Action=$Action; Time=[DateTime]::UtcNow.ToString('o'); Message=$result.Message } | ConvertTo-Json | Set-Content -LiteralPath $diagnostic -Encoding UTF8
   }
   if ($Action -eq 'Status') {
-    $result.Docker='Indisponível — abra o Docker Desktop e aguarde o motor iniciar.'
+    $result.Docker='Indisponível — inicie o motor Docker pelo link do painel.'
     $result.Normal='Indisponível — depende do Docker.'; $result.Demo='Indisponível — depende do Docker.'
   } elseif($Action -in @('StartNormal','StartDemo')) {
     $result.Message="Inicialização incompleta: $($result.Message) O servidor pode estar funcionando localmente; confira o estado e ative o link novamente."

@@ -3,6 +3,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot 'server-panel-process.ps1')
+. (Join-Path $PSScriptRoot 'docker-runtime.ps1')
 [Windows.Forms.Application]::EnableVisualStyles()
 $root=Split-Path $PSScriptRoot -Parent
 $local=Join-Path $root '.local/server-panel'
@@ -116,7 +117,9 @@ Link-Button 'Copiar link' 630 'Demo' $true
 $script:dockerStatus=Label 'Docker: verificando…' 24 447 610 30
 $dockerLink=New-Object Windows.Forms.LinkLabel
 $dockerLink.Text='Abrir Docker Desktop'; $dockerLink.SetBounds(650,447,170,28)
+if((Get-ErpDockerRuntime).Backend -eq 'wsl'){$dockerLink.Text='Iniciar Docker Debian'}
 $dockerLink.Add_LinkClicked({
+  if((Get-ErpDockerRuntime).Backend -eq 'wsl'){Run-Worker 'StartEngine'; return}
   $candidates=@((Join-Path $env:ProgramFiles 'Docker/Docker/Docker Desktop.exe'),(Join-Path $env:LOCALAPPDATA 'Programs/Docker/Docker/Docker Desktop.exe'))
   $exe=$candidates | Where-Object{Test-Path -LiteralPath $_} | Select-Object -First 1
   if($exe){Start-Process -FilePath $exe -WindowStyle Normal; $script:message.Text='Docker Desktop aberto. Aguarde o motor iniciar; o painel atualizará o estado.'}

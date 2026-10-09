@@ -1,9 +1,11 @@
 ﻿param([string]$AppUrl = '', [switch]$NoBuild)
 function Invoke-DemoDocker {
-  param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments)
+  # Keep Docker flags literal: advanced PowerShell functions consume -d as Debug.
+  $Arguments=$args
   if(Get-Command Invoke-Docker -ErrorAction SilentlyContinue) { Invoke-Docker $Arguments; $global:LASTEXITCODE=0 }
-  else { & docker @Arguments }
+  else { Invoke-ErpDocker $Arguments }
 }
+. (Join-Path $PSScriptRoot 'docker-runtime.ps1')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $projectRoot
@@ -44,7 +46,7 @@ $loginPassword = ($configuration | Where-Object { $_.StartsWith('DEMO_LOGIN_PASS
 [IO.File]::WriteAllLines($credentialFile, @("Endereço: $demoUrl", 'Usuário administrador: teste', 'Usuários por setor: recepcao, restaurante, estoque', "Senha das contas de demonstração: $loginPassword", 'Credenciais exclusivas para dados fictícios; não são utilizadas pela instalação principal.'))
 Protect-DemoFile $credentialFile
 Invoke-DemoDocker info --format '{{.ServerVersion}}' | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'Inicie o Docker Desktop.' }
+if ($LASTEXITCODE -ne 0) { throw 'Inicie o motor Docker pelo painel.' }
 $composeArguments = @('compose','--project-name','erp-pousada-demo','--env-file',$environmentFile,'-f','compose.demo.yml')
 Write-Host 'Recriando apenas a demonstração. Alterações da sessão anterior serão descartadas.'
 Invoke-DemoDocker @composeArguments down --volumes --remove-orphans
