@@ -1,8 +1,8 @@
 # Requisitos e modelagem funcional — ERP Pousada
 
-**Versão:** 0.5 · **Data:** 09/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints.
+**Versão:** 0.6 · **Data:** 09/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1 implementada.
 
-Requisitos e entidades abaixo descrevem o alvo; não significam implementação concluída. Esta revisão corrige a redução excessiva da versão 0.4: restaura o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. Não há mudança funcional de aplicação nesta revisão.
+Requisitos e entidades abaixo descrevem o alvo; não significam implementação de todas as sprints. A revisão 0.5 restaurou o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. A revisão 0.6 registra a [entrega da Sprint 1](ENTREGA_SPRINT_1.md), preservando integralmente os requisitos das etapas seguintes.
 
 O [plano das sprints](SPRINTS_POUSADA.md) define a sequência de entrega. A [auditoria de escopo](REVISAO_ESCOPO_MODELAGEM.md) dá uma destinação explícita a cada requisito numerado da versão completa. A [versão 0.3 integral](../modules/abandoned/restaurant/docs/REQUISITOS_POUSADA_E_RESTAURANTE.md) permanece preservada como referência histórica, sem autoridade sobre o escopo ativo.
 
@@ -566,9 +566,9 @@ Uma sprint termina com fluxo utilizável, dados e histórico coerentes, permiss�
 
 | Arquivo atual | Evidência e limite |
 | --- | --- |
-| [schema Prisma](../prisma/schema.prisma) | GuestProfile por CPF; reserva vinculada a quarto; consumo único por quarto, item sem productId; preço padrão POS; estoque sem saldo por lote. Ausência de tarifa estruturada, compra integrada e hospedagem independente. |
+| [schema Prisma](../prisma/schema.prisma) | S1: identidade estável em Customer, papéis, vínculo de GuestProfile/Supplier, capacidade, LodgingTariff e composição/pagador da reserva. CPF legado permanece como chave de compatibilidade. Consumo por quarto, compra integrada, hospedagem independente e saldo por lote ainda dependem das sprints seguintes. |
 | [operações](../lib/server/operations.ts) | Quitação obrigatória no check-out atual; consumo baixa produto procurado por descrição e pagamento remove conjunto de consumo. Necessidade de identidade/origem e histórico novos. |
-| [navegação](../components/dashboard-shell.tsx) | Nove módulos ativos; exclusão do restaurante não significa novos requisitos já implementados. |
+| [navegação](../components/dashboard-shell.tsx) | Cadastros reúne pessoas, fornecedores, quartos/tarifas e bebidas. Exclusão do restaurante não significa conclusão de S2–S5. |
 | [regras atuais](REGRAS_NEGOCIO.md) | Base validada de preço, cancelamento, crédito, caixa e estoque a preservar; ainda distingue fluxo atual do alvo empresarial. |
 | [permissões](PERMISSOES.md), [concorrência](CONCORRENCIA.md) | Infraestrutura existente a estender, não reescrever do zero. |
 | [notificações](NOTIFICACOES.md), [logs](LOGS.md) | Eventos/auditoria e rastreabilidade preservados. |
@@ -584,3 +584,4 @@ A pesquisa de referências externas da versão 0.3 continua preservada em sua se
 | 0.3 | Modelagem completa pousada/restaurante; mantida integralmente no arquivo. |
 | 0.4 | Retirada do restaurante; resumo ativo excessivamente curto. |
 | 0.5 | Restaura detalhes da pousada, mantém IDs e backlog, adiciona auditoria de todos os requisitos e sprints com dependências/aceitação. |
+| 0.6 | Registra S1 implementada, compatibilidade das identidades legadas, capacidades, tarifas e preços acordados; preserva requisitos e cenários das etapas seguintes. |

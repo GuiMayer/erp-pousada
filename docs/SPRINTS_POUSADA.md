@@ -17,9 +17,11 @@ A divisão é por fluxo utilizável, não por camada técnica. Reutilizar as fun
 | S4 | Compra e estoque de bebidas | Catálogo de S1 e financeiro de S2/S3. | Receber fardo, gerar lote/saldo e conta a pagar, controlar validade/perda e inventário. |
 | S5 | Relatórios, homologação e operação | Fluxos completos S1–S4. | Conferir números pela origem e recuperar instalação com dados e permissões reconciliados. |
 
-S0 foi executada como retirada do restaurante e revisão documental; novas regras de S1–S5 não foram implementadas por esses commits. A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida: a hospedagem empresarial não ficará entregue pela metade esperando outra sprint.
+S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2–S5 continuam planejadas. A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida: a hospedagem empresarial não ficará entregue pela metade esperando outra sprint.
 
 ## S1 — Base cadastral e preços
+
+**Estado:** implementação concluída, migração avaliada e exemplos atualizados; reconstrução da demonstração e homologação visual pelo cliente pendentes. AP-04 está entregue somente na parcela de cálculo de diárias, pois seu extrato completo depende de S2/S3.
 
 **Objetivo:** estabelecer quem compra/paga, o que é vendido e como a diária é calculada, com telas simples para o primeiro protótipo.
 

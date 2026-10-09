@@ -4,7 +4,7 @@ Este ambiente permite ao cliente experimentar a aplicação real com dados fict�
 
 ## Iniciar
 
-Na pasta do projeto, com o Docker Desktop funcionando:
+Na pasta do projeto, com o motor Docker funcionando:
 
 ```powershell
 .\scripts\start-demo.ps1
@@ -13,6 +13,8 @@ Na pasta do projeto, com o Docker Desktop funcionando:
 No primeiro início, a imagem é construída e as contas exclusivas são geradas. Abra `http://localhost:3001`. As credenciais estão em `.local/demonstracao-acesso.txt`, protegido para o usuário do Windows e ignorado pelo Git. A conta `teste` permite explorar todos os módulos; `recepcao` e `estoque` demonstram acessos por setor. Por padrão, o usuário administrador é `teste` e a senha é `teste`. As contas usam a senha de demonstração indicada nesse arquivo, sem relação com credenciais da instalação principal.
 
 Há quartos disponíveis, ocupados, em limpeza e manutenção; reservas e hóspedes fictícios; vendas de bebidas e receitas financeiras; produtos, estoque e alertas; despesas e contas a receber. Datas são ajustadas ao dia de início. As operações usam as regras e permissões normais do sistema. O aviso de demonstração aparece no topo da página.
+
+A Sprint 1 acrescenta pessoas/empresas com papéis compartilhados, fornecedor, capacidades, tarifas por pessoa/noite e reservas com empresa pagadora. O [roteiro do protótipo](ENTREGA_SPRINT_1.md) mostra os exemplos. Ao atualizar o código, execute o início **sem `-NoBuild`** para reconstruir a imagem antes de apresentar.
 
 Para repetir a apresentação usando a imagem já construída, sem recompilar:
 

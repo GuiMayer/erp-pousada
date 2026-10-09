@@ -20,6 +20,8 @@ O ERP Pousada reúne a recepção, a frente de caixa e o financeiro em uma inter
 
 O projeto está em desenvolvimento. Há um modo de demonstração sem banco e uma camada de persistência com PostgreSQL; consulte o [estado atual](#estado-atual) antes de planejar uma instalação operacional.
 
+A Sprint 1 acrescentou a aba **Cadastros**, com pessoas/empresas, fornecedores, bebidas, capacidades dos quartos e tarifas por pessoa/noite. Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md); cobrança empresarial após a saída, compras e lotes seguem nas próximas sprints.
+
 ## Telas do sistema
 
 Conheça quatro abas que representam os principais fluxos da aplicação. As capturas foram feitas em **modo claro**, com dados fictícios da Pousada Sol & Mar. Nomes, valores e operações são exemplos; as datas são calculadas quando a demonstração é criada.

@@ -4,6 +4,14 @@ Este documento define o alvo da migracao completa de dados para PostgreSQL relac
 
 O objetivo e remover o uso produtivo de `local_data_entries` e de `localStorage` para dados de negocio. `LocalDataEntry` deve permanecer apenas durante a transicao e migracao de dados legados.
 
+## Atualização cadastral da Sprint 1 — 09/10/2026
+
+O esquema implementado acrescenta `customers.roles` e usa `customers.id` como identidade estável da pessoa/empresa. `guest_profiles.customerId` e `suppliers.customerId` são únicos e vinculados a essa identidade; a chave CPF do hóspede e seus créditos/referências antigas permanecem compatíveis. Documento normalizado não vazio é único. Não há fusão por nome.
+
+`rooms.capacity` registra lotação; `lodging_tariffs` define preço por pessoa/noite, ocupação e vigência por categoria ou quarto. `reservations` guarda `guestCount`, `payerId`, `nightlyPrices` e `priceExceptionReason`; preços confirmados não são recalculados por mudança no cadastro. `pos_products` recebe unidade e situação, com barcode único quando informado.
+
+A migration é aditiva, verifica duplicidades antes da alteração e não inventa capacidades/preços antigos. Consulte a [entrega da Sprint 1](ENTREGA_SPRINT_1.md) para estratégia, ativação e limites. As seções abaixo conservam a base anterior; hospedagem independente, compras e lotes continuam no alvo das etapas seguintes.
+
 ## Regras Gerais
 
 - Banco novo de producao deve iniciar sem dados operacionais.
