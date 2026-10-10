@@ -8,7 +8,7 @@ import { reportSections, type ReportSection } from "@/lib/reports/management";
 const allowed: Record<ReportSection, string[]> = {
   hospedagem: ["stays"],
   bebidas: ["stays", "posSales"],
-  estoque: ["stockLots", "stockMovements", "purchases"],
+  estoque: ["stockLots", "stockMovements", "purchases", "stockItems"],
   financeiro: [
     "transactions",
     "expenses",
@@ -50,6 +50,9 @@ export async function getReportSource(actor: Actor, input: unknown) {
         where,
         include: { items: true },
       });
+      break;
+    case "stockItems":
+      document = await prisma.stockItem.findUnique({ where });
       break;
     case "stockLots":
       document = await prisma.stockLot.findUnique({

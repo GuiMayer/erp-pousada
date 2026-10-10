@@ -1,9 +1,10 @@
+import { businessDay } from "@/lib/utils/business-values";
 import { executeOperation } from "@/lib/server/operations";
 import { beforeAll, beforeEach, afterAll, describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/client";
-import { ALL_PERMISSIONS } from "@/lib/permissions";
+import { ALL_PERMISSIONS, effectivePermissions } from "@/lib/permissions";
 import { type Actor, hashToken, SESSION_COOKIE } from "@/lib/server/auth";
 import {
   buildManagementReport,
@@ -443,4 +444,156 @@ describe("Sprint 5 — números pela origem e recuperação", () => {
       await prisma.transaction.count({ where: { id: "s5-old-receipt" } }),
     ).toBe(1);
   });
+  it("cinco usuários confirmam operações e leituras sem duplicar saldos", async () => {
+    await prisma.productCategory.create({
+      data: {
+        id: "s5-load-category",
+        name: "Bebidas",
+        icon: "Cup",
+        color: "blue",
+      },
+    });
+    await prisma.pOSProduct.create({
+      data: {
+        id: "s5-load-water",
+        name: "Água",
+        price: 20,
+        categoryId: "s5-load-category",
+        trackStock: true,
+      },
+    });
+    await executeOperation(actor, randomUUID(), "stock-opening", {
+      productId: "s5-load-water",
+      quantity: 100,
+      totalCost: 500,
+      code: "CARGA",
+      reason: "Exemplos para teste isolado",
+    });
+    const clients: Actor[] = [],
+      durations: number[] = [],
+      readDurations: number[] = [];
+    let conflicts = 0;
+    try {
+      for (let i = 0; i < 5; i++) {
+        const user = await prisma.user.create({
+          data: {
+            id: id + "-load-" + i,
+            username: id + "-load-" + i,
+            password: "test-only",
+            role: "operador",
+            accessProfile: "caixa",
+            permissionOverrides: {
+              "reports.read": "allow",
+              "stays.read": "allow",
+            },
+            createdBy: "test",
+            fullName: "Usuário de homologação",
+          },
+        });
+        const session = await prisma.authSession.create({
+          data: {
+            userId: user.id,
+            tokenHash: randomUUID(),
+            expiresAt: new Date(Date.now() + 3600000),
+          },
+        });
+        clients.push({
+          id: user.id,
+          username: user.username,
+          role: "operador",
+          sessionId: session.id,
+          approvedUntil: null,
+          permissions: effectivePermissions(user),
+        });
+      }
+      for (let round = 0; round < 6; round++)
+        await Promise.all(
+          clients.map(async (c) => {
+            const requestId = randomUUID(),
+              saleId = randomUUID(),
+              payload = {
+                sale: {
+                  id: saleId,
+                  items: [
+                    {
+                      id: randomUUID(),
+                      product: { id: "s5-load-water" },
+                      quantity: 1,
+                      discount: 0,
+                    },
+                  ],
+                  total: 20,
+                  amountPaid: 20,
+                  paymentMethod: "pix",
+                  accountId: "s5-bank",
+                },
+                globalDiscount: 0,
+              };
+            const start = performance.now();
+            for (let retry = 0; ; retry++) {
+              try {
+                await executeOperation(c, requestId, "sale", payload);
+                break;
+              } catch (e) {
+                if ((e as { code?: string }).code !== "P2034" || retry >= 5)
+                  throw e;
+                conflicts++;
+              }
+            }
+            durations.push(performance.now() - start);
+          }),
+        );
+      await Promise.all(
+        clients.map(async (client) => {
+          const start = performance.now();
+          await getManagementReport(client, {
+            start: businessDay(),
+            end: businessDay(),
+            section: "bebidas",
+          });
+          readDurations.push(performance.now() - start);
+        }),
+      );
+      expect(await prisma.pOSSale.count()).toBe(30);
+      expect(
+        Number(
+          (
+            await prisma.stockItem.findUniqueOrThrow({
+              where: { productId: "s5-load-water" },
+            })
+          ).currentStock,
+        ),
+      ).toBe(70);
+      expect(
+        Number(
+          (
+            await prisma.bankAccount.findUniqueOrThrow({
+              where: { id: "s5-bank" },
+            })
+          ).currentBalance,
+        ),
+      ).toBe(650);
+      const percentile = (values: number[]) =>
+        Math.round(
+          [...values].sort((a, b) => a - b)[
+            Math.ceil(values.length * 0.95) - 1
+          ],
+        );
+      console.log(
+        JSON.stringify({
+          scenario: "S5 isolated CI; not final equipment",
+          users: 5,
+          confirmations: 30,
+          operationP95Ms: percentile(durations),
+          reportP95Ms: percentile(readDurations),
+          clientContentionRetries: conflicts,
+          targetForFinalEquipmentMs: 2000,
+        }),
+      );
+    } finally {
+      await prisma.user.deleteMany({
+        where: { id: { startsWith: id + "-load-" } },
+      });
+    }
+  }, 60000);
 });

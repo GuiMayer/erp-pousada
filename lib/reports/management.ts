@@ -11,7 +11,12 @@ export type ReportSection = (typeof reportSections)[number];
 export const reportAccess: Record<ReportSection, string[]> = {
   hospedagem: ["stays.read", "rooms.read", "reservations.read"],
   bebidas: ["posSales.read", "stays.read"],
-  estoque: ["stockLots.read", "stockMovements.read", "purchases.read"],
+  estoque: [
+    "stockLots.read",
+    "stockMovements.read",
+    "purchases.read",
+    "stockItems.read",
+  ],
   financeiro: [
     "transactions.read",
     "expenses.read",
@@ -24,6 +29,7 @@ export const reportAccess: Record<ReportSection, string[]> = {
     "rooms.read",
     "reservations.read",
     "posSales.read",
+    "stockItems.read",
     "stockLots.read",
     "stockMovements.read",
     "purchases.read",

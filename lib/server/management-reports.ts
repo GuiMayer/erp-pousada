@@ -274,10 +274,12 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
       take: 50001,
     }),
   );
-  let physical = 0,
-    usable = 0,
-    stockValue = 0,
+  let stockValue = 0,
     usableValue = 0;
+  const stockTotals = new Map<
+    string,
+    { physical: number; usable: number; value: number }
+  >();
   for (const lot of lots) {
     if (lot.quantity.isZero()) continue;
     const valid = lotUsable(
@@ -285,10 +287,17 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
       today,
       lot.product.requiresExpiry,
     );
-    physical += Number(lot.quantity);
+    const total = stockTotals.get(lot.productId) ?? {
+      physical: 0,
+      usable: 0,
+      value: 0,
+    };
+    total.physical += Number(lot.quantity);
+    total.value += cents(lot.remainingValue);
+    if (valid) total.usable += Number(lot.quantity);
+    stockTotals.set(lot.productId, total);
     stockValue += cents(lot.remainingValue);
     if (valid) {
-      usable += Number(lot.quantity);
       usableValue += cents(lot.remainingValue);
     }
     out.rows.push({
@@ -305,6 +314,48 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
         usableQuantity: valid ? Number(lot.quantity) : 0,
         status: lot.status,
         expiresAt: lot.expiresAt ? calendar(lot.expiresAt) : "Sem validade",
+      },
+    });
+  }
+
+  const stocks = cap(
+    await tx.stockItem.findMany({
+      where: { product: { category: { isRestaurant: false } } },
+      take: 50001,
+    }),
+  );
+  let lowProducts = 0;
+  for (const stock of stocks) {
+    const totals = stockTotals.get(stock.productId) ?? {
+      physical: 0,
+      usable: 0,
+      value: 0,
+    };
+    const physical = Math.round(totals.physical * 1000) / 1000,
+      available = Math.round(totals.usable * 1000) / 1000,
+      value = totals.value;
+    if (available <= Number(stock.minimumStock)) lowProducts++;
+    if (Math.abs(physical - Number(stock.currentStock)) > 0.0005)
+      out.warnings.push(
+        `Bebida ${stock.productName}: saldo agregado diverge dos lotes; confira antes de operar.`,
+      );
+    out.rows.push({
+      id: stock.id,
+      date: today,
+      kind: "resumo-produto",
+      label: stock.productName,
+      value: money(value),
+      quantity: physical,
+      source: { collection: "stockItems", id: stock.id },
+      details: {
+        unit: stock.unit,
+        usableQuantity: available,
+        minimumStock: Number(stock.minimumStock),
+        maximumStock: Number(stock.maximumStock),
+        status:
+          available <= Number(stock.minimumStock)
+            ? "Atingiu mínimo"
+            : "Acima do mínimo",
       },
     });
   }
@@ -413,6 +464,7 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
       ).length,
       "number",
     ),
+    metric("lowProducts", "Bebidas no mínimo ou abaixo", lowProducts, "number"),
     metric("purchases", "Compras recebidas", sum(out.rows, "compra")),
     metric(
       "consumedCost",
@@ -432,8 +484,6 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
     "Compras aumentam estoque e dívida; somente consumo/perda baixa o custo no resultado. Devolução ao fornecedor não é custo consumido.",
     "Quantidades de unidades distintas não são somadas no resumo; consulte a unidade em cada origem.",
   ];
-  void physical;
-  void usable;
   return out;
 }
 async function expenses(tx: Tx, q: ReportQuery, now: Date) {
