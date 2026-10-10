@@ -2,6 +2,7 @@
 import { PermissionGate } from "@/components/permission-gate"
 
 import { PaymentDialog } from "./payment-fields"
+import { StayButton } from "./stay-sheet"
 import { getDataConfig } from "@/lib/data/config"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
@@ -21,6 +22,7 @@ import { CustomerCombobox } from "@/components/customer-combobox"
 export function AccountsReceivableManagement() {
   const {
     accountsReceivable,
+    stays = [],
     customers,
     transactions,
     addAccountReceivable,
@@ -149,7 +151,7 @@ export function AccountsReceivableManagement() {
   const [payingAccount, setPayingAccount] = useState<AccountReceivable | null>(null)
   const handleMarkAsPaid = async (ar: AccountReceivable) => {
     if (["pago", "cancelado"].includes(ar.status)) return
-    if (getDataConfig().adapter === "database") { setPayingAccount(ar); return }
+    if (getDataConfig().adapter === "database" || ar.sourceStayId) { setPayingAccount(ar); return }
 
     const paymentDate = new Date().toISOString().split("T")[0]
 
@@ -206,24 +208,24 @@ export function AccountsReceivableManagement() {
 
   const totalPending = accountsReceivable
     .filter(ar => ar.status === "pendente")
-    .reduce((sum, ar) => sum + ar.value, 0)
+      .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
 
   const totalOverdue = accountsReceivable
     .filter(ar => isOverdue(ar))
-    .reduce((sum, ar) => sum + ar.value, 0)
+    .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
 
   const totalReceived = accountsReceivable
     .filter(ar => ar.status === "pago")
-    .reduce((sum, ar) => sum + ar.value, 0)
+    .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <PaymentDialog open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} onConfirm={async (paymentMethod, accountId) => {
+        <PaymentDialog open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} maximum={payingAccount?.sourceStayId ? payingAccount.value - (payingAccount.paidValue ?? 0) : undefined} onConfirm={async (paymentMethod, accountId, value) => {
         if (!payingAccount) return
         const installment = payingAccount.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]
-        await runOperation("receive-account", { accountReceivableId: payingAccount.id, recordVersion: payingAccount.recordVersion, installmentId: installment?.id, paymentMethod, accountId })
+        await runOperation("receive-account", { accountReceivableId: payingAccount.id, recordVersion: payingAccount.recordVersion, installmentId: installment?.id, paymentMethod, accountId, value: payingAccount.sourceStayId ? value : undefined })
       }} />
       <Card>
           <CardHeader className="pb-2">
@@ -439,8 +441,8 @@ export function AccountsReceivableManagement() {
                           {ar.customerName}
                         </div>
                       </TableCell>
-                      <TableCell>{ar.description}</TableCell>
-                      <TableCell>R$ {ar.value.toFixed(2)}</TableCell>
+                      <TableCell>{ar.description}{ar.sourceStayId && stays.find(s => s.id === ar.sourceStayId) && <div className="mt-2"><StayButton stay={stays.find(s => s.id === ar.sourceStayId)!} label="Ver hospedagem" /></div>}</TableCell>
+                      <TableCell>R$ {(ar.value - (ar.paidValue ?? 0)).toFixed(2)}{ar.sourceStayId && <p className="text-xs text-muted-foreground">Original: R$ {ar.value.toFixed(2)} · Recebido: R$ {(ar.paidValue ?? 0).toFixed(2)}</p>}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -462,6 +464,7 @@ export function AccountsReceivableManagement() {
                           <PermissionGate permission="accountsReceivable.edit"><Button
                             variant="ghost"
                             size="sm"
+                            disabled={!!ar.sourceStayId}
                             onClick={() => handleEdit(ar)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -469,6 +472,7 @@ export function AccountsReceivableManagement() {
                           <PermissionGate permission="accountsReceivable.delete"><Button
                             variant="ghost"
                             size="sm"
+                            disabled={!!ar.sourceStayId}
                             onClick={() => handleDelete(ar.id, ar.recordVersion)}
                           >
                             <Trash2 className="h-4 w-4" />

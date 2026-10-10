@@ -1,4 +1,5 @@
 "use client"
+import { StaysList } from "./stay-sheet"
 import { CustomerCombobox } from "./customer-combobox"
 import { suggestPayerId } from "@/lib/customer-company"
 import type { Customer } from "@/lib/store"
@@ -256,6 +257,7 @@ export function ReservationsTab() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+      <StaysList />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-lg font-semibold text-foreground">Reservas</h2>
         <PermissionGate permission="reservations.create"><Button size="sm" className="gap-1.5" onClick={() => setShowNewForm(!showNewForm)}>
