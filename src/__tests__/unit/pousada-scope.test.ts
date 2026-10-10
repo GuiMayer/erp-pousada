@@ -43,8 +43,8 @@ describe("Pousada sem o módulo de restaurante", () => {
     const tx = {
       systemSettings: { findFirst: vi.fn().mockResolvedValue(null) },
       stockItem: { findMany: vi.fn().mockResolvedValue([
-        { productId: "agua", productName: "Água", minimumStock: 10, currentStock: 0, product: { trackStock: true, category: categories[0] } },
-        { productId: "prato", productName: "Prato", minimumStock: 10, currentStock: 0, product: { trackStock: true, category: categories[1] } },
+        { productId: "agua", productName: "Água", minimumStock: 10, currentStock: 0, product: { lots: [], trackStock: true, category: categories[0] } },
+        { productId: "prato", productName: "Prato", minimumStock: 10, currentStock: 0, product: { lots: [], trackStock: true, category: categories[1] } },
       ]) },
       notificationEvent: { findUnique: vi.fn().mockResolvedValue(null), create, updateMany: vi.fn() },
       user: { findMany: vi.fn().mockResolvedValue([]) },
@@ -58,6 +58,7 @@ describe("Pousada sem o módulo de restaurante", () => {
   it("não consulta comandas no processamento periódico da pousada", async () => {
     const tx = {
       systemSettings: { findFirst: vi.fn().mockResolvedValue(null) },
+      stockLot: {findMany:vi.fn().mockResolvedValue([])},
       reservation: { findMany: vi.fn().mockResolvedValue([]) },
       accountReceivable: { findMany: vi.fn().mockResolvedValue([]) },
       restaurantOrder: { findMany: vi.fn() },

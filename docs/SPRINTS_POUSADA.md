@@ -1,6 +1,6 @@
 # Sprints — pousada e venda de bebidas
 
-**Revisão:** 09/10/2026 · **Base:** [modelagem 0.5](REQUISITOS_E_MODELAGEM_ERP.md).
+**Revisão:** 10/10/2026 · **Base:** [modelagem 1.0](REQUISITOS_E_MODELAGEM_ERP.md).
 
 O restaurante deixou de ser responsabilidade do ERP. Não haverá sprints de salão, cozinha, buffet, marmitas, contratos de refeições ou integração com o fornecedor externo. Cadastro de empresa pagadora e cobrança de hospedagem continuam essenciais.
 
@@ -17,7 +17,7 @@ A divisão é por fluxo utilizável, não por camada técnica. Reutilizar as fun
 | S4 | Compra e estoque de bebidas | Catálogo de S1 e financeiro de S2/S3. | Receber fardo, gerar lote/saldo e conta a pagar, controlar validade/perda e inventário. |
 | S5 | Relatórios, homologação e operação | Fluxos completos S1–S4. | Conferir números pela origem e recuperar instalação com dados e permissões reconciliados. |
 
-S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3 foi implementada em 10/10/2026; consulte a [entrega e o roteiro de caixa](ENTREGA_SPRINT_3.md). S4/S5 continuam planejadas. A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
+S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3 foi implementada em 10/10/2026; consulte a [entrega e o roteiro de caixa](ENTREGA_SPRINT_3.md). S4 foi implementada em 10/10/2026; consulte a [entrega de compras, lotes e inventário](ENTREGA_SPRINT_4.md). S5 continua planejada. A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
 
 ## S1 — Base cadastral e preços
 
@@ -80,6 +80,8 @@ S0 foi executada como retirada do restaurante e revisão documental. S1 foi impl
 **Limite:** agenda de taxas/repasses de cartão e importação de extrato ficam no backlog explícito. A limitação do registro simplificado atual deve ser visível na documentação e nos indicadores pertinentes; não inferir que venda de cartão já foi conciliada com banco.
 
 ## S4 — Compras e estoque de bebidas
+
+**Estado:** implementação técnica entregue, com recebimento/obrigação integrados, FEFO, perda/devolução, acordo de fornecedor, inventário por corte, migração de saldo legado pendente e testes isolados. Atualização operacional e aceite do cliente pendentes; consulte a [entrega](ENTREGA_SPRINT_4.md).
 
 **Objetivo:** a entrada do fornecedor liga mercadoria, custo e conta a pagar numa confirmação.
 

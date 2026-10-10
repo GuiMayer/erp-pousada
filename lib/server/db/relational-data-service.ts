@@ -1,3 +1,4 @@
+import { quarantineUnmappedStock } from '../inventory-stock'
 import { prepareContact, syncContact } from "../contacts"
 import { ensureStay } from "../stays"
 import { validateTariff } from "../lodging-pricing"
@@ -27,7 +28,7 @@ type Model = {
   delete(args: unknown): Promise<Row>
   deleteMany(args?: unknown): Promise<unknown>
 }
-export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "stays", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
+export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "purchases", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockLots", "stockMovements", "stockInventories", "purchaseReturns", "productions", "employeeConsumptions", "stays", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
 export const portableKeys = collectionOrder.filter(key => !["users", "userSessions", "auditLog", "systemSettings"].includes(key))
 // Company rows must exist before importing their people, regardless of export order.
 const orderedItems = (key: string, items: unknown[]) => key === "customers" ? [...items].sort((a, b) => Number(!!(a as Row).companyId) - Number(!!(b as Row).companyId)) : items
@@ -81,7 +82,7 @@ export function validateMappedData(modelName: string, data: Row, partial = false
     if (field.type === "Boolean" && typeof value !== "boolean") throw new HttpError(400, `Booleano inválido: ${name}`)
     if (["Int", "Float", "Decimal"].includes(field.type)) {
       if (typeof value !== "number" || !Number.isFinite(value) || (field.type === "Int" && !Number.isSafeInteger(value))) throw new HttpError(400, `Número inválido: ${name}`)
-      if (value < 0 && !(modelName === "stayAdjustment" && name === "value") && !["currentBalance", "initialBalance", "expectedValue", "divergence", "variance", "variancePercent"].includes(name)) throw new HttpError(400, `Valor negativo: ${name}`)
+      if (value < 0 && !(modelName === "stayAdjustment" && name === "value") && !(modelName === "stockMovementLot" && ["delta","value"].includes(name)) && !(modelName === "stockInventoryLine" && name === "delta") && !["currentBalance", "initialBalance", "expectedValue", "divergence", "variance", "variancePercent"].includes(name)) throw new HttpError(400, `Valor negativo: ${name}`)
     }
     if (field.type === "DateTime" && (!(value instanceof Date) || !Number.isFinite(value.getTime()))) throw new HttpError(400, `Data inválida: ${name}`)
     result[name] = value
@@ -141,7 +142,12 @@ async function validateCatalog(client: Client, key: string, data: Row, current?:
     if (data.capacity === null && current.capacity !== null) throw new HttpError(409, "Um quarto configurado deve conservar sua capacidade")
     if (data.capacity !== null && await client.reservation.count({ where: { roomId: Number(current.id), status: { in: ["confirmada", "checkin"] }, guestCount: { gt: Number(data.capacity) }, checkOut: { gt: new Date(businessDay()) } } })) throw new HttpError(409, "Capacidade inferior à ocupação de reserva ativa")
   }
+  if (key === "productCategories" && current && data.isRestaurant !== undefined && data.isRestaurant !== current.isRestaurant && await client.stockLot.count({ where: { product: { categoryId: String(current.id) } } })) throw new HttpError(409, "Categoria com lotes deve permanecer no estoque de origem")
   if (key !== "posProducts") return
+  if(current&&await client.stockLot.count({where:{productId:String(current.id)}})) {
+    if(data.trackStock===false)throw new HttpError(409,"Bebida com histórico de lotes deve conservar o controle de estoque; desative a venda se necessário")
+    if(data.categoryId!==undefined&&(await client.productCategory.findUnique({where:{id:String(data.categoryId)}}))?.isRestaurant)throw new HttpError(409,"Bebida com lotes pertence ao estoque da pousada")
+  }
   if (data.name !== undefined && !String(data.name).trim()) throw new HttpError(400, "Informe o nome da bebida")
   if (data.price !== undefined && (Number(data.price) <= 0 || Math.abs(Number(data.price) * 100 - Math.round(Number(data.price) * 100)) > .00001)) throw new HttpError(400, "Preço deve ser positivo, com até duas casas decimais")
   if (data.unit !== undefined && !["un", "ml", "l"].includes(String(data.unit))) throw new HttpError(400, "Unidade inválida")
@@ -204,6 +210,8 @@ export async function createCollectionItem(key: string, item: unknown, actor?: A
   actor = await mutationActor(client, actor, key, "create")
   if (key === "users") await checkUserChange(client, undefined, item as Row, actor)
   const input = await mappedInput(key, item, false, actor)
+  if(actor&&key==="expenses"&&input.sourcePurchaseId)throw new HttpError(403,"Origem de compra gerenciada pelo recebimento")
+  if(actor&&key==="stockItems"&&["currentStock","averageCost","lastPurchasePrice"].some(f=>Number(input[f]??0)!==0))throw new HttpError(403,"Novo item de estoque inicia vazio; use abertura ou compra")
   if (actor) await prepareContact(client, key, input, null, actor)
   if (key === "lodgingTariffs") await validateTariff(client, input)
   await validateCatalog(client, key, input)
@@ -223,8 +231,10 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   const input = await mappedInput(key, data, true, actor)
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
+  if(actor&&key==="expenses"&&snapshot.sourcePurchaseId)throw new HttpError(403,"Conta originada em compra: utilize pagamento ou acerto da devolução")
   if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (actor && ['expenses', 'accountsReceivable'].includes(key) && Number(snapshot.paidValue ?? 0) > 0) throw new HttpError(409, 'Título com pagamento parcial não pode ser alterado')
+  if(actor&&key==="stockItems"&&["productId","unit","currentStock","averageCost","lastPurchasePrice","lastPurchaseDate"].some(f=>Object.hasOwn(input,f)&&String(input[f])!==String(snapshot[f])))throw new HttpError(403,"Saldo, unidade e custo são controlados pelos lotes")
   if (actor) await prepareContact(client, key, input, snapshot, actor)
   if (key === "lodgingTariffs") await validateTariff(client, input, snapshot)
   await validateCatalog(client, key, input, snapshot)
@@ -278,6 +288,8 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
 export async function deleteCollectionItem(key: string, id: string, client: Client = prisma, actor?: Actor, expectedVersion?: number): Promise<void> {
   if (client === prisma) return prisma.$transaction(tx => deleteCollectionItem(key, id, tx, actor, expectedVersion), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   actor = await mutationActor(client, actor, key, "delete")
+  if(actor&&key==="expenses"&&(await client.expense.findUnique({where:{id}}))?.sourcePurchaseId)throw new HttpError(403,"Conta de compra preserva seu documento de origem")
+  if(actor&&key==="stockItems")throw new HttpError(403,"Item de estoque preserva o histórico; desative a bebida")
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
   if(actor&&['expenses','accountsReceivable'].includes(key)) {
@@ -286,6 +298,7 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
     if(Number(title?.paidValue??0)>0)throw new HttpError(409,'Título com recebimento/pagamento não pode ser excluído')
   }
   if (actor && snapshot.recordVersion !== undefined) requireVersion(expectedVersion, snapshot.recordVersion)
+  if(actor&&key==="expenses"&&snapshot.sourcePurchaseId)throw new HttpError(403,"Conta originada em compra: utilize pagamento ou acerto da devolução")
   if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (key === "rooms" && await client.lodgingTariff.count({ where: { roomId: Number(id) } })) throw new HttpError(409, "Quarto possui tarifas vinculadas; preserve o cadastro e seu histórico")
   if (["customers", "suppliers", "guests", "posProducts", "lodgingTariffs"].includes(key)) {
@@ -335,6 +348,9 @@ export async function importAllCollections(json: string, actor?: Actor) {
   let data: Row
   try { data = JSON.parse(json) } catch { throw new HttpError(400, "JSON inválido") }
   if (!data || Array.isArray(data) || typeof data !== "object" || Object.keys(data).some(k => !portableKeys.includes(k))) throw new HttpError(400, "Importação contém coleções não permitidas")
+  const inventoryKeys=["purchases","stockLots","stockInventories","purchaseReturns"]
+  const legacyInventory=inventoryKeys.every(key=>!Object.hasOwn(data,key))
+  if(legacyInventory)for(const key of inventoryKeys)data[key]=[]
   const legacySnapshot = !Object.hasOwn(data, "stays")
   if (legacySnapshot) data.stays = []
   // Partial replacement would break references: portable imports are full snapshots.
@@ -349,6 +365,7 @@ export async function importAllCollections(json: string, actor?: Actor) {
       const reservations = await tx.reservation.findMany({ where: { status: { in: ["checkin", "checkout"] } } })
       for (const reservation of reservations) await ensureStay(tx, reservation.id, true)
     }
+    if(legacyInventory)await quarantineUnmappedStock(tx)
     await resetSessionsAfterRestore(tx, actor, "Dados restaurados")
   }, { timeout: 60000, isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }

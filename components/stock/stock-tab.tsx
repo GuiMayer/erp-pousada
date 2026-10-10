@@ -1,4 +1,6 @@
 "use client"
+import { InventoryWorkspace } from "./inventory-workspace"
+import { getDataConfig } from "@/lib/data/config"
 import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
@@ -87,12 +89,18 @@ export function StockTab() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList>
+        <TabsList className="flex h-auto flex-wrap justify-start gap-1">
+          <TabsTrigger value="purchases">Compras</TabsTrigger>
+          <TabsTrigger value="lots">Lotes e validade</TabsTrigger>
+          <TabsTrigger value="inventory">Inventário</TabsTrigger>
           <TabsTrigger value="products">Catálogo de Produtos</TabsTrigger>
           <TabsTrigger value="movements">Movimentações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="purchases"><InventoryWorkspace section="purchases"/></TabsContent>
+        <TabsContent value="lots"><InventoryWorkspace section="lots"/></TabsContent>
+        <TabsContent value="inventory"><InventoryWorkspace section="inventory"/></TabsContent>
         {/* Products Tab */}
         <TabsContent value="products" className="space-y-6">
           <ProductsManagementTab />
@@ -169,6 +177,7 @@ export function StockTab() {
                       getStockStatus(item) === "low" && "text-yellow-600"
                     )}>
                       {item.currentStock} {item.unit}
+                    {item.usableStock !== undefined && <small className="block text-muted-foreground">Utilizável: {item.usableStock} {item.unit}</small>}
                     </span>
                   </TableCell>
                   <TableCell>{item.minimumStock} {item.unit}</TableCell>
@@ -179,10 +188,10 @@ export function StockTab() {
                     <PermissionGate permission="stock.adjust"><Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleAddMovement(item)}
+                      onClick={() => getDataConfig().adapter === "database" ? setActiveTab("lots") : handleAddMovement(item)}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Movimentar
+                      {getDataConfig().adapter === "database" ? "Ver lotes" : "Movimentar"}
                     </Button></PermissionGate>
                   </TableCell>
                 </TableRow>

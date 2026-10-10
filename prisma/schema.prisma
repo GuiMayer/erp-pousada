@@ -239,6 +239,7 @@ model Supplier {
   notes        String?
   active       Boolean @default(true)
 
+  purchases Purchase[]
   expenses Expense[]
 
   @@index([active])
@@ -280,6 +281,8 @@ model Customer {
 }
 
 model Expense {
+  sourcePurchaseId String? @unique
+  purchase Purchase? @relation(fields: [sourcePurchaseId], references: [id])
   paidValue Decimal @default(0) @db.Decimal(12, 2)
   recordVersion Int @default(0)
   id          String   @id
@@ -631,6 +634,9 @@ model ProductCategory {
 }
 
 model POSProduct {
+  requiresExpiry Boolean @default(false)
+  lots StockLot[]
+  purchaseItems PurchaseItem[]
   active Boolean @default(true)
   unit String @default("un")
   recordVersion Int @default(0)
@@ -776,6 +782,12 @@ model StockItem {
 }
 
 model StockMovement {
+  originType String?
+  originId String?
+  sourceMovementId String? @unique
+  sourceMovement StockMovement? @relation("StockReturn", fields: [sourceMovementId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  returns StockMovement[] @relation("StockReturn")
+  allocations StockMovementLot[]
   id             String   @id
   type           String
   productId      String
@@ -982,4 +994,133 @@ model LodgingTariff {
 
   @@index([roomType, roomId, active, validFrom])
   @@map("lodging_tariffs")
+}
+
+model Purchase {
+  id           String         @id
+  supplierId   String
+  supplierName String
+  reference    String?
+  receivedAt   DateTime       @default(now())
+  subtotal     Decimal        @db.Decimal(12, 2)
+  freight      Decimal        @db.Decimal(12, 2)
+  discount     Decimal        @db.Decimal(12, 2)
+  total        Decimal        @db.Decimal(12, 2)
+  registeredBy String
+  notes        String?
+  supplier     Supplier       @relation(fields: [supplierId], references: [id])
+  items        PurchaseItem[]
+  expense      Expense?
+
+  @@unique([supplierId, reference])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id               String     @id
+  purchaseId       String
+  productId        String
+  productName      String
+  unit             String
+  packaging        String
+  factor           Decimal    @db.Decimal(12, 3)
+  acceptedPackages Int
+  refusedPackages  Int
+  quantity         Decimal    @db.Decimal(12, 3)
+  packagePrice     Decimal    @db.Decimal(12, 2)
+  goodsTotal       Decimal    @db.Decimal(12, 2)
+  totalCost        Decimal    @db.Decimal(12, 2)
+  purchase         Purchase   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product          POSProduct @relation(fields: [productId], references: [id])
+  lot              StockLot?
+
+  @@map("purchase_items")
+}
+
+model StockLot {
+  id               String               @id
+  recordVersion    Int                  @default(0)
+  productId        String
+  purchaseItemId   String?              @unique
+  code             String
+  expiresAt        DateTime?            @db.Date
+  status           String               @default("active")
+  origin           String
+  quantity         Decimal              @db.Decimal(12, 3)
+  receivedQuantity Decimal              @db.Decimal(12, 3)
+  remainingValue   Decimal              @db.Decimal(12, 2)
+  unitCost         Decimal              @db.Decimal(18, 6)
+  costEstimated    Boolean              @default(false)
+  receivedAt       DateTime             @default(now())
+  reason           String?
+  product          POSProduct           @relation(fields: [productId], references: [id])
+  purchaseItem     PurchaseItem?        @relation(fields: [purchaseItemId], references: [id])
+  allocations      StockMovementLot[]
+  inventoryLines   StockInventoryLine[]
+  returns          PurchaseReturn[]
+
+  @@index([productId, status, expiresAt])
+  @@map("stock_lots")
+}
+
+model StockMovementLot {
+  id         String        @id
+  movementId String
+  lotId      String
+  delta      Decimal       @db.Decimal(12, 3)
+  value      Decimal       @db.Decimal(12, 2)
+  movement   StockMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  lot        StockLot      @relation(fields: [lotId], references: [id])
+
+  @@map("stock_movement_lots")
+}
+
+model StockInventory {
+  id            String               @id
+  recordVersion Int                  @default(0)
+  status        String               @default("open")
+  capturedAt    DateTime             @default(now())
+  postedAt      DateTime?
+  createdBy     String
+  postedBy      String?
+  reason        String
+  lines         StockInventoryLine[]
+
+  @@map("stock_inventories")
+}
+
+model StockInventoryLine {
+  id               String         @id
+  inventoryId      String
+  lotId            String
+  productName      String
+  expectedQuantity Decimal        @db.Decimal(12, 3)
+  unitCost         Decimal        @db.Decimal(18, 6)
+  countedQuantity  Decimal?       @db.Decimal(12, 3)
+  delta            Decimal?       @db.Decimal(12, 3)
+  inventory        StockInventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  lot              StockLot       @relation(fields: [lotId], references: [id])
+
+  @@unique([inventoryId, lotId])
+  @@map("stock_inventory_lines")
+}
+
+model PurchaseReturn {
+  id             String    @id
+  recordVersion  Int       @default(0)
+  lotId          String
+  quantity       Decimal   @db.Decimal(12, 3)
+  stockValue     Decimal   @db.Decimal(12, 2)
+  reason         String
+  createdAt      DateTime  @default(now())
+  registeredBy   String
+  status         String    @default("pending")
+  resolution     String?
+  agreedValue    Decimal?  @db.Decimal(12, 2)
+  settledAt      DateTime?
+  settledBy      String?
+  settlementNote String?
+  lot            StockLot  @relation(fields: [lotId], references: [id])
+
+  @@map("purchase_returns")
 }

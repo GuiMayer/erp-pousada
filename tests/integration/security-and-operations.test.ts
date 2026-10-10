@@ -35,12 +35,14 @@ beforeAll(async () => {
 })
 afterAll(async () => { await prisma.$disconnect() })
 beforeEach(async () => {
+  await prisma.productCategory.update({ where: { id: "category" }, data: { isRestaurant: false } })
   await prisma.cashClose.deleteMany(); await prisma.bankAccount.update({ where: { id: "test-bank" }, data: { currentBalance: 1000 } })
   await executeOperation(actor, randomUUID(), "cash-open", { openingValue: 30 })
   await prisma.accountReceivable.deleteMany({ where: { sourceStayId: { not: null } } })
   await prisma.stay.deleteMany()
   await prisma.pOSSale.deleteMany(); await prisma.transaction.deleteMany(); await prisma.operationReceipt.deleteMany()
   await prisma.stockMovement.deleteMany(); await prisma.stockItem.update({ where: { id: "stock" }, data: { currentStock: 10, unit: "un" } })
+  await prisma.stockLot.upsert({where:{id:'test-lot'},create:{id:'test-lot',productId:'product',code:'TEST',origin:'test',quantity:10,receivedQuantity:10,remainingValue:20,unitCost:2},update:{quantity:10,remainingValue:20,status:'active'}})
   await prisma.pOSProduct.update({ where: { id: "product" }, data: { price: 10 } })
 })
 
@@ -147,6 +149,8 @@ describe("Proteção das APIs e integridade de operações", () => {
     expect((await prisma.restaurantTable.findUniqueOrThrow({ where: { id: 1 } })).status).toBe("livre")
   })
   it("produção usa estoque e custo persistidos na receita", async () => {
+    await prisma.productCategory.update({ where: { id: "category" }, data: { isRestaurant: true } })
+    await prisma.stockLot.delete({ where: { id: "test-lot" } })
     await prisma.recipe.create({ data: { id: "recipe", name: "Receita fictícia", category: "bebida", version: 1, expectedYield: 1, yieldUnit: "un", preparationTime: 1, instructions: "Teste", ingredients: { create: [{ id: "ingredient", productId: "product", productName: "Água", quantity: 1, unit: "un", cost: 2 }] } } })
     await executeOperation(actor, randomUUID(), "production", { recipeId: "recipe", plannedQuantity: 3, producedQuantity: 3 })
     expect(Number((await prisma.stockItem.findUniqueOrThrow({ where: { id: "stock" } })).currentStock)).toBe(7)
@@ -332,6 +336,8 @@ describe("Regressões das regras de negócio", () => {
   })
 
   it("produção converte gramas em quilos e rejeita unidades incompatíveis", async () => {
+    await prisma.productCategory.update({ where: { id: "category" }, data: { isRestaurant: true } })
+    await prisma.stockLot.delete({ where: { id: "test-lot" } })
     await prisma.stockItem.update({ where: { id: "stock" }, data: { unit: "kg" } })
     const recipeId = randomUUID()
     await prisma.recipe.create({ data: { id: recipeId, name: "Receita em gramas", category: "teste", version: 1, expectedYield: 1, yieldUnit: "un", preparationTime: 1, instructions: "Teste", ingredients: { create: [{ id: randomUUID(), productId: "product", productName: "Ingrediente", quantity: 10, unit: "g", cost: 0 }] } } })

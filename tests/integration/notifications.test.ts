@@ -22,9 +22,10 @@ beforeAll(async () => {
   await prisma.room.create({ data: { id: 1, number: "101", type: "casal", status: "disponivel" } })
   await prisma.productCategory.create({ data: { id: "notif-category", name: "Teste", color: "blue", icon: "Cup" } })
   await prisma.pOSProduct.create({ data: { id: "notif-product", name: "Água", categoryId: "notif-category", price: 10, trackStock: true } })
+  await prisma.stockLot.create({data:{id:'notif-lot',productId:'notif-product',code:'TEST',origin:'test',quantity:20,receivedQuantity:20,remainingValue:40,unitCost:2}})
   await prisma.stockItem.create({ data: { id: "notif-stock", productId: "notif-product", productName: "Água", currentStock: 20, minimumStock: 10, maximumStock: 100, unit: "un", averageCost: 2, lastPurchasePrice: 2 } })
 })
-beforeEach(async () => { await prisma.notificationEvent.deleteMany(); await prisma.notificationPreference.deleteMany(); await prisma.user.update({ where: { id: reception.id }, data: { permissionOverrides: {} } }); await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 20 } }) })
+beforeEach(async () => { await prisma.notificationEvent.deleteMany(); await prisma.notificationPreference.deleteMany(); await prisma.user.update({ where: { id: reception.id }, data: { permissionOverrides: {} } }); await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 20 } }); await prisma.stockLot.update({where:{id:"notif-lot"},data:{quantity:20,remainingValue:40}}) })
 afterAll(async () => { await prisma.systemSettings.deleteMany({ where: { id: "notif-settings" } }); await prisma.$disconnect() })
 describe("Central operacional persistida", () => {
   it("seleciona destinatários e mantém leitura por usuário", async () => {
@@ -67,14 +68,14 @@ describe("Central operacional persistida", () => {
     await expect(updateInboxPreferences(admin, { userId: reception.id })).rejects.toThrow()
   })
   it("estoque deduplica condições, escala criticidade e resolve na reposição", async () => {
-    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 14 } })
+    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 14 } }); await prisma.stockLot.update({where:{id:"notif-lot"},data:{quantity:14,remainingValue:28}})
     await prisma.$transaction(evaluateStock); await prisma.$transaction(evaluateStock)
     expect(await prisma.notificationEvent.count()).toBe(1)
-    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 5 } }); await prisma.$transaction(evaluateStock)
+    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 5 } }); await prisma.stockLot.update({where:{id:"notif-lot"},data:{quantity:5,remainingValue:10}}); await prisma.$transaction(evaluateStock)
     expect(await prisma.notificationEvent.count({ where: { conditionKey: "stock:notif-product", priority: "critical" } })).toBe(1)
-    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 20 } }); await prisma.$transaction(evaluateStock)
+    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 20 } }); await prisma.stockLot.update({where:{id:"notif-lot"},data:{quantity:20,remainingValue:40}}); await prisma.$transaction(evaluateStock)
     expect(await prisma.notificationEvent.count({ where: { resolvedAt: null } })).toBe(0)
-    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 5 } }); await prisma.$transaction(evaluateStock)
+    await prisma.stockItem.update({ where: { id: "notif-stock" }, data: { currentStock: 5 } }); await prisma.stockLot.update({where:{id:"notif-lot"},data:{quantity:5,remainingValue:10}}); await prisma.$transaction(evaluateStock)
     expect(await prisma.notificationEvent.count({ where: { conditionKey: "stock:notif-product" } })).toBe(1)
   })
   it("lembretes respeitam horário de São Paulo e resolução", async () => {
@@ -94,9 +95,9 @@ describe("Central operacional persistida", () => {
     expect(await prisma.notificationEvent.count({ where: { type: "check-out" } })).toBe(0)
   })
   it("operação e recibo emitem somente após confirmar e não duplicam no replay", async () => {
-    const requestId = randomUUID(); const payload = { productId: "notif-product", type: "ajuste", quantity: 5, reason: "Teste" }
-    await executeOperation(admin, requestId, "stock-movement", payload); await executeOperation(admin, requestId, "stock-movement", payload)
-    expect(await prisma.stockMovement.count({ where: { reason: "Teste" } })).toBe(1); expect(await prisma.notificationEvent.count({ where: { type: "stock" } })).toBe(1)
+    const requestId = randomUUID(); const currentLot=await prisma.stockLot.findUniqueOrThrow({where:{id:"notif-lot"}}); const payload = { lotId: "notif-lot", recordVersion: currentLot.recordVersion, quantity: 15, reason: "Perda de teste" }
+    await executeOperation(admin, requestId, "stock-loss", payload); await executeOperation(admin, requestId, "stock-loss", payload)
+    expect(await prisma.stockMovement.count({ where: { reason: "Perda de teste" } })).toBe(1); expect(await prisma.notificationEvent.count({ where: { type: "stock" } })).toBe(1)
   })
   it("pedidos simultâneos com o mesmo recibo emitem uma única venda", async () => {
     const requestId = randomUUID(); const saleId = randomUUID()

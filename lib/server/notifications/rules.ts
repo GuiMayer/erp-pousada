@@ -1,3 +1,4 @@
+import { lotUsable } from '@/lib/inventory'
 import { Prisma } from "@prisma/client"
 import { randomUUID } from "node:crypto"
 import { emitEvent, type EventInput } from "./service"
@@ -17,12 +18,13 @@ async function condition(tx: Tx, key: string, input: Omit<EventInput, "dedupKey"
 export async function evaluateStock(tx: Tx) {
   const settings = await tx.systemSettings.findFirst()
   const rules = ruleSchema.parse(settings?.notificationRules ?? {})
-  const stocks = await tx.stockItem.findMany({ include: { product: { include: { category: true } } } })
+  const stocks = await tx.stockItem.findMany({ include: { product: { include: { category: true, lots: true } } } })
   const keys: string[] = []
   for (const stock of stocks) {
     if (stock.product.category?.isRestaurant) continue
     const key = `stock:${stock.productId}`; keys.push(key)
-    const ratio = Number(stock.minimumStock) > 0 ? Number(stock.currentStock) / Number(stock.minimumStock) * 100 : Infinity
+    const usable=stock.product.lots.filter(l=>lotUsable({status:l.status,expiresAt:l.expiresAt?.toISOString()??null},businessDay(),stock.product.requiresExpiry)).reduce((sum,l)=>sum+Number(l.quantity),0)
+    const ratio = Number(stock.minimumStock) > 0 ? usable / Number(stock.minimumStock) * 100 : Infinity
     const priority = ratio <= rules.stockCriticalLevel ? "critical" : ratio <= rules.stockLowLevel ? "high" : null
     await condition(tx, key, settings?.notifyLowStock !== false && stock.product.trackStock && priority ? {
       type: "stock", title: priority === "critical" ? "Estoque crítico" : "Estoque baixo", message: `${stock.productName}: confira o saldo e programe a reposição.`,
@@ -37,6 +39,13 @@ export async function evaluateTimed(tx: Tx, now = new Date()) {
   const settings = await tx.systemSettings.findFirst()
   const today = businessDay(now)
   const hour = new Intl.DateTimeFormat("en-GB", { timeZone: BUSINESS_TIME_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now)
+  const expiryKeys:string[]=[]
+  const expiryLimit=new Date(Date.parse(today)+7*86400000).toISOString().slice(0,10)
+  const lots=await tx.stockLot.findMany({where:{quantity:{gt:0},product:{category:{isRestaurant:false}}},include:{product:true}})
+  for(const lot of lots){const key=`expiry:${lot.id}`;expiryKeys.push(key);const date=lot.expiresAt?.toISOString().slice(0,10),expired=!!date&&date<today,review=lot.status==='unverified'||(lot.product.requiresExpiry&&!date),soon=!!date&&date<=expiryLimit
+    await condition(tx,key,expired||review||soon?{type:'stock',title:expired?'Lote vencido':review?'Abertura de estoque pendente':'Lote próximo do vencimento',message:`${lot.product.name} · lote ${lot.code}: ${review?'revise identificação e validade':expired?'saldo físico bloqueado para venda':'vence em '+date}.`,module:'estoque',reference:lot.id,priority:expired?'critical':'high',requiredPermissions:['stockLots.read']}:null)
+  }
+  await resolveMissing(tx,'expiry:',expiryKeys)
   const reservations = await tx.reservation.findMany({ where: { status: { in: ["confirmada", "checkin"] } } })
   const keys: string[] = []
   for (const reservation of reservations) {

@@ -44,9 +44,11 @@ export async function seedDemo() {
       { id: "demo-soda", name: "Refrigerante", categoryId: "demo-beverages", price: 8, stock: 0, unit: "un", minimum: 12, cost: 3 },
     ]
     for (const product of products) {
-      await tx.pOSProduct.create({ data: { id: product.id, name: product.name, categoryId: product.categoryId, price: product.price, trackStock: true } })
+      await tx.pOSProduct.create({ data: { id: product.id, name: product.name, categoryId: product.categoryId, price: product.price, trackStock: true, requiresExpiry:true } })
       await tx.stockItem.create({ data: { id: `stock-${product.id}`, productId: product.id, productName: product.name, currentStock: product.stock, minimumStock: product.minimum, maximumStock: 150, unit: product.unit, averageCost: product.cost, lastPurchasePrice: product.cost } })
     }
+    for(const product of products)if(product.stock>0)await tx.stockLot.create({data:{id:'lot-'+product.id,productId:product.id,code:'EXEMPLO-'+product.id,origin:'demo',expiresAt:new Date(day(90)),quantity:product.stock,receivedQuantity:product.stock,remainingValue:product.stock*product.cost,unitCost:product.cost,reason:'Lote e validade fictícios, exclusivos da demonstração'}})
+    await applyOperation(tx,actor,'purchase-receive',{supplierId:'demo-supplier',reference:'EXEMPLO-COMPRA-001',items:[{productId:'demo-water',packaging:'Fardo',factor:12,acceptedPackages:2,refusedPackages:1,packagePrice:24,code:'EXEMPLO-COMPRA-AGUA',expiresAt:day(60)},{productId:'demo-juice',packaging:'Unidade',factor:1,acceptedPackages:2,refusedPackages:0,packagePrice:4,code:'EXEMPLO-COMPRA-SUCO',expiresAt:day(5)}],freight:4,discount:0,dueDate:day(30),notes:'Compra fictícia: embalagens recusadas não entram no saldo nem na cobrança'})
     // Standard public test CPF examples, associated only with fictitious guest names.
     const guests = [["52998224725", "Hóspede Exemplo 1"], ["11144477735", "Hóspede Exemplo 2"], ["39053344705", "Hóspede Exemplo 3"]]
     for (let index = 0; index < guests.length; index++) {

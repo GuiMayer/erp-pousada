@@ -1,3 +1,6 @@
+import { inventoryMappers } from './inventory-mappers'
+import { lotUsable } from '@/lib/inventory'
+import { businessDay } from '@/lib/utils/business-values'
 import type {
   AccountReceivable,
   AuditEntry,
@@ -38,6 +41,7 @@ import { mapStay } from "../stays"
 type Row = Record<string, any>
 
 export type DataCollectionKey =
+  | "purchases" | "stockLots" | "stockInventories" | "purchaseReturns"
   | "stays"
   | "lodgingTariffs"
   | "rooms"
@@ -199,6 +203,7 @@ const expenseMapper: CollectionMapper<Expense> = {
   include: { installments: { orderBy: { installmentNumber: "asc" } } },
   orderBy: { dueDate: "asc" },
   toApp: row => ({
+    sourcePurchaseId: optional(row.sourcePurchaseId),
     id: row.id,
     description: row.description,
     category: row.category,
@@ -219,6 +224,7 @@ const expenseMapper: CollectionMapper<Expense> = {
     })),
   }),
   toCreate: item => stripUndefined({
+    sourcePurchaseId: item.sourcePurchaseId,
     id: item.id,
     description: item.description,
     category: item.category,
@@ -346,18 +352,20 @@ const simpleMappers = {
     toUpdate: (item: Partial<RestaurantTable>) => stripUndefined({ ...item, openedAt: dateValue(item.openedAt) }),
   },
   stockItems: {
+    include: {product:{select:{requiresExpiry:true,lots:{select:{quantity:true,status:true,expiresAt:true}}}}},
     prismaModel: "stockItem",
     orderBy: { productName: "asc" },
-    toApp: (row: Row): StockItem => ({ ...row, currentStock: numberValue(row.currentStock), minimumStock: numberValue(row.minimumStock), maximumStock: numberValue(row.maximumStock), averageCost: numberValue(row.averageCost), lastPurchasePrice: numberValue(row.lastPurchasePrice), lastPurchaseDate: optionalDateOnly(row.lastPurchaseDate) } as StockItem),
-    toCreate: (item: StockItem) => stripUndefined({ ...item, lastPurchaseDate: dateValue(item.lastPurchaseDate) }),
-    toUpdate: (item: Partial<StockItem>) => stripUndefined({ ...item, lastPurchaseDate: dateValue(item.lastPurchaseDate) }),
+    toApp: (row: Row): StockItem => ({ ...Object.fromEntries(Object.entries(row).filter(([key])=>key!=="product")), usableStock:(row.product?.lots??[]).filter((l:Row)=>lotUsable({status:l.status,expiresAt:l.expiresAt?.toISOString()??null},businessDay(),row.product?.requiresExpiry)).reduce((sum:number,l:Row)=>sum+Number(l.quantity),0), currentStock: numberValue(row.currentStock), minimumStock: numberValue(row.minimumStock), maximumStock: numberValue(row.maximumStock), averageCost: numberValue(row.averageCost), lastPurchasePrice: numberValue(row.lastPurchasePrice), lastPurchaseDate: optionalDateOnly(row.lastPurchaseDate) } as StockItem),
+    toCreate: (item: StockItem) => stripUndefined({ ...Object.fromEntries(Object.entries(item).filter(([key])=>key!=="usableStock")), lastPurchaseDate: dateValue(item.lastPurchaseDate) }),
+    toUpdate: (item: Partial<StockItem>) => stripUndefined({ ...Object.fromEntries(Object.entries(item).filter(([key])=>key!=="usableStock")), lastPurchaseDate: dateValue(item.lastPurchaseDate) }),
   },
   stockMovements: {
+    include:{allocations:true},
     prismaModel: "stockMovement",
     orderBy: { timestamp: "desc" },
-    toApp: (row: Row): StockMovement => ({ ...row, quantity: numberValue(row.quantity), cost: optionalNumber(row.cost), timestamp: dateString(row.timestamp), expirationDate: optionalDateOnly(row.expirationDate) } as StockMovement),
-    toCreate: (item: StockMovement) => stripUndefined({ ...item, timestamp: dateValue(item.timestamp), expirationDate: dateValue(item.expirationDate) }),
-    toUpdate: (item: Partial<StockMovement>) => stripUndefined({ ...item, timestamp: dateValue(item.timestamp), expirationDate: dateValue(item.expirationDate) }),
+    toApp: (row: Row): StockMovement => ({ ...row, allocations:(row.allocations??[]).map((a:Row)=>({id:a.id,lotId:a.lotId,delta:Number(a.delta),value:Number(a.value)})), quantity: numberValue(row.quantity), cost: optionalNumber(row.cost), timestamp: dateString(row.timestamp), expirationDate: optionalDateOnly(row.expirationDate) } as StockMovement),
+    toCreate: (item: StockMovement) => stripUndefined({ ...item, allocations:{create:item.allocations??[]}, timestamp: dateValue(item.timestamp), expirationDate: dateValue(item.expirationDate) }),
+    toUpdate: (item: Partial<StockMovement>) => stripUndefined({ ...item, allocations:{create:item.allocations??[]}, timestamp: dateValue(item.timestamp), expirationDate: dateValue(item.expirationDate) }),
   },
   employees: {
     prismaModel: "employee",
@@ -589,6 +597,7 @@ const lodgingTariffMapper: CollectionMapper<LodgingTariff> = {
   toUpdate: item => stripUndefined({ ...item, validFrom: dateValue(item.validFrom), validTo: item.validTo === null ? null : dateValue(item.validTo) }),
 }
 export const collectionMappers = {
+  ...inventoryMappers,
   stays: {
     prismaModel: "stay", include: { occupants: true, allocations: true, charges: true, payments: true, adjustments: true }, orderBy: { checkIn: "desc" },
     toApp: row => mapStay(row as Parameters<typeof mapStay>[0]),

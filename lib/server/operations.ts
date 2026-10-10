@@ -1,3 +1,5 @@
+import { inventoryOperation } from './inventory-operations'
+import { issueStock,restoreStock } from './inventory-stock'
 import { ensureStay, roomStay, stayOperation, finishStay, receiveStay, mapStay } from "./stays"
 import { stayBalance } from "@/lib/stays"
 import { ensureGuest } from "./contacts"
@@ -47,14 +49,10 @@ async function checkDiscount(tx: Tx, actor: Actor, value: number) {
   if (value - (settings?.discountCeiling ?? 0) > 0.000001) demand(actor, "discount.override")
 }
 async function moveStock(tx: Tx, productId: string, quantity: number, actor: Actor, reference: string, restore = false) {
-  const product = await tx.pOSProduct.findUniqueOrThrow({ where: { id: productId } })
-  if (!product.trackStock) return
-  const stock = await tx.stockItem.findUnique({ where: { productId } })
-  if (!stock) throw new HttpError(409, "Produto sem estoque cadastrado")
-  const changed = await tx.stockItem.updateMany({ where: { id: stock.id, ...(restore ? {} : { currentStock: { gte: quantity } }) }, data: { currentStock: restore ? { increment: quantity } : { decrement: quantity } } })
-  if (changed.count !== 1) throw new HttpError(409, `Estoque insuficiente: ${product.name}`)
-  await tx.stockMovement.create({ data: { id: randomUUID(), type: restore ? "entrada" : "saida", productId, productName: product.name, quantity, unit: stock.unit, cost: stock.averageCost, reason: reference, timestamp: new Date(), registeredBy: actor.username } })
+  if(restore)await restoreStock(tx,productId,quantity,actor,reference,reference.replace('Estorno ','Venda '))
+  else await issueStock(tx,productId,quantity,actor,reference)
 }
+const operationIsInventory=(kind:string)=>['purchase-receive','purchase-return','return-settle','stock-opening','lot-review','stock-loss','inventory-post','inventory-start'].includes(kind)
 const ledger = recordLedger
 
 async function assertRoomPeriod(tx: Tx, room: { id: number; status: string; blockEndDate: Date | null }, start: Date, end: Date) {
@@ -69,6 +67,8 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   if (stayResult !== undefined) return stayResult
   const financeResult = await financeOperation(tx, actor, kind, payload)
   if (financeResult !== undefined) return financeResult
+  const inventoryResult=await inventoryOperation(tx,actor,kind,payload)
+  if(inventoryResult!==undefined)return inventoryResult
   if (kind === "reserve-group") {
     const input = z.object({ payerId: id.optional(), rooms: z.array(z.object({ guestCount: z.number().int().min(1).max(100).optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, totalValue: money })).min(1).max(50), cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date() }).strict().parse(payload)
     if (new Set(input.rooms.map(room => room.roomId)).size !== input.rooms.length) throw new HttpError(400, "Quartos repetidos")
@@ -136,7 +136,11 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
         await ledger(tx,actor,`Estorno ${sale.id}`,original.value,'estorno',original.paymentMethod??undefined,original.accountId??undefined,{originType:'sale-refund',originId:sale.id,reversalOfId:original.id})
       }
     }
-    if (input.returnToStock) for (const item of sale.items) await moveStock(tx, item.productId, item.quantity, actor, `Estorno ${sale.id}`, true)
+    if (input.returnToStock) {
+      const quantities=new Map<string,number>()
+      for(const item of sale.items)quantities.set(item.productId,(quantities.get(item.productId)??0)+item.quantity)
+      for(const [productId,quantity] of quantities)await moveStock(tx,productId,quantity,actor,`Estorno ${sale.id}`,true)
+    }
     await tx.pOSSale.update({ where: { id: sale.id }, data: { status: 'cancelada', cancelReason: input.reason } })
     await audit(tx, actor, "Venda estornada", `${sale.id}: ${input.reason}`, { entityType: "posSales", entityId: sale.id, operation: "update", metadata: { reason: input.reason } })
     return { success: true }
@@ -224,7 +228,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (product && !product.active) throw new HttpError(409, "Bebida inativa; selecione um produto disponível")
     if (product) item.unitPrice = Number(product.price)
     else demand(actor, "consumptions.custom")
-    if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number}`)
+    if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number} · ${item.id}`)
     const stay = await roomStay(tx, roomId)
     await tx.stayCharge.create({ data: { id: item.id, stayId: stay.id, productId: product?.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity } })
     await tx.stay.update({ where: { id: stay.id }, data: { recordVersion: { increment: 1 } } })
@@ -319,17 +323,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     await audit(tx, actor, "Estado da mesa alterado", table.number, { entityType: "restaurantTables", entityId: String(table.id), operation: "update", metadata: { before: { status: table.status }, after: { status: input.status } } })
     return { success: true }
   }
-  if (kind === "stock-movement") {
-    const input = z.object({ productId: id, type: z.enum(["entrada", "saida", "ajuste", "perda"]), quantity: z.number().finite().nonnegative().max(999999), reason: text, cost: money.optional(), invoiceNumber: z.string().max(200).optional(), expirationDate: z.string().optional(), notes: z.string().max(2000).optional() }).strict().parse(payload)
-    const stock = await tx.stockItem.findUniqueOrThrow({ where: { productId: input.productId } })
-    const next = input.type === "entrada" ? stock.currentStock.plus(input.quantity) : input.type === "ajuste" ? decimal(input.quantity) : stock.currentStock.minus(input.quantity)
-    if (next.lt(0)) throw new HttpError(409, "Estoque insuficiente")
-    const averageCost = input.type === "entrada" && input.cost !== undefined && next.gt(0) ? stock.currentStock.mul(stock.averageCost).plus(decimal(input.quantity).mul(input.cost)).div(next) : stock.averageCost
-    await tx.stockItem.update({ where: { id: stock.id }, data: { currentStock: next, averageCost, ...(input.type === "entrada" ? { lastPurchaseDate: new Date(), lastPurchasePrice: input.cost ?? stock.lastPurchasePrice } : {}) } })
-    const movement = await tx.stockMovement.create({ data: { ...input, id: randomUUID(), productName: stock.productName, unit: stock.unit, timestamp: new Date(), expirationDate: input.expirationDate ? new Date(input.expirationDate) : undefined, registeredBy: actor.username } })
-    await audit(tx, actor, "Movimento de estoque", movement.id, { entityType: "stockMovements", entityId: movement.id, operation: "create" })
-    return collectionMapper("stockMovements").toApp(movement)
-  }
+  if(kind==='stock-movement')throw new HttpError(409,'Use recebimento de compra, perda por lote, abertura ou inventário. O saldo não pode ser sobrescrito.')
   if (kind === "reservation-discount") {
     const input = z.object({ reservationId: id, type: z.enum(["percent", "fixed"]), value: money }).strict().parse(payload)
     const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: input.reservationId } })
@@ -387,8 +381,9 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   }
   if (kind === "production") {
     const input = z.object({ recipeId: id, plannedQuantity: z.number().positive().finite(), producedQuantity: z.number().positive().finite(), notes: z.string().max(2000).optional() }).strict().parse(payload)
-    const recipe = await tx.recipe.findUniqueOrThrow({ where: { id: input.recipeId }, include: { ingredients: true } })
+    const recipe = await tx.recipe.findUniqueOrThrow({ where: { id: input.recipeId }, include: { ingredients: { include: { product: { include: { category: true } } } } } })
     if (!recipe.active || recipe.expectedYield.lte(0) || !recipe.ingredients.length || recipe.ingredients.some(item => item.quantity.lte(0))) throw new HttpError(409, "Receita inválida ou inativa")
+    if (recipe.ingredients.some(item => !item.product.category.isRestaurant) || await tx.stockLot.count({ where: { productId: { in: recipe.ingredients.map(item => item.productId) } } })) throw new HttpError(409, "O módulo arquivado de restaurante não pode consumir o estoque da pousada")
     const productionId = randomUUID(); let totalCost = decimal(0)
     for (const ingredient of [...recipe.ingredients].sort((a, b) => a.productId.localeCompare(b.productId))) {
       const stock = await tx.stockItem.findUniqueOrThrow({ where: { productId: ingredient.productId } })
@@ -459,7 +454,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         await emitOperation(tx, actor, requestId, kind, payload, result)
         // Avoid scanning unrelated modules while a user's transaction holds locks.
         // The existing worker still performs a full reconciliation every 30 seconds.
-        if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption"].includes(kind)) await evaluateStock(tx)
+        if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption", "remove-consumption"].includes(kind) || operationIsInventory(kind)) { await evaluateStock(tx); if(operationIsInventory(kind))await evaluateTimed(tx) }
         if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })

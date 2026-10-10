@@ -64,7 +64,7 @@ As visualizações de vendas, produtos e estoque complementam a análise. Os dad
 | --- | --- |
 | **Cadastros** | Gerenciar pessoas, empresas e seus funcionários vinculados, fornecedores, bebidas, capacidade dos quartos e tarifas por pessoa e ocupação. |
 | **Reservas** | Cadastrar reservas e acompanhar hospedagens, ocupantes, troca de quarto, extrato e cobranças empresariais após a saída; conferir cancelamentos e no-show. |
-| **Estoque** | Consultar produtos da pousada, registrar entradas, saídas, ajustes e perdas, e acompanhar alertas de estoque mínimo. |
+| **Estoque** | Receber compras com conta a pagar, converter embalagens, controlar lotes e validade, registrar perdas/devoluções e conferir inventário por corte. Saldo utilizável orienta vendas e alertas de reposição. |
 | **Configurações** | Ajustar os dados do estabelecimento e as preferências da interface. |
 | **Administração** | Gerenciar o cadastro de usuários. |
 | **Auditoria** | Consultar os registros de ações realizadas no sistema. |
@@ -255,3 +255,5 @@ Eventos confirmados e alertas operacionais possuem histórico no PostgreSQL, lei
 Consulte [Auditoria e logs](docs/LOGS.md) para filtros do histórico, diagnóstico de erros e política de retenção.
 
 Para apresentações sem alterar os dados operacionais, consulte [Demonstração temporária](docs/DEMONSTRACAO.md).
+
+A [entrega da Sprint 4](docs/ENTREGA_SPRINT_4.md) explica compras, lotes, inventário e a revisão de abertura exigida para saldos anteriores.
