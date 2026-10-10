@@ -499,6 +499,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const created = await dataStore.reservations.create(r)
     setReservations(await dataStore.reservations.getAll())
+    await reconcileDemoStays(dataStore)
+    setStays(await dataStore.stays.getAll())
 
     // Audit trail
     await addAuditEntry({
@@ -540,6 +542,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await dataStore.reservations.update(id, data)
     const after = await dataStore.reservations.getById(id)
     setReservations(await dataStore.reservations.getAll())
+    await reconcileDemoStays(dataStore)
+    setStays(await dataStore.stays.getAll())
 
     // Audit trail
     if (before && after) {

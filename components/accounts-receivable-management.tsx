@@ -215,8 +215,7 @@ export function AccountsReceivableManagement() {
     .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
 
   const totalReceived = accountsReceivable
-    .filter(ar => ar.status === "pago")
-    .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
+    .reduce((sum, ar) => sum + (ar.sourceStayId ? ar.paidValue ?? 0 : ar.status === "pago" ? ar.value : 0), 0)
 
   return (
     <div className="space-y-6">
