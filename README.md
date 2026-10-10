@@ -242,4 +242,4 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 
 Para contribuir, abra uma issue descrevendo o problema ou a proposta e envie um pull request com contexto e validação da alteração. Mantenha os exemplos fictícios e documente mudanças de configuração ou persistência.
 
-O repositório ainda não possui um arquivo de licença. A disponibilização pública do código não substitui a definição de uma licença de uso e distribuição.
+Este projeto é distribuído sob a [licença MIT](LICENSE). As dependências e demais materiais de terceiros mantêm suas respectivas licenças.
