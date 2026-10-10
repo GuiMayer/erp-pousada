@@ -26,7 +26,7 @@ export function StaySheet({ stay, onClose }: { stay: Stay; onClose: ()=>void }) 
   const balance=stayBalance(stay), active=stay.status==='active'
   const title=accountsReceivable.find(t=>t.sourceStayId===stay.id)
   const payer=customers.find(c=>c.id===stay.payerId)
-  const corporatePayer=!!payer?.active&&payer.cpfCnpj.replace(/\D/g,'').length===14&&payer.roles.includes('payer')
+  const corporatePayer=!!payer?.active&&payer.cpfCnpj.replace(/\D/g,'').length===14&&!!payer.roles?.includes('payer')
   const allowedReceive=can('hospitality.receive')&&(active||can('accountsReceivable.receive'))
   const target={stayId:stay.id,recordVersion:stay.recordVersion}
   async function perform(kind: string,payload: object) {
