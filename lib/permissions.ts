@@ -91,6 +91,8 @@ const actionLabels: Record<string, string> = {
   delete: "Excluir"
 }
 const specialLabels: Record<string, string> = {
+  "reports.read": "Consultar relatórios gerenciais",
+  "reports.export": "Exportar relatórios gerenciais",
   "purchases.receive":"Confirmar recebimento de compra",
   "purchases.return":"Devolver mercadoria ao fornecedor",
   "purchases.settleReturn":"Registrar acerto financeiro de devolução",
@@ -179,7 +181,7 @@ export const tabPermissions: Record<string, string[]> = {
   "accountsReceivable.read",
   "cash.open",
   "cash.close", "bankAccounts.read"],
-  relatorios: ["posSales.read"],
+  relatorios: ["reports.read"],
   configuracoes: ["systemSettings.edit"],
   administracao: ["users.manage", "systemSettings.edit"],
   auditoria: ["auditLog.read"]
