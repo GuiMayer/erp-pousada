@@ -644,4 +644,14 @@ describe("S4 — recebimentos, lotes e contagem por corte", () => {
     await expect(updateCollectionItem('posProducts',product.id,{trackStock:false,recordVersion:product.recordVersion},actor)).rejects.toMatchObject({status:409})
   })
 
+  it("produção arquivada não contorna os lotes da pousada", async () => {
+    await op("purchase-receive", receipt());
+    const recipeId = randomUUID();
+    await prisma.recipe.create({ data: { id: recipeId, name: "Receita indevida", category: "teste", version: 1, expectedYield: 1, yieldUnit: "un", preparationTime: 1, instructions: "Teste", ingredients: { create: [{ id: randomUUID(), productId: "s4-water", productName: "Água", quantity: 1, unit: "un", cost: 5 }] } } });
+    await expect(op("production", { recipeId, plannedQuantity: 1, producedQuantity: 1 })).rejects.toMatchObject({ status: 409 });
+    expect(await physical()).toBe(24);
+    expect(Number((await lot()).remainingValue)).toBe(120);
+    expect(await prisma.production.count({ where: { recipeId } })).toBe(0);
+  });
+
 });
