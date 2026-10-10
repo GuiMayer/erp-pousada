@@ -137,7 +137,9 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
       const previous = stay.nightlyPrices as Stay["nightlyPrices"]
       if (!previous?.length) throw new HttpError(409, "Preço legado sem composição; preserve o valor acordado")
       const nights = [...previous.filter(n => n.date < input.effectiveDate), ...quote.nights]
-      lodgingValue = new Prisma.Decimal(nights.reduce((s,n) => s + Math.round(n.total * 100), 0)).div(100)
+      const agreedAdjustment = stay.lodgingValue.minus(new Prisma.Decimal(previous.reduce((s,n) => s + Math.round(n.total * 100), 0)).div(100))
+      lodgingValue = new Prisma.Decimal(nights.reduce((s,n) => s + Math.round(n.total * 100), 0)).div(100).plus(agreedAdjustment)
+      if (lodgingValue.lt(0)) throw new HttpError(409, "Ajuste anterior excede as novas diárias; revise o preço antes de trocar")
       const paid = stayBalance(mapStay(stay)).paid
       if (lodgingValue.lt(stay.lodgingValue)) demand(actor, "lodgingTariffs.override")
       if (lodgingValue.plus(stayBalance(mapStay(stay)).consumption).lt(paid)) throw new HttpError(409, "Novo preço inferior ao recebido; concilie antes")
