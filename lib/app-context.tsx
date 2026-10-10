@@ -404,7 +404,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const changedModule = event instanceof MessageEvent ? JSON.parse(event.data).module : "reconnected"
       if (changedModule === "reconnected") fullRefresh = true
       else if (changedModule === "notifications") window.dispatchEvent(new Event("erp:operation-completed"))
-      else dirty.add(changedModule)
+      else {dirty.add(changedModule); if(["purchases","stockLots","stockInventories","purchaseReturns"].includes(changedModule))window.dispatchEvent(new Event("erp:inventory-changed"))}
       clearTimeout(debounce)
       debounce = setTimeout(() => {
         if (running) { invalidate(); return }

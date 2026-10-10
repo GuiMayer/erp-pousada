@@ -24,7 +24,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
     categoryId: "",
     price: "",
     barcode: "",
-    trackStock: false
+    requiresExpiry: true, trackStock: false
   })
   const wasOpen = useRef(false)
   const original = useRef(product)
@@ -45,7 +45,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
         categoryId: product.categoryId,
         price: product.price.toString(),
         barcode: product.barcode || "",
-        trackStock: product.trackStock
+        requiresExpiry: product.requiresExpiry ?? false, trackStock: product.trackStock
       })
     } else {
       setFormData({
@@ -53,7 +53,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
         categoryId: "",
         price: "",
         barcode: "",
-        trackStock: false
+        requiresExpiry: true, trackStock: false
       })
     }
     setError("")
@@ -97,7 +97,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
       categoryId: formData.categoryId,
       price: price,
       barcode: formData.barcode.trim() || undefined,
-      trackStock: formData.trackStock
+      requiresExpiry: formData.requiresExpiry, trackStock: formData.trackStock
     }
 
     if (product) {
@@ -200,6 +200,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
             </Label>
           </div>
 
+          <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={formData.requiresExpiry} onChange={e=>setFormData({...formData,requiresExpiry:e.target.checked})}/>Exigir lote e validade real no recebimento</label>
           {error && (
             <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
               {error}
