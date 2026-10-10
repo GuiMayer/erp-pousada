@@ -21,6 +21,7 @@ beforeAll(async () => {
   }
 })
 beforeEach(async () => {
+  for (const a of [actor,reception]) await prisma.authSession.upsert({ where:{id:a.sessionId},create:{id:a.sessionId,userId:a.id,tokenHash:randomUUID(),expiresAt:new Date(Date.now()+600000)},update:{expiresAt:new Date(Date.now()+600000)} })
   await prisma.$executeRawUnsafe('TRUNCATE customers, rooms, guest_profiles, product_categories, transactions CASCADE')
   await prisma.bankAccount.deleteMany()
   await prisma.room.createMany({ data: [1,2,3].map(id => ({ id, number: 'S2-'+id, type: 'casal', status: 'disponivel', capacity: id === 3 ? 1 : 2 })) })
