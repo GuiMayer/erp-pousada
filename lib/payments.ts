@@ -8,6 +8,7 @@ export function distributePayment(total: number, lines: PaymentLine[]) {
   const owed=cents(total)
   if (!lines.length || lines.length>8) throw Error('Informe de uma a oito formas de pagamento')
   const normalized=lines.map(p=>({...p,method:normalizePayment(p.method),value:cents(p.value)}))
+  if (owed === 0 && normalized.length === 1 && normalized[0].method === 'Dinheiro' && normalized[0].value === 0 && !normalized[0].accountId) return {offered:0,change:0,lines:[{...normalized[0],applied:0}]}
   if(normalized.some(p=>!['Dinheiro','PIX','Cartao Debito','Cartao Credito'].includes(p.method)||p.value<=0)) throw Error('Forma ou valor de pagamento inválido')
   if(normalized.filter(p=>p.method==='Dinheiro').length>1) throw Error('Informe dinheiro em uma única linha')
   if(normalized.some(p=>p.method==='Dinheiro'&&p.accountId)) throw Error('Dinheiro utiliza o caixa físico')

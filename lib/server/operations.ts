@@ -130,7 +130,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.stay.update({where:{id:stay.id},data:{recordVersion:{increment:1}}})
     }else{
       const receipts=await tx.transaction.findMany({where:{refId:`Venda ${sale.id}`,type:'receita'}})
-      if(!receipts.length||!receipts.reduce((sum,p)=>sum.plus(p.value),decimal(0)).equals(sale.total))throw new HttpError(409,'Recebimentos não conciliados; revise antes de estornar')
+      if((!receipts.length && sale.total.gt(0))||!receipts.reduce((sum,p)=>sum.plus(p.value),decimal(0)).equals(sale.total))throw new HttpError(409,'Recebimentos não conciliados; revise antes de estornar')
       for(const original of receipts) {
         if(await tx.transaction.count({where:{reversalOfId:original.id}}))throw new HttpError(409,'Recebimento já estornado')
         await ledger(tx,actor,`Estorno ${sale.id}`,original.value,'estorno',original.paymentMethod??undefined,original.accountId??undefined,{originType:'sale-refund',originId:sale.id,reversalOfId:original.id})

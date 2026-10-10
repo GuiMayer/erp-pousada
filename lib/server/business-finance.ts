@@ -17,7 +17,7 @@ const id = z.string().trim().min(1).max(200)
 const money = z.number().finite().nonnegative().max(999999999).refine(value => Math.abs(value * 100 - Math.round(value * 100)) < 0.00001, "Use no máximo duas casas decimais")
 const positiveMoney = money.refine(value => value > 0, "Valor deve ser positivo")
 export const paymentSchema = z.enum(["dinheiro", "pix", "debito", "credito", "Dinheiro", "PIX", "Cartao Debito", "Cartao Credito", "Cartão Débito", "Cartão Crédito"])
-export const paymentLinesSchema = z.array(z.object({ method: paymentSchema, value: positiveMoney, accountId: id.optional() }).strict()).min(1).max(8)
+export const paymentLinesSchema = z.array(z.object({ method: paymentSchema, value: money, accountId: id.optional() }).strict()).min(1).max(8)
 export const paymentFields = { paymentMethod: paymentSchema.optional(), accountId: id.optional(), payments: paymentLinesSchema.optional() }
 const D = (value: Prisma.Decimal.Value) => new Prisma.Decimal(value)
 

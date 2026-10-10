@@ -47,6 +47,39 @@ async function current() { return (await getCollection('stays'))[0] as Stay }
 
 const sale=(saleId=randomUUID(),extra:object={})=>({sale:{id:saleId,items:[{id:randomUUID(),product:{id:'s2-drink'},quantity:10,discount:0}],total:120,amountPaid:120,paymentMethod:'pix',accountId:'s2-bank',...extra},globalDiscount:0})
 describe('Sprint 3 — caixa e liquidação',()=>{
+  it('entrega cortesia com desconto autorizado sem inventar entrada de dinheiro',async()=>{
+    const id=randomUUID(),payload=sale(id,{items:[{id:randomUUID(),product:{id:'s2-drink'},quantity:1,discount:100}],total:0,amountPaid:0,payments:[{method:'dinheiro',value:0}]})
+    await op('sale',payload)
+    expect(await prisma.transaction.count()).toBe(0)
+    expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)).toBe(9)
+    await op('cancel-sale',{saleId:id,reason:'Cortesia não entregue',returnToStock:true})
+    expect(await prisma.transaction.count()).toBe(0)
+    expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)).toBe(10)
+  })
+  it('um recebimento misto quita diárias e bebidas com um lançamento por meio e restaura o estorno vinculado',async()=>{
+    const s=await start();await op('cash-open',{openingValue:0})
+    await op('stay-receive',{stayId:s.id,recordVersion:s.recordVersion,value:424,payments:[{method:'pix',value:410,accountId:'s2-bank'},{method:'dinheiro',value:20}]})
+    expect(stayBalance(await current()).balance).toBe(0)
+    expect(await prisma.transaction.count({where:{type:'receita'}})).toBe(2)
+    expect(await prisma.stayPayment.count()).toBe(3)
+    expect(Number((await prisma.bankAccount.findUniqueOrThrow({where:{id:'s2-bank'}})).currentBalance)).toBe(410)
+    const id=randomUUID()
+    await op('sale',sale(id,{items:[{id:randomUUID(),product:{id:'s2-drink'},quantity:1,discount:0}],total:12,amountPaid:12}))
+    await op('cancel-sale',{saleId:id,reason:'Devolução conferida',returnToStock:true})
+    await expect(op('cancel-sale',{saleId:id,reason:'Devolução repetida',returnToStock:true})).rejects.toMatchObject({status:409})
+    const snapshot=await exportAllCollections();await importAllCollections(snapshot,actor)
+    expect(await prisma.transaction.count({where:{reversalOfId:{not:null}}})).toBe(1)
+    expect(stayBalance(await current()).balance).toBe(0)
+  })
+  it('dois recebimentos de um título com a mesma versão aplicam apenas uma alteração',async()=>{
+    await createCollectionItem('accountsReceivable',{id:'concurrent',customerId:'s2-company',customerName:'Empresa S2',description:'Cobrança concorrente',value:600,issueDate:day,dueDate:next(5),status:'pendente'},actor)
+    const title=await prisma.accountReceivable.findUniqueOrThrow({where:{id:'concurrent'}})
+    const payload={targets:[{accountReceivableId:title.id,recordVersion:title.recordVersion,value:250}],paymentMethod:'pix',accountId:'s2-bank'}
+    const result=await Promise.allSettled([op('receive-batch',payload),op('receive-batch',payload)])
+    expect(result.filter(r=>r.status==='fulfilled')).toHaveLength(1)
+    expect(Number((await prisma.accountReceivable.findUniqueOrThrow({where:{id:title.id}})).paidValue)).toBe(250)
+    expect(await prisma.transaction.count({where:{type:'receita'}})).toBe(1)
+  })
   it('AP-15/23/27: misto gera entradas líquidas, estorno segue meios originais e não devolve estoque por padrão',async()=>{
     await op('cash-open',{openingValue:30});const key=randomUUID(),input=sale(key,{amountPaid:130,payments:[{method:'pix',value:40,accountId:'s2-bank'},{method:'dinheiro',value:90}]})
     await op('sale',input,actor,key);await op('sale',input,actor,key)

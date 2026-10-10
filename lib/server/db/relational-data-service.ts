@@ -281,6 +281,7 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
   if(actor&&['expenses','accountsReceivable'].includes(key)) {
+    if (key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
     const title=await model(key,client).findUnique({where:itemWhere(key,id)})
     if(Number(title?.paidValue??0)>0)throw new HttpError(409,'Título com recebimento/pagamento não pode ser excluído')
   }

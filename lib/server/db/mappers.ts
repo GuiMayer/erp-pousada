@@ -255,7 +255,7 @@ const transactionMapper: CollectionMapper<Transaction> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     id: row.id,
-    batchId:optional(row.batchId),originType:optional(row.originType),originId:optional(row.originId),reversalOfId:optional(row.reversalOfId),checkedAt:optionalDateOnly(row.checkedAt),checkedBy:optional(row.checkedBy),checkNote:optional(row.checkNote),
+    batchId:optional(row.batchId),originType:optional(row.originType),originId:optional(row.originId),reversalOfId:optional(row.reversalOfId),checkedAt:row.checkedAt ? new Date(row.checkedAt).toISOString() : undefined,checkedBy:optional(row.checkedBy),checkNote:optional(row.checkNote),
     allocations:row.allocations?.map((a:Row)=>({id:a.id,targetType:a.targetType,targetId:a.targetId,value:numberValue(a.value)})),
     date: dateString(row.date),
     cashSessionId: optional(row.cashSessionId),

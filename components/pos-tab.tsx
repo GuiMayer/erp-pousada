@@ -988,6 +988,8 @@ export function POSTab() {
                   <span>{lastSale.paymentMethod}:</span>
                   <span className="tabular-nums">{lastSale.amountPaid.toFixed(2)}</span>
                 </div>
+                {lastSale.payments?.map((payment, index) => <div key={index} className="flex justify-between text-xs"><span>{payment.method}</span><span>{formatCurrency(payment.applied ?? payment.value)}</span></div>)}
+                {lastSale.stayId && <p className="text-xs">Lançado na conta da hospedagem; sem recebimento no balcão.</p>}
                 {lastSale.change > 0 && (
                   <div className="flex justify-between">
                     <span>Troco:</span>

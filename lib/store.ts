@@ -486,7 +486,7 @@ export interface POSCartItem {
 
 export interface POSSale {
   stayId?:string|null
-  payments?: import("./payments").PaymentLine[] & {applied?:number}[]
+  payments?: Array<import("./payments").PaymentLine & {applied?:number}>
   id: string
   date: string
   items: POSCartItem[]
