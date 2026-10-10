@@ -20,7 +20,7 @@ O projeto está em desenvolvimento. Há um modo de demonstração sem banco e um
 
 A aba **Cadastros** reúne pessoas e empresas, fornecedores, bebidas, capacidades dos quartos e tarifas por pessoa/noite conforme a quantidade de hóspedes. Pessoas podem ser vinculadas a uma empresa, cuja ficha mostra seus funcionários. Nas novas reservas e entradas, a empresa é sugerida como pagadora e pode ser substituída pelo operador; alterar o vínculo cadastral preserva as operações anteriores.
 
-Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md). Cobrança empresarial após a saída, compras integradas, lotes e validade de estoque seguem nas próximas sprints.
+Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md). Hospedagem e cobrança empresarial estão na [Sprint 2](docs/ENTREGA_SPRINT_2.md). Pagamentos mistos, recebimentos distribuídos e caixa estão na [Sprint 3](docs/ENTREGA_SPRINT_3.md). Compras integradas, lotes e validade de estoque seguem nas próximas sprints.
 
 ## Telas do sistema
 
@@ -231,6 +231,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 
 - [Requisitos da pousada e sequência revisada das sprints](docs/REQUISITOS_E_MODELAGEM_ERP.md)
 - [Sprint 2: hospedagem, cobrança empresarial e roteiro de teste](docs/ENTREGA_SPRINT_2.md)
+- [Sprint 3: PDV, pagamentos, recebimentos e caixa](docs/ENTREGA_SPRINT_3.md)
 - [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
 - [Regras de hospedagem, cancelamentos, pagamentos e estoque](docs/REGRAS_NEGOCIO.md)
 - [Permissões individuais, perfis e aprovações por operação](docs/PERMISSOES.md)
