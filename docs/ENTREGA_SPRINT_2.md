@@ -68,7 +68,7 @@ Nesta entrega não foi aplicada a migration ao banco operacional nem reconstruí
 
 ## Validação e limites
 
-Tipos, lint e 314 testes unitários aprovados localmente. Novos testes PostgreSQL cobrem saldo, cobrança única, recebimento parcial/concorrente, isolamento da próxima ocupação, transferência, ocupantes, crédito pessoal, ajuste e restauração. A migration tem ensaio de dados legados e reversão diante de duplicidade. O resultado completo da CI deve ser consultado no PR desta entrega.
+Tipos, lint, 314 testes unitários e 123 testes de integração PostgreSQL aprovados. Novos testes cobrem saldo, cobrança única, recebimento parcial/concorrente, isolamento da próxima ocupação, transferência, ocupantes, crédito pessoal, ajuste e restauração. A migration tem ensaio de dados legados e reversão diante de duplicidade. A CI também verifica compilação, imagem/instalação Docker, painel Windows e backup/restauração; consulte o [PR da entrega](https://github.com/GuiMayer/erp-pousada/pull/7) para o resultado completo da revisão publicada.
 
 Extrato e acesso pelo mapa foram inspecionados em viewport mobile, sem rolagem horizontal; check-in e campos principais também foram conferidos. Isso não substitui aceite em celular real e na máquina da pousada.
 
