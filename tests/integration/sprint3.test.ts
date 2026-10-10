@@ -31,6 +31,7 @@ beforeEach(async () => {
   await prisma.productCategory.create({data:{id:'s2-beverages',name:'Bebidas',icon:'Cup',color:'blue'}})
   await prisma.pOSProduct.create({data:{id:'s2-drink',name:'Água S2',price:12,categoryId:'s2-beverages',trackStock:true}})
   await prisma.stockItem.create({data:{id:'s2-stock',productId:'s2-drink',productName:'Água S2',unit:'un',currentStock:10,minimumStock:1,maximumStock:20,averageCost:3,lastPurchasePrice:3}})
+  await prisma.stockLot.create({data:{id:'s2-lot',productId:'s2-drink',code:'TEST',origin:'test',quantity:10,receivedQuantity:10,remainingValue:30,unitCost:3}})
   await prisma.bankAccount.create({data:{id:'s2-bank',name:'Conta S2',type:'corrente',active:true,initialBalance:0,currentBalance:0}})
 })
 afterAll(async () => { await prisma.user.deleteMany({where:{id:{startsWith:prefix}}}); await prisma.$disconnect() })

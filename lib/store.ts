@@ -230,6 +230,7 @@ export interface GuestProfile {
 }
 
 export interface Expense {
+  sourcePurchaseId?: string
   paidValue?: number
   recordVersion?: number
   id: string
@@ -466,6 +467,7 @@ export interface RoomConsumption {
 }
 
 export interface POSProduct {
+  requiresExpiry?: boolean
   active?: boolean
   unit?: "un" | "ml" | "l"
   recordVersion?: number
@@ -561,6 +563,7 @@ export interface RestaurantOrder {
 }
 
 export interface StockItem {
+  usableStock?: number
   recordVersion?: number
   id: string
   productId: string
@@ -575,6 +578,7 @@ export interface StockItem {
 }
 
 export interface StockMovement {
+  allocations?: {id:string;lotId:string;delta:number;value:number}[]
   id: string
   type: MovementType
   productId: string

@@ -29,10 +29,10 @@ export function usePOSStockValidation() {
         continue
       }
 
-      if (stockItem.currentStock < item.quantity) {
+      if ((stockItem.usableStock ?? stockItem.currentStock) < item.quantity) {
         errors.push({
           productName: item.product.name,
-          message: `Estoque insuficiente. Disponível: ${stockItem.currentStock} ${stockItem.unit}, necessário: ${item.quantity}`,
+          message: `Estoque insuficiente. Disponível: ${(stockItem.usableStock ?? stockItem.currentStock)} ${stockItem.unit}, necessário: ${item.quantity}`,
         })
       }
     }
@@ -81,7 +81,7 @@ export function usePOSStockValidation() {
       movements.push(movement)
 
       // Calculate new stock
-      const newStock = stockItem.currentStock - item.quantity
+      const newStock = (stockItem.usableStock ?? stockItem.currentStock) - item.quantity
       updatedStockItems.push({
         id: stockItem.id,
         data: { currentStock: newStock },
@@ -104,7 +104,7 @@ export function usePOSStockValidation() {
       const stockItem = stockItems.find(s => s.productId === item.product.id)
       if (!stockItem) return true
 
-      return stockItem.currentStock < item.quantity
+      return (stockItem.usableStock ?? stockItem.currentStock) < item.quantity
     })
   }, [])
 
@@ -127,15 +127,15 @@ export function usePOSStockValidation() {
       }
     }
 
-    const available = stockItem.currentStock >= quantity
+    const available = (stockItem.usableStock ?? stockItem.currentStock) >= quantity
 
     return {
       available,
-      currentStock: stockItem.currentStock,
+      currentStock: (stockItem.usableStock ?? stockItem.currentStock),
       unit: stockItem.unit,
       message: available
         ? undefined
-        : `Estoque insuficiente (disponível: ${stockItem.currentStock} ${stockItem.unit})`,
+        : `Estoque insuficiente (disponível: ${(stockItem.usableStock ?? stockItem.currentStock)} ${stockItem.unit})`,
     }
   }, [])
 

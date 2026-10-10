@@ -17,10 +17,10 @@ export function useCart(stockItems?: StockItem[]) {
         const currentInCart = cart.find(item => item.product.id === product.id)?.quantity || 0
         const totalNeeded = currentInCart + quantity
         
-        if (stockItem.currentStock < totalNeeded) {
+        if ((stockItem.usableStock ?? stockItem.currentStock) < totalNeeded) {
           // Return error - caller should handle this
           throw new Error(
-            `Estoque insuficiente para ${product.name}. Disponível: ${stockItem.currentStock} ${stockItem.unit}`
+            `Estoque insuficiente para ${product.name}. Disponível: ${(stockItem.usableStock ?? stockItem.currentStock)} ${stockItem.unit}`
           )
         }
       }
@@ -55,9 +55,9 @@ export function useCart(stockItems?: StockItem[]) {
     const cartItem = cart.find(item => item.id === itemId)
     if (cartItem && cartItem.product.trackStock && stockItems) {
       const stockItem = stockItems.find(s => s.productId === cartItem.product.id)
-      if (stockItem && stockItem.currentStock < quantity) {
+      if (stockItem && (stockItem.usableStock ?? stockItem.currentStock) < quantity) {
         throw new Error(
-          `Estoque insuficiente para ${cartItem.product.name}. Disponível: ${stockItem.currentStock} ${stockItem.unit}`
+          `Estoque insuficiente para ${cartItem.product.name}. Disponível: ${(stockItem.usableStock ?? stockItem.currentStock)} ${stockItem.unit}`
         )
       }
     }
@@ -111,9 +111,9 @@ export function useCart(stockItems?: StockItem[]) {
         continue
       }
 
-      if (stockItem.currentStock < item.quantity) {
+      if ((stockItem.usableStock ?? stockItem.currentStock) < item.quantity) {
         errors.push(
-          `${item.product.name}: estoque insuficiente (disponível: ${stockItem.currentStock} ${stockItem.unit})`
+          `${item.product.name}: estoque insuficiente (disponível: ${(stockItem.usableStock ?? stockItem.currentStock)} ${stockItem.unit})`
         )
       }
     }

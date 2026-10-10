@@ -13,7 +13,7 @@ REVOKE ALL ON notification_worker_state FROM pousada_app;
 SELECT format('CREATE ROLE pousada_notifications LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD %L', :'worker_password') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'pousada_notifications') \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO pousada_notifications', current_database()) \gexec
 GRANT USAGE ON SCHEMA public TO pousada_notifications;
-GRANT SELECT ON system_settings, stock_items, pos_products, reservations, restaurant_orders, accounts_receivable, account_receivable_installments, notification_events, user_notifications, notification_worker_state TO pousada_notifications;
+GRANT SELECT ON system_settings, stock_items, stock_lots, product_categories, pos_products, reservations, restaurant_orders, accounts_receivable, account_receivable_installments, notification_events, user_notifications, notification_worker_state TO pousada_notifications;
 GRANT INSERT, DELETE ON notification_events TO pousada_notifications;
 GRANT UPDATE ("conditionKey", "resolvedAt") ON notification_events TO pousada_notifications;
 GRANT INSERT ON user_notifications TO pousada_notifications;

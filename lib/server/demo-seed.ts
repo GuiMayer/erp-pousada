@@ -47,6 +47,7 @@ export async function seedDemo() {
       await tx.pOSProduct.create({ data: { id: product.id, name: product.name, categoryId: product.categoryId, price: product.price, trackStock: true } })
       await tx.stockItem.create({ data: { id: `stock-${product.id}`, productId: product.id, productName: product.name, currentStock: product.stock, minimumStock: product.minimum, maximumStock: 150, unit: product.unit, averageCost: product.cost, lastPurchasePrice: product.cost } })
     }
+    for(const product of products)if(product.stock>0)await tx.stockLot.create({data:{id:'lot-'+product.id,productId:product.id,code:'EXEMPLO-'+product.id,origin:'demo',expiresAt:new Date(day(90)),quantity:product.stock,receivedQuantity:product.stock,remainingValue:product.stock*product.cost,unitCost:product.cost,reason:'Lote e validade fictícios, exclusivos da demonstração'}})
     // Standard public test CPF examples, associated only with fictitious guest names.
     const guests = [["52998224725", "Hóspede Exemplo 1"], ["11144477735", "Hóspede Exemplo 2"], ["39053344705", "Hóspede Exemplo 3"]]
     for (let index = 0; index < guests.length; index++) {

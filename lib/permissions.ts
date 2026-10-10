@@ -1,4 +1,8 @@
 export const collectionLabels: Record<string, string> = {
+  purchases: "Compras de bebidas",
+  stockLots: "Lotes de bebidas",
+  stockInventories: "Inventários",
+  purchaseReturns: "Devoluções a fornecedores",
   rooms: "Quartos",
   lodgingTariffs: "Tarifas de hospedagem",
   reservations: "Reservas",
@@ -34,6 +38,15 @@ export const collectionLabels: Record<string, string> = {
   auditLog: "Auditoria"
 }
 export const operationPermissions: Record<string, string> = {
+  "purchase-receive":"purchases.receive",
+  "purchase-return":"purchases.return",
+  "return-settle":"purchases.settleReturn",
+  "stock-opening":"stock.opening",
+  "lot-review":"stock.review",
+  "stock-loss":"stock.loss",
+  "inventory-start":"inventory.start",
+  "inventory-post":"inventory.post",
+  "inventory-cancel":"inventory.post",
   reserve: "reservations.create",
   "reserve-group": "reservations.create",
   "edit-reservation": "reservations.edit",
@@ -70,7 +83,7 @@ export const operationPermissions: Record<string, string> = {
   "check-transaction": "transactions.check",
   "receive-batch": "accountsReceivable.receive"
 }
-export const operationalCollections = ["stays", "reservations", "transactions", "cashCloses", "bankTransfers", "posSales", "restaurantOrders", "consumptions", "stockMovements", "productions", "employeeConsumptions"]
+export const operationalCollections = ["purchases", "stockLots", "stockInventories", "purchaseReturns", "stays", "reservations", "transactions", "cashCloses", "bankTransfers", "posSales", "restaurantOrders", "consumptions", "stockMovements", "productions", "employeeConsumptions"]
 const actionLabels: Record<string, string> = {
   read: "Consultar",
   create: "Cadastrar",
@@ -78,6 +91,14 @@ const actionLabels: Record<string, string> = {
   delete: "Excluir"
 }
 const specialLabels: Record<string, string> = {
+  "purchases.receive":"Confirmar recebimento de compra",
+  "purchases.return":"Devolver mercadoria ao fornecedor",
+  "purchases.settleReturn":"Registrar acerto financeiro de devolução",
+  "stock.opening":"Registrar saldo físico de abertura",
+  "stock.review":"Revisar ou bloquear lote",
+  "stock.loss":"Registrar perda por lote",
+  "inventory.start":"Iniciar contagem de inventário",
+  "inventory.post":"Confirmar ou cancelar inventário",
   "hospitality.companyCredit": "Autorizar saída empresarial a prazo",
   "hospitality.transfer": "Trocar quarto de hospedagem",
   "hospitality.occupants": "Identificar ocupantes da hospedagem",
@@ -131,9 +152,9 @@ export const PROFILES: Record<string, { label: string; permissions: string[] }> 
   administrador: { label: "Administrador", permissions: ALL_PERMISSIONS },
   supervisor: { label: "Supervisor", permissions: ALL_PERMISSIONS.filter(key => !key.startsWith("users.") && !key.startsWith("userSessions.") && !key.startsWith("data.")) },
   recepcao: { label: "Recepção", permissions: [...common, ...reads("stays", "rooms", "reservations", "guests", "consumptions", "cashCloses"), ...crud("guests"), ...crud("customers"), ...reads("lodgingTariffs"), ...daily.filter(key => !key.startsWith("pos.") && !key.startsWith("restaurant."))] },
-  caixa: { label: "Caixa", permissions: [...common, ...reads("posSales", "cashCloses", "customers", "stays", "rooms"), ...crud("customers"), "pos.sell", "consumptions.create", "cash.open", "cash.close"] },
+  caixa: { label: "Caixa", permissions: [...common, ...reads("posSales", "cashCloses", "customers", "stays", "rooms", "stockItems"), ...crud("customers"), "pos.sell", "consumptions.create", "cash.open", "cash.close"] },
   restaurante: { label: "Restaurante", permissions: [...common, ...reads("restaurantTables", "restaurantOrders", "recipes"), "restaurant.open", "restaurant.edit", "restaurant.receive"] },
-  estoque: { label: "Estoque", permissions: [...common, ...crud("customers", "stockItems", "recipes", "suppliers", "posProducts", "productCategories"), ...reads("stockMovements", "productions"), "stock.adjust", "production.register"] },
+  estoque: { label: "Estoque", permissions: [...common, ...crud("customers", "stockItems", "recipes", "suppliers", "posProducts", "productCategories"), ...reads("stockMovements", "productions", "purchases", "stockLots", "stockInventories", "purchaseReturns"), "purchases.receive", "purchases.return", "stock.loss", "inventory.start", "stock.adjust", "production.register"] },
   operador_legado: { label: "Operador (acessos anteriores)", permissions: [...reads(...Object.keys(collectionLabels).filter(key => !["users", "userSessions", "employees", "employeeConsumptions"].includes(key))), ...crud("guests", "customers"), ...daily] },
 }
 export function effectivePermissions(user: { role?: string; accessProfile?: string | null; permissionOverrides?: unknown }): string[] {

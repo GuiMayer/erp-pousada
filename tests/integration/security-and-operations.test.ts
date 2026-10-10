@@ -41,6 +41,7 @@ beforeEach(async () => {
   await prisma.stay.deleteMany()
   await prisma.pOSSale.deleteMany(); await prisma.transaction.deleteMany(); await prisma.operationReceipt.deleteMany()
   await prisma.stockMovement.deleteMany(); await prisma.stockItem.update({ where: { id: "stock" }, data: { currentStock: 10, unit: "un" } })
+  await prisma.stockLot.upsert({where:{id:'test-lot'},create:{id:'test-lot',productId:'product',code:'TEST',origin:'test',quantity:10,receivedQuantity:10,remainingValue:20,unitCost:2},update:{quantity:10,remainingValue:20,status:'active'}})
   await prisma.pOSProduct.update({ where: { id: "product" }, data: { price: 10 } })
 })
 

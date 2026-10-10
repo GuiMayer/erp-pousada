@@ -24,9 +24,9 @@ export function useStockControl({ includeArchived = false }: { includeArchived?:
 
   // Get stock status for an item
   const getStockStatus = useCallback((item: StockItem): "critical" | "low" | "ok" => {
-    if (item.currentStock <= 0) return "critical"
-    if (item.currentStock <= item.minimumStock) return "critical"
-    if (item.currentStock <= item.minimumStock * 1.5) return "low"
+    if ((item.usableStock ?? item.currentStock) <= 0) return "critical"
+    if ((item.usableStock ?? item.currentStock) <= item.minimumStock) return "critical"
+    if ((item.usableStock ?? item.currentStock) <= item.minimumStock * 1.5) return "low"
     return "ok"
   }, [])
 
@@ -54,7 +54,7 @@ export function useStockControl({ includeArchived = false }: { includeArchived?:
   const hasStock = useCallback((productId: string, quantity: number): boolean => {
     const item = stockItems.find(s => s.productId === productId)
     if (!item) return false
-    return item.currentStock >= quantity
+    return (item.usableStock ?? item.currentStock) >= quantity
   }, [stockItems])
 
   // Get stock item by product ID
