@@ -8,7 +8,18 @@ export class HttpError extends Error {
 
 export function assertSameOrigin(request: NextRequest) {
   const expected = process.env.APP_URL ? new URL(process.env.APP_URL).origin : request.nextUrl.origin
-  if (request.headers.get("origin") !== expected) throw new HttpError(403, "Origem não autorizada")
+  const origin = request.headers.get("origin")
+  if (origin === expected) return
+  // Next.js may normalize the loopback host to localhost. Development accepts
+  // its local aliases only on this request's port; production keeps APP_URL.
+  if (process.env.NODE_ENV === "development" && ["localhost", "127.0.0.1", "[::1]"].includes(request.nextUrl.hostname)) {
+    const local = new URL(request.nextUrl.origin)
+    for (const hostname of ["localhost", "127.0.0.1", "[::1]"]) {
+      local.hostname = hostname
+      if (origin === local.origin) return
+    }
+  }
+  throw new HttpError(403, "Origem não autorizada")
 }
 
 export async function readJson(request: NextRequest, limit = 1_048_576): Promise<unknown> {
