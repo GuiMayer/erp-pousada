@@ -245,6 +245,9 @@ model Supplier {
 }
 
 model Customer {
+  companyId String?
+  company Customer? @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  companyMembers Customer[] @relation("CompanyMembers")
   roles Json @default("[\"payer\"]")
   guestProfile GuestProfile?
   supplier Supplier?
@@ -270,6 +273,7 @@ model Customer {
   accountsReceivable AccountReceivable[]
 
   @@index([cpfCnpj])
+  @@index([companyId])
   @@index([active])
   @@map("customers")
 }

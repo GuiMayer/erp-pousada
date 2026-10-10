@@ -5,6 +5,8 @@ import { normalizeDocument, validateCpfCnpj, isCPF } from "@/lib/utils/cpf-cnpj-
 import { demand } from "./permissions"
 import type { Actor } from "./auth"
 import { HttpError } from "./http"
+import { companyLinkError } from "@/lib/customer-company"
+import type { Customer } from "@/lib/store"
 
 type Tx = Prisma.TransactionClient
 type Row = Record<string, unknown>
@@ -31,6 +33,15 @@ export async function prepareContact(tx: Tx, key: string, data: Row, current: Ro
     const roles = rolesOf(data.roles ?? current?.roles)
     if (data.roles !== undefined || !current) data.roles = [...new Set(roles)]
     const document = String(data.cpfCnpj ?? current?.cpfCnpj ?? "")
+    if (data.companyId !== undefined && data.companyId !== null) {
+      if (typeof data.companyId !== "string" || data.companyId.length > 100) throw new HttpError(400, "Empresa inválida")
+      data.companyId = data.companyId.trim() || null
+    }
+    const companyId = data.companyId === undefined ? current?.companyId : data.companyId
+    const company = companyId ? await tx.customer.findUnique({ where: { id: String(companyId) } }) : null
+    const members = current ? await tx.customer.findMany({ where: { companyId: String(current.id) }, take: 1 }) : []
+    const linkError = companyLinkError({ ...current, ...data, roles, cpfCnpj: document } as unknown as Customer, [...(company ? [company] : []), ...members] as unknown as Customer[], current as unknown as Customer | null)
+    if (linkError) throw new HttpError(409, linkError)
     if (roles.includes("guest") && !isCPF(document)) throw new HttpError(400, "Hóspede precisa de CPF válido")
     if (!document && roles.some(r => r !== "supplier")) throw new HttpError(400, "Informe CPF/CNPJ para hóspede ou pagador")
     if (document) {

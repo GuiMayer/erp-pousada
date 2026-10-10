@@ -28,6 +28,8 @@ type Model = {
 }
 export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
 export const portableKeys = collectionOrder.filter(key => !["users", "userSessions", "auditLog", "systemSettings"].includes(key))
+// Company rows must exist before importing their people, regardless of export order.
+const orderedItems = (key: string, items: unknown[]) => key === "customers" ? [...items].sort((a, b) => Number(!!(a as Row).companyId) - Number(!!(b as Row).companyId)) : items
 export function collectionMapper(key: string) {
   const mapper = getCollectionMapper(key)
   if (!mapper) throw new HttpError(404, "Coleção não encontrada")
@@ -305,7 +307,7 @@ export async function replaceCollection(key: string, value: unknown) {
   if (!Array.isArray(value)) throw new HttpError(400, "Coleção deve ser uma lista")
   await prisma.$transaction(async tx => {
     await model(key, tx).deleteMany()
-    for (const item of value) await createCollectionItem(key, item, undefined, tx)
+    for (const item of orderedItems(key, value)) await createCollectionItem(key, item, undefined, tx)
   })
 }
 export async function removeCollection(key: string) { await model(key).deleteMany() }
@@ -328,7 +330,7 @@ export async function importAllCollections(json: string, actor?: Actor) {
     actor = await currentActor(tx, actor)
     if (actor) demand(actor, "data.restore")
     for (const key of [...portableKeys].reverse()) await model(key, tx).deleteMany()
-    for (const key of portableKeys) for (const item of data[key] as unknown[]) await createCollectionItem(key, item, undefined, tx)
+    for (const key of portableKeys) for (const item of orderedItems(key, data[key] as unknown[])) await createCollectionItem(key, item, undefined, tx)
     await resetSessionsAfterRestore(tx, actor, "Dados restaurados")
   }, { timeout: 60000, isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }

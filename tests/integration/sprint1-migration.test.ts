@@ -6,6 +6,7 @@ import path from "node:path"
 
 if (new URL(process.env.DATABASE_URL || "postgresql://localhost/invalid").pathname !== "/erp_test") throw new Error("Migração S1 somente em erp_test")
 const migration = readFileSync(path.resolve("prisma/migrations/20261009000000_sprint1_contacts_tariffs/migration.sql"), "utf8")
+const companyMigration = readFileSync(path.resolve("prisma/migrations/20261009010000_customer_company_link/migration.sql"), "utf8")
 async function fixture(run: (client: Client) => Promise<void>) {
   const client = new Client({ connectionString: process.env.DATABASE_URL })
   const schema = `migration_${randomUUID().replaceAll("-", "")}`
@@ -37,13 +38,16 @@ describe("Migração S1 com registros antigos", () => {
   it("preserva IDs, chaves antigas, crédito e reserva e vincula somente por documento", async () => {
     await fixture(async client => {
       await client.query(migration)
+      await client.query(companyMigration)
       const company = (await client.query("SELECT * FROM customers WHERE id = 'stable-id'")).rows[0]
+      expect(company.companyId).toBeNull()
       expect(company.cpfCnpj).toBe("12ABC34501DE35"); expect(company.roles).toEqual(["payer", "supplier"])
       const guest = (await client.query("SELECT * FROM guest_profiles")).rows[0]
       expect(guest.cpf).toBe("529.982.247-25"); expect(Number(guest.creditValue)).toBe(80); expect(guest.customerId).toBeTruthy()
       expect((await client.query("SELECT * FROM reservations")).rows[0]).toMatchObject({ id: "reservation-old", cpf: "529.982.247-25", guestCount: null, nightlyPrices: null })
       expect((await client.query("SELECT capacity FROM rooms")).rows[0].capacity).toBeNull()
       expect(Number((await client.query("SELECT count(*) FROM customers")).rows[0].count)).toBe(3)
+      expect(Number((await client.query('SELECT count(*) FROM customers WHERE "companyId" IS NOT NULL')).rows[0].count)).toBe(0)
       expect((await client.query("SELECT unit FROM pos_products WHERE id='old-drink'")).rows[0].unit).toBe("l")
       await expect(client.query("INSERT INTO customers (id, name, \"cpfCnpj\", \"updatedAt\") VALUES ('direct-duplicate', 'Duplicada', '12.abc.345/01de-35', now())")).rejects.toThrow("duplicate key")
       await client.query("INSERT INTO customers (id, name, \"cpfCnpj\", \"updatedAt\") VALUES ('direct-person', 'Pessoa', '111.444.777-35', now())")

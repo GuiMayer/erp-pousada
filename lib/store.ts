@@ -324,6 +324,7 @@ export interface Supplier {
 }
 
 export interface Customer {
+  companyId?: string | null
   roles?: ("guest" | "payer" | "supplier")[]
   recordVersion?: number
   id: string

@@ -8,6 +8,7 @@ import { BaseRepository } from "./base-repository"
 import type { Customer } from "../../store"
 import type { IStorageAdapter } from "../types"
 import { validateCpfCnpj, normalizeDocument, isCPF } from "../../utils/cpf-cnpj-validator"
+import { companyLinkError } from "../../customer-company"
 
 export class CustomerRepository extends BaseRepository<Customer> {
   constructor(adapter: IStorageAdapter, userId?: string) {
@@ -40,6 +41,10 @@ export class CustomerRepository extends BaseRepository<Customer> {
    */
   async create(item: Partial<Customer>): Promise<Customer> {
     const document = normalizeDocument(item.cpfCnpj ?? "")
+    if (!this.getItemAdapter()) {
+      const error = companyLinkError({ ...item, cpfCnpj: document } as Customer, await this.getAll())
+      if (error) throw new Error(error)
+    }
     if (!this.getItemAdapter() && document && (await this.getAll()).some(c => normalizeDocument(c.cpfCnpj) === document)) throw new Error("Documento já cadastrado; utilize a pessoa existente")
     const now = new Date().toISOString()
     const itemWithTimestamps = {
@@ -60,6 +65,8 @@ export class CustomerRepository extends BaseRepository<Customer> {
       const current = await this.getById(id)
       const valid = this.validate({ ...current, ...updates })
       if (!valid.valid) throw new Error(valid.error)
+      const error = companyLinkError({ ...current, ...updates } as Customer, await this.getAll(), current)
+      if (error) throw new Error(error)
     }
     if (updates.cpfCnpj !== undefined) {
       updates = { ...updates, cpfCnpj: normalizeDocument(updates.cpfCnpj) }
