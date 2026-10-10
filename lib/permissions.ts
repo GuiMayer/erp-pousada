@@ -2,6 +2,7 @@ export const collectionLabels: Record<string, string> = {
   rooms: "Quartos",
   lodgingTariffs: "Tarifas de hospedagem",
   reservations: "Reservas",
+  stays: "Hospedagens e extratos",
   guests: "Hóspedes",
   posProducts: "Produtos",
   productCategories: "Categorias de produto",
@@ -38,6 +39,10 @@ export const operationPermissions: Record<string, string> = {
   "edit-reservation": "reservations.edit",
   "check-in": "hospitality.checkin",
   "check-out": "hospitality.checkout",
+  "stay-checkout": "hospitality.checkout",
+  "stay-transfer": "hospitality.transfer",
+  "stay-occupants": "hospitality.occupants",
+  "stay-receive": "hospitality.receive",
   "release-room": "hospitality.release",
   "pay-reservation": "hospitality.receive",
   "cancel-reservation": "reservations.cancel",
@@ -62,7 +67,7 @@ export const operationPermissions: Record<string, string> = {
   "cash-open": "cash.open",
   "cash-close": "cash.close"
 }
-export const operationalCollections = ["reservations", "transactions", "cashCloses", "bankTransfers", "posSales", "restaurantOrders", "consumptions", "stockMovements", "productions", "employeeConsumptions"]
+export const operationalCollections = ["stays", "reservations", "transactions", "cashCloses", "bankTransfers", "posSales", "restaurantOrders", "consumptions", "stockMovements", "productions", "employeeConsumptions"]
 const actionLabels: Record<string, string> = {
   read: "Consultar",
   create: "Cadastrar",
@@ -70,6 +75,9 @@ const actionLabels: Record<string, string> = {
   delete: "Excluir"
 }
 const specialLabels: Record<string, string> = {
+  "hospitality.companyCredit": "Autorizar saída empresarial a prazo",
+  "hospitality.transfer": "Trocar quarto de hospedagem",
+  "hospitality.occupants": "Identificar ocupantes da hospedagem",
   "bankAccounts.use": "Selecionar conta para pagamento (sem saldo)",
   "reservations.paidCancel": "Cancelar reserva paga",
   "users.manage": "Administrar acessos",
@@ -112,12 +120,12 @@ export type PermissionOverrides = Record<string, "allow" | "deny">
 const reads = (...keys: string[]) => keys.map(key => `${key}.read`)
 const crud = (...keys: string[]) => keys.flatMap(key => ["read", "create", "edit", "delete"].map(action => `${key}.${action}`))
 const common = [...reads("systemSettings", "productCategories", "posProducts"), "bankAccounts.use"]
-const daily = ["hospitality.checkin", "hospitality.checkout", "hospitality.release", "hospitality.receive", "reservations.create", "reservations.edit", "reservations.cancel", "reservations.discount", "pos.sell", "consumptions.create", "consumptions.receive", "restaurant.open", "restaurant.edit", "restaurant.receive", "cash.open", "cash.close"]
+const daily = ["hospitality.transfer", "hospitality.occupants", "hospitality.checkin", "hospitality.checkout", "hospitality.release", "hospitality.receive", "reservations.create", "reservations.edit", "reservations.cancel", "reservations.discount", "pos.sell", "consumptions.create", "consumptions.receive", "restaurant.open", "restaurant.edit", "restaurant.receive", "cash.open", "cash.close"]
 export const PROFILES: Record<string, { label: string; permissions: string[] }> = {
   personalizado: { label: "Personalizado (sem acessos iniciais)", permissions: [] },
   administrador: { label: "Administrador", permissions: ALL_PERMISSIONS },
   supervisor: { label: "Supervisor", permissions: ALL_PERMISSIONS.filter(key => !key.startsWith("users.") && !key.startsWith("userSessions.") && !key.startsWith("data.")) },
-  recepcao: { label: "Recepção", permissions: [...common, ...reads("rooms", "reservations", "guests", "consumptions", "cashCloses"), ...crud("guests"), ...crud("customers"), ...reads("lodgingTariffs"), ...daily.filter(key => !key.startsWith("pos.") && !key.startsWith("restaurant."))] },
+  recepcao: { label: "Recepção", permissions: [...common, ...reads("stays", "rooms", "reservations", "guests", "consumptions", "cashCloses"), ...crud("guests"), ...crud("customers"), ...reads("lodgingTariffs"), ...daily.filter(key => !key.startsWith("pos.") && !key.startsWith("restaurant."))] },
   caixa: { label: "Caixa", permissions: [...common, ...reads("posSales", "cashCloses", "customers"), ...crud("customers"), "pos.sell", "cash.open", "cash.close"] },
   restaurante: { label: "Restaurante", permissions: [...common, ...reads("restaurantTables", "restaurantOrders", "recipes"), "restaurant.open", "restaurant.edit", "restaurant.receive"] },
   estoque: { label: "Estoque", permissions: [...common, ...crud("customers", "stockItems", "recipes", "suppliers", "posProducts", "productCategories"), ...reads("stockMovements", "productions"), "stock.adjust", "production.register"] },

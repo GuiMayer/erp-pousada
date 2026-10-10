@@ -1,3 +1,4 @@
+import { receiveStay, stayInclude } from "./stays"
 import { requireVersion } from "./concurrency"
 import { recordAudit } from "./audit"
 import { can, demand } from "./permissions"
@@ -73,6 +74,11 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     if (input.recordVersion !== undefined) requireVersion(input.recordVersion, reservation.recordVersion)
     if (!["confirmada", "checkin"].includes(reservation.status)) throw new HttpError(409, "Reserva não permite recebimento")
     if (D(input.value).gt(reservation.totalValue.minus(reservation.paidValue))) throw new HttpError(409, "Valor excede o saldo da hospedagem")
+    const stay = await tx.stay.findUnique({ where: { reservationId: reservation.id }, include: stayInclude })
+    if (stay) {
+      await receiveStay(tx, actor, stay, input.value, input.paymentMethod, input.accountId, "lodging")
+      return collectionMapper("reservations").toApp(await tx.reservation.findUniqueOrThrow({ where: { id: reservation.id } }))
+    }
     if (input.paymentMethod === "credito_hospede") {
       const changed = await tx.guestProfile.updateMany({ where: { cpf: reservation.cpf, creditValue: { gte: input.value } }, data: { creditValue: { decrement: input.value } } })
       if (!changed.count) throw new HttpError(409, "Crédito do hóspede insuficiente")
@@ -115,10 +121,17 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
   }
   if (kind === "receive-account") {
     demand(actor, "accountsReceivable.receive")
-    const input = z.object({ accountReceivableId: id, recordVersion: z.number().int().nonnegative().optional(), installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
+    const input = z.object({ accountReceivableId: id, recordVersion: z.number().int().nonnegative().optional(), installmentId: id.optional(), value: positiveMoney.optional(), ...paymentFields }).strict().parse(payload)
     const account = await tx.accountReceivable.findUniqueOrThrow({ where: { id: input.accountReceivableId }, include: { installments: true } })
     if (input.recordVersion !== undefined) requireVersion(input.recordVersion, account.recordVersion)
     if (!["pendente", "vencido"].includes(account.status)) throw new HttpError(409, "Título já recebido ou cancelado")
+    if (account.sourceStayId) {
+      if (input.installmentId) throw new HttpError(400, "Cobrança de hospedagem sem parcela independente")
+      const stay = await tx.stay.findUniqueOrThrow({ where: { id: account.sourceStayId }, include: stayInclude })
+      await receiveStay(tx, actor, stay, input.value ?? Number(account.value.minus(account.paidValue)), input.paymentMethod, input.accountId)
+      return { success: true }
+    }
+    if (input.value !== undefined && !account.value.equals(input.value)) throw new HttpError(400, "Recebimento parcial disponível na cobrança de hospedagem")
     let value = account.value, reference = account.id
     if (account.installments.length) {
       const part = account.installments.find(item => item.id === input.installmentId)

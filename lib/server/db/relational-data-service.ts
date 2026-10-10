@@ -26,7 +26,7 @@ type Model = {
   delete(args: unknown): Promise<Row>
   deleteMany(args?: unknown): Promise<unknown>
 }
-export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
+export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "stays", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
 export const portableKeys = collectionOrder.filter(key => !["users", "userSessions", "auditLog", "systemSettings"].includes(key))
 // Company rows must exist before importing their people, regardless of export order.
 const orderedItems = (key: string, items: unknown[]) => key === "customers" ? [...items].sort((a, b) => Number(!!(a as Row).companyId) - Number(!!(b as Row).companyId)) : items
@@ -116,6 +116,7 @@ async function mappedInput(key: string, item: unknown, partial: boolean, actor?:
     if (!partial) { input.createdBy = actor?.username ?? "setup"; input.createdAt = new Date().toISOString() }
   }
   if (actor) {
+    if (key === "accountsReceivable" && (input.sourceStayId !== undefined || input.paidValue !== undefined)) throw new HttpError(403, "Origem e recebimento são gerenciados pela hospedagem")
     if (key === "guests" && input.creditValue !== undefined) throw new HttpError(403, "Crédito é gerenciado pelo financeiro")
     if (["expenses", "accountsReceivable"].includes(key)) {
       if (input.paid === true || input.status === "pago" || input.paymentDate !== undefined) throw new HttpError(403, "Utilize o fluxo de pagamento")
@@ -219,6 +220,7 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   const input = await mappedInput(key, data, true, actor)
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
+  if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (actor) await prepareContact(client, key, input, snapshot, actor)
   if (key === "lodgingTariffs") await validateTariff(client, input, snapshot)
   await validateCatalog(client, key, input, snapshot)
@@ -275,6 +277,7 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
   if (actor && snapshot.recordVersion !== undefined) requireVersion(expectedVersion, snapshot.recordVersion)
+  if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (key === "rooms" && await client.lodgingTariff.count({ where: { roomId: Number(id) } })) throw new HttpError(409, "Quarto possui tarifas vinculadas; preserve o cadastro e seu histórico")
   if (["customers", "suppliers", "guests", "posProducts", "lodgingTariffs"].includes(key)) {
     const updated = await model(key, client).update({ where: itemWhere(key, id), data: { active: false, recordVersion: { increment: 1 } } })

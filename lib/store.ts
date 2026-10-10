@@ -196,6 +196,7 @@ export interface Room {
 }
 
 export interface Reservation {
+  groupId?: string | null
   guestCount?: number | null
   payerId?: string | null
   nightlyPrices?: import("./lodging-pricing").NightlyPrice[] | null
@@ -346,6 +347,8 @@ export interface Customer {
 }
 
 export interface AccountReceivable {
+  sourceStayId?: string | null
+  paidValue?: number
   recordVersion?: number
   id: string
   customerId: string

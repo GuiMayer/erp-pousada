@@ -32,10 +32,13 @@ import type {
   UserSession,
 } from "@/lib/store"
 import type { LodgingTariff } from "@/lib/lodging-pricing"
+import type { Stay } from "@/lib/stays"
+import { mapStay, stayInclude } from "../stays"
 
 type Row = Record<string, any>
 
 export type DataCollectionKey =
+  | "stays"
   | "lodgingTariffs"
   | "rooms"
   | "reservations"
@@ -164,6 +167,7 @@ const reservationMapper: CollectionMapper<Reservation> = {
   }),
   toCreate: item => stripUndefined({
     guestCount: item.guestCount, payerId: item.payerId, nightlyPrices: item.nightlyPrices, priceExceptionReason: item.priceExceptionReason,
+    groupId: item.groupId,
     id: item.id,
     roomId: item.roomId,
     roomNumber: item.roomNumber,
@@ -409,6 +413,7 @@ const accountReceivableMapper: CollectionMapper<AccountReceivable> = {
   toApp: row => ({
     ...row,
     value: numberValue(row.value),
+    paidValue: numberValue(row.paidValue),
     issueDate: dateString(row.issueDate),
     dueDate: dateOnly(row.dueDate),
     paymentDate: optionalDateOnly(row.paymentDate),
@@ -574,6 +579,16 @@ const lodgingTariffMapper: CollectionMapper<LodgingTariff> = {
   toUpdate: item => stripUndefined({ ...item, validFrom: dateValue(item.validFrom), validTo: item.validTo === null ? null : dateValue(item.validTo) }),
 }
 export const collectionMappers = {
+  stays: {
+    prismaModel: "stay", include: stayInclude, orderBy: { checkIn: "desc" },
+    toApp: row => mapStay(row as Parameters<typeof mapStay>[0]),
+    toCreate: (item: Stay) => stripUndefined({ ...item, checkIn: dateValue(item.checkIn), checkOut: dateValue(item.checkOut), endedAt: dateValue(item.endedAt),
+      occupants: nestedCreate(item.occupants, o => ({ id: o.id, customerId: o.customerId, name: o.name })),
+      allocations: nestedCreate(item.allocations, a => ({ id: a.id, roomId: a.roomId, start: dateValue(a.start), end: dateValue(a.end), reason: a.reason })),
+      charges: nestedCreate(item.charges, c => ({ id: c.id, productId: c.productId, label: c.label, unitPrice: c.unitPrice, quantity: c.quantity, status: c.status, reason: c.reason, createdAt: dateValue(c.createdAt) })),
+      payments: nestedCreate(item.payments, p => ({ id: p.id, value: p.value, bucket: p.bucket, method: p.method, transactionId: p.transactionId, createdAt: dateValue(p.createdAt) })) }),
+    toUpdate: () => ({}),
+  } satisfies CollectionMapper<Stay>,
   lodgingTariffs: lodgingTariffMapper,
   rooms: roomMapper,
   reservations: reservationMapper,
