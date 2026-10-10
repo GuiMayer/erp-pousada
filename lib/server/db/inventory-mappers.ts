@@ -1,12 +1,172 @@
-import type { CollectionMapper } from './mappers'
-type Row=Record<string,any>
+import type { CollectionMapper } from "./mappers";
+type Row = Record<string, any>;
 // Select scalar fields explicitly: portable snapshots never carry arbitrary relation commands.
-const fields=(row:Row,names:string[],dates:string[]=[])=>Object.fromEntries(names.filter(n=>row[n]!==undefined).map(n=>[n,dates.includes(n)&&row[n]!=null?new Date(row[n]):row[n]]))
-const json=(row:unknown)=>JSON.parse(JSON.stringify(row),(key,value)=>['subtotal','freight','discount','total','factor','quantity','packagePrice','goodsTotal','totalCost','remainingValue','receivedQuantity','unitCost','expectedQuantity','countedQuantity','delta','stockValue','agreedValue'].includes(key)&&value!==null?Number(value):value)
-const mapper=(prismaModel:string,names:string[],dates:string[],include?:Record<string,unknown>,children?:{name:string;fields:string[];dates?:string[]},decorate?:(row:Row)=>Row):CollectionMapper<any>=>({prismaModel,include,toApp:r=>decorate?decorate(json(r)):json(r),toCreate:r=>({...fields(r,names,dates),...(children?{[children.name]:{create:(r[children.name]??[]).map((c:Row)=>fields(c,children.fields,children.dates))}}:{})}),toUpdate:()=>({})})
-export const inventoryMappers={
- purchases:mapper('purchase',['id','supplierId','supplierName','reference','receivedAt','subtotal','freight','discount','total','registeredBy','notes'],['receivedAt'],{items:true},{name:'items',fields:['id','productId','productName','unit','packaging','factor','acceptedPackages','refusedPackages','quantity','packagePrice','goodsTotal','totalCost']}),
- stockLots:mapper('stockLot',['id','recordVersion','productId','purchaseItemId','code','expiresAt','status','origin','quantity','receivedQuantity','remainingValue','unitCost','costEstimated','receivedAt','reason'],['expiresAt','receivedAt'],{product:{select:{name:true,unit:true}}},undefined,r=>{const {product,...lot}=r;return {...lot,productName:product.name,unit:product.unit}}),
- stockInventories:mapper('stockInventory',['id','recordVersion','status','capturedAt','postedAt','createdBy','postedBy','reason'],['capturedAt','postedAt'],{lines:true},{name:'lines',fields:['id','lotId','productName','expectedQuantity','unitCost','countedQuantity','delta']}),
- purchaseReturns:mapper('purchaseReturn',['id','recordVersion','lotId','quantity','stockValue','reason','createdAt','registeredBy','status','resolution','agreedValue','settledAt','settledBy','settlementNote'],['createdAt','settledAt'])
-}
+const fields = (row: Row, names: string[], dates: string[] = []) =>
+  Object.fromEntries(
+    names
+      .filter((n) => row[n] !== undefined)
+      .map((n) => [
+        n,
+        dates.includes(n) && row[n] != null ? new Date(row[n]) : row[n],
+      ]),
+  );
+const json = (row: unknown) =>
+  JSON.parse(JSON.stringify(row), (key, value) =>
+    [
+      "subtotal",
+      "freight",
+      "discount",
+      "total",
+      "factor",
+      "quantity",
+      "packagePrice",
+      "goodsTotal",
+      "totalCost",
+      "remainingValue",
+      "receivedQuantity",
+      "unitCost",
+      "expectedQuantity",
+      "countedQuantity",
+      "delta",
+      "stockValue",
+      "agreedValue",
+    ].includes(key) && value !== null
+      ? Number(value)
+      : value,
+  );
+const mapper = (
+  prismaModel: string,
+  names: string[],
+  dates: string[],
+  include?: Record<string, unknown>,
+  children?: { name: string; fields: string[]; dates?: string[] },
+  decorate?: (row: Row) => Row,
+): CollectionMapper<any> => ({
+  prismaModel,
+  include,
+  toApp: (r) => (decorate ? decorate(json(r)) : json(r)),
+  toCreate: (r) => ({
+    ...fields(r, names, dates),
+    ...(children
+      ? {
+          [children.name]: {
+            create: (r[children.name] ?? []).map((c: Row) =>
+              fields(c, children.fields, children.dates),
+            ),
+          },
+        }
+      : {}),
+  }),
+  toUpdate: () => ({}),
+});
+export const inventoryMappers = {
+  purchases: mapper(
+    "purchase",
+    [
+      "id",
+      "supplierId",
+      "supplierName",
+      "reference",
+      "receivedAt",
+      "subtotal",
+      "freight",
+      "discount",
+      "total",
+      "registeredBy",
+      "notes",
+    ],
+    ["receivedAt"],
+    { items: true },
+    {
+      name: "items",
+      fields: [
+        "id",
+        "productId",
+        "productName",
+        "unit",
+        "packaging",
+        "factor",
+        "acceptedPackages",
+        "refusedPackages",
+        "quantity",
+        "packagePrice",
+        "goodsTotal",
+        "totalCost",
+      ],
+    },
+  ),
+  stockLots: mapper(
+    "stockLot",
+    [
+      "id",
+      "recordVersion",
+      "productId",
+      "purchaseItemId",
+      "code",
+      "expiresAt",
+      "status",
+      "origin",
+      "quantity",
+      "receivedQuantity",
+      "remainingValue",
+      "unitCost",
+      "costEstimated",
+      "receivedAt",
+      "reason",
+    ],
+    ["expiresAt", "receivedAt"],
+    { product: { select: { name: true, unit: true } } },
+    undefined,
+    (r) => {
+      const { product, ...lot } = r;
+      return { ...lot, productName: product.name, unit: product.unit };
+    },
+  ),
+  stockInventories: mapper(
+    "stockInventory",
+    [
+      "id",
+      "recordVersion",
+      "status",
+      "capturedAt",
+      "postedAt",
+      "createdBy",
+      "postedBy",
+      "reason",
+    ],
+    ["capturedAt", "postedAt"],
+    { lines: true },
+    {
+      name: "lines",
+      fields: [
+        "id",
+        "lotId",
+        "productName",
+        "expectedQuantity",
+        "unitCost",
+        "countedQuantity",
+        "delta",
+      ],
+    },
+  ),
+  purchaseReturns: mapper(
+    "purchaseReturn",
+    [
+      "id",
+      "recordVersion",
+      "lotId",
+      "quantity",
+      "stockValue",
+      "reason",
+      "createdAt",
+      "registeredBy",
+      "status",
+      "resolution",
+      "agreedValue",
+      "settledAt",
+      "settledBy",
+      "settlementNote",
+    ],
+    ["createdAt", "settledAt"],
+  ),
+};
