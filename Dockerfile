@@ -10,12 +10,15 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml prisma.config.ts ./
+COPY lib/server/env.ts ./lib/server/env.ts
 COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
 ARG NEXT_PUBLIC_DATA_ADAPTER=database
+ARG NEXT_PUBLIC_DEMO_MODE=false
 ENV NEXT_PUBLIC_DATA_ADAPTER=$NEXT_PUBLIC_DATA_ADAPTER
+ENV NEXT_PUBLIC_DEMO_MODE=$NEXT_PUBLIC_DEMO_MODE
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -45,4 +48,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "pnpm prisma migrate deploy && pnpm start --hostname 0.0.0.0"]
+CMD ["pnpm", "start", "--hostname", "0.0.0.0"]

@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/server/audit"
 import { approvalResourceHash } from "@/lib/server/approval-scope"
 import { Prisma } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
@@ -35,9 +36,9 @@ export async function POST(request: NextRequest) {
       demandOperation({ ...actor, permissions: effectivePermissions(executor), grantedPermissions: [input.permission] }, input.kind)
       if (input.resourceHash !== await approvalResourceHash(tx, input.kind, input.payload)) throw new HttpError(409, "Os valores mudaram. Feche esta aprovação e solicite novamente.")
       await tx.operationApproval.create({ data: { requesterId: actor.id, sessionId: actor.sessionId, approverId: approver.id, approverVersion: approver.accessVersion, requestId: input.requestId, requestHash: hashToken(JSON.stringify({ kind: input.kind, payload: input.payload })), resourceHash: await approvalResourceHash(tx, input.kind, input.payload), permission: input.permission, expiresAt: new Date(Date.now() + 2 * 60_000) } })
-      await tx.auditEntry.create({ data: { id: crypto.randomUUID(), user: approver.username, action: "Autorização por operação emitida", reference: input.kind, entityId: input.requestId, metadata: { executorId: actor.id, approverId: approver.id, permission: input.permission } } })
+      await recordAudit(tx, { ...actor, username: approver.username }, "Autorização por operação emitida", input.kind, { entityType: "operationApprovals", entityId: input.requestId, operation: "create", metadata: { executorId: actor.id, approverId: approver.id, permission: input.permission } })
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     await prisma.authRateLimit.deleteMany({ where: { id: hashToken(`approval:${actor.id}`) } })
     return NextResponse.json({ success: true })
-  })
+  }, request)
 }

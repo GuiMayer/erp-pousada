@@ -57,16 +57,16 @@ export class GuestRepository implements IDataRepository<GuestProfile> {
     }
 
     const itemAdapter = this.adapter as IStorageAdapter & { updateItem?: <T>(key: string, id: string, data: Partial<T>) => Promise<T> }
-    if (itemAdapter.updateItem) return itemAdapter.updateItem("guests", String(cpf), { ...data, recordVersion: data.recordVersion ?? guests[index].recordVersion })
+    if (itemAdapter.updateItem) return itemAdapter.updateItem("guests", String(cpf), data)
     const updated = { ...guests[index], ...data, cpf: guests[index].cpf }
     guests[index] = updated
     await this.saveToStorage(guests)
     return updated
   }
 
-  async delete(cpf: string | number): Promise<void> {
-    const adapter = this.adapter as IStorageAdapter & { deleteItem?: (key: string, id: string) => Promise<void> }
-    if (adapter.deleteItem) { await adapter.deleteItem("guests", String(cpf)); return }
+  async delete(cpf: string | number, expectedVersion?: number): Promise<void> {
+    const adapter = this.adapter as IStorageAdapter & { deleteItem?: (key: string, id: string, expectedVersion?: number) => Promise<void> }
+    if (adapter.deleteItem) { await adapter.deleteItem("guests", String(cpf), expectedVersion); return }
     const guests = await this.loadFromStorage()
     await this.saveToStorage(guests.filter(item => item.cpf !== String(cpf)))
   }

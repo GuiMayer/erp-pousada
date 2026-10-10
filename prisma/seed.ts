@@ -1,4 +1,4 @@
-import "dotenv/config"
+import "../lib/server/env"
 import { randomUUID } from "node:crypto"
 import bcrypt from "bcryptjs"
 import { prisma } from "../lib/db/client"
@@ -11,7 +11,7 @@ async function main() {
   if (!username || !password || password.length < 12 || Buffer.byteLength(password, "utf8") > 72) throw new Error("Defina BOOTSTRAP_ADMIN_USERNAME e BOOTSTRAP_ADMIN_PASSWORD (12 a 72 caracteres).")
   const hashed = await bcrypt.hash(password, 12)
   await prisma.$transaction(async tx => {
-    await tx.user.create({ data: { id: randomUUID(), username, password: hashed, role: "supervisor", fullName: "Administrador", createdBy: "setup" } })
+    await tx.user.create({ data: { id: randomUUID(), username, password: hashed, role: "supervisor", accessProfile: "administrador", fullName: "Administrador", createdBy: "setup" } })
     await tx.systemSettings.upsert({ where: { id: "settings-1" }, update: {}, create: { id: "settings-1", pousadaName: process.env.POUSADA_NAME || "Minha Pousada", checkInTime: "14:00", checkOutTime: "12:00", discountCeiling: 10 } })
   })
   console.log("Administrador e configuração inicial criados, sem dados de demonstração.")

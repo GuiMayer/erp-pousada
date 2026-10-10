@@ -1,191 +1,52 @@
 "use client"
-
 import { useState } from "react"
 import { useNotifications } from "@/lib/notification-context"
+import { useAlerts } from "@/lib/alert-context"
+import { useAuth } from "@/lib/auth-context"
+import { useActiveTab } from "@/contexts/active-tab-context"
+import { tabPermissions } from "@/lib/permissions"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { 
-  Bell, 
-  BellOff, 
-  Check, 
-  CheckCheck, 
-  Trash2, 
-  Calendar,
-  DollarSign,
-  Bed,
-  Sparkles,
-  ShoppingCart,
-  UtensilsCrossed,
-  X
-} from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Bell, Check, Archive, RotateCcw } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import type { NotificationType } from "@/lib/types/notifications"
-
-const notificationIcons: Record<NotificationType, React.ReactNode> = {
-  'check-in': <Bed className="size-4" />,
-  'check-out': <Bed className="size-4" />,
-  'payment': <DollarSign className="size-4" />,
-  'cleaning': <Sparkles className="size-4" />,
-  'reservation': <Calendar className="size-4" />,
-  'pos': <ShoppingCart className="size-4" />,
-  'restaurant': <UtensilsCrossed className="size-4" />,
-}
-
-const priorityColors = {
-  low: "text-muted-foreground",
-  medium: "text-blue-600 dark:text-blue-400",
-  high: "text-destructive",
-}
-
 export function NotificationCenter() {
-  const { 
-    notifications, 
-    unreadCount, 
-    markAsRead, 
-    markAllAsRead, 
-    clearNotification,
-    clearAllNotifications 
-  } = useNotifications()
-  
+  const { notifications, unreadCount, loading, error, refresh, hasMore, loadMore, archived, showArchived, markAsRead, markAllAsRead, clearNotification, restoreNotification, resolveNotification } = useNotifications()
+  const { alerts, dismissAlert } = useAlerts()
+  const { can } = useAuth()
+  const { setActiveTab } = useActiveTab()
   const [open, setOpen] = useState(false)
-
-  const handleMarkAsRead = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    markAsRead(id)
-  }
-
-  const handleClearNotification = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    clearNotification(id)
-  }
-
-  return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          {unreadCount > 0 ? (
-            <Bell className="size-5" />
-          ) : (
-            <BellOff className="size-5" />
-          )}
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Notificações</span>
-          {notifications.length > 0 && (
-            <div className="flex gap-1">
-              {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={markAllAsRead}
-                  className="h-6 px-2 text-xs"
-                >
-                  <CheckCheck className="size-3 mr-1" />
-                  Marcar todas
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllNotifications}
-                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-              >
-                <Trash2 className="size-3 mr-1" />
-                Limpar
-              </Button>
-            </div>
-          )}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        
-        {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <BellOff className="size-8 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">
-              Nenhuma notificação
-            </p>
+  const [filter, setFilter] = useState<"all" | "alerts">("all")
+  const rows = notifications.filter(n => filter === "all" || ["critical", "high"].includes(n.priority))
+  return <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Notificações: ${unreadCount} não lidas`} className="relative size-11">
+      <Bell className="size-5" />{unreadCount > 0 && <span className="absolute top-0 right-0 rounded-full bg-destructive text-destructive-foreground text-xs px-1">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+    </Button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-[min(24rem,calc(100vw-2rem))] p-0">
+      <div className="p-3 border-b flex items-center justify-between"><strong>Notificações</strong><Button size="sm" variant="ghost" onClick={refresh} disabled={loading}>Atualizar</Button></div>
+      <div className="flex flex-wrap gap-1 p-2 border-b">
+        <Button size="sm" variant={filter === "all" && !archived ? "secondary" : "ghost"} onClick={() => { setFilter("all"); showArchived(false) }}>Todas</Button>
+        <Button size="sm" variant={filter === "alerts" ? "secondary" : "ghost"} onClick={() => { setFilter("alerts"); showArchived(false) }}>Alertas</Button>
+        <Button size="sm" variant={archived ? "secondary" : "ghost"} onClick={() => { setFilter("all"); showArchived(true) }}>Arquivadas</Button>
+        {!archived && <Button size="sm" variant="ghost" onClick={markAllAsRead} disabled={!notifications.length}>Ler esta página</Button>}
+      </div>
+      <div role="status" className="text-xs px-3">{error ? <span className="text-destructive">{error}</span> : loading ? "Atualizando…" : ""}</div>
+      <div className="max-h-[min(28rem,calc(100dvh-12rem))] overflow-y-auto overscroll-contain">
+        {!archived && alerts.map(alert => <article key={alert.id} className="p-3 border-b text-sm"><strong>{alert.title}</strong><p className="text-muted-foreground">{alert.message}</p><Button size="sm" variant="ghost" onClick={() => dismissAlert(alert.id)}>Entendido</Button></article>)}
+        {rows.length === 0 && !loading && <p className="p-6 text-sm text-muted-foreground text-center">Nenhuma notificação neste filtro.</p>}
+        {rows.map(n => <article key={n.id} className={`p-3 border-b ${!n.read ? "bg-accent/50" : ""}`}>
+          <div className="flex gap-2 justify-between"><strong className="text-sm break-words">{n.title}</strong><span className="text-xs shrink-0">{n.priority === "critical" && !n.resolvedAt ? "Crítico ativo" : n.resolvedAt ? "Resolvido" : !n.read ? "Nova" : ""}</span></div>
+          <p className="text-sm text-muted-foreground break-words">{n.message}</p><p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(n.timestamp, { addSuffix: true, locale: ptBR })}</p>
+          <div className="flex flex-wrap items-center gap-1 mt-1">
+            {n.module && Object.hasOwn(tabPermissions, n.module) && tabPermissions[n.module].some(can) && <Button size="sm" variant="ghost" className="min-h-11" onClick={() => { markAsRead(n.id); setActiveTab(n.module as Parameters<typeof setActiveTab>[0]); setOpen(false) }}>Abrir módulo</Button>}
+            {n.priority === "critical" && !n.resolvedAt && n.type === "cash" && can("approvals.issue") && <Button size="sm" variant="ghost" className="min-h-11" onClick={() => resolveNotification(n.id)}>Conferido: resolver</Button>}
+            {!n.read && <Button size="icon" variant="ghost" className="size-11" aria-label={`Marcar ${n.title} como lida`} onClick={() => markAsRead(n.id)}><Check className="size-4" /></Button>}
+            <Button size="icon" variant="ghost" className="size-11" disabled={!archived && n.priority === "critical" && !n.resolvedAt} aria-label={`${archived ? "Restaurar" : "Arquivar"} ${n.title}`} onClick={() => archived ? restoreNotification(n.id) : clearNotification(n.id)}>{archived ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}</Button>
           </div>
-        ) : (
-          <ScrollArea className="h-[400px]">
-            {notifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className={`flex flex-col items-start gap-2 p-3 cursor-pointer ${
-                  !notification.read ? 'bg-accent/50' : ''
-                }`}
-                onClick={() => !notification.read && markAsRead(notification.id)}
-              >
-                <div className="flex items-start justify-between w-full gap-2">
-                  <div className="flex items-start gap-2 flex-1 min-w-0">
-                    <div className={`mt-0.5 ${priorityColors[notification.priority]}`}>
-                      {notificationIcons[notification.type]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">
-                          {notification.title}
-                        </p>
-                        {!notification.read && (
-                          <div className="size-2 rounded-full bg-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatDistanceToNow(notification.timestamp, {
-                          addSuffix: true,
-                          locale: ptBR,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    {!notification.read && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6"
-                        onClick={(e) => handleMarkAsRead(notification.id, e)}
-                      >
-                        <Check className="size-3" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-6 text-destructive hover:text-destructive"
-                      onClick={(e) => handleClearNotification(notification.id, e)}
-                    >
-                      <X className="size-3" />
-                    </Button>
-                  </div>
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </ScrollArea>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+        </article>)}
+        {hasMore && <Button variant="ghost" className="w-full min-h-11" disabled={loading} onClick={loadMore}>Carregar anteriores</Button>}
+      </div>
+      <p className="p-2 text-xs text-muted-foreground">Alertas críticos ativos permanecem visíveis até a resolução da condição.</p>
+    </DropdownMenuContent>
+  </DropdownMenu>
 }

@@ -328,7 +328,7 @@ describe('AppContext', () => {
       })
     })
 
-    it('should remove a POS product', async () => {
+    it('should deactivate a POS product while preserving its history', async () => {
       const { result } = renderHook(() => useApp(), {
         wrapper: TestWrapper,
       })
@@ -356,10 +356,11 @@ describe('AppContext', () => {
       })
 
       await waitFor(() => {
-        expect(result.current.posProducts).toHaveLength(countAfterAdd - 1)
+        expect(result.current.posProducts).toHaveLength(countAfterAdd)
+        expect(result.current.posProducts.find(p => p.id === 'TEST_PROD3')?.active).toBe(false)
       })
 
-      expect(result.current.posProducts.find(p => p.id === 'TEST_PROD3')).toBeUndefined()
+      expect(result.current.posProducts.find(p => p.id === 'TEST_PROD3')?.name).toBe('Test Product')
     })
   })
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { ConflictReview } from "@/components/conflict-review"
 import { OperationApproval } from "@/components/operation-approval"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { AppProvider } from "@/lib/app-context"
@@ -27,6 +28,7 @@ function AppContent() {
             <DashboardShell />
           </main>
           <OperationApproval />
+          <ConflictReview />
           <Toaster />
         </AlertProvider>
       </NotificationProvider>

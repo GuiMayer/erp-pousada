@@ -1,4 +1,5 @@
-import { businessDay, normalizePayment, netItemValues } from "../utils/business-values"
+import { pousadaStock } from "@/lib/pousada-scope"
+import { businessDay, businessHour, normalizePayment, netItemValues } from "../utils/business-values"
 import { useCallback, useMemo } from "react"
 import { useApp } from "../app-context"
 import type {
@@ -22,10 +23,12 @@ export function useReports() {
     posSales,
     transactions,
     cashCloses,
-    stockItems,
+    stockItems: allStockItems, productCategories,
     posProducts,
     getCategoryName,
   } = useApp()
+
+  const stockItems = useMemo(() => pousadaStock(allStockItems, posProducts, productCategories), [allStockItems, posProducts, productCategories])
 
   /**
    * Get daily summary for a specific date
@@ -232,7 +235,7 @@ export function useReports() {
     }
 
     daySales.forEach(sale => {
-      const hour = new Date(sale.date).getHours()
+      const hour = businessHour(sale.date)
       const existing = hourMap.get(hour)!
 
       hourMap.set(hour, {

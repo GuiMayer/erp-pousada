@@ -6,6 +6,17 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-panel:
+    name: Painel Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar prazo e cancelamento dos comandos
+        shell: powershell
+        run: ./scripts/test-server-panel.ps1
+      - name: Validar caminhos e argumentos do adaptador Docker
+        shell: powershell
+        run: ./scripts/test-docker-runtime.ps1
   validation:
     name: Validação
     runs-on: ubuntu-latest
@@ -33,6 +44,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec prisma migrate deploy
+      - name: Preparar contas restritas do banco de testes
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec -i "$POSTGRES_CONTAINER" psql -U testadmin -d erp_test -v ON_ERROR_STOP=1 -v app_password=ci-app-only -v migrator_password=ci-migrator-only -v backup_password=ci-backup-only < scripts/db-roles.sql
+          docker exec -i "$POSTGRES_CONTAINER" psql -U testadmin -d erp_test -v ON_ERROR_STOP=1 -v worker_password=ci-worker-only < scripts/db-runtime-grants.sql
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test:run
@@ -64,3 +81,26 @@ jobs:
           if [ "$ready" != 1 ]; then docker logs erp-smoke; exit 1; fi
           status=$(curl --silent --output /tmp/unauthorized.json --write-out '%{http_code}' http://localhost:3003/api/data/rooms)
           test "$status" = 401
+      - name: Validar instalação Docker com contas separadas e backup
+        env:
+          DB_ADMIN_PASSWORD: ci-admin-only
+          DB_APP_PASSWORD: ci-app-only
+          DB_MIGRATOR_PASSWORD: ci-migrator-only
+          DB_BACKUP_PASSWORD: ci-backup-only
+          DB_WORKER_PASSWORD: ci-worker-only
+          APP_URL: https://localhost
+          BACKUP_SECONDARY_ENABLED: "true"
+        run: |
+          docker rm -f erp-smoke
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml up -d --build
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3000/api/health; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then docker compose logs; exit 1; fi
+          docker compose exec -T backup-worker sh /scripts/db-backup.sh
+          docker compose exec -T backup-worker sh -c 'test -f /backups/last-success && test ! -f /backups/last-error'
+          docker compose exec -T backup-worker sh -c 'test -f /backups/last-secondary-success && for file in /backups/*.dump; do cmp "$file" "/backup-secondary/$(basename "$file")"; done'
+          docker compose down

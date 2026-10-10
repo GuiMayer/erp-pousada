@@ -9,5 +9,5 @@ export async function POST(request: NextRequest) {
     demand(actor, "data.restore")
     const result = await clearAllCollections(actor)
     return NextResponse.json({ success: true }, { headers: { "Cache-Control": "no-store" } })
-  })
+  }, request)
 }

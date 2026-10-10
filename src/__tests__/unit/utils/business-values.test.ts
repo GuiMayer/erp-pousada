@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest"
-import { businessDay, netItemValues, normalizePayment } from "@/lib/utils/business-values"
+import { businessDay, businessHour, businessMonthBounds, netItemValues, normalizePayment } from "@/lib/utils/business-values"
 import { calculateCartSubtotal, calculateCartTotal } from "@/lib/utils/price-calculations"
 import { unitFactor } from "@/lib/utils/units"
 
 describe("Regressões de datas, valores e unidades", () => {
+  it("delimita mês em São Paulo mesmo após a virada UTC", () => {
+    const october = businessMonthBounds("2026-11-01T01:00:00Z")
+    expect(october.start.toISOString()).toBe("2026-10-01T03:00:00.000Z")
+    expect(october.end.toISOString()).toBe("2026-11-01T03:00:00.000Z")
+    expect(businessMonthBounds("2026-11-01T03:00:00Z").start).toEqual(october.end)
+    expect(businessMonthBounds("2027-01-01T01:00:00Z").end.toISOString()).toBe("2027-01-01T03:00:00.000Z")
+    expect(businessMonthBounds("2018-12-15T12:00:00Z").start.toISOString()).toBe("2018-12-01T02:00:00.000Z")
+    expect(businessHour("2026-10-09T01:00:00Z")).toBe(22)
+    expect(businessHour("2026-10-09T03:00:00Z")).toBe(0)
+  })
   it("mantém datas de hospedagem e usa São Paulo para timestamps após meia-noite UTC", () => {
     expect(businessDay("2026-10-08")).toBe("2026-10-08")
     expect(businessDay("2026-10-08T01:30:00Z")).toBe("2026-10-07")

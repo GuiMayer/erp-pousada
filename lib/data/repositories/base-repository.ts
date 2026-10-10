@@ -10,7 +10,7 @@ import type { IDataRepository, IStorageAdapter, EntityMetadata } from "../types"
 type ItemEndpointAdapter = IStorageAdapter & {
   createItem<T>(key: string, value: T): Promise<T>
   updateItem<T>(key: string, id: string | number, value: Partial<T>): Promise<T>
-  deleteItem(key: string, id: string | number): Promise<void>
+  deleteItem(key: string, id: string | number, expectedVersion?: number): Promise<void>
   hasItemEndpoints?(): boolean
 }
 
@@ -250,7 +250,7 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
 
     const itemAdapter = this.getItemAdapter()
     if (itemAdapter) {
-      const updated = await itemAdapter.updateItem<T>(this.getStorageKey(), id, { ...data, recordVersion: (data as any).recordVersion ?? (existing as any).recordVersion } as Partial<T>)
+      const updated = await itemAdapter.updateItem<T>(this.getStorageKey(), id, data)
       this.invalidateCache()
       this.emit({ action: 'update', id, data: updated })
       return updated
@@ -291,10 +291,10 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
   /**
    * Delete item
    */
-  async delete(id: string | number): Promise<void> {
+  async delete(id: string | number, expectedVersion?: number): Promise<void> {
     const itemAdapter = this.getItemAdapter()
     if (itemAdapter) {
-      await itemAdapter.deleteItem(this.getStorageKey(), id)
+      await itemAdapter.deleteItem(this.getStorageKey(), id, expectedVersion)
       this.invalidateCache()
       this.emit({ action: 'delete', id })
       return

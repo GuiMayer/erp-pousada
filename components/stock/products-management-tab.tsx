@@ -1,4 +1,5 @@
 "use client"
+import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { useState, useMemo } from "react"
@@ -103,11 +104,12 @@ export function ProductsManagementTab() {
     setDeleteConfirm(product)
   }
 
-  function confirmDelete() {
-    if (deleteConfirm) {
-      removePOSProduct(deleteConfirm.id)
+  async function confirmDelete() {
+    if (!deleteConfirm) return
+    try {
+      await removePOSProduct(deleteConfirm.id, deleteConfirm.recordVersion)
       setDeleteConfirm(null)
-    }
+    } catch (failure) { window.alert(failure instanceof Error ? failure.message : "Não foi possível remover") }
   }
 
   function hasStockItem(productId: string): boolean {
@@ -127,29 +129,30 @@ export function ProductsManagementTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Package className="h-6 w-6" />
             Catálogo de Produtos
           </h3>
           <p className="text-muted-foreground">
-            Gerencie o catálogo central de produtos usado em todos os sistemas
+            Gerencie o catálogo central de produtos usado em a pousada
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <PermissionGate permission="productCategories.edit"><Button variant="outline" onClick={() => setCategoriesModalOpen(true)}>
             <Tag className="h-4 w-4 mr-2" />
             Categorias
           </Button></PermissionGate>
           <PermissionGate permission="posProducts.create"><Button onClick={handleAdd}>
             <Plus className="h-4 w-4 mr-2" />
-            Novo Produto
+            Nova bebida
           </Button></PermissionGate>
         </div>
       </div>
 
-      {/* Stats */}
+      <MobileSummary label="Resumo dos produtos">
+{/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Total de Produtos</div>
@@ -169,7 +172,8 @@ export function ProductsManagementTab() {
         </div>
       </div>
 
-      {/* Filters */}
+      </MobileSummary>
+{/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -214,7 +218,7 @@ export function ProductsManagementTab() {
         />
       ) : (
         <div className="rounded-md border">
-          <Table>
+          <Table mobilePreview={["Nome", "Preço", "Estoque"]} mobileColumns={["Nome", "Categoria", "Preço", "Código de barras", "Estoque", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
@@ -228,7 +232,7 @@ export function ProductsManagementTab() {
             <TableBody>
               {filteredProducts.map(product => (
                 <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell className="font-medium">{product.name}<p className="text-xs font-normal text-muted-foreground">{product.unit ?? "un"} · {product.active === false ? "Inativa" : "Ativa"}</p></TableCell>
                   <TableCell>
                     <Badge 
                       variant="outline"
@@ -262,6 +266,7 @@ export function ProductsManagementTab() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleEdit(product)}
+                        aria-label={`Editar ${product.name}`}
                       >
                         <Edit className="h-4 w-4" />
                       </Button></PermissionGate>
@@ -269,6 +274,7 @@ export function ProductsManagementTab() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleDelete(product)}
+                        aria-label={`Excluir ${product.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button></PermissionGate>
@@ -286,14 +292,12 @@ export function ProductsManagementTab() {
         open={productFormOpen}
         onClose={() => setProductFormOpen(false)}
         product={selectedProduct}
-        categoryType="pdv"
       />
 
       {/* Categories Modal */}
       <ManageCategoriesModal
         open={categoriesModalOpen}
         onClose={() => setCategoriesModalOpen(false)}
-        defaultTab="pdv"
       />
 
       {/* Delete Confirmation */}
@@ -302,7 +306,7 @@ export function ProductsManagementTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o produto <strong>{deleteConfirm?.name}</strong>?
+              Inativar a bebida <strong>{deleteConfirm?.name}</strong>? Ela deixará de aparecer nas vendas e seu histórico será preservado.
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>

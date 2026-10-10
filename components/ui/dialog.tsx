@@ -4,6 +4,7 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
+import { usePhoneLayout } from '@/hooks/use-phone-layout'
 import { cn } from '@/lib/utils'
 
 function Dialog({
@@ -50,22 +51,47 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  mobileTask = false,
+  protectDraft = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  mobileTask?: boolean
+  protectDraft?: boolean
 }) {
+  const phone = usePhoneLayout()
+  const dirty = React.useRef(false)
+  function mayClose() {
+    if (!phone || !mobileTask || !protectDraft || !dirty.current) return true
+    const discard = window.confirm('Descartar as alterações deste formulário?')
+    if (discard) dirty.current = false
+    return discard
+  }
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-mobile-task={mobileTask ? "" : undefined}
         className={cn(
           'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
           className,
         )}
         {...props}
+        onChangeCapture={event => { if (event.currentTarget.contains(event.target as Node)) dirty.current = true; props.onChangeCapture?.(event) }}
+        onClickCapture={event => {
+          props.onClickCapture?.(event)
+          const button = (event.target as HTMLElement).closest('button')
+          if (button && event.currentTarget.contains(button) && (button.dataset.slot === 'dialog-close' || button.textContent?.trim() === 'Cancelar') && !mayClose()) { event.preventDefault(); event.stopPropagation() }
+        }}
+        onEscapeKeyDown={event => { props.onEscapeKeyDown?.(event); if (!event.defaultPrevented && !mayClose()) event.preventDefault() }}
+        onInteractOutside={event => { props.onInteractOutside?.(event); if (!event.defaultPrevented && !mayClose()) event.preventDefault() }}
       >
-        {children}
+        {mobileTask ? <>
+          {React.Children.toArray(children).filter(child => React.isValidElement(child) && child.type === DialogHeader)}
+          <div className="mobile-task-body">{React.Children.toArray(children).filter(child => !React.isValidElement(child) || ![DialogHeader, DialogFooter].includes(child.type as typeof DialogHeader))}</div>
+          {React.Children.toArray(children).filter(child => React.isValidElement(child) && child.type === DialogFooter)}
+        </> : children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

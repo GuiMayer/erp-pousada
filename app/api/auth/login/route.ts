@@ -8,5 +8,5 @@ export async function POST(request: NextRequest) {
     assertSameOrigin(request)
     const { username, password } = credentials.parse(await readJson(request, 4096))
     return issueSession(await authenticate(username, password))
-  })
+  }, request)
 }

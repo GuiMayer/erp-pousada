@@ -9,5 +9,5 @@ export async function POST(request: NextRequest) {
     demand(actor, "data.restore")
     await importAllCollections(JSON.stringify(await readJson(request, 10_485_760)), actor)
     return NextResponse.json({ success: true })
-  })
+  }, request)
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,30 +14,34 @@ interface ProductFormModalProps {
   open: boolean
   onClose: () => void
   product?: POSProduct
-  categoryType?: "pdv" | "restaurant"
 }
 
-export function ProductFormModal({ open, onClose, product, categoryType = "pdv" }: ProductFormModalProps) {
+export function ProductFormModal({ open, onClose, product }: ProductFormModalProps) {
   const { posProducts, addPOSProduct, updatePOSProduct, productCategories } = useApp()
 
   const [formData, setFormData] = useState({
-    name: "",
+    active: true, unit: "un" as NonNullable<POSProduct["unit"]>, name: "",
     categoryId: "",
     price: "",
     barcode: "",
     trackStock: false
   })
+  const wasOpen = useRef(false)
+  const original = useRef(product)
   const [error, setError] = useState("")
 
   // Filter categories based on type
   const filteredCategories = productCategories.filter(c =>
-    c.active && (categoryType === "restaurant" ? c.isRestaurant : !c.isRestaurant)
+    c.active && !c.isRestaurant
   )
 
   useEffect(() => {
+    if (!open) { wasOpen.current = false; return }
+    if (wasOpen.current) return
+    wasOpen.current = true; original.current = product
     if (product) {
       setFormData({
-        name: product.name,
+        active: product.active !== false, unit: product.unit ?? "un", name: product.name,
         categoryId: product.categoryId,
         price: product.price.toString(),
         barcode: product.barcode || "",
@@ -45,7 +49,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
       })
     } else {
       setFormData({
-        name: "",
+        active: true, unit: "un", name: "",
         categoryId: "",
         price: "",
         barcode: "",
@@ -89,7 +93,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
     }
 
     const productData: Partial<POSProduct> = {
-      name: formData.name.trim(),
+      active: formData.active, unit: formData.unit, name: formData.name.trim(),
       categoryId: formData.categoryId,
       price: price,
       barcode: formData.barcode.trim() || undefined,
@@ -98,11 +102,11 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
 
     if (product) {
       // Update existing product
-      await updatePOSProduct(product.id, { ...productData, recordVersion: product.recordVersion })
+      await updatePOSProduct(product.id, { ...productData, recordVersion: original.current?.recordVersion })
     } else {
       // Create new product
       const newProduct: POSProduct = {
-        id: `P${Date.now()}`,
+        id: crypto.randomUUID(),
         ...productData as Required<Omit<POSProduct, 'id' | 'barcode'>>
       }
       await addPOSProduct(newProduct)
@@ -115,10 +119,10 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent mobileTask protectDraft className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {product ? "Editar Produto" : "Novo Produto"}
+            {product ? "Editar bebida" : "Nova bebida"}
           </DialogTitle>
         </DialogHeader>
 
@@ -159,7 +163,7 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Preço (R$) *</Label>
+            <Label htmlFor="price">Preço padrão de venda (R$) *</Label>
             <Input
               id="price"
               type="number"
@@ -181,6 +185,8 @@ export function ProductFormModal({ open, onClose, product, categoryType = "pdv" 
             />
           </div>
 
+          <div className="space-y-2"><Label htmlFor="product-unit">Unidade base de venda e estoque</Label><select id="product-unit" className="h-11 w-full rounded-md border bg-background px-2" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value as NonNullable<POSProduct['unit']> })}><option value="un">Unidade (garrafa, lata, copo)</option><option value="ml">Mililitro</option><option value="l">Litro</option></select><p className="text-xs text-muted-foreground">A venda baixa a quantidade nesta unidade. Bebida com estoque conserva sua unidade base.</p></div>
+          <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={formData.active} onChange={e => setFormData({ ...formData, active: e.target.checked })} />Disponível para venda</label>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="trackStock"

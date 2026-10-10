@@ -1,4 +1,4 @@
-import "dotenv/config"
+import "../lib/server/env"
 import { prisma } from "../lib/db/client"
 import { replaceCollection } from "../lib/server/db/relational-data-service"
 

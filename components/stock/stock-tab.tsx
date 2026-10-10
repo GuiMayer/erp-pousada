@@ -1,7 +1,7 @@
 "use client"
+import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
-import { ProductionModal } from "@/components/restaurant/production-modal"
 import { useState } from "react"
 import { Package, Plus, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -25,7 +25,6 @@ import {
 import { EmptyState } from "@/components/ui/empty-state"
 import { StockMovementModal } from "./stock-movement-modal"
 import { ProductsManagementTab } from "./products-management-tab"
-import { RestaurantProductsTab } from "./restaurant-products-tab"
 import { StockThresholdConfig } from "./stock-threshold-config"
 import { useStockControl } from "@/lib/hooks/useStockControl"
 import type { StockItem } from "@/lib/store"
@@ -35,7 +34,6 @@ export function StockTab() {
   const { stockItems, filter, setFilter, stats, getStockStatus } = useStockControl()
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [movementModalOpen, setMovementModalOpen] = useState(false)
-  const [productionOpen, setProductionOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("products")
 
   const handleAddMovement = (item: StockItem) => {
@@ -75,7 +73,7 @@ export function StockTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Package className="h-8 w-8" />
@@ -85,15 +83,12 @@ export function StockTab() {
             Gerencie produtos e controle de estoque
           </p>
         </div>
-        <PermissionGate permission="production.register"><Button onClick={() => setProductionOpen(true)}>Registrar produção</Button></PermissionGate>
       </div>
-      <ProductionModal open={productionOpen} onClose={() => setProductionOpen(false)} />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="products">Catálogo de Produtos</TabsTrigger>
-          <TabsTrigger value="restaurant">Cardápio do Restaurante</TabsTrigger>
           <TabsTrigger value="movements">Movimentações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
@@ -103,14 +98,10 @@ export function StockTab() {
           <ProductsManagementTab />
         </TabsContent>
 
-        {/* Restaurant Products Tab */}
-        <TabsContent value="restaurant" className="space-y-6">
-          <RestaurantProductsTab />
-        </TabsContent>
-
         {/* Movements Tab */}
         <TabsContent value="movements" className="space-y-6">
-          {/* Stats */}
+          <MobileSummary label="Resumo do estoque">
+{/* Stats */}
           <div className="grid gap-4 md:grid-cols-4">
             <div className="rounded-lg border bg-card p-4">
               <div className="text-sm font-medium text-muted-foreground">Total de Itens</div>
@@ -130,7 +121,8 @@ export function StockTab() {
             </div>
           </div>
 
-      {/* Filters */}
+      </MobileSummary>
+{/* Filters */}
       <div className="flex items-center gap-4">
         <Select value={filter} onValueChange={(value: string) => setFilter(value as Parameters<typeof setFilter>[0])}>
           <SelectTrigger className="w-[200px]">
@@ -154,7 +146,7 @@ export function StockTab() {
         />
       ) : (
         <div className="rounded-md border">
-          <Table>
+            <Table mobilePreview={["Produto", "Estoque atual", "Status"]} mobileColumns={["Produto", "Estoque atual", "Estoque mínimo", "Estoque máximo", "Custo médio", "Status", "Ações"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>

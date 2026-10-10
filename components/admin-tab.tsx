@@ -1,5 +1,6 @@
 "use client"
 
+import { ruleSchema } from "@/lib/notification-policy"
 import { PROFILES, effectivePermissions, type PermissionOverrides } from "@/lib/permissions"
 import { UserPermissionsEditor } from "./user-permissions-editor"
 import { useState, useEffect, useRef } from "react"
@@ -142,6 +143,7 @@ export function AdminTab() {
     const nameError = validatePousadaName(formData.pousadaName)
     if (nameError) newErrors.pousadaName = nameError
 
+    if (!ruleSchema.safeParse(formData.notificationRules ?? {}).success) newErrors.notificationRules = "Revise os limites: crítico deve ser mais grave que aviso."
     const checkInError = validateTime(formData.checkInTime)
     if (checkInError) newErrors.checkInTime = checkInError
 
@@ -165,7 +167,7 @@ export function AdminTab() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleFieldChange = (field: keyof SystemSettings, value: string | number | boolean) => {
+  const handleFieldChange = (field: keyof SystemSettings, value: string | number | boolean | Record<string, number>) => {
     // Prevent syncing with context while editing
     shouldSyncRef.current = false
     
@@ -248,7 +250,7 @@ export function AdminTab() {
     try {
       // Re-enable syncing before restoring
       shouldSyncRef.current = true
-      await updateSystemSettings(initialSystemSettings)
+      await updateSystemSettings({ ...initialSystemSettings, recordVersion: formData.recordVersion })
       
       await addAuditEntry({
         user: username || "sistema",
@@ -674,6 +676,15 @@ export function AdminTab() {
               onCheckedChange={(checked) => handleFieldChange("notifyPendingPayments", checked)}
             />
           </div>
+          <Separator />
+          <p className="text-sm font-medium">Limites dos alertas operacionais</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {Object.entries({ stockCriticalLevel: "Estoque crítico (% do mínimo)", stockLowLevel: "Estoque baixo (% do mínimo)", cashDifferenceWarning: "Diferença de caixa: aviso (R$)", cashDifferenceCritical: "Diferença de caixa: crítico (R$)" }).map(([key, label]) => <div key={key} className="space-y-1">
+              <Label htmlFor={`rule-${key}`}>{label}</Label>
+              <Input id={`rule-${key}`} type="number" min="0" step="0.1" value={formData.notificationRules?.[key] ?? (ruleSchema.parse({}) as Record<string, number>)[key]} onChange={e => handleFieldChange("notificationRules", { ...formData.notificationRules, [key]: Number(e.target.value) })} />
+            </div>)}
+          </div>
+          {errors.notificationRules && <p role="alert" className="text-sm text-destructive">{errors.notificationRules}</p>}
         </CardContent>
       </Card>
 
@@ -707,7 +718,7 @@ export function AdminTab() {
                     <Badge variant={userItem.active ? "default" : "secondary"}>
                       {userItem.active ? "Ativo" : "Inativo"}
                     </Badge>
-                    <Badge variant="outline">{PROFILES[userItem.accessProfile || (userItem.role === "supervisor" ? "administrador" : "operador_legado")]?.label}</Badge>
+                    <Badge variant="outline">{PROFILES[userItem.accessProfile || (userItem.role === "supervisor" ? "administrador" : "operador_legado")]?.label === "Restaurante" ? "Módulo arquivado" : PROFILES[userItem.accessProfile || (userItem.role === "supervisor" ? "administrador" : "operador_legado")]?.label}</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {userItem.username}{userItem.email ? ` - ${userItem.email}` : ""}
@@ -802,7 +813,7 @@ export function AdminTab() {
                 <Label htmlFor="userRole">Perfil</Label>
                 <Select value={userForm.accessProfile} onValueChange={(value) => setUserForm(prev => ({ ...prev, accessProfile: value }))}>
                   <SelectTrigger id="userRole"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(PROFILES).map(([key, profile]) => <SelectItem key={key} value={key} disabled={effectivePermissions({ accessProfile: key }).some(permission => !can(permission))}>{profile.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{userForm.accessProfile === "restaurante" && <SelectItem value="restaurante" disabled>Módulo arquivado</SelectItem>}{Object.entries(PROFILES).filter(([key]) => key !== "restaurante").map(([key, profile]) => <SelectItem key={key} value={key} disabled={effectivePermissions({ accessProfile: key }).some(permission => !can(permission))}>{profile.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

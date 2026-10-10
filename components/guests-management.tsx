@@ -85,7 +85,7 @@ export function GuestsManagement() {
 
   async function handleDelete(guest: GuestProfile) {
     if (!confirm(`Excluir hospede "${guest.name}"?`)) return
-    await removeGuest(guest.cpf)
+    await removeGuest(guest.cpf, guest.recordVersion)
     await addAuditEntry({
       user: username || "sistema",
       action: "Hospede removido",
@@ -105,7 +105,7 @@ export function GuestsManagement() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <Table mobileColumns={["Nome", "CPF", "Estadias", "Ticket Médio", "No-shows", "Ações"]} mobilePreview={["Nome", "Estadias", "Ticket Médio"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>

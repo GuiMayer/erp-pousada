@@ -22,7 +22,7 @@ export function RoomFilters({
   onChange: (f: Filter) => void
 }) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="room-status-filters flex items-center gap-2 flex-wrap">
       {filters.map((f) => (
         <Button
           key={f.value}

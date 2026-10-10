@@ -1,0 +1,124 @@
+name: erp-pousada-demo
+x-logs: &logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+x-demo-image: &demo-image
+  image: erp-pousada:demo
+services:
+  postgres-demo:
+    image: postgres:16.15-alpine
+    restart: "no"
+    logging: *logs
+    environment:
+      POSTGRES_DB: pousada_demo
+      POSTGRES_USER: pousada_admin
+      POSTGRES_PASSWORD: ${DEMO_DB_ADMIN_PASSWORD:?Use start-demo.ps1}
+      DB_APP_PASSWORD: ${DEMO_DB_APP_PASSWORD:?Use start-demo.ps1}
+      DB_MIGRATOR_PASSWORD: ${DEMO_DB_MIGRATOR_PASSWORD:?Use start-demo.ps1}
+      DB_BACKUP_PASSWORD: ${DEMO_DB_BACKUP_PASSWORD:?Use start-demo.ps1}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    tmpfs:
+      - /var/lib/postgresql/data:rw,nosuid,noexec,size=268435456
+    volumes:
+      - ./scripts/db-init-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+      - ./scripts/db-roles.sql:/scripts/db-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pousada_admin -d pousada_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  migrate-demo:
+    <<: *demo-image
+    restart: "no"
+    logging: *logs
+    depends_on:
+      postgres-demo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DEMO_MODE: "true"
+      DATABASE_URL: postgresql://pousada_migrator:${DEMO_DB_MIGRATOR_PASSWORD:?Use start-demo.ps1}@postgres-demo:5432/pousada_demo
+    command: ["./node_modules/.bin/prisma", "migrate", "deploy"]
+  seed-demo:
+    <<: *demo-image
+    restart: "no"
+    logging: *logs
+    depends_on:
+      migrate-demo:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DEMO_MODE: "true"
+      DATABASE_URL: postgresql://pousada_migrator:${DEMO_DB_MIGRATOR_PASSWORD:?Use start-demo.ps1}@postgres-demo:5432/pousada_demo
+      DEMO_LOGIN_PASSWORD: ${DEMO_LOGIN_PASSWORD:?Use start-demo.ps1}
+    command: ["./node_modules/.bin/tsx", "scripts/seed-demo.ts"]
+  permissions-demo:
+    image: postgres:16.15-alpine
+    restart: "no"
+    logging: *logs
+    depends_on:
+      seed-demo:
+        condition: service_completed_successfully
+    environment:
+      DEMO_MODE: "true"
+      PGPASSWORD: ${DEMO_DB_ADMIN_PASSWORD:?Use start-demo.ps1}
+      DEMO_DB_WORKER_PASSWORD: ${DEMO_DB_WORKER_PASSWORD:?Use start-demo.ps1}
+    volumes:
+      - ./scripts/demo-db-permissions.sh:/scripts/demo-db-permissions.sh:ro
+      - ./scripts/db-runtime-grants.sql:/scripts/db-runtime-grants.sql:ro
+    command: ["sh", "/scripts/demo-db-permissions.sh"]
+  app-demo:
+    <<: *demo-image
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_DATA_ADAPTER: database
+        NEXT_PUBLIC_DEMO_MODE: "true"
+    restart: "no"
+    logging: *logs
+    depends_on:
+      permissions-demo:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      DEMO_MODE: "true"
+      DATABASE_URL: postgresql://pousada_app:${DEMO_DB_APP_PASSWORD:?Use start-demo.ps1}@postgres-demo:5432/pousada_demo
+      APP_URL: ${DEMO_APP_URL:-http://localhost:3001}
+      SYNC_EVENTS_ENABLED: ${SYNC_EVENTS_ENABLED:-true}
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - default
+      - demo-access
+    command: ["./node_modules/.bin/next", "start", "--hostname", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      start_period: 30s
+      timeout: 5s
+      retries: 12
+  notifications-demo:
+    <<: *demo-image
+    restart: "no"
+    logging: *logs
+    depends_on:
+      permissions-demo:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DEMO_MODE: "true"
+      DATABASE_URL: postgresql://pousada_notifications:${DEMO_DB_WORKER_PASSWORD:?Use start-demo.ps1}@postgres-demo:5432/pousada_demo
+    command: ["./node_modules/.bin/tsx", "scripts/notification-worker.ts"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "const fs=require('fs');process.exit(fs.existsSync('/tmp/notification-worker-success') && Date.now()-Number(fs.readFileSync('/tmp/notification-worker-success','utf8'))<180000?0:1)"]
+      interval: 30s
+      start_period: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  default:
+    internal: true
+  demo-access:

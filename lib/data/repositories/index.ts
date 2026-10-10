@@ -1,3 +1,4 @@
+import { LodgingTariffRepository } from "./lodging-tariff-repository"
 /**
  * Data Repositories Index
  *
@@ -23,14 +24,14 @@ import { ConsumptionRepository } from "./consumption-repository"
 import { POSProductRepository } from "./pos-product-repository"
 import { POSSaleRepository } from "./pos-sale-repository"
 import { ProductCategoryRepository } from "./product-category-repository"
-import { RestaurantTableRepository } from "./restaurant-table-repository"
-import { RestaurantOrderRepository } from "./restaurant-order-repository"
+import { RestaurantTableRepository } from "@/modules/abandoned/restaurant/repositories/restaurant-table-repository"
+import { RestaurantOrderRepository } from "@/modules/abandoned/restaurant/repositories/restaurant-order-repository"
 import { StockItemRepository } from "./stock-item-repository"
 import { StockMovementRepository } from "./stock-movement-repository"
-import { RecipeRepository } from "./recipe-repository"
-import { ProductionRepository } from "./production-repository"
-import { EmployeeRepository } from "./employee-repository"
-import { EmployeeConsumptionRepository } from "./employee-consumption-repository"
+import { RecipeRepository } from "@/modules/abandoned/restaurant/repositories/recipe-repository"
+import { ProductionRepository } from "@/modules/abandoned/restaurant/repositories/production-repository"
+import { EmployeeRepository } from "@/modules/abandoned/restaurant/repositories/employee-repository"
+import { EmployeeConsumptionRepository } from "@/modules/abandoned/restaurant/repositories/employee-consumption-repository"
 import { UserRepository } from "./user-repository"
 import { UserSessionRepository } from "./user-session-repository"
 import { SystemSettingsRepository } from "./system-settings-repository"
@@ -68,6 +69,7 @@ export function createDataStore(config?: Partial<DataStoreConfig>) {
   const userId = config?.userId
 
   // Create all repositories
+  const lodgingTariffs = new LodgingTariffRepository(adapter, userId)
   const rooms = new RoomRepository(adapter, userId)
   const reservations = new ReservationRepository(adapter, userId)
   const guests = new GuestRepository(adapter, userId)
@@ -103,7 +105,7 @@ export function createDataStore(config?: Partial<DataStoreConfig>) {
   // Return DataStore interface
   return {
     // Core entities
-    rooms,
+    lodgingTariffs, rooms,
     reservations,
     guests,
     expenses,
@@ -179,14 +181,14 @@ export * from "./consumption-repository"
 export * from "./pos-product-repository"
 export * from "./pos-sale-repository"
 export * from "./product-category-repository"
-export * from "./restaurant-table-repository"
-export * from "./restaurant-order-repository"
+export * from "@/modules/abandoned/restaurant/repositories/restaurant-table-repository"
+export * from "@/modules/abandoned/restaurant/repositories/restaurant-order-repository"
 export * from "./stock-item-repository"
 export * from "./stock-movement-repository"
-export * from "./recipe-repository"
-export * from "./production-repository"
-export * from "./employee-repository"
-export * from "./employee-consumption-repository"
+export * from "@/modules/abandoned/restaurant/repositories/recipe-repository"
+export * from "@/modules/abandoned/restaurant/repositories/production-repository"
+export * from "@/modules/abandoned/restaurant/repositories/employee-repository"
+export * from "@/modules/abandoned/restaurant/repositories/employee-consumption-repository"
 export * from "./user-repository"
 export * from "./user-session-repository"
 export * from "./system-settings-repository"

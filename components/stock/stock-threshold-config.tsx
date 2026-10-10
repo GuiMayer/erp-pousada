@@ -1,4 +1,5 @@
 "use client"
+import { pousadaStock } from "@/lib/pousada-scope"
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
@@ -30,7 +31,7 @@ import { AlertTriangle, Package, Save, Settings } from "lucide-react"
 import type { StockItem } from "@/lib/store"
 
 export function StockThresholdConfig() {
-  const { posProducts, stockItems, updateStockItem, addAuditEntry } = useApp()
+  const { posProducts, stockItems: allStockItems, productCategories, updateStockItem, addAuditEntry } = useApp()
   const { username } = useAuth()
   const { toast } = useToast()
   const [editingItem, setEditingItem] = useState<StockItem | null>(null)
@@ -49,7 +50,8 @@ export function StockThresholdConfig() {
     setDialogOpen(false)
   }
 
-  function handleSave() {
+  async function handleSave() {
+    try {
     if (!editingItem) return
 
     const newMinimum = Number(minimumStock)
@@ -64,7 +66,8 @@ export function StockThresholdConfig() {
 
     const oldMinimum = editingItem.minimumStock
 
-    updateStockItem(editingItem.id, {
+    await updateStockItem(editingItem.id, {
+      recordVersion: editingItem.recordVersion,
       minimumStock: newMinimum,
     })
 
@@ -88,6 +91,8 @@ export function StockThresholdConfig() {
     })
 
     closeDialog()
+
+    } catch (failure) { toast({ title: "Alteração não salva", description: failure instanceof Error ? failure.message : "Tente novamente", variant: "destructive" }) }
   }
 
   function getStatusBadge(status: "critical" | "low" | "warning" | "normal") {
@@ -123,6 +128,7 @@ export function StockThresholdConfig() {
     }
   }
 
+  const stockItems = pousadaStock(allStockItems, posProducts, productCategories)
   const sortedItems = [...stockItems].sort((a, b) => {
     const statusOrder = { critical: 0, low: 1, warning: 2, normal: 3 }
     const statusA = getStockStatusLevel(a)

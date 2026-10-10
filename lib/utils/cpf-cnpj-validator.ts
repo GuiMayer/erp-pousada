@@ -7,16 +7,17 @@
 /**
  * Remove non-numeric characters from a string
  */
-function cleanDocument(value: string): string {
-  return value.replace(/\D/g, '')
+export function normalizeDocument(value: string): string {
+  return value.toUpperCase().replace(/[.\/\-\s]/g, '')
 }
+const cleanDocument = normalizeDocument
 
 /**
  * Check if a value is a CPF (11 digits)
  */
 export function isCPF(value: string): boolean {
   const cleaned = cleanDocument(value)
-  return cleaned.length === 11
+  return /^\d{11}$/.test(cleaned)
 }
 
 /**
@@ -24,7 +25,7 @@ export function isCPF(value: string): boolean {
  */
 export function isCNPJ(value: string): boolean {
   const cleaned = cleanDocument(value)
-  return cleaned.length === 14
+  return /^[A-Z0-9]{12}\d{2}$/.test(cleaned)
 }
 
 /**
@@ -33,7 +34,7 @@ export function isCNPJ(value: string): boolean {
 export function validateCPF(cpf: string): boolean {
   const cleaned = cleanDocument(cpf)
   
-  if (cleaned.length !== 11) {
+  if (!/^\d{11}$/.test(cleaned)) {
     return false
   }
   
@@ -73,7 +74,7 @@ export function validateCPF(cpf: string): boolean {
 export function validateCNPJ(cnpj: string): boolean {
   const cleaned = cleanDocument(cnpj)
   
-  if (cleaned.length !== 14) {
+  if (!/^[A-Z0-9]{12}\d{2}$/.test(cleaned)) {
     return false
   }
   
@@ -86,7 +87,7 @@ export function validateCNPJ(cnpj: string): boolean {
   let sum = 0
   let weight = 5
   for (let i = 0; i < 12; i++) {
-    sum += parseInt(cleaned.charAt(i)) * weight
+    sum += (cleaned.charCodeAt(i) - 48) * weight
     weight = weight === 2 ? 9 : weight - 1
   }
   let checkDigit = sum % 11 < 2 ? 0 : 11 - (sum % 11)
@@ -98,7 +99,7 @@ export function validateCNPJ(cnpj: string): boolean {
   sum = 0
   weight = 6
   for (let i = 0; i < 13; i++) {
-    sum += parseInt(cleaned.charAt(i)) * weight
+    sum += (cleaned.charCodeAt(i) - 48) * weight
     weight = weight === 2 ? 9 : weight - 1
   }
   checkDigit = sum % 11 < 2 ? 0 : 11 - (sum % 11)
@@ -147,7 +148,7 @@ export function formatCNPJ(cnpj: string): string {
     return cnpj
   }
   
-  return cleaned.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+  return cleaned.replace(/([A-Z0-9]{2})([A-Z0-9]{3})([A-Z0-9]{3})([A-Z0-9]{4})(\d{2})/, '$1.$2.$3/$4-$5')
 }
 
 /**

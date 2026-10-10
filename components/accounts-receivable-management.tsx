@@ -140,9 +140,9 @@ export function AccountsReceivableManagement() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, expectedVersion?: number) => {
     if (confirm("Tem certeza que deseja excluir esta conta a receber?")) {
-      await removeAccountReceivable(id)
+      await removeAccountReceivable(id, expectedVersion)
     }
   }
 
@@ -223,7 +223,7 @@ export function AccountsReceivableManagement() {
         <PaymentDialog open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} onConfirm={async (paymentMethod, accountId) => {
         if (!payingAccount) return
         const installment = payingAccount.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]
-        await runOperation("receive-account", { accountReceivableId: payingAccount.id, installmentId: installment?.id, paymentMethod, accountId })
+        await runOperation("receive-account", { accountReceivableId: payingAccount.id, recordVersion: payingAccount.recordVersion, installmentId: installment?.id, paymentMethod, accountId })
       }} />
       <Card>
           <CardHeader className="pb-2">
@@ -286,7 +286,7 @@ export function AccountsReceivableManagement() {
                   Nova Conta
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent mobileTask className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingAR ? "Editar Conta a Receber" : "Nova Conta a Receber"}
@@ -419,7 +419,7 @@ export function AccountsReceivableManagement() {
 
           {filteredAR.length > 0 ? (
             <div className="border rounded-lg">
-              <Table>
+              <Table mobileColumns={["Cliente", "Descrição", "Valor", "Vencimento", "Status", "Ações"]} mobilePreview={["Cliente", "Valor", "Vencimento", "Status"]}>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Cliente</TableHead>
@@ -469,7 +469,7 @@ export function AccountsReceivableManagement() {
                           <PermissionGate permission="accountsReceivable.delete"><Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(ar.id)}
+                            onClick={() => handleDelete(ar.id, ar.recordVersion)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button></PermissionGate>

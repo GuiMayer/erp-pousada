@@ -1,4 +1,6 @@
 "use client"
+import { CnpjLookup } from "./cnpj-lookup"
+import { CustomerCombobox } from "./customer-combobox"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { useState } from "react"
@@ -16,7 +18,7 @@ import { Plus, Pencil, Trash2, Building2 } from "lucide-react"
 import type { Supplier } from "@/lib/store"
 
 export function SuppliersManagement() {
-  const { suppliers, addSupplier, updateSupplier, removeSupplier, addAuditEntry } = useApp()
+  const { customers, suppliers, addSupplier, updateSupplier, removeSupplier, addAuditEntry } = useApp()
   const { username } = useAuth()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
@@ -92,12 +94,12 @@ export function SuppliersManagement() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, expectedVersion?: number) => {
     const supplier = suppliers.find(s => s.id === id)
     if (!supplier) return
 
-    if (confirm("Tem certeza que deseja excluir este fornecedor?")) {
-      await removeSupplier(id)
+    if (confirm("Inativar este fornecedor? O histórico será preservado.")) {
+      await removeSupplier(id, expectedVersion)
       await addAuditEntry({
         user: username || "sistema",
         action: "Fornecedor removido",
@@ -138,7 +140,7 @@ export function SuppliersManagement() {
                   Novo Fornecedor
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent mobileTask className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingSupplier ? "Editar Fornecedor" : "Novo Fornecedor"}
@@ -160,7 +162,9 @@ export function SuppliersManagement() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="cnpj">CNPJ</Label>
+                      <Label>Reutilizar pessoa / empresa existente</Label><CustomerCombobox purpose="supplier" allowCreate={false} onChange={id => { const person = customers.find(c => c.id === id); if (person) setFormData({ ...formData, name: person.name, cnpj: person.cpfCnpj, email: person.email ?? '', phone: person.phone ?? '', address: person.address ?? '' }) }} />
+                      <CnpjLookup document={formData.cnpj} onApply={company => setFormData({ ...formData, name: company.name, cnpj: company.cpfCnpj, email: company.email, phone: company.phone, address: company.address })} />
+                      <Label htmlFor="cnpj">CPF / CNPJ (opcional)</Label>
                       <Input
                         id="cnpj"
                         value={formData.cnpj}
@@ -249,7 +253,7 @@ export function SuppliersManagement() {
             <div className="mb-6">
               <h3 className="text-sm font-semibold mb-2">Fornecedores Ativos ({activeSuppliers.length})</h3>
               <div className="border rounded-lg">
-                <Table>
+                <Table mobileColumns={["Nome", "CNPJ", "Contato", "Condições", "Ações"]} mobilePreview={["Nome", "Contato"]}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
@@ -283,7 +287,7 @@ export function SuppliersManagement() {
                             <PermissionGate permission="suppliers.delete"><Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(supplier.id)}
+                              onClick={() => handleDelete(supplier.id, supplier.recordVersion)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button></PermissionGate>
@@ -333,7 +337,7 @@ export function SuppliersManagement() {
                             <PermissionGate permission="suppliers.delete"><Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(supplier.id)}
+                              onClick={() => handleDelete(supplier.id, supplier.recordVersion)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button></PermissionGate>

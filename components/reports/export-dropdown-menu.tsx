@@ -35,7 +35,6 @@ interface ExportDropdownMenuProps {
   // PDF Report handlers
   onGenerateReservationsPDF: () => void
   onGenerateStockPDF: () => void
-  onGenerateRestaurantPDF: () => void
   
   // Conditional visibility
   showRevenueTrend?: boolean
@@ -55,7 +54,6 @@ export function ExportDropdownMenu({
   onExportStockAlerts,
   onGenerateReservationsPDF,
   onGenerateStockPDF,
-  onGenerateRestaurantPDF,
   showRevenueTrend = false,
   isExporting = false,
   isGeneratingPDF = false,
@@ -176,10 +174,6 @@ export function ExportDropdownMenu({
             Estoque
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={onGenerateRestaurantPDF} disabled={isLoading}>
-            <DollarSign className="h-4 w-4 mr-2" />
-            Restaurante
-          </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

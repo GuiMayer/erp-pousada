@@ -13,7 +13,7 @@ import { Settings, Moon, Sun, Monitor, Bell, BellOff, BarChart3 } from "lucide-r
 
 export function SettingsTab() {
   const { theme, setTheme } = useTheme()
-  const { preferences: notificationPrefs, updatePreferences } = useNotifications()
+  const { preferences: notificationPrefs, updatePreferences, permission, error } = useNotifications()
   const { preferences: userPrefs, updatePreference } = useUserPreferences()
   const [mounted, setMounted] = useState(false)
 
@@ -152,6 +152,9 @@ export function SettingsTab() {
             />
           </div>
 
+          <p className="text-xs text-muted-foreground">Alertas críticos ativos permanecem visíveis mesmo com avisos comuns desabilitados.</p>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <p className="text-xs text-muted-foreground">Permissão neste navegador: {({ granted: "concedida", denied: "negada", default: "ainda não solicitada", unsupported: "indisponível" })[permission]}.</p>
           {notificationPrefs.enabled && (
             <>
               <Separator />
@@ -217,9 +220,9 @@ export function SettingsTab() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="notif-pos">PDV e Restaurante</Label>
+                    <Label htmlFor="notif-pos">Frente de Caixa</Label>
                     <p className="text-xs text-muted-foreground">
-                      Alertas de vendas e pedidos
+                      Alertas de vendas de bebidas
                     </p>
                   </div>
                   <Switch
@@ -232,6 +235,9 @@ export function SettingsTab() {
 
               <Separator />
 
+              {([ ["stock", "Estoque"], ["cash", "Caixa"] ] as const).map(([key, label]) => <div key={key} className="flex items-center justify-between gap-3">
+                <Label htmlFor={`notif-${key}`}>{label}</Label><Switch id={`notif-${key}`} checked={notificationPrefs[key]} onCheckedChange={checked => updatePreferences({ [key]: checked })} />
+              </div>)}
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="browser-notifications">Notificações do Navegador</Label>

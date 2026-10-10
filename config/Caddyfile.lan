@@ -1,0 +1,17 @@
+{$DOMAIN:localhost} {
+  tls internal
+  encode zstd gzip
+  header Strict-Transport-Security "max-age=31536000"
+  log {
+    output stdout
+    format filter {
+      wrap json
+      fields {
+        request>headers delete
+        resp_headers delete
+        request>uri delete
+      }
+    }
+  }
+  reverse_proxy app:3000
+}

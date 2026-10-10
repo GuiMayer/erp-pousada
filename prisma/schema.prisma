@@ -31,6 +31,8 @@ model User {
   createdBy String
   lastLogin DateTime?
 
+  notifications UserNotification[]
+  notificationPreference NotificationPreference?
   sessions UserSession[]
   authSessions AuthSession[]
 
@@ -92,6 +94,7 @@ model SystemSettings {
   razaoSocial              String?
   inscricaoEstadual        String?
   logoUrl                  String?
+  notificationRules Json @default("{}")
   notifyCheckInReminder    Boolean @default(true)
   notifyCheckOutReminder   Boolean @default(true)
   notifyLowStock           Boolean @default(true)
@@ -118,6 +121,8 @@ model AuditEntry {
 }
 
 model Room {
+  capacity Int?
+  tariffs LodgingTariff[]
   recordVersion Int @default(0)
   id               Int       @id
   number           String    @unique
@@ -142,6 +147,9 @@ model Room {
 }
 
 model GuestProfile {
+  customerId String? @unique
+  customer Customer? @relation(fields: [customerId], references: [id])
+  active Boolean @default(true)
   recordVersion Int @default(0)
   creditValue Decimal @default(0) @db.Decimal(12, 2)
   cpf        String @id
@@ -156,6 +164,11 @@ model GuestProfile {
 }
 
 model Reservation {
+  guestCount Int?
+  payerId String?
+  payer Customer? @relation(fields: [payerId], references: [id])
+  nightlyPrices Json?
+  priceExceptionReason String?
   recordVersion Int @default(0)
   cancellationFee Decimal @default(0) @db.Decimal(12, 2)
   originalValue   Decimal? @db.Decimal(12, 2)
@@ -212,6 +225,8 @@ model ExpenseCategory {
 }
 
 model Supplier {
+  customerId String? @unique
+  customer Customer? @relation(fields: [customerId], references: [id])
   recordVersion Int @default(0)
   id           String  @id
   name         String
@@ -230,6 +245,13 @@ model Supplier {
 }
 
 model Customer {
+  companyId String?
+  company Customer? @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  companyMembers Customer[] @relation("CompanyMembers")
+  roles Json @default("[\"payer\"]")
+  guestProfile GuestProfile?
+  supplier Supplier?
+  reservations Reservation[]
   recordVersion Int @default(0)
   id        String   @id
   name      String
@@ -251,6 +273,7 @@ model Customer {
   accountsReceivable AccountReceivable[]
 
   @@index([cpfCnpj])
+  @@index([companyId])
   @@index([active])
   @@map("customers")
 }
@@ -493,6 +516,8 @@ model ProductCategory {
 }
 
 model POSProduct {
+  active Boolean @default(true)
+  unit String @default("un")
   recordVersion Int @default(0)
   id         String  @id
   name       String
@@ -776,4 +801,66 @@ model OperationApproval {
   @@index([sessionId, requestId])
   @@index([approverId])
   @@map("operation_approvals")
+}
+
+
+model NotificationEvent {
+  id String @id @default(uuid())
+  dedupKey String @unique
+  type String
+  title String
+  message String
+  priority String @default("medium")
+  reference String?
+  module String
+  actorId String?
+  requiredPermissions String[]
+  conditionKey String? @unique
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  recipients UserNotification[]
+  @@index([createdAt, id])
+  @@map("notification_events")
+}
+model UserNotification {
+  id String @id @default(uuid())
+  eventId String
+  userId String
+  readAt DateTime?
+  archivedAt DateTime?
+  event NotificationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([eventId, userId])
+  @@index([userId, archivedAt, readAt])
+  @@map("user_notifications")
+}
+model NotificationPreference {
+  userId String @id
+  value Json @default("{}")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("notification_preferences")
+}
+model NotificationWorkerState {
+  id String @id
+  lastSuccess DateTime?
+  lastError String?
+  @@map("notification_worker_state")
+}
+
+model LodgingTariff {
+  id             String    @id
+  recordVersion  Int       @default(0)
+  name           String
+  roomType       String
+  roomId         Int?
+  room           Room?     @relation(fields: [roomId], references: [id])
+  minGuests      Int
+  maxGuests      Int
+  pricePerPerson Decimal   @db.Decimal(12, 2)
+  validFrom      DateTime  @db.Date
+  validTo        DateTime? @db.Date
+  active         Boolean   @default(true)
+
+  @@index([roomType, roomId, active, validFrom])
+  @@map("lodging_tariffs")
 }

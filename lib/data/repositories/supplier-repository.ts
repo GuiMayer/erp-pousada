@@ -7,15 +7,14 @@
 import { BaseRepository } from "./base-repository"
 import type { Supplier } from "../../store"
 import type { IStorageAdapter } from "../types"
-import { generateSupplierId } from "../../utils/id-generators"
 
 export class SupplierRepository extends BaseRepository<Supplier> {
   constructor(adapter: IStorageAdapter, userId?: string) {
     super(adapter, "suppliers", { cacheEnabled: true, userId })
   }
 
-  protected generateId(items: Supplier[]): string {
-    return generateSupplierId(items.length)
+  protected generateId(): string {
+    return crypto.randomUUID()
   }
 
   protected validate(supplier: Partial<Supplier>): { valid: boolean; error?: string } {

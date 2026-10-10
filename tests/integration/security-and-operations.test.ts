@@ -8,6 +8,7 @@ import { executeOperation } from "@/lib/server/operations"
 import { getCollection, createCollectionItem, deleteCollectionItem, updateCollectionItem, replaceCollection, exportAllCollections, importAllCollections, clearAllCollections } from "@/lib/server/db/relational-data-service"
 import { authorizeCollection } from "@/lib/server/data-permissions"
 import { assertSameOrigin } from "@/lib/server/http"
+import { POST as operationRoute } from "@/app/api/operations/route"
 import { GET as sessionRoute } from "@/app/api/auth/session/route"
 
 const url = process.env.DATABASE_URL || ""
@@ -20,6 +21,7 @@ const salePayload = (quantity = 1) => ({ sale: { id: randomUUID(), items: [{ id:
 
 beforeAll(async () => {
   await clearAllCollections()
+  await prisma.systemSettings.deleteMany()
   await prisma.$executeRawUnsafe('TRUNCATE TABLE "users", "operation_receipts", "auth_rate_limits", "rooms", "product_categories", "transactions", "audit_entries" CASCADE')
   const user = await prisma.user.create({ data: { id: "supervisor", username: "supervisor-test", password: await bcrypt.hash("Strong-test-password-42", 12), role: "supervisor", active: true, createdBy: "test", fullName: "Supervisor de teste" } })
   const session = await prisma.authSession.create({ data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 3600000) } })
@@ -115,7 +117,9 @@ describe("Proteção das APIs e integridade de operações", () => {
   it("hospedagem impede saída com consumo e grava pagamento antes do check-out", async () => {
     await prisma.room.update({ where: { id: 1 }, data: { status: "disponivel", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
     const operator = { ...actor, role: "operador" as const }
-    await executeOperation(operator, randomUUID(), "check-in", { roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2026-10-07", checkOut: "2026-10-09", totalValue: 300 })
+    const legacyStay = { roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2026-10-07", checkOut: "2026-10-09", totalValue: 300 }
+    await executeOperation(actor, randomUUID(), "reserve", legacyStay)
+    await executeOperation(operator, randomUUID(), "check-in", legacyStay)
     const rooms = await getCollection("rooms")
     expect(rooms[0]).toHaveProperty("checkOut", "2026-10-09")
     await executeOperation(operator, randomUUID(), "add-consumption", { roomId: 1, item: { id: randomUUID(), label: "Água", unitPrice: 1, quantity: 1 } })
@@ -136,7 +140,7 @@ describe("Proteção das APIs e integridade de operações", () => {
     const edit = { orderId, expectedVersion: 0, items: [{ id: randomUUID(), productId: "product", quantity: 2 }], discountPercent: 0 }
     await executeOperation(actor, randomUUID(), "edit-order", edit)
     await expect(executeOperation(actor, randomUUID(), "edit-order", edit)).rejects.toMatchObject({ status: 409 })
-    await executeOperation(actor, randomUUID(), "close-order", { orderId, expectedVersion: 1, paymentMethod: "pix", amountPaid: 20 })
+    await executeOperation(actor, randomUUID(), "close-order", { orderId, expectedVersion: (await prisma.restaurantOrder.findUniqueOrThrow({ where: { id: orderId } })).version, paymentMethod: "pix", amountPaid: 20 })
     expect(Number((await prisma.stockItem.findUniqueOrThrow({ where: { id: "stock" } })).currentStock)).toBe(8)
     expect((await prisma.restaurantTable.findUniqueOrThrow({ where: { id: 1 } })).status).toBe("livre")
   })
@@ -163,8 +167,8 @@ describe("Proteção das APIs e integridade de operações", () => {
     expect(Number((await prisma.stockItem.findUniqueOrThrow({ where: { id: "stock" } })).currentStock)).toBe(9)
   })
   it("preserva o último supervisor ativo", async () => {
-    await expect(updateCollectionItem("users", actor.id, { role: "operador" }, actor)).rejects.toMatchObject({ status: 409 })
-    await expect(updateCollectionItem("users", actor.id, { active: false }, actor)).rejects.toMatchObject({ status: 409 })
+    await expect(updateCollectionItem("users", actor.id, { role: "operador", recordVersion: (await prisma.user.findUniqueOrThrow({ where: { id: actor.id } })).recordVersion }, actor)).rejects.toMatchObject({ status: 409 })
+    await expect(updateCollectionItem("users", actor.id, { active: false, recordVersion: (await prisma.user.findUniqueOrThrow({ where: { id: actor.id } })).recordVersion }, actor)).rejects.toMatchObject({ status: 409 })
     expect((await prisma.user.findUniqueOrThrow({ where: { id: actor.id } })).active).toBe(true)
   })
   it("desconto recalcula reserva e exige aprovação acima do teto", async () => {
@@ -224,7 +228,7 @@ describe("Regressões das regras de negócio", () => {
   it("não permite bloquear um período já reservado", async () => {
     const room = await newRoom()
     await reserve(room.id)
-    await expect(updateCollectionItem("rooms", String(room.id), { status: "bloqueado", blockEndDate: "2030-10-21" }, actor)).rejects.toMatchObject({ status: 409 })
+    await expect(updateCollectionItem("rooms", String(room.id), { status: "bloqueado", blockEndDate: "2030-10-21", recordVersion: room.recordVersion }, actor)).rejects.toMatchObject({ status: 409 })
     expect((await prisma.room.findUniqueOrThrow({ where: { id: room.id } })).status).toBe("disponivel")
   })
   it("aceita desconto exatamente no teto sem erro de ponto flutuante", async () => {
@@ -239,6 +243,20 @@ describe("Regressões das regras de negócio", () => {
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: expenseId } })).paid).toBe(false)
     expect(await prisma.transaction.count()).toBe(0)
   })
+  it("dois recebimentos parciais com a mesma versão têm apenas um efeito", async () => {
+    const room = await newRoom()
+    await operate("check-in", { roomId: room.id, cpf: "52998224725", guestName: "Concorrência", checkIn: "2031-01-01", checkOut: "2031-01-03", totalValue: 300 })
+    const stay = await prisma.reservation.findFirstOrThrow({ where: { roomId: room.id } })
+    const payload = { reservationId: stay.id, recordVersion: stay.recordVersion, value: 100, paymentMethod: "pix" }
+    const results = await Promise.allSettled([operate("pay-reservation", payload), operate("pay-reservation", payload)])
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1)
+    expect(Number((await prisma.reservation.findUniqueOrThrow({ where: { id: stay.id } })).paidValue)).toBe(100)
+    expect(await prisma.transaction.count({ where: { refId: `Hospedagem ${stay.id}` } })).toBe(1)
+    const response = await operationRoute(new NextRequest("http://localhost:3002/api/operations", { method: "POST", headers: { cookie: `erp_session=${token}`, origin: "http://localhost:3002", "content-type": "application/json" }, body: JSON.stringify({ requestId: randomUUID(), kind: "pay-reservation", payload: { reservationId: stay.id, value: 100, paymentMethod: "pix" } }) }))
+    expect(response.status).toBe(428)
+    expect(await response.json()).toMatchObject({ code: "VERSION_REQUIRED" })
+  })
+
   it("exige quitação da hospedagem mesmo sem consumo e aceita pagamentos parciais", async () => {
     const room = await newRoom()
     await operate("check-in", { roomId: room.id, cpf: "52998224725", guestName: "Teste", checkIn: "2030-01-01", checkOut: "2030-01-03", totalValue: 300 })
@@ -325,7 +343,7 @@ describe("Regressões das regras de negócio", () => {
 
   it("recebimento é atômico, protege parcelas pagas e recusa recebimento duplicado", async () => {
     const customerId = randomUUID(), accountId = randomUUID(), part1 = randomUUID(), part2 = randomUUID()
-    await prisma.customer.create({ data: { id: customerId, name: "Cliente fictício", cpfCnpj: "52998224725" } })
+    await prisma.customer.create({ data: { id: customerId, name: "Cliente fictício", cpfCnpj: "11222333000181" } })
     await prisma.accountReceivable.create({ data: { id: accountId, customerId, customerName: "Cliente", description: "Teste", value: 100, status: "pendente", issueDate: new Date(), dueDate: new Date(), installments: { create: [part1, part2].map((id, index) => ({ id, installmentNumber: index + 1, value: 50, dueDate: new Date(), status: "pendente" })) } } })
     await prisma.bankAccount.update({ where: { id: "test-bank" }, data: { active: false } })
     await expect(operate("receive-account", { accountReceivableId: accountId, installmentId: part1, paymentMethod: "pix", accountId: "test-bank" })).rejects.toMatchObject({ status: 409 })
@@ -335,7 +353,7 @@ describe("Regressões das regras de negócio", () => {
     const results = await Promise.allSettled([operate("receive-account", payment), operate("receive-account", payment)])
     expect(results.filter(item => item.status === "fulfilled")).toHaveLength(1)
     await expect(deleteCollectionItem("accountsReceivable", accountId)).rejects.toMatchObject({ status: 409 })
-    await expect(updateCollectionItem("accountsReceivable", accountId, { value: 200 }, actor)).rejects.toMatchObject({ status: 409 })
+    await expect(updateCollectionItem("accountsReceivable", accountId, { value: 200, recordVersion: (await prisma.accountReceivable.findUniqueOrThrow({ where: { id: accountId } })).recordVersion }, actor)).rejects.toMatchObject({ status: 409 })
     expect((await prisma.accountReceivable.findUniqueOrThrow({ where: { id: accountId } })).status).toBe("pendente")
     await operate("receive-account", { ...payment, installmentId: part2 })
     expect((await prisma.accountReceivable.findUniqueOrThrow({ where: { id: accountId } })).status).toBe("pago")
@@ -363,9 +381,9 @@ describe("Regressões das regras de negócio", () => {
     await operate("open-table", { tableId, orderId })
     await operate("edit-order", { orderId, expectedVersion: 0, items: [{ id: itemId, productId: "product", quantity: 1 }], discountPercent: 10 })
     await prisma.pOSProduct.update({ where: { id: "product" }, data: { price: 20 } })
-    await operate("edit-order", { orderId, expectedVersion: 1, items: [{ id: itemId, productId: "product", quantity: 2 }], discountPercent: 10 })
+    await operate("edit-order", { orderId, expectedVersion: (await prisma.restaurantOrder.findUniqueOrThrow({ where: { id: orderId } })).version, items: [{ id: itemId, productId: "product", quantity: 2 }], discountPercent: 10 })
     await expect(operate("close-order", { orderId, expectedVersion: 1, paymentMethod: "pix", amountPaid: 100 })).rejects.toMatchObject({ status: 409 })
-    await operate("close-order", { orderId, expectedVersion: 2, paymentMethod: "pix", amountPaid: 18, discountPercent: 0 })
+    await operate("close-order", { orderId, expectedVersion: (await prisma.restaurantOrder.findUniqueOrThrow({ where: { id: orderId } })).version, paymentMethod: "pix", amountPaid: 18, discountPercent: 0 })
     expect(Number((await prisma.transaction.findFirstOrThrow()).value)).toBe(18)
   })
 

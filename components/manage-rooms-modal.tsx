@@ -11,9 +11,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -54,11 +51,13 @@ export function ManageRoomsModal({ open, onClose }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<Room | null>(null)
 
   // Form fields
+  const [capacity, setCapacity] = useState(2)
   const [roomNumber, setRoomNumber] = useState("")
   const [roomType, setRoomType] = useState("")
   const [formError, setFormError] = useState("")
 
   function resetForm() {
+    setCapacity(2)
     setRoomNumber("")
     setRoomType("")
     setFormError("")
@@ -79,7 +78,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
     const newId = Math.max(...rooms.map(r => r.id), 0) + 1
     await addRoom({
       id: newId,
-      number: roomNumber,
+      number: roomNumber, capacity,
       type: roomType,
       status: "disponivel",
       timeline: generateTimeline("disponivel"),
@@ -100,7 +99,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
       return
     }
     await updateRoom(editingRoom.id, {
-      recordVersion: editingRoom.recordVersion, number: roomNumber, type: roomType })
+      recordVersion: editingRoom.recordVersion, number: roomNumber, type: roomType, capacity })
     addAuditEntry({ user: username || "sistema", action: "Quarto editado", reference: `Quarto ${roomNumber}` })
     resetForm()
     setMode("list")
@@ -108,14 +107,18 @@ export function ManageRoomsModal({ open, onClose }: Props) {
     } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  function handleDelete(room: Room) {
-    removeRoom(room.id)
+  async function handleDelete(room: Room) {
+    try {
+    await removeRoom(room.id, room.recordVersion)
     addAuditEntry({ user: username || "sistema", action: "Quarto removido", reference: `Quarto ${room.number}` })
     setDeleteConfirm(null)
+
+    } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }
   }
 
   function openEdit(room: Room) {
     setEditingRoom(room)
+    setCapacity(room.capacity ?? 0)
     setRoomNumber(room.number)
     setRoomType(room.type)
     setFormError("")
@@ -127,7 +130,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
   return (
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setMode("list"); resetForm() } }}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+        <DialogContent mobileTask className="sm:max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BedDouble className="size-5 text-primary" />
@@ -193,6 +196,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
 
           {(mode === "add" || mode === "edit") && (
             <div className="flex flex-col gap-4 py-2">
+              <div><Label htmlFor="room-capacity">Capacidade máxima de pessoas</Label><Input id="room-capacity" type="number" min={1} max={100} value={capacity || ""} onChange={e => setCapacity(Number(e.target.value))} required /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <Label>Numero do Quarto</Label>
@@ -203,23 +207,15 @@ export function ManageRoomsModal({ open, onClose }: Props) {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Tipo</Label>
-                  <Select value={roomType} onValueChange={v => { setRoomType(v); setFormError("") }}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROOM_TYPES.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="room-category">Categoria</Label>
+                  <Input id="room-category" list="room-categories" value={roomType} onChange={e => { setRoomType(e.target.value); setFormError("") }} placeholder="Ex.: Standard" />
+                  <datalist id="room-categories">{[...new Set([...ROOM_TYPES, ...rooms.map(r => r.type)])].map(t => <option key={t} value={t} />)}</datalist>
                 </div>
               </div>
               {formError && <p className="text-xs text-destructive">{formError}</p>}
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => { setMode("list"); resetForm() }}>Voltar</Button>
-                <Button onClick={mode === "add" ? handleAdd : handleEdit} disabled={!roomNumber || !roomType}>
+                <Button onClick={mode === "add" ? handleAdd : handleEdit} disabled={!roomNumber || !roomType || capacity < 1 || capacity > 100}>
                   {mode === "add" ? "Adicionar" : "Salvar"}
                 </Button>
               </div>

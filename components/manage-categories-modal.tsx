@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription,
@@ -33,12 +33,9 @@ import {
   Flame, Zap, Crown, Gift, Palette, Check
 } from "lucide-react"
 
-type CategoryType = "pdv" | "restaurant"
-
 type Props = {
   open: boolean
   onClose: () => void
-  defaultTab?: CategoryType
 }
 
 // Available icons for categories
@@ -101,11 +98,10 @@ const PRESET_COLORS = [
   "#6b7280", // gray
 ]
 
-export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Props) {
+export function ManageCategoriesModal({ open, onClose }: Props) {
   const { posProducts, productCategories, updateProductCategory, addProductCategory, removeProductCategory, addAuditEntry } = useApp()
   const { username } = useAuth()
 
-  const [activeTab, setActiveTab] = useState<CategoryType>(defaultTab)
   const [mode, setMode] = useState<"list" | "add" | "edit">("list")
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<ProductCategory | null>(null)
@@ -136,19 +132,13 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
     [productCategories]
   )
 
-  const restaurantCategories = useMemo(() =>
-    productCategories.filter(c => c.isRestaurant),
-    [productCategories]
-  )
-
   // Sync active tab with defaultTab when modal opens
   useEffect(() => {
     if (open) {
-      setActiveTab(defaultTab)
       setMode("list")
       resetForm()
     }
-  }, [open, defaultTab])
+  }, [open])
 
   function resetForm() {
     setCategoryName("")
@@ -158,7 +148,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
     setEditingCategory(null)
   }
 
-  const getCurrentCategories = useCallback((): ProductCategory[] => activeTab === "pdv" ? pdvCategories : restaurantCategories, [activeTab, pdvCategories, restaurantCategories])
+  const getCurrentCategories = useCallback((): ProductCategory[] => pdvCategories, [pdvCategories])
 
   async function handleAdd() {
     if (!categoryName.trim()) {
@@ -178,14 +168,14 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
       color: categoryColor,
       icon: categoryIcon,
       active: true,
-      isRestaurant: activeTab === "restaurant",
+      isRestaurant: false,
     }
 
     await addProductCategory(newCategory)
     addAuditEntry({
       user: username || "sistema",
       action: "Categoria adicionada",
-      reference: `${categoryName} (${activeTab === "pdv" ? "PDV" : "Restaurante"})`
+      reference: `${categoryName} (Pousada)`
     })
     resetForm()
     setMode("list")
@@ -228,14 +218,14 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
         setFormError("Nao e possivel excluir uma categoria em uso.")
         return
       }
-      await removeProductCategory(category.id)
+      await removeProductCategory(category.id, category.recordVersion)
       addAuditEntry({
         user: username || "sistema",
         action: "Categoria removida",
         reference: category.name
       })
     } else {
-      await updateProductCategory(category.id, { active: false })
+      await updateProductCategory(category.id, { recordVersion: category.recordVersion, active: false })
       addAuditEntry({
         user: username || "sistema",
         action: "Categoria desativada",
@@ -281,17 +271,13 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
               Gerenciar Categorias
             </DialogTitle>
             <DialogDescription>
-              Organize as categorias de produtos do PDV e Restaurante.
+              Organize as categorias de produtos da pousada.
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={(v: string) => { setActiveTab(v as CategoryType); setMode("list"); resetForm() }}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="pdv">PDV</TabsTrigger>
-              <TabsTrigger value="restaurant">Restaurante</TabsTrigger>
-            </TabsList>
+          <Tabs value="pdv">
 
-            <TabsContent value={activeTab} className="flex flex-1 flex-col gap-4 overflow-hidden mt-4">
+            <TabsContent value="pdv" className="flex flex-1 flex-col gap-4 overflow-hidden mt-4">
               {mode === "list" && (
                 <div className="flex flex-1 flex-col gap-4 overflow-hidden">
                   <Button
@@ -372,7 +358,7 @@ export function ManageCategoriesModal({ open, onClose, defaultTab = "pdv" }: Pro
                                 size="sm" variant="ghost"
                                 className="size-8 p-0"
                                 onClick={async () => {
-                                  await updateProductCategory(category.id, { active: true })
+                                  await updateProductCategory(category.id, { recordVersion: category.recordVersion, active: true })
                                   addAuditEntry({
                                     user: username || "sistema",
                                     action: "Categoria reativada",

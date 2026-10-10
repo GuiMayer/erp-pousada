@@ -1,5 +1,8 @@
 "use client"
-import { useEffect } from "react"
+import { RegistrationsTab } from "./registrations-tab"
+import { MobileNavigation } from "./mobile-navigation"
+import { usePhoneLayout } from "@/hooks/use-phone-layout"
+import { useEffect, useState } from "react"
 import { tabPermissions } from "@/lib/permissions"
 
 import { useApp } from "@/lib/app-context"
@@ -11,32 +14,37 @@ import { ReservationsTab } from "./reservations-tab"
 import { FinancialTab } from "./financial-tab"
 import { AuditLogTab } from "./audit-log-tab"
 import { POSTab } from "./pos-tab"
-import { RestaurantTab } from "./restaurant/restaurant-tab"
 import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
 import { SettingsTab } from "./settings-tab"
 import { AdminTab } from "./admin-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, UtensilsCrossed, Package, BarChart3, Settings } from "lucide-react"
+import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, Package, BarChart3, Settings } from "lucide-react"
 
 export function DashboardShell() {
+  const phone = usePhoneLayout()
   const { rooms, dataError } = useApp()
   const { can } = useAuth()
   const visible = (tab: string) => tabPermissions[tab]?.some(can)
   const permittedTab = Object.keys(tabPermissions).find(visible)
   const { activeTab, setActiveTab } = useActiveTab()
+  const [visited, setVisited] = useState(() => new Set([activeTab]))
+  useEffect(() => {
+    if (phone) setVisited(previous => previous.has(activeTab) ? previous : new Set([...previous, activeTab]))
+  }, [activeTab, phone])
   useEffect(() => {
     if (!tabPermissions[activeTab]?.some(can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
   }, [activeTab, can, permittedTab, setActiveTab])
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="dashboard-shell mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-8 lg:px-8">
       {dataError && <div role="alert" className="rounded-lg border border-destructive p-4 text-destructive">Não foi possível atualizar os dados: {dataError}. Recarregue a página para tentar novamente.</div>}
-      <DashboardHeader rooms={rooms} />
+      {phone && <MobileNavigation />}
+      <div className="hidden sm:block"><DashboardHeader rooms={rooms} /></div>
       {!permittedTab && <p role="status">Nenhum módulo foi liberado para seu usuário. Procure o administrador.</p>}
 
       <Tabs value={visible(activeTab) ? activeTab : permittedTab ?? ""} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col gap-6">
-          <TabsList className="w-fit">
+          <TabsList className="hidden sm:flex">
           {visible("mapa") && (<TabsTrigger value="mapa" className="gap-1.5">
             <Map className="size-3.5" />
             Mapa
@@ -49,14 +57,11 @@ export function DashboardShell() {
             <ShoppingCart className="size-3.5" />
             Frente de Caixa
           </TabsTrigger>)}
-          {visible("restaurante") && (<TabsTrigger value="restaurante" className="gap-1.5">
-            <UtensilsCrossed className="size-3.5" />
-            Restaurante
-          </TabsTrigger>)}
           {visible("estoque") && (<TabsTrigger value="estoque" className="gap-1.5">
             <Package className="size-3.5" />
             Estoque
           </TabsTrigger>)}
+          {visible("cadastros") && <TabsTrigger value="cadastros">Cadastros</TabsTrigger>}
           {visible("financeiro") && (<TabsTrigger value="financeiro" className="gap-1.5">
             <DollarSign className="size-3.5" />
             Financeiro
@@ -79,34 +84,32 @@ export function DashboardShell() {
           </TabsTrigger>)}
         </TabsList>
 
-        {visible("mapa") && (<TabsContent value="mapa">
+        {visible("mapa") && (<TabsContent forceMount={phone && visited.has("mapa") ? true : undefined} value="mapa">
           <RoomGrid />
         </TabsContent>)}
-        {visible("reservas") && (<TabsContent value="reservas">
+        {visible("reservas") && (<TabsContent forceMount={phone && visited.has("reservas") ? true : undefined} value="reservas">
           <ReservationsTab />
         </TabsContent>)}
-        {visible("pdv") && (<TabsContent value="pdv">
+        {visible("pdv") && (<TabsContent forceMount={phone && visited.has("pdv") ? true : undefined} value="pdv">
           <POSTab />
         </TabsContent>)}
-        {visible("restaurante") && (<TabsContent value="restaurante">
-          <RestaurantTab />
-        </TabsContent>)}
-        {visible("estoque") && (<TabsContent value="estoque">
+        {visible("estoque") && (<TabsContent forceMount={phone && visited.has("estoque") ? true : undefined} value="estoque">
           <StockTab />
         </TabsContent>)}
-        {visible("financeiro") && (<TabsContent value="financeiro">
+        {visible("cadastros") && <TabsContent forceMount={phone && visited.has("cadastros") ? true : undefined} value="cadastros"><RegistrationsTab /></TabsContent>}
+        {visible("financeiro") && (<TabsContent forceMount={phone && visited.has("financeiro") ? true : undefined} value="financeiro">
           <FinancialTab />
         </TabsContent>)}
-        {visible("relatorios") && (<TabsContent value="relatorios">
+        {visible("relatorios") && (<TabsContent forceMount={phone && visited.has("relatorios") ? true : undefined} value="relatorios">
           <ReportsTab />
         </TabsContent>)}
-        {visible("configuracoes") && (<TabsContent value="configuracoes">
+        {visible("configuracoes") && (<TabsContent forceMount={phone && visited.has("configuracoes") ? true : undefined} value="configuracoes">
           <SettingsTab />
         </TabsContent>)}
-        {visible("administracao") && (<TabsContent value="administracao">
+        {visible("administracao") && (<TabsContent forceMount={phone && visited.has("administracao") ? true : undefined} value="administracao">
             <AdminTab />
           </TabsContent>)}
-        {visible("auditoria") && (<TabsContent value="auditoria">
+        {visible("auditoria") && (<TabsContent forceMount={phone && visited.has("auditoria") ? true : undefined} value="auditoria">
           <AuditLogTab />
         </TabsContent>)}
       </Tabs>

@@ -31,10 +31,12 @@ import type {
   User,
   UserSession,
 } from "@/lib/store"
+import type { LodgingTariff } from "@/lib/lodging-pricing"
 
 type Row = Record<string, any>
 
 export type DataCollectionKey =
+  | "lodgingTariffs"
   | "rooms"
   | "reservations"
   | "guests"
@@ -107,6 +109,7 @@ const roomMapper: CollectionMapper<Room> = {
   orderBy: { number: "asc" },
   toApp: row => ({
     id: row.id,
+    capacity: optional(row.capacity),
     number: row.number,
     type: row.type,
     status: row.status,
@@ -122,6 +125,7 @@ const roomMapper: CollectionMapper<Room> = {
   }),
   toCreate: item => stripUndefined({
     id: item.id,
+    capacity: item.capacity,
     number: item.number,
     type: item.type,
     status: item.status,
@@ -142,6 +146,7 @@ const reservationMapper: CollectionMapper<Reservation> = {
   prismaModel: "reservation",
   orderBy: { checkIn: "asc" },
   toApp: row => ({
+    guestCount: optional(row.guestCount), payerId: optional(row.payerId), nightlyPrices: optional(row.nightlyPrices), priceExceptionReason: optional(row.priceExceptionReason),
     recordVersion: row.recordVersion,
     id: row.id,
     roomId: row.roomId,
@@ -158,6 +163,7 @@ const reservationMapper: CollectionMapper<Reservation> = {
     cancelTreatment: optional(row.cancelTreatment),
   }),
   toCreate: item => stripUndefined({
+    guestCount: item.guestCount, payerId: item.payerId, nightlyPrices: item.nightlyPrices, priceExceptionReason: item.priceExceptionReason,
     id: item.id,
     roomId: item.roomId,
     roomNumber: item.roomNumber,
@@ -178,9 +184,9 @@ const reservationMapper: CollectionMapper<Reservation> = {
 const guestMapper: CollectionMapper<GuestProfile> = {
   prismaModel: "guestProfile",
   orderBy: { name: "asc" },
-  toApp: row => ({ cpf: row.cpf, name: row.name, creditValue: numberValue(row.creditValue ?? 0), totalStays: row.totalStays, avgTicket: numberValue(row.avgTicket), noShows: row.noShows }),
-  toCreate: item => ({ cpf: item.cpf, name: item.name, creditValue: item.creditValue, totalStays: item.totalStays, avgTicket: item.avgTicket, noShows: item.noShows }),
-  toUpdate: item => stripUndefined({ name: item.name, totalStays: item.totalStays, avgTicket: item.avgTicket, noShows: item.noShows }),
+  toApp: row => ({ customerId: optional(row.customerId), active: row.active, cpf: row.cpf, name: row.name, creditValue: numberValue(row.creditValue ?? 0), totalStays: row.totalStays, avgTicket: numberValue(row.avgTicket), noShows: row.noShows }),
+  toCreate: item => ({ customerId: item.customerId, active: item.active, cpf: item.cpf, name: item.name, creditValue: item.creditValue, totalStays: item.totalStays, avgTicket: item.avgTicket, noShows: item.noShows }),
+  toUpdate: item => stripUndefined({ customerId: item.customerId, active: item.active, name: item.name, totalStays: item.totalStays, avgTicket: item.avgTicket, noShows: item.noShows }),
 }
 
 const expenseMapper: CollectionMapper<Expense> = {
@@ -264,7 +270,7 @@ const auditMapper: CollectionMapper<AuditEntry> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     id: row.id,
-    date: dateOnly(row.date),
+    date: new Date(row.date).toISOString(),
     user: row.user,
     action: row.action,
     reference: row.reference,
@@ -421,7 +427,7 @@ const accountReceivableMapper: CollectionMapper<AccountReceivable> = {
 const bankTransferMapper: CollectionMapper<BankTransfer> = {
   prismaModel: "bankTransfer",
   orderBy: { date: "desc" },
-  toApp: row => ({ ...row, date: dateOnly(row.date), value: numberValue(row.value) } as BankTransfer),
+  toApp: row => ({ ...row, date: dateString(row.date), value: numberValue(row.value) } as BankTransfer),
   toCreate: item => stripUndefined({ ...item, date: dateValue(item.date) }),
   toUpdate: item => bankTransferMapper.toCreate(item as BankTransfer),
 }
@@ -463,7 +469,7 @@ const posSaleMapper: CollectionMapper<POSSale> = {
   orderBy: { date: "desc" },
   toApp: row => ({
     ...row,
-    date: dateOnly(row.date),
+    date: dateString(row.date),
     subtotal: numberValue(row.subtotal),
     discount: numberValue(row.discount),
     total: numberValue(row.total),
@@ -561,7 +567,14 @@ const employeeConsumptionMapper: CollectionMapper<EmployeeConsumption> = {
   toUpdate: item => stripUndefined({ ...item, timestamp: dateValue(item.timestamp), items: undefined }),
 }
 
+const lodgingTariffMapper: CollectionMapper<LodgingTariff> = {
+  prismaModel: "lodgingTariff", orderBy: { validFrom: "desc" },
+  toApp: row => ({ ...row, pricePerPerson: numberValue(row.pricePerPerson), validFrom: dateOnly(row.validFrom), validTo: optionalDateOnly(row.validTo) } as LodgingTariff),
+  toCreate: item => stripUndefined({ ...item, validFrom: dateValue(item.validFrom), validTo: item.validTo === null ? null : dateValue(item.validTo) }),
+  toUpdate: item => stripUndefined({ ...item, validFrom: dateValue(item.validFrom), validTo: item.validTo === null ? null : dateValue(item.validTo) }),
+}
 export const collectionMappers = {
+  lodgingTariffs: lodgingTariffMapper,
   rooms: roomMapper,
   reservations: reservationMapper,
   guests: guestMapper,

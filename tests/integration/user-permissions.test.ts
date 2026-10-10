@@ -169,7 +169,9 @@ describe("Permissões individuais e múltiplos usuários", () => {
   it("recusa edição de reserva baseada em formulário antigo", async () => {
     const reception = await actor("permissions-reception")
     const input = { roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2035-01-10", checkOut: "2035-01-12", totalValue: 100 }
-    const reservation = await executeOperation(reception, randomUUID(), "reserve", input) as { id: string; recordVersion: number }
+    // Legacy agreed prices can be authorized by an administrator. Reception
+    // retains ordinary editing and conflict protection for the confirmed record.
+    const reservation = await executeOperation(await actor("permissions-admin"), randomUUID(), "reserve", input) as { id: string; recordVersion: number }
     const edited = { ...input, id: reservation.id, recordVersion: reservation.recordVersion, checkOut: "2035-01-13" }
     await executeOperation(reception, randomUUID(), "edit-reservation", edited)
     await expect(executeOperation(reception, randomUUID(), "edit-reservation", { ...edited, checkOut: "2035-01-14" })).rejects.toMatchObject({ status: 409 })

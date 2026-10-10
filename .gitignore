@@ -24,3 +24,7 @@ backups/
 .env.*
 !.env.example
 coverage/
+.local/
+
+# Incremental TypeScript build cache
+*.tsbuildinfo

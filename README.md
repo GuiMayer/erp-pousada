@@ -2,7 +2,7 @@
 
 # ERP Pousada
 
-**Hospedagem, restaurante e gestão financeira em um só painel.**
+**Hospedagem, venda de bebidas e gestão financeira em um só painel.**
 
 Aplicação web em português para organizar a rotina de pousadas: da reserva ao fechamento de caixa, com controle de consumo, estoque e relatórios.
 
@@ -12,15 +12,19 @@ Aplicação web em português para organizar a rotina de pousadas: da reserva ao
 
 </div>
 
+O restaurante saiu do escopo ativo. Seu código e a modelagem anterior estão preservados em [`modules/abandoned/restaurant`](modules/abandoned/restaurant/README.md), sem entrada na interface.
+
 ## Visão geral
 
-O ERP Pousada reúne a recepção, a frente de caixa, o restaurante e o financeiro em uma interface compartilhada. Os módulos trabalham com quartos, hóspedes, produtos e lançamentos para acompanhar a operação do estabelecimento.
+O ERP Pousada reúne a recepção, a frente de caixa e o financeiro em uma interface compartilhada. Os módulos trabalham com quartos, hóspedes, produtos e lançamentos para acompanhar a operação do estabelecimento.
 
 O projeto está em desenvolvimento. Há um modo de demonstração sem banco e uma camada de persistência com PostgreSQL; consulte o [estado atual](#estado-atual) antes de planejar uma instalação operacional.
 
+A Sprint 1 acrescentou a aba **Cadastros**, com pessoas/empresas, fornecedores, bebidas, capacidades dos quartos e tarifas por pessoa/noite. Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md); cobrança empresarial após a saída, compras e lotes seguem nas próximas sprints.
+
 ## Telas do sistema
 
-Conheça cinco abas que representam os principais fluxos da aplicação. As capturas foram feitas em **modo claro**, com dados fictícios da Pousada Sol & Mar. Nomes, valores e operações são exemplos; as datas são calculadas quando a demonstração é criada.
+Conheça quatro abas que representam os principais fluxos da aplicação. As capturas foram feitas em **modo claro**, com dados fictícios da Pousada Sol & Mar. Nomes, valores e operações são exemplos; as datas são calculadas quando a demonstração é criada.
 
 ### Mapa — acompanhe a ocupação e a rotina dos quartos
 
@@ -38,14 +42,6 @@ Na captura, o carrinho contém uma água e um suco, mostrando como os itens e o 
 
 ![Frente de caixa em modo claro com catálogo de bebidas e carrinho de exemplo](docs/images/frente-caixa.jpg)
 
-### Restaurante — gerencie mesas e comandas
-
-O mapa de mesas diferencia lugares livres, ocupados e reservados. Nas mesas em atendimento, os cartões mostram a comanda, a quantidade de itens e o valor acumulado, facilitando o acompanhamento do salão.
-
-Ao acessar uma mesa, o operador pode lançar pedidos e fechar a comanda. O módulo também reúne fichas de receita, produção e consumo de funcionários para apoiar a rotina da cozinha.
-
-![Restaurante em modo claro com dez mesas e três comandas fictícias em aberto](docs/images/restaurante.jpg)
-
 ### Financeiro — acompanhe resultados e vencimentos
 
 O painel reúne receitas, despesas, resultado líquido e estornos. A lista de lançamentos permite consultar categorias, valores, vencimentos e situações de pagamento, ajudando a identificar contas pendentes e organizar o fluxo financeiro.
@@ -58,7 +54,7 @@ Além do resumo, a aba oferece controle de despesas e parcelas, contas a receber
 
 Selecione um período para consultar receita, quantidade de vendas, ticket médio e alertas de estoque. Os gráficos mostram a distribuição por categoria, forma de pagamento e horário, permitindo comparar o movimento e reconhecer os produtos que contribuem para as vendas.
 
-As visualizações de vendas, produtos e estoque complementam a análise. Os dados podem ser exportados em CSV, e os relatórios de reservas, estoque e restaurante estão disponíveis em PDF.
+As visualizações de vendas, produtos e estoque complementam a análise. Os dados podem ser exportados em CSV, e os relatórios de reservas e estoque estão disponíveis em PDF.
 
 ![Relatórios em modo claro com indicadores, gráficos de vendas e exportação CSV e PDF](docs/images/relatorios.jpg)
 
@@ -67,7 +63,7 @@ As visualizações de vendas, produtos e estoque complementam a análise. Os dad
 | Aba | O que permite fazer |
 | --- | --- |
 | **Reservas** | Cadastrar e editar hospedagens, verificar conflitos de período, acompanhar cancelamentos, no-show e histórico de hóspedes. |
-| **Estoque** | Consultar produtos e cardápio, registrar entradas, saídas, ajustes e perdas, e acompanhar alertas de estoque mínimo. |
+| **Estoque** | Consultar produtos da pousada, registrar entradas, saídas, ajustes e perdas, e acompanhar alertas de estoque mínimo. |
 | **Configurações** | Ajustar os dados do estabelecimento e as preferências da interface. |
 | **Administração** | Gerenciar o cadastro de usuários. |
 | **Auditoria** | Consultar os registros de ações realizadas no sistema. |
@@ -101,7 +97,9 @@ Inicie a aplicação:
 pnpm dev
 ```
 
-Acesse **[http://localhost:3000](http://localhost:3000)**. O modo de demonstração não exige um servidor PostgreSQL.
+Acesse **[http://localhost:3002](http://localhost:3002)**. O modo de demonstração não exige um servidor PostgreSQL. `npm run dev` também executa esse comando. O desenvolvimento usa a porta 3002, reservando 3000 para o sistema normal e 3001 para a demonstração Docker do painel. Ele escuta somente neste computador.
+
+Se `.env` ou `.env.local` definir `APP_URL`, use `APP_URL=http://localhost:3002` no desenvolvimento. Os servidores Docker configurados para Tailscale devem ser acessados pelo link do painel; abrir suas portas locais pode causar **Origem não autorizada**. Reinicie o desenvolvimento após alterar variáveis de ambiente.
 
 ### Acesso de demonstração
 
@@ -118,8 +116,7 @@ Na primeira abertura de um armazenamento de demonstração vazio, o sistema carr
 
 - **12 quartos** com situações de ocupação, disponibilidade, limpeza e manutenção.
 - **10 reservas e 9 hóspedes**, incluindo estadias em andamento e reservas futuras.
-- **36 produtos**, sendo 28 do catálogo da pousada e 8 do cardápio do restaurante.
-- **10 mesas e 3 comandas abertas** com itens e totais relacionados.
+- **28 produtos** do catálogo da pousada.
 - **112 vendas distribuídas em 14 dias**, com lançamentos financeiros correspondentes.
 - **12 itens de estoque**, movimentações, alertas de reposição, despesas e contas a receber.
 
@@ -163,12 +160,13 @@ No modo `database`, o navegador acessa `/api/data`, e as coleções mapeadas sã
 O projeto inclui aplicação, PostgreSQL e um serviço de backup automático:
 
 ```bash
-docker compose up -d --build
+powershell -NoProfile -File scripts/setup-docker.ps1
+powershell -NoProfile -File scripts/start-docker.ps1
 ```
 
-A aplicação fica disponível em **[http://localhost:3000](http://localhost:3000)**. Libere a porta 3000 caso outra instância local já esteja em execução. As migrations são aplicadas na inicialização do container da aplicação.
+A instalação começa vazia e usa **https://localhost**, com certificado interno que deve ser configurado como confiável. Aplicação, migrações e backups usam credenciais distintas. As migrations são aplicadas por um serviço separado antes da aplicação.
 
-No Windows, `pousada-menu.bat` reúne instalação, acesso na rede local, configuração de backups e restauração. O procedimento completo está no [guia de instalação com Docker](docs/CLIENTE_INSTALACAO_DOCKER.md).
+No Windows, siga o [guia de instalação no computador da pousada](docs/INSTALACAO_POUSADA.md), incluindo HTTPS na rede, credencial inicial, backup externo e recuperação. O menu `pousada-menu.bat` reúne preparação, inicialização, verificação e backup.
 
 ## Origem da interface
 
@@ -199,6 +197,7 @@ lib/
 prisma/                Schema e migrations
 scripts/               Migração de dados e manutenção do banco
 docs/                  Documentação técnica e capturas de tela
+modules/abandoned/     Módulos fora do escopo ativo
 src/__tests__/         Testes automatizados
 ```
 
@@ -221,7 +220,7 @@ src/__tests__/         Testes automatizados
 ## Estado atual
 
 - **Acesso:** no modo `database`, o servidor autentica usuários, protege as APIs e aplica permissões. Senhas são gravadas com bcrypt e não são devolvidas ao navegador. Sessões usam cookies HttpOnly e expiram em oito horas. Mudanças de perfil e permissões valem nas próximas requisições; desativação e troca de senha encerram as sessões. Há perfis por setor, exceções individuais e aprovações vinculadas a uma única operação.
-- **Operações:** vendas, estornos, check-in, reservas, consumo, comandas, estoque, produção e pagamentos de despesas usam operações no servidor. Vendas recalculam valores e aplicam os limites de desconto. Operações possuem transação e identificação de reenvios.
+- **Operações:** vendas, estornos, check-in, reservas, consumo, estoque e pagamentos de despesas usam operações no servidor. Vendas recalculam valores e aplicam os limites de desconto. Operações possuem transação e identificação de reenvios.
 - **Dados iniciais:** a produção começa vazia. O seed cria somente o primeiro supervisor e as configurações, exigindo credenciais definidas pelo responsável. A demonstração permanece separada.
 - **Verificação:** tipos e build não ignoram erros. O projeto inclui lint, testes unitários, integração com PostgreSQL e uma rotina de CI no GitHub.
 
@@ -229,9 +228,12 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 
 ## Documentação
 
+- [Requisitos da pousada e sequência revisada das sprints](docs/REQUISITOS_E_MODELAGEM_ERP.md)
+- [Código e modelagem do restaurante arquivado](modules/abandoned/restaurant/README.md)
 - [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
 - [Regras de hospedagem, cancelamentos, pagamentos e estoque](docs/REGRAS_NEGOCIO.md)
 - [Permissões individuais, perfis e aprovações por operação](docs/PERMISSOES.md)
+- [Concorrência, conflitos de edição e sincronização entre dispositivos](docs/CONCORRENCIA.md)
 - [Instalação local no Windows](docs/CLIENTE_INSTALACAO_DOCKER.md)
 - [Camada de dados e repositórios](docs/DATA_LAYER.md)
 - [Mapa da migração relacional](docs/DATABASE_DOMAIN_MAP.md)
@@ -243,3 +245,11 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 Para contribuir, abra uma issue descrevendo o problema ou a proposta e envie um pull request com contexto e validação da alteração. Mantenha os exemplos fictícios e documente mudanças de configuração ou persistência.
 
 Este projeto é distribuído sob a [licença MIT](LICENSE). As dependências e demais materiais de terceiros mantêm suas respectivas licenças.
+
+### Notificações
+
+Eventos confirmados e alertas operacionais possuem histórico no PostgreSQL, leitura individual e acesso conforme as permissões atuais. O worker Docker mantém os lembretes sem navegador conectado. Consulte [o guia da central](docs/NOTIFICACOES.md).
+
+Consulte [Auditoria e logs](docs/LOGS.md) para filtros do histórico, diagnóstico de erros e política de retenção.
+
+Para apresentações sem alterar os dados operacionais, consulte [Demonstração temporária](docs/DEMONSTRACAO.md).

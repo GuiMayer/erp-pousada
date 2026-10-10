@@ -7,6 +7,7 @@ import { getDataConfig } from "@/lib/data/config"
 
 import { BankAccountPicker } from "./payment-fields"
 import { useState, useMemo, useRef, useEffect } from "react"
+import { pousadaProducts } from "@/lib/pousada-scope"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { useStockIntegration } from "@/lib/hooks/useStockIntegration"
@@ -55,10 +56,11 @@ const PAYMENT_METHODS = [
 
 export function POSTab() {
   const {
-    posProducts, posSales, rooms, stockItems,
+    posProducts: allProducts, posSales, rooms, stockItems,
     runOperation, addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
     addConsumptionItem, getCategoryName, productCategories,
   } = useApp()
+  const posProducts = useMemo(() => pousadaProducts(allProducts, productCategories).filter(p => p.active !== false), [allProducts, productCategories])
   const { username, role, can } = useAuth()
   const {
     processStockForSale,
@@ -68,6 +70,8 @@ export function POSTab() {
   const { checkCashPayment, checkChangeAmount } = useBusinessRules()
   const { toast } = useToast()
 
+  const [mobileCartOpen, setMobileCartOpen] = useState(false)
+  const cartRef = useRef<HTMLDivElement>(null)
   // Cart state
   const [cart, setCart] = useState<POSCartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -494,6 +498,7 @@ export function POSTab() {
         </div>
       </div>
 
+      <Button className={`mobile-cart-bar sm:hidden ${mobileCartOpen ? "mobile-cart-bar-review" : ""}`} onClick={() => { setMobileCartOpen(true); requestAnimationFrame(() => cartRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })) }}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Ver carrinho</Button>
       {/* Main POS Layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         {/* Left: Product Selection */}
@@ -501,8 +506,8 @@ export function POSTab() {
           <CardHeader className="border-b border-border bg-muted/30 pb-4">
             <div className="flex flex-col gap-4">
               {/* Search and Barcode */}
-              <div className="flex gap-2">
-                <div className="relative flex-1">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative min-w-0 flex-1">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar produto..."
@@ -512,14 +517,14 @@ export function POSTab() {
                   />
                 </div>
                 <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <Barcode className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       ref={barcodeRef}
                       placeholder="Codigo de barras (F2)"
                       value={barcodeInput}
                       onChange={e => setBarcodeInput(e.target.value)}
-                      className="w-48 pl-9"
+                      className="w-full pl-9 sm:w-48"
                     />
                   </div>
                 </form>
@@ -542,7 +547,7 @@ export function POSTab() {
             </div>
           </CardHeader>
 
-          <CardContent className="p-4">
+          <CardContent className="mobile-catalog max-h-[45dvh] overflow-y-auto p-4 lg:max-h-none">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               {filteredProducts.map(product => (
                 <button
@@ -574,7 +579,8 @@ export function POSTab() {
         </Card>
 
         {/* Right: Cart */}
-        <Card className="flex flex-col">
+        <Card ref={cartRef} className={`mobile-cart flex flex-col ${mobileCartOpen ? "mobile-cart-open" : ""}`}>
+          <Button variant="outline" className="sm:hidden mx-4" onClick={() => setMobileCartOpen(false)}>Voltar aos produtos</Button>
           <CardHeader className="border-b border-border bg-muted/30 pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -636,7 +642,7 @@ export function POSTab() {
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 animate-fade-in"
+                    className="mobile-cart-item flex items-center gap-3 rounded-lg border border-border bg-card p-3 animate-fade-in"
                   >
                     <div className="flex flex-1 flex-col gap-0.5 min-w-0">
                       <span className="text-sm font-medium text-foreground truncate">
@@ -667,11 +673,12 @@ export function POSTab() {
                       </div>
                     </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="mobile-cart-duplicate flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="icon"
                       className="size-7"
+                      aria-label={`Diminuir quantidade de ${item.product.name}`}
                       onClick={() => updateQuantity(item.id, -1)}
                     >
                       <Minus className="size-3" />
@@ -683,6 +690,7 @@ export function POSTab() {
                       variant="outline"
                       size="icon"
                       className="size-7"
+                      aria-label={`Aumentar quantidade de ${item.product.name}`}
                       onClick={() => updateQuantity(item.id, 1)}
                     >
                       <Plus className="size-3" />
@@ -694,7 +702,8 @@ export function POSTab() {
                         variant="outline"
                         size="icon"
                         className="size-7"
-                        onClick={() => updateQuantity(item.id, -1)}
+                        aria-label={`Diminuir quantidade de ${item.product.name}`}
+                      onClick={() => updateQuantity(item.id, -1)}
                       >
                         <Minus className="size-3" />
                       </Button>
@@ -705,7 +714,8 @@ export function POSTab() {
                         variant="outline"
                         size="icon"
                         className="size-7"
-                        onClick={() => updateQuantity(item.id, 1)}
+                        aria-label={`Aumentar quantidade de ${item.product.name}`}
+                      onClick={() => updateQuantity(item.id, 1)}
                       >
                         <Plus className="size-3" />
                       </Button>
@@ -720,6 +730,7 @@ export function POSTab() {
                           variant="ghost"
                           size="icon"
                           className="size-6 text-muted-foreground hover:text-primary"
+                          aria-label={`Desconto de ${item.product.name}`}
                           onClick={() => openItemDiscount(item)}
                         >
                           <Percent className="size-3" />
@@ -728,6 +739,7 @@ export function POSTab() {
                           variant="ghost"
                           size="icon"
                           className="size-6 text-muted-foreground hover:text-destructive"
+                          aria-label={`Remover ${item.product.name}`}
                           onClick={() => removeFromCart(item.id)}
                         >
                           <Trash2 className="size-3" />
@@ -802,7 +814,7 @@ export function POSTab() {
 
       {/* Payment Modal */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent mobileTask protectDraft className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="size-5 text-primary" />
