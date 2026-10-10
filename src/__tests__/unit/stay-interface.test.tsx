@@ -4,7 +4,7 @@ import { StaySheet } from '@/components/stay-sheet'
 import type { Stay } from '@/lib/stays'
 const {runOperation,can}=vi.hoisted(()=>({runOperation:vi.fn(),can:vi.fn(()=>true)}))
 vi.mock('@/lib/auth-context',()=>({useAuth:()=>({can})}))
-vi.mock('@/lib/app-context',()=>({useApp:()=>({runOperation,rooms:[{id:1,number:'101',status:'ocupado',capacity:2},{id:2,number:'102',status:'disponivel',capacity:2}],customers:[{id:'company',name:'Empresa Exemplo',active:true,cpfCnpj:'11222333000181',roles:['payer']}],lodgingTariffs:[],accountsReceivable:[],bankAccounts:[]})}))
+vi.mock('@/lib/app-context',()=>({useApp:()=>({runOperation,rooms:[{id:1,number:'101',status:'ocupado',capacity:2},{id:2,number:'102',status:'disponivel',capacity:2}],customers:[{id:'company',name:'Empresa Exemplo',active:true,cpfCnpj:'12ABC34501DE35',roles:['payer']}],lodgingTariffs:[],accountsReceivable:[],bankAccounts:[]})}))
 const stay:Stay={id:'s',reservationId:'r',payerId:'company',guestName:'Pessoa Exemplo',guestCount:2,roomId:1,status:'active',recordVersion:7,checkIn:'2026-10-10',checkOut:'2026-10-12',lodgingValue:400,occupants:[{id:'o',name:'Pessoa Exemplo'}],allocations:[{id:'a',roomId:1,start:'2026-10-10',end:'2026-10-12'}],charges:[{id:'c',label:'Água',unitPrice:12,quantity:2,status:'active',createdAt:''}],payments:[{id:'p',value:100,bucket:'lodging',method:'pix',createdAt:''}]}
 beforeEach(()=>{cleanup();runOperation.mockReset();runOperation.mockResolvedValue({success:true});can.mockImplementation(()=>true)})
 describe('Extrato e saída da hospedagem',()=>{
