@@ -1,4 +1,5 @@
 "use client"
+import { TransactionCheck } from "./transaction-check"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { getDataConfig } from "@/lib/data/config"
@@ -119,6 +120,7 @@ export function FinancialTab() {
     description: string
     category: string
     value: number
+    paidValue?:number
     dueDate: string
     paid: boolean
     expenseId: string
@@ -138,7 +140,7 @@ export function FinancialTab() {
             id: `${expense.id}-${installment.id}`,
             description: expense.description,
             category: expense.category,
-            value: installment.value,
+            value: installment.value,paidValue:installment.paidValue??0,
             dueDate: installment.dueDate,
             paid: installment.paid,
             expenseId: expense.id,
@@ -153,7 +155,7 @@ export function FinancialTab() {
           id: expense.id,
           description: expense.description,
           category: expense.category,
-          value: expense.value,
+          value: expense.value,paidValue:expense.paidValue??0,
           dueDate: expense.dueDate,
           paid: expense.paid,
           expenseId: expense.id
@@ -331,6 +333,7 @@ export function FinancialTab() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <h2 className="hidden sm:block text-lg font-semibold text-foreground">Financeiro</h2>
+      <p className="text-xs text-muted-foreground">Saldos internos. Confira os movimentos com seu extrato bancário. Cartões usam registro simplificado; taxas e repasses não são conciliados automaticamente.</p>
 
       {can("transactions.read") && <details className="mobile-summary-toggle sm:hidden"><summary>Resumo financeiro</summary><p className="py-2 text-sm">Receitas: {formatCurrency(totalReceitas)} · Despesas: {formatCurrency(totalDespesas)} · Líquido: {formatCurrency(netResult)}</p></details>}
       {/* Summary cards */}
@@ -560,7 +563,7 @@ export function FinancialTab() {
                         </TableCell>
                         {can("transactions.refund") && (
                           <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                            {t.type === "receita" && !/^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(t.refId ?? "") && (
+                            {t.type === "receita" && !t.originType && !/^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(t.refId ?? "") && (
                               <Button
                                 variant="ghost" size="sm"
                                 className="gap-1 text-xs text-warning-foreground hover:text-warning-foreground"
@@ -655,6 +658,7 @@ export function FinancialTab() {
                       <TxDetailRow icon={<Clock className="size-4" />} label="Observacoes" value={detailTransaction.notes} />
                     </>
                   )}
+                  {getDataConfig().adapter === "database" && <TransactionCheck key={detailTransaction.id} transaction={detailTransaction} onDone={() => setDetailTransaction(null)} />}
                   {detailTransaction.refId && (
                     <TxDetailRow icon={<Undo2 className="size-4" />} label="Ref. Original" value={detailTransaction.refId} />
                   )}
@@ -762,9 +766,9 @@ export function FinancialTab() {
       </Dialog>
 
       {/* Refund modal */}
-      <PaymentDialog open={!!payingExpense} onClose={() => setPayingExpense(null)} title={`Pagar despesa — ${payingExpense?.description || ""} · R$ ${(payingExpense?.value ?? 0).toFixed(2)}`} onConfirm={async (paymentMethod, accountId) => {
+      <PaymentDialog key={payingExpense?.id ?? "empty"} mixedEnabled={getDataConfig().adapter==="database"} maximum={payingExpense ? payingExpense.value-(payingExpense.paidValue??0) : undefined} open={!!payingExpense} onClose={() => setPayingExpense(null)} title={`Pagar despesa — ${payingExpense?.description || ""} · R$ ${(payingExpense?.value ?? 0).toFixed(2)}`} onConfirm={async (paymentMethod, accountId,value,payments) => {
         if (!payingExpense) return
-        await runOperation("pay-expense", { expenseId: payingExpense.expenseId, recordVersion: payingExpense.recordVersion, installmentId: payingExpense.installmentId, paymentMethod, accountId })
+        await runOperation("pay-expense", { expenseId: payingExpense.expenseId, recordVersion: payingExpense.recordVersion, installmentId: payingExpense.installmentId, paymentMethod, accountId,value,payments })
       }} />
       <Dialog open={!!refundModal} onOpenChange={v => { if (!v) setRefundModal(null) }}>
         <DialogContent className="sm:max-w-md">

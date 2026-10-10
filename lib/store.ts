@@ -230,6 +230,7 @@ export interface GuestProfile {
 }
 
 export interface Expense {
+  paidValue?: number
   recordVersion?: number
   id: string
   description: string
@@ -243,6 +244,7 @@ export interface Expense {
 }
 
 export interface ExpenseInstallment {
+  paidValue?: number
   id: string
   installmentNumber: number
   value: number
@@ -252,6 +254,14 @@ export interface ExpenseInstallment {
 }
 
 export interface Transaction {
+  batchId?:string
+  originType?:string
+  originId?:string
+  reversalOfId?:string
+  checkedAt?:string
+  checkedBy?:string
+  checkNote?:string
+  allocations?:{id:string;targetType:string;targetId:string;value:number}[]
   cashSessionId?: string
   id: string
   date: string
@@ -366,6 +376,7 @@ export interface AccountReceivable {
 }
 
 export interface AccountReceivableInstallment {
+  paidValue?: number
   id: string
   installmentNumber: number
   value: number
@@ -474,6 +485,8 @@ export interface POSCartItem {
 }
 
 export interface POSSale {
+  stayId?:string|null
+  payments?: Array<import("./payments").PaymentLine & {applied?:number}>
   id: string
   date: string
   items: POSCartItem[]

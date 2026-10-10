@@ -6,7 +6,8 @@ import { demand } from "./permissions"
 import { HttpError } from "./http"
 import { requireVersion } from "./concurrency"
 import { recordAudit } from "./audit"
-import { recordLedger, paymentSchema } from "./business-finance"
+import { recordLedger, paymentSchema, paymentLinesSchema, postPayments, type PostedPayment } from "./business-finance"
+import type { PaymentLine } from "@/lib/payments"
 import { serverQuote } from "./lodging-pricing"
 import { businessDay } from "@/lib/utils/business-values"
 import { isCPF } from "@/lib/utils/cpf-cnpj-validator"
@@ -20,7 +21,7 @@ const target = { stayId: id, recordVersion: z.number().int().nonnegative() }
 export const stayInclude = { occupants: true, allocations: true, charges: true, payments: true, adjustments: true }
 type Loaded = Prisma.StayGetPayload<{ include: typeof stayInclude }>
 export function mapStay(row: Loaded): Stay {
-  return { ...row, adjustments: row.adjustments.map(a => ({...a, value: Number(a.value), createdAt: a.createdAt.toISOString()})), lodgingValue: Number(row.lodgingValue), checkIn: row.checkIn.toISOString().slice(0,10), checkOut: row.checkOut.toISOString().slice(0,10), endedAt: row.endedAt?.toISOString(), nightlyPrices: row.nightlyPrices as Stay["nightlyPrices"], allocations: row.allocations.map(a => ({ ...a, start: a.start.toISOString().slice(0,10), end: a.end.toISOString().slice(0,10) })), charges: row.charges.map(c => ({ ...c, unitPrice: Number(c.unitPrice), createdAt: c.createdAt.toISOString() })), payments: row.payments.map(p => ({ ...p, value: Number(p.value), createdAt: p.createdAt.toISOString() })) }
+  return { ...row, adjustments: row.adjustments.map(a => ({...a, value: Number(a.value), createdAt: a.createdAt.toISOString()})), lodgingValue: Number(row.lodgingValue), checkIn: row.checkIn.toISOString().slice(0,10), checkOut: row.checkOut.toISOString().slice(0,10), endedAt: row.endedAt?.toISOString(), nightlyPrices: row.nightlyPrices as Stay["nightlyPrices"], allocations: row.allocations.map(a => ({ ...a, start: a.start.toISOString().slice(0,10), end: a.end.toISOString().slice(0,10) })), charges: row.charges.map(c => ({ ...c, unitPrice: Number(c.unitPrice),lineTotal:c.lineTotal==null?null:Number(c.lineTotal), createdAt: c.createdAt.toISOString() })), payments: row.payments.map(p => ({ ...p, value: Number(p.value), createdAt: p.createdAt.toISOString() })) }
 }
 export async function ensureStay(tx: Tx, reservationId: string, restoringLegacy = false) {
   const current = await tx.stay.findUnique({ where: { reservationId }, include: stayInclude })
@@ -47,24 +48,29 @@ async function touched(tx: Tx, actor: Actor, stayId: string, action: string, met
   await tx.stay.update({ where: { id: stayId }, data: { recordVersion: { increment: 1 } } })
   await recordAudit(tx, actor, action, stayId, { entityType: "stays", entityId: stayId, operation: "update", metadata })
 }
-export async function receiveStay(tx: Tx, actor: Actor, stay: Loaded, value: number, method: string, accountId?: string, bucket = "general") {
+export async function receiveStay(tx: Tx, actor: Actor, stay: Loaded, value: number, method?: string, accountId?: string, bucket = "general", payments?: PaymentLine[], alreadyPosted?: PostedPayment[]) {
   const balances = stayBalance(mapStay(stay))
   const limit = bucket === "lodging" ? balances.lodgingBalance : bucket === "consumption" ? balances.consumptionBalance : balances.balance
   if (value <= 0 || value > limit + .000001) throw new HttpError(409, "Valor excede o saldo elegível da hospedagem")
-  let transaction
+  let posted: PostedPayment[]
   if (method === "credito_hospede") {
     const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: stay.reservationId } })
     const guest = await tx.guestProfile.findUniqueOrThrow({ where: { cpf: reservation.cpf } })
     if (stay.payerId !== guest.customerId) throw new HttpError(409, "Crédito pessoal não pode quitar conta da empresa")
     const updated = await tx.guestProfile.updateMany({ where: { cpf: guest.cpf, creditValue: { gte: value } }, data: { creditValue: { decrement: value } } })
     if (!updated.count) throw new HttpError(409, "Crédito insuficiente")
-    transaction = await recordLedger(tx, actor, `Hospedagem ${stay.reservationId}`, new Prisma.Decimal(value), "credito_utilizado")
-  } else transaction = await recordLedger(tx, actor, `Hospedagem ${stay.reservationId}`, new Prisma.Decimal(value), "receita", method, accountId)
+    if(payments?.length||alreadyPosted)throw new HttpError(400,'Crédito pessoal deve ser aplicado separadamente')
+    const transaction = await recordLedger(tx, actor, `Hospedagem ${stay.reservationId}`, new Prisma.Decimal(value), "credito_utilizado",undefined,undefined,{originType:'stay',originId:stay.id})
+    posted=[{transactionId:transaction.id,value,method}]
+  } else posted=alreadyPosted??(await postPayments(tx,actor,`Hospedagem ${stay.reservationId}`,value,{paymentMethod:method,accountId,payments},'stay',stay.id)).posted
   // A general receipt settles nights first, then consumption. No duplicated receipt.
   const lodging = bucket === "lodging" ? value : bucket === "consumption" ? 0 : Math.min(value, Math.max(0, balances.lodgingBalance))
   const consumptionValue = Math.round((value - lodging) * 100) / 100
-  const parts = [{ bucket: "lodging", value: lodging }, { bucket: "consumption", value: consumptionValue }].filter(p => p.value > 0)
-  for (let i = 0; i < parts.length; i++) await tx.stayPayment.create({ data: { id: randomUUID(), stayId: stay.id, ...parts[i], method, transactionId: i === 0 ? transaction.id : undefined } })
+  let lodgingLeft=Math.round(lodging*100)
+  for (const p of posted) {
+    const appliedLodging=Math.min(lodgingLeft,Math.round(p.value*100));lodgingLeft-=appliedLodging
+    for(const part of [{bucket:'lodging',value:appliedLodging/100},{bucket:'consumption',value:(Math.round(p.value*100)-appliedLodging)/100}].filter(p=>p.value>0)) await tx.stayPayment.create({data:{id:randomUUID(),stayId:stay.id,...part,method:p.method,transactionId:p.transactionId}})
+  }
   if (lodging) await tx.reservation.update({ where: { id: stay.reservationId }, data: { paidValue: { increment: lodging } } })
   if (stay.status === "active" && consumptionValue >= balances.consumptionBalance && balances.consumptionBalance > 0) await tx.roomConsumption.deleteMany({ where: { roomId: stay.roomId } })
   const title = await tx.accountReceivable.findUnique({ where: { sourceStayId: stay.id } })
@@ -73,7 +79,7 @@ export async function receiveStay(tx: Tx, actor: Actor, stay: Loaded, value: num
     if (paidValue.gt(title.value)) throw new HttpError(409, "Título com saldo divergente; revise a cobrança")
     await tx.accountReceivable.update({ where: { id: title.id }, data: { paidValue, status: paidValue.equals(title.value) ? "pago" : "pendente", paymentDate: paidValue.equals(title.value) ? new Date() : null } })
   }
-  await touched(tx, actor, stay.id, "Hospedagem recebida", { value, method, transactionId: transaction.id })
+  await touched(tx, actor, stay.id, "Hospedagem recebida", { value,method,transactionIds:posted.map(p=>p.transactionId) })
 }
 export async function finishStay(tx: Tx, actor: Actor, stay: Loaded, dueDate?: string, confirmed?: boolean) {
   if (stay.status !== "active") throw new HttpError(409, "Hospedagem já encerrada")
@@ -110,10 +116,10 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
     return { success: true }
   }
   if (kind === "stay-receive") {
-    const input = z.object({ ...target, value: money, paymentMethod: paymentSchema.or(z.literal("credito_hospede")), accountId: id.optional() }).strict().parse(payload)
+    const input = z.object({ ...target, value: money, paymentMethod: paymentSchema.or(z.literal("credito_hospede")).optional(), accountId: id.optional(),payments:paymentLinesSchema.optional() }).strict().parse(payload)
     const stay = await load(tx, input, false)
     if (stay.status === "closed") demand(actor, "accountsReceivable.receive")
-    await receiveStay(tx, actor, stay, input.value, input.paymentMethod, input.accountId)
+    await receiveStay(tx, actor, stay, input.value, input.paymentMethod, input.accountId,'general',input.payments)
     return { success: true }
   }
   if (kind === "stay-checkout") {

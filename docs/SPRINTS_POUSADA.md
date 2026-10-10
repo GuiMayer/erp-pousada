@@ -17,7 +17,7 @@ A divisão é por fluxo utilizável, não por camada técnica. Reutilizar as fun
 | S4 | Compra e estoque de bebidas | Catálogo de S1 e financeiro de S2/S3. | Receber fardo, gerar lote/saldo e conta a pagar, controlar validade/perda e inventário. |
 | S5 | Relatórios, homologação e operação | Fluxos completos S1–S4. | Conferir números pela origem e recuperar instalação com dados e permissões reconciliados. |
 
-S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3–S5 continuam planejadas. A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
+S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3 foi implementada em 10/10/2026; consulte a [entrega e o roteiro de caixa](ENTREGA_SPRINT_3.md). S4/S5 continuam planejadas. A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
 
 ## S1 — Base cadastral e preços
 
@@ -61,6 +61,8 @@ S0 foi executada como retirada do restaurante e revisão documental. S1 foi impl
 **Limite:** cobranças podem ser consultadas e registradas sem envio automático por WhatsApp/e-mail. O sistema do restaurante não participa desse fluxo. Migração de consumo por quarto não inventa identidade ausente nem executa estoque novamente.
 
 ## S3 — Caixa e financeiro integrados
+
+**Estado:** implementação técnica entregue; atualização da instalação e aceite do cliente pendentes. Consulte a [entrega](ENTREGA_SPRINT_3.md), incluindo limites de cartão, conciliação e dados legados.
 
 **Objetivo:** consolidar as operações já existentes num fluxo consistente de bebida, cobrança, dinheiro e correção.
 

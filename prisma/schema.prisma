@@ -280,6 +280,7 @@ model Customer {
 }
 
 model Expense {
+  paidValue Decimal @default(0) @db.Decimal(12, 2)
   recordVersion Int @default(0)
   id          String   @id
   description String
@@ -299,6 +300,7 @@ model Expense {
 }
 
 model ExpenseInstallment {
+  paidValue Decimal @default(0) @db.Decimal(12, 2)
   id                String   @id
   expenseId         String
   installmentNumber Int
@@ -348,6 +350,17 @@ model CostCenter {
 }
 
 model Transaction {
+  batchId String?
+  originType String?
+  originId String?
+  reversalOfId String? @unique
+  reversalOf Transaction? @relation("TransactionReversal", fields: [reversalOfId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reversedBy Transaction? @relation("TransactionReversal")
+  stayPayments StayPayment[]
+  checkedAt DateTime?
+  checkedBy String?
+  checkNote String?
+  allocations PaymentAllocation[]
   cashSessionId String?
   id           String   @id
   date         DateTime
@@ -373,6 +386,17 @@ model Transaction {
   @@index([accountId])
   @@index([costCenterId])
   @@map("transactions")
+}
+
+model PaymentAllocation {
+  id String @id
+  transactionId String
+  targetType String
+  targetId String
+  value Decimal @db.Decimal(12,2)
+  transaction Transaction @relation(fields:[transactionId], references:[id], onDelete:Cascade, onUpdate:NoAction)
+  @@index([targetType,targetId], map: "payment_allocations_target")
+  @@map("payment_allocations")
 }
 
 model CashClose {
@@ -437,6 +461,7 @@ model Stay {
   charges StayCharge[]
   adjustments StayAdjustment[]
   payments StayPayment[]
+  chargedSales POSSale[]
   @@index([roomId, status])
   @@index([payerId, status])
   @@map("stays")
@@ -464,6 +489,9 @@ model StayAllocation {
 }
 
 model StayCharge {
+  lineTotal Decimal? @db.Decimal(12,2)
+  sourceSaleId String?
+  sourceSale POSSale? @relation(fields: [sourceSaleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   id String @id
   stayId String
   productId String?
@@ -483,7 +511,8 @@ model StayPayment {
   value Decimal @db.Decimal(12, 2)
   bucket String
   method String
-  transactionId String? @unique
+  transactionId String?
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt DateTime @default(now())
   stay Stay @relation(fields: [stayId], references: [id], onDelete: Cascade)
   @@map("stay_payments")
@@ -500,6 +529,7 @@ model StayAdjustment {
 }
 
 model AccountReceivableInstallment {
+  paidValue Decimal @default(0) @db.Decimal(12, 2)
   id                  String   @id
   accountReceivableId String
   installmentNumber   Int
@@ -625,6 +655,10 @@ model POSProduct {
 }
 
 model POSSale {
+  stayId String?
+  stay Stay? @relation(fields: [stayId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stayCharges StayCharge[]
+  payments Json?
   id            String   @id
   date          DateTime
   subtotal      Decimal  @db.Decimal(12, 2)

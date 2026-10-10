@@ -65,7 +65,10 @@ export const operationPermissions: Record<string, string> = {
   "bank-transfer": "bankAccounts.transfer",
   "refund-transaction": "transactions.refund",
   "cash-open": "cash.open",
-  "cash-close": "cash.close"
+  "cash-close": "cash.close",
+  "cash-movement": "cash.move",
+  "check-transaction": "transactions.check",
+  "receive-batch": "accountsReceivable.receive"
 }
 export const operationalCollections = ["stays", "reservations", "transactions", "cashCloses", "bankTransfers", "posSales", "restaurantOrders", "consumptions", "stockMovements", "productions", "employeeConsumptions"]
 const actionLabels: Record<string, string> = {
@@ -111,7 +114,9 @@ const specialLabels: Record<string, string> = {
   "bankAccounts.transfer": "Transferir entre contas",
   "transactions.refund": "Estornar recebimento",
   "cash.open": "Abrir caixa",
-  "cash.close": "Fechar próprio caixa"
+  "cash.close": "Fechar próprio caixa",
+  "cash.move": "Registrar sangria ou suprimento",
+  "transactions.check": "Conferir movimento bancário"
 }
 export const PERMISSIONS = [...Object.entries(collectionLabels).flatMap(([key, label]) => Object.entries(actionLabels).filter(([action]) => action === "read" || ![...operationalCollections, "auditLog", "userSessions"].includes(key)).map(([action, title]) => ({ key: `${key}.${action}`, label: `${label} · ${title}` }))), ...Object.entries({ ...Object.fromEntries(Object.values(operationPermissions).map(key => [key, `${collectionLabels[key.split(".")[0]] ?? key} · ${actionLabels[key.split(".")[1]] ?? key}`])), ...specialLabels }).map(([key, label]) => ({ key, label }))].filter((item, index, items) => items.findIndex(other => other.key === item.key) === index)
 export const ALL_PERMISSIONS = PERMISSIONS.map(permission => permission.key)
@@ -126,7 +131,7 @@ export const PROFILES: Record<string, { label: string; permissions: string[] }> 
   administrador: { label: "Administrador", permissions: ALL_PERMISSIONS },
   supervisor: { label: "Supervisor", permissions: ALL_PERMISSIONS.filter(key => !key.startsWith("users.") && !key.startsWith("userSessions.") && !key.startsWith("data.")) },
   recepcao: { label: "Recepção", permissions: [...common, ...reads("stays", "rooms", "reservations", "guests", "consumptions", "cashCloses"), ...crud("guests"), ...crud("customers"), ...reads("lodgingTariffs"), ...daily.filter(key => !key.startsWith("pos.") && !key.startsWith("restaurant."))] },
-  caixa: { label: "Caixa", permissions: [...common, ...reads("posSales", "cashCloses", "customers"), ...crud("customers"), "pos.sell", "cash.open", "cash.close"] },
+  caixa: { label: "Caixa", permissions: [...common, ...reads("posSales", "cashCloses", "customers", "stays", "rooms"), ...crud("customers"), "pos.sell", "consumptions.create", "cash.open", "cash.close"] },
   restaurante: { label: "Restaurante", permissions: [...common, ...reads("restaurantTables", "restaurantOrders", "recipes"), "restaurant.open", "restaurant.edit", "restaurant.receive"] },
   estoque: { label: "Estoque", permissions: [...common, ...crud("customers", "stockItems", "recipes", "suppliers", "posProducts", "productCategories"), ...reads("stockMovements", "productions"), "stock.adjust", "production.register"] },
   operador_legado: { label: "Operador (acessos anteriores)", permissions: [...reads(...Object.keys(collectionLabels).filter(key => !["users", "userSessions", "employees", "employeeConsumptions"].includes(key))), ...crud("guests", "customers"), ...daily] },

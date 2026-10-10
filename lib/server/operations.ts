@@ -10,8 +10,8 @@ import { evaluateStock, evaluateTimed } from "./notifications/rules"
 import { approvalResourceHash, approvalReview } from "./approval-scope"
 import { effectivePermissions } from "@/lib/permissions"
 import { demand, demandOperation, DELEGATABLE } from "./permissions"
-import { financeOperation, recordLedger, paymentFields } from "./business-finance"
-import { normalizePayment, businessMonthBounds } from "../utils/business-values"
+import { financeOperation, recordLedger, paymentFields, paymentLinesSchema, postPayments } from "./business-finance"
+import { normalizePayment, businessMonthBounds, netItemValues } from "../utils/business-values"
 import { unitFactor } from "../utils/units"
 import { randomUUID } from "node:crypto"
 import { Prisma } from "@prisma/client"
@@ -31,7 +31,7 @@ const integer = z.number().int().positive().max(100000)
 const percent = z.number().finite().min(0).max(100)
 const payment = z.enum(["dinheiro", "pix", "debito", "credito", "Dinheiro", "PIX", "Cartao Debito", "Cartao Credito", "Cartão Débito", "Cartão Crédito"])
 const cartItem = z.object({ id, product: z.object({ id }).passthrough(), quantity: integer, discount: percent }).passthrough()
-const saleInput = z.object({ sale: z.object({ id, items: z.array(cartItem).min(1).max(100), total: money, paymentMethod: payment, accountId: id.optional(), amountPaid: money, customer: z.string().max(200).optional() }).passthrough(), globalDiscount: percent })
+const saleInput = z.object({ sale: z.object({ id, items: z.array(cartItem).min(1).max(100), total: money, paymentMethod: payment.optional(), payments: paymentLinesSchema.optional(), stayId:id.optional(), stayVersion:z.number().int().nonnegative().optional(), accountId: id.optional(), amountPaid: money, customer: z.string().max(200).optional() }).passthrough(), globalDiscount: percent })
 const checkinInput = z.object({ guestCount: z.number().int().min(1).max(100).optional(), payerId: id.optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money }).strict()
 const decimal = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n)
 const round = (n: Prisma.Decimal) => n.toDecimalPlaces(2)
@@ -93,10 +93,25 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const discount = round(subtotal.mul(globalDiscount).div(100))
     const total = round(subtotal.minus(discount))
     if (!total.equals(round(decimal(sale.total)))) throw new HttpError(409, "Preço alterado. Atualize o carrinho.")
-    if (decimal(sale.amountPaid).lt(total)) throw new HttpError(400, "Pagamento insuficiente")
+    const stay=sale.stayId?await tx.stay.findUniqueOrThrow({where:{id:sale.stayId},include:{occupants:true,allocations:true,charges:true,payments:true,adjustments:true}}):null
+    if(stay) {
+      demand(actor,'consumptions.create');requireVersion(sale.stayVersion,stay.recordVersion)
+      if(stay.status!=='active')throw new HttpError(409,'Hospedagem encerrada')
+      if(sale.payments?.length||sale.amountPaid!==0)throw new HttpError(400,'Lançamento na hospedagem não recebe no PDV')
+    }
+    const paid=stay?null:await postPayments(tx,actor,`Venda ${sale.id}`,Number(total),{paymentMethod:sale.paymentMethod,accountId:sale.accountId,payments:sale.payments??(sale.paymentMethod?[{method:sale.paymentMethod,value:sale.amountPaid,accountId:sale.accountId}]:undefined)},'sale',sale.id)
     for (const item of items) await moveStock(tx, item.productId, item.quantity, actor, `Venda ${sale.id}`)
-    const result = await tx.pOSSale.create({ data: { id: sale.id, date: new Date(), subtotal, discount, total, paymentMethod: normalizePayment(sale.paymentMethod), amountPaid: sale.amountPaid, change: sale.paymentMethod.toLowerCase() === "dinheiro" ? decimal(sale.amountPaid).minus(total) : 0, customer: sale.customer, operator: actor.username, status: "concluida", items: { create: items } }, include: { items: { include: { product: true } } } })
-    await ledger(tx, actor, `Venda ${sale.id}`, total, "receita", sale.paymentMethod, sale.accountId)
+    const result = await tx.pOSSale.create({ data: { id: sale.id, date: new Date(), subtotal, discount, total, stayId:stay?.id,payments:paid?.lines,paymentMethod: stay?'Conta da hospedagem':(paid!.lines.length>1?'Misto':paid!.lines[0].method), amountPaid: paid?.offered??0, change:paid?.change??0, customer: stay?.guestName??sale.customer, operator: actor.username, status: "concluida", items: { create: items } }, include: { items: { include: { product: true } } } })
+    if(stay) {
+      const amounts=netItemValues({total:Number(total),items:sale.items.map(i=>({...i,product:{price:Number(products.find(p=>p.id===i.product.id)!.price)}}))})
+      const projection=await tx.roomConsumption.upsert({where:{roomId:stay.roomId},create:{id:randomUUID(),roomId:stay.roomId},update:{}})
+      for(let index=0;index<items.length;index++) {
+        const item=items[index],product=products.find(p=>p.id===item.productId)!
+        await tx.stayCharge.create({data:{id:item.id,stayId:stay.id,sourceSaleId:sale.id,productId:product.id,label:product.name,unitPrice:item.unitPrice,quantity:item.quantity,lineTotal:amounts[index]}})
+        await tx.roomConsumptionItem.create({data:{id:item.id,consumptionId:projection.id,label:`${item.quantity} × ${product.name} (PDV)`,unitPrice:amounts[index],quantity:1}})
+      }
+      await tx.stay.update({where:{id:stay.id},data:{recordVersion:{increment:1}}})
+    }
     await audit(tx, actor, "Venda finalizada", sale.id, { entityType: "posSales", entityId: sale.id, operation: "create" })
     return collectionMapper("posSales").toApp(result)
   }
@@ -105,10 +120,24 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const input = z.object({ saleId: id, reason: text, returnToStock: z.boolean() }).strict().parse(payload)
     const sale = await tx.pOSSale.findUniqueOrThrow({ where: { id: input.saleId }, include: { items: true } })
     if (sale.status !== "concluida") throw new HttpError(409, "Venda já estornada")
+    if(sale.stayId) {
+      const stay=await tx.stay.findUniqueOrThrow({where:{id:sale.stayId},include:{occupants:true,allocations:true,charges:true,payments:true,adjustments:true}})
+      const charges=stay.charges.filter(c=>c.sourceSaleId===sale.id&&c.status==='active')
+      const value=charges.reduce((sum,c)=>sum+Number(c.lineTotal??c.unitPrice.mul(c.quantity)),0)
+      if(stay.status!=='active'||value>stayBalance(mapStay(stay)).consumptionBalance)throw new HttpError(409,'Consumo já recebido ou estadia encerrada; concilie a hospedagem antes de corrigir')
+      await tx.stayCharge.updateMany({where:{sourceSaleId:sale.id},data:{status:'corrected',reason:input.reason}})
+      await tx.roomConsumptionItem.deleteMany({where:{id:{in:charges.map(c=>c.id)}}})
+      await tx.stay.update({where:{id:stay.id},data:{recordVersion:{increment:1}}})
+    }else{
+      const receipts=await tx.transaction.findMany({where:{refId:`Venda ${sale.id}`,type:'receita'}})
+      if((!receipts.length && sale.total.gt(0))||!receipts.reduce((sum,p)=>sum.plus(p.value),decimal(0)).equals(sale.total))throw new HttpError(409,'Recebimentos não conciliados; revise antes de estornar')
+      for(const original of receipts) {
+        if(await tx.transaction.count({where:{reversalOfId:original.id}}))throw new HttpError(409,'Recebimento já estornado')
+        await ledger(tx,actor,`Estorno ${sale.id}`,original.value,'estorno',original.paymentMethod??undefined,original.accountId??undefined,{originType:'sale-refund',originId:sale.id,reversalOfId:original.id})
+      }
+    }
     if (input.returnToStock) for (const item of sale.items) await moveStock(tx, item.productId, item.quantity, actor, `Estorno ${sale.id}`, true)
-    await tx.pOSSale.update({ where: { id: sale.id }, data: { status: "cancelada", cancelReason: input.reason } })
-    const originalPayment = await tx.transaction.findFirstOrThrow({ where: { refId: `Venda ${sale.id}`, type: "receita" } })
-    await ledger(tx, actor, `Estorno ${sale.id}`, sale.total, "estorno", sale.paymentMethod, originalPayment.accountId ?? undefined)
+    await tx.pOSSale.update({ where: { id: sale.id }, data: { status: 'cancelada', cancelReason: input.reason } })
     await audit(tx, actor, "Venda estornada", `${sale.id}: ${input.reason}`, { entityType: "posSales", entityId: sale.id, operation: "update", metadata: { reason: input.reason } })
     return { success: true }
   }
@@ -212,6 +241,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const stay = await roomStay(tx, input.roomId)
     const charge = stay.charges.find(c => c.id === input.itemId && c.status === "active")
     if (!charge) throw new HttpError(409, "Consumo legado precisa de revisão")
+    if(charge.sourceSaleId)throw new HttpError(409,"Consumo originado no PDV; utilize o estorno da venda")
     if (stayBalance(mapStay(stay)).consumptionBalance < Number(charge.unitPrice) * charge.quantity) throw new HttpError(409, "Item possui recebimento; concilie antes de corrigir")
     await tx.stayCharge.update({ where: { id: charge.id }, data: { status: "corrected", reason: "Correção autorizada; sem retorno físico" } })
     await tx.stay.update({ where: { id: stay.id }, data: { recordVersion: { increment: 1 } } })
@@ -221,11 +251,11 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "pay-consumption") {
-    const { roomId, paymentMethod, accountId } = z.object({ roomId: integer, ...paymentFields }).strict().parse(payload)
+    const { roomId, paymentMethod, accountId, payments } = z.object({ roomId: integer, ...paymentFields }).strict().parse(payload)
     const stay = await roomStay(tx, roomId)
     const total = stayBalance(mapStay(stay)).consumptionBalance
     if (total <= 0) throw new HttpError(409, "Consumo já quitado")
-    await receiveStay(tx, actor, stay, total, paymentMethod, accountId, "consumption")
+    await receiveStay(tx, actor, stay, total, paymentMethod, accountId, "consumption",payments)
     await audit(tx, actor, "Consumo quitado", String(roomId), { entityType: "consumptions", entityId: String(roomId), operation: "action" })
     return { success: true }
   }
@@ -318,34 +348,13 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`, { entityType: "reservations", entityId: reservation.id, operation: "update", metadata: { amount: Number(amount) } })
     return { success: true }
   }
-  if (kind === "pay-expense") {
-    const input = z.object({ expenseId: id, recordVersion: z.number().int().nonnegative().optional(), installmentId: id.optional(), ...paymentFields }).strict().parse(payload)
-    const expense = await tx.expense.findUniqueOrThrow({ where: { id: input.expenseId }, include: { installments: true } })
-    if (input.recordVersion !== undefined) requireVersion(input.recordVersion, expense.recordVersion)
-    let value = expense.value
-    let reference = expense.id
-    if (input.installmentId) {
-      const installment = expense.installments.find(i => i.id === input.installmentId)
-      if (!installment) throw new HttpError(404, "Parcela não encontrada")
-      if (installment.paid) throw new HttpError(409, "Parcela já paga")
-      value = installment.value; reference = installment.id
-      await tx.expenseInstallment.update({ where: { id: installment.id }, data: { paid: true, paymentDate: new Date() } })
-      if (expense.installments.every(i => i.id === installment.id || i.paid)) await tx.expense.update({ where: { id: expense.id }, data: { paid: true, paymentDate: new Date() } })
-    } else {
-      if (expense.paid || expense.installments.length) throw new HttpError(409, "Despesa já paga ou parcelada")
-      await tx.expense.update({ where: { id: expense.id }, data: { paid: true, paymentDate: new Date() } })
-    }
-    await ledger(tx, actor, reference, value, "despesa", input.paymentMethod, input.accountId)
-    await audit(tx, actor, "Despesa paga", reference, { entityType: "expenses", entityId: input.expenseId, operation: "update" })
-    return { success: true }
-  }
   if (kind === "refund-transaction") {
     demandOperation(actor, kind)
     const { transactionId } = z.object({ transactionId: id }).strict().parse(payload)
     const transaction = await tx.transaction.findUniqueOrThrow({ where: { id: transactionId } })
-    if (transaction.type !== "receita" || /^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(transaction.refId ?? "")) throw new HttpError(409, "Utilize o estorno da operação original")
+    if (transaction.type !== "receita" || transaction.originType || /^(Venda|Comanda|Consumo quarto|Hospedagem|Recebimento) /.test(transaction.refId ?? "")) throw new HttpError(409, "Utilize o estorno da operação original")
     if (await tx.transaction.count({ where: { type: "estorno", refId: transaction.id } })) throw new HttpError(409, "Transação já estornada")
-    await ledger(tx, actor, transaction.id, transaction.value.abs(), "estorno", transaction.paymentMethod ?? undefined, transaction.accountId ?? undefined)
+    await ledger(tx, actor, transaction.id, transaction.value.abs(), "estorno", transaction.paymentMethod ?? undefined, transaction.accountId ?? undefined,{reversalOfId:transaction.id,originType:"manual-refund",originId:transaction.id})
     await audit(tx, actor, "Receita estornada", transaction.id, { entityType: "transactions", entityId: transaction.id, operation: "update" })
     return { success: true }
   }
@@ -451,7 +460,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         // Avoid scanning unrelated modules while a user's transaction holds locks.
         // The existing worker still performs a full reconciliation every 30 seconds.
         if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption"].includes(kind)) await evaluateStock(tx)
-        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "stay-checkout", "stay-receive", "stay-transfer"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
+        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })

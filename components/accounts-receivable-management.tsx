@@ -1,6 +1,7 @@
 "use client"
 import { PermissionGate } from "@/components/permission-gate"
 
+import { BatchReceiptsPanel } from "./batch-receipts-panel"
 import { PaymentDialog } from "./payment-fields"
 import { StayButton } from "./stay-sheet"
 import { getDataConfig } from "@/lib/data/config"
@@ -215,16 +216,16 @@ export function AccountsReceivableManagement() {
     .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
 
   const totalReceived = accountsReceivable
-    .reduce((sum, ar) => sum + (ar.sourceStayId ? ar.paidValue ?? 0 : ar.status === "pago" ? ar.value : 0), 0)
+    .reduce((sum, ar) => sum + (ar.paidValue??(ar.status === "pago" ? ar.value : 0)), 0)
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <PaymentDialog open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} maximum={payingAccount?.sourceStayId ? payingAccount.value - (payingAccount.paidValue ?? 0) : undefined} onConfirm={async (paymentMethod, accountId, value) => {
+        <PaymentDialog key={payingAccount?.id ?? "empty"} open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} mixedEnabled={getDataConfig().adapter==='database'} maximum={payingAccount ? (payingAccount.installments?.filter(p=>['pendente','vencido'].includes(p.status)).sort((a,b)=>a.installmentNumber-b.installmentNumber)[0] ? (()=>{const p=payingAccount.installments!.filter(p=>['pendente','vencido'].includes(p.status)).sort((a,b)=>a.installmentNumber-b.installmentNumber)[0];return p.value-(p.paidValue??0)})() : payingAccount.value-(payingAccount.paidValue??0)) : undefined} onConfirm={async (paymentMethod, accountId, value,payments) => {
         if (!payingAccount) return
         const installment = payingAccount.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]
-        await runOperation("receive-account", { accountReceivableId: payingAccount.id, recordVersion: payingAccount.recordVersion, installmentId: installment?.id, paymentMethod, accountId, value: payingAccount.sourceStayId ? value : undefined })
+        await runOperation("receive-account", { accountReceivableId: payingAccount.id, recordVersion: payingAccount.recordVersion, installmentId: installment?.id, paymentMethod, accountId, value,payments })
       }} />
       <Card>
           <CardHeader className="pb-2">
@@ -233,6 +234,7 @@ export function AccountsReceivableManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+          {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
             <div className="text-2xl font-bold">
               R$ {totalPending.toFixed(2)}
             </div>
@@ -245,6 +247,7 @@ export function AccountsReceivableManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+          {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
             <div className="text-2xl font-bold text-red-600">
               R$ {totalOverdue.toFixed(2)}
             </div>
@@ -257,6 +260,7 @@ export function AccountsReceivableManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+          {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
             <div className="text-2xl font-bold text-green-600">
               R$ {totalReceived.toFixed(2)}
             </div>
@@ -403,6 +407,7 @@ export function AccountsReceivableManagement() {
           </div>
         </CardHeader>
         <CardContent>
+          {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
           <div className="mb-4">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[200px]">
@@ -451,19 +456,19 @@ export function AccountsReceivableManagement() {
                       <TableCell>{getStatusBadge(ar.status)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {ar.status === "pendente" && (
+                          {["pendente", "vencido"].includes(ar.status) && (
                             <PermissionGate permission="accountsReceivable.receive"><Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleMarkAsPaid(ar)}
                             >
-                              Marcar como Pago
+                              Receber
                             </Button></PermissionGate>
                           )}
                           <PermissionGate permission="accountsReceivable.edit"><Button
                             variant="ghost"
                             size="sm"
-                            disabled={!!ar.sourceStayId}
+                            disabled={!!ar.sourceStayId || (ar.paidValue ?? 0) > 0}
                             onClick={() => handleEdit(ar)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -471,7 +476,7 @@ export function AccountsReceivableManagement() {
                           <PermissionGate permission="accountsReceivable.delete"><Button
                             variant="ghost"
                             size="sm"
-                            disabled={!!ar.sourceStayId}
+                            disabled={!!ar.sourceStayId || (ar.paidValue ?? 0) > 0}
                             onClick={() => handleDelete(ar.id, ar.recordVersion)}
                           >
                             <Trash2 className="h-4 w-4" />
