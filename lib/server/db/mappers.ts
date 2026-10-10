@@ -204,6 +204,7 @@ const expenseMapper: CollectionMapper<Expense> = {
     category: row.category,
     supplierId: optional(row.supplierId),
     value: numberValue(row.value),
+    paidValue:numberValue(row.paidValue),
     dueDate: dateOnly(row.dueDate),
     paid: row.paid,
     paymentDate: optionalDateOnly(row.paymentDate),
@@ -211,6 +212,7 @@ const expenseMapper: CollectionMapper<Expense> = {
       id: item.id,
       installmentNumber: item.installmentNumber,
       value: numberValue(item.value),
+      paidValue:numberValue(item.paidValue),
       dueDate: dateOnly(item.dueDate),
       paid: item.paid,
       paymentDate: optionalDateOnly(item.paymentDate),
@@ -222,6 +224,7 @@ const expenseMapper: CollectionMapper<Expense> = {
     category: item.category,
     supplierId: item.supplierId,
     value: item.value,
+    paidValue:item.paidValue??(item.paid?item.value:item.installments?.reduce((v,p)=>v+(p.paidValue??(p.paid?p.value:0)),0)??0),
     dueDate: dateValue(item.dueDate),
     paid: item.paid,
     paymentDate: dateValue(item.paymentDate),
@@ -229,6 +232,7 @@ const expenseMapper: CollectionMapper<Expense> = {
       id: installment.id,
       installmentNumber: installment.installmentNumber,
       value: installment.value,
+      paidValue:installment.paidValue??(installment.paid?installment.value:0),
       dueDate: dateValue(installment.dueDate),
       paid: installment.paid,
       paymentDate: dateValue(installment.paymentDate),
@@ -247,9 +251,12 @@ const expenseMapper: CollectionMapper<Expense> = {
 
 const transactionMapper: CollectionMapper<Transaction> = {
   prismaModel: "transaction",
+  include:{allocations:true},
   orderBy: { date: "desc" },
   toApp: row => ({
     id: row.id,
+    batchId:optional(row.batchId),originType:optional(row.originType),originId:optional(row.originId),reversalOfId:optional(row.reversalOfId),checkedAt:optionalDateOnly(row.checkedAt),checkedBy:optional(row.checkedBy),checkNote:optional(row.checkNote),
+    allocations:row.allocations?.map((a:Row)=>({id:a.id,targetType:a.targetType,targetId:a.targetId,value:numberValue(a.value)})),
     date: dateString(row.date),
     cashSessionId: optional(row.cashSessionId),
     description: row.description,
@@ -266,7 +273,7 @@ const transactionMapper: CollectionMapper<Transaction> = {
     taxType: optional(row.taxType),
     grossAmount: optionalNumber(row.grossAmount),
   }),
-  toCreate: item => stripUndefined({ ...item, date: dateValue(item.date) }),
+  toCreate: item => stripUndefined({ ...item, date: dateValue(item.date),checkedAt:dateValue(item.checkedAt),allocations:nestedCreate(item.allocations,a=>({id:a.id,targetType:a.targetType,targetId:a.targetId,value:a.value})) }),
   toUpdate: item => transactionMapper.toCreate(item as Transaction),
 }
 
@@ -418,14 +425,15 @@ const accountReceivableMapper: CollectionMapper<AccountReceivable> = {
     issueDate: dateString(row.issueDate),
     dueDate: dateOnly(row.dueDate),
     paymentDate: optionalDateOnly(row.paymentDate),
-    installments: row.installments?.map((item: Row) => ({ id: item.id, installmentNumber: item.installmentNumber, value: numberValue(item.value), dueDate: dateOnly(item.dueDate), status: item.status, paymentDate: optionalDateOnly(item.paymentDate) })),
+    installments: row.installments?.map((item: Row) => ({ id: item.id, installmentNumber: item.installmentNumber, value: numberValue(item.value),paidValue:numberValue(item.paidValue), dueDate: dateOnly(item.dueDate), status: item.status, paymentDate: optionalDateOnly(item.paymentDate) })),
   } as AccountReceivable),
   toCreate: item => stripUndefined({
     ...item,
+    paidValue:item.paidValue??(item.status==="pago"?item.value:item.installments?.reduce((v,p)=>v+(p.paidValue??(p.status==="pago"?p.value:0)),0)??0),
     issueDate: dateValue(item.issueDate),
     dueDate: dateValue(item.dueDate),
     paymentDate: dateValue(item.paymentDate),
-    installments: nestedCreate(item.installments, installment => ({ id: installment.id, installmentNumber: installment.installmentNumber, value: installment.value, dueDate: dateValue(installment.dueDate), status: installment.status, paymentDate: dateValue(installment.paymentDate) })),
+    installments: nestedCreate(item.installments, installment => ({ id: installment.id, installmentNumber: installment.installmentNumber, value: installment.value,paidValue:installment.paidValue??(installment.status==="pago"?installment.value:0), dueDate: dateValue(installment.dueDate), status: installment.status, paymentDate: dateValue(installment.paymentDate) })),
   }),
   toUpdate: item => stripUndefined({ ...item, issueDate: dateValue(item.issueDate), dueDate: dateValue(item.dueDate), paymentDate: dateValue(item.paymentDate), installments: undefined }),
 }
@@ -487,6 +495,7 @@ const posSaleMapper: CollectionMapper<POSSale> = {
   } as POSSale),
   toCreate: item => stripUndefined({
     id: item.id,
+    stayId:item.stayId,payments:item.payments,
     date: dateValue(item.date),
     subtotal: item.subtotal,
     discount: item.discount,
@@ -586,7 +595,7 @@ export const collectionMappers = {
     toCreate: (item: Stay) => stripUndefined({ ...item, checkIn: dateValue(item.checkIn), checkOut: dateValue(item.checkOut), endedAt: dateValue(item.endedAt),
       occupants: nestedCreate(item.occupants, o => ({ id: o.id, customerId: o.customerId, name: o.name })),
       allocations: nestedCreate(item.allocations, a => ({ id: a.id, roomId: a.roomId, start: dateValue(a.start), end: dateValue(a.end), reason: a.reason })),
-      charges: nestedCreate(item.charges, c => ({ id: c.id, productId: c.productId, label: c.label, unitPrice: c.unitPrice, quantity: c.quantity, status: c.status, reason: c.reason, createdAt: dateValue(c.createdAt) })),
+      charges: nestedCreate(item.charges, c => ({ id: c.id, productId: c.productId,sourceSaleId:c.sourceSaleId,lineTotal:c.lineTotal, label: c.label, unitPrice: c.unitPrice, quantity: c.quantity, status: c.status, reason: c.reason, createdAt: dateValue(c.createdAt) })),
       adjustments: nestedCreate(item.adjustments, a => ({ id: a.id, value: a.value, reason: a.reason, createdAt: dateValue(a.createdAt) })),
       payments: nestedCreate(item.payments, p => ({ id: p.id, value: p.value, bucket: p.bucket, method: p.method, transactionId: p.transactionId, createdAt: dateValue(p.createdAt) })) }),
     toUpdate: () => ({}),

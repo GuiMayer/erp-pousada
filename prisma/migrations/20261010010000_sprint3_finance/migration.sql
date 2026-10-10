@@ -1,0 +1,17 @@
+BEGIN;
+ALTER TABLE expenses ADD COLUMN "paidValue" numeric(12,2) NOT NULL DEFAULT 0 CHECK ("paidValue" >= 0 AND "paidValue" <= value);
+ALTER TABLE expense_installments ADD COLUMN "paidValue" numeric(12,2) NOT NULL DEFAULT 0 CHECK ("paidValue" >= 0 AND "paidValue" <= value);
+ALTER TABLE account_receivable_installments ADD COLUMN "paidValue" numeric(12,2) NOT NULL DEFAULT 0 CHECK ("paidValue" >= 0 AND "paidValue" <= value);
+UPDATE expenses SET "paidValue"=value WHERE paid;
+UPDATE expense_installments SET "paidValue"=value WHERE paid;
+UPDATE accounts_receivable SET "paidValue"=value WHERE status='pago';
+UPDATE account_receivable_installments SET "paidValue"=value WHERE status='pago';
+UPDATE expenses e SET "paidValue"=p.amount FROM (SELECT "expenseId",sum("paidValue") amount FROM expense_installments GROUP BY "expenseId") p WHERE e.id=p."expenseId";
+UPDATE accounts_receivable a SET "paidValue"=p.amount FROM (SELECT "accountReceivableId",sum("paidValue") amount FROM account_receivable_installments GROUP BY "accountReceivableId") p WHERE a.id=p."accountReceivableId";
+ALTER TABLE transactions ADD COLUMN "batchId" text, ADD COLUMN "originType" text, ADD COLUMN "originId" text, ADD COLUMN "reversalOfId" text UNIQUE REFERENCES transactions(id) DEFERRABLE INITIALLY DEFERRED, ADD COLUMN "checkedAt" timestamp, ADD COLUMN "checkedBy" text, ADD COLUMN "checkNote" text;
+CREATE TABLE payment_allocations (id text PRIMARY KEY,"transactionId" text NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,"targetType" text NOT NULL,"targetId" text NOT NULL,value numeric(12,2) NOT NULL CHECK(value>0));
+CREATE INDEX payment_allocations_target ON payment_allocations("targetType","targetId");
+ALTER TABLE pos_sales ADD COLUMN "stayId" text REFERENCES stays(id) DEFERRABLE INITIALLY DEFERRED, ADD COLUMN payments jsonb;
+ALTER TABLE stay_charges ADD COLUMN "sourceSaleId" text REFERENCES pos_sales(id) DEFERRABLE INITIALLY DEFERRED, ADD COLUMN "lineTotal" numeric(12,2) CHECK("lineTotal">=0);
+DROP INDEX IF EXISTS "stay_payments_transactionId_key";
+COMMIT;

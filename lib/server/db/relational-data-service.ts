@@ -100,6 +100,8 @@ async function mappedInput(key: string, item: unknown, partial: boolean, actor?:
   if (key === "systemSettings") for (const field of ["checkInTime", "checkOutTime"]) if (input[field] !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(input[field]))) throw new HttpError(400, "Horário inválido")
   if (key === "systemSettings" && input.notificationRules !== undefined) input.notificationRules = ruleSchema.parse(input.notificationRules)
   if (partial) { delete input.id; delete input.createdAt; delete input.createdBy }
+  if(actor&&['expenses','accountsReceivable'].includes(key)&&input.paidValue!==undefined&&Number(input.paidValue)!==0)throw new HttpError(403,'Utilize recebimento/pagamento para alterar valor liquidado')
+  if(actor&&Array.isArray(input.installments)&&(input.installments as Row[]).some(p=>Number(p.paidValue??0)>0))throw new HttpError(403,'Utilize o fluxo de parcelas')
   if (key === "users") {
     if (input.accessProfile !== undefined && (typeof input.accessProfile !== "string" || !PROFILES[input.accessProfile])) throw new HttpError(400, "Perfil de acesso inválido")
     if (input.permissionOverrides !== undefined) {
@@ -221,6 +223,7 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   const input = await mappedInput(key, data, true, actor)
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
+  if(actor&&['expenses','accountsReceivable'].includes(key)&&Number(snapshot.paidValue??0)>0)throw new HttpError(409,'Título com pagamento parcial não pode ser alterado')
   if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (actor) await prepareContact(client, key, input, snapshot, actor)
   if (key === "lodgingTariffs") await validateTariff(client, input, snapshot)
@@ -277,7 +280,12 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
   actor = await mutationActor(client, actor, key, "delete")
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
+  if(actor&&['expenses','accountsReceivable'].includes(key)) {
+    const title=await model(key,client).findUnique({where:itemWhere(key,id)})
+    if(Number(title?.paidValue??0)>0)throw new HttpError(409,'Título com recebimento/pagamento não pode ser excluído')
+  }
   if (actor && snapshot.recordVersion !== undefined) requireVersion(expectedVersion, snapshot.recordVersion)
+  if(actor&&['expenses','accountsReceivable'].includes(key)&&Number(snapshot.paidValue??0)>0)throw new HttpError(409,'Título com pagamento parcial não pode ser alterado')
   if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (key === "rooms" && await client.lodgingTariff.count({ where: { roomId: Number(id) } })) throw new HttpError(409, "Quarto possui tarifas vinculadas; preserve o cadastro e seu histórico")
   if (["customers", "suppliers", "guests", "posProducts", "lodgingTariffs"].includes(key)) {
