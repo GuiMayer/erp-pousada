@@ -1,6 +1,6 @@
 # Requisitos e modelagem funcional — ERP Pousada
 
-**Versão:** 0.9 · **Data:** 10/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1/S2/S3 implementadas, aceite do cliente pendente.
+**Versão:** 1.0 · **Data:** 10/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1/S2/S3/S4 implementadas, aceite do cliente pendente.
 
 Requisitos e entidades abaixo descrevem o alvo; não significam implementação de todas as sprints. A revisão 0.5 restaurou o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. A revisão 0.6 registra a [entrega da Sprint 1](ENTREGA_SPRINT_1.md), preservando integralmente os requisitos das etapas seguintes.
 
@@ -597,3 +597,5 @@ A pesquisa de referências externas da versão 0.3 continua preservada em sua se
 | 0.8 | Registra S2 e suas relações de origem, migração e roteiro de aceite; preserva integralmente o backlog S3–S5. |
 
 A revisão 0.9 registra a [entrega da Sprint 3](ENTREGA_SPRINT_3.md): entrega/cobrança integrada, pagamento misto, alocação de recebimentos, pagamentos parciais, movimentação de caixa e conferência manual. Conserva todos os requisitos e condicionais de implementação posteriores.
+
+A revisão 1.0 registra a [entrega da Sprint 4](ENTREGA_SPRINT_4.md): compras com obrigação financeira, lotes e FEFO, abertura explícita, perdas/devoluções, acordo de fornecedor, inventário por corte e rastreabilidade de custos. Mantém todos os requisitos anteriores, condicionais e backlog de S5; atualização operacional e homologação do cliente ainda não foram realizadas.
