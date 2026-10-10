@@ -121,6 +121,8 @@ export function createDemoData(now = new Date()) {
     active: true, createdAt: timestamp(-30), updatedAt: timestamp(0),
   }))
   guests.forEach((guest, index) => { guest.customerId = customers[index].id; guest.active = true })
+  customers.push({ id: "DEMO-COMPANY", name: "Empresa Horizonte · Exemplo", cpfCnpj: "12ABC34501DE35", roles: ["payer"], active: true, createdAt: timestamp(-30), updatedAt: timestamp(0) })
+  customers[0].companyId = "DEMO-COMPANY"
   const lodgingTariffs: LodgingTariff[] = [...new Set(rooms.map(r => r.type))].flatMap((roomType, index) => [
     { id: 'DEMO-T'+index+'-one', name: roomType+' · uma pessoa', roomType, minGuests: 1, maxGuests: 1, pricePerPerson: 120, validFrom: date(-365), active: true },
     { id: 'DEMO-T'+index+'-group', name: roomType+' · duas ou três pessoas', roomType, minGuests: 2, maxGuests: 3, pricePerPerson: 100, validFrom: date(-365), active: true },

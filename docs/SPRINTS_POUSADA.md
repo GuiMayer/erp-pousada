@@ -26,6 +26,7 @@ S0 foi executada como retirada do restaurante e revisão documental. S1 foi impl
 **Objetivo:** estabelecer quem compra/paga, o que é vendido e como a diária é calculada, com telas simples para o primeiro protótipo.
 
 - Buscar/cadastrar pessoa física ou empresa, com papéis de hóspede, pagador ou fornecedor; reutilizar cadastros e impedir duplicidade de documento normalizado.
+- Vincular opcionalmente a pessoa à empresa atual e listar seus funcionários na ficha da empresa. Sugerir essa empresa nas novas reservas/entradas, preservando escolha explícita e pagadores de operações anteriores. Extensão entregue em 10/10/2026.
 - Definir identidade estável e plano de correspondência de CPF/CNPJ legados, preservando crédito/histórico. Não mesclar pessoas automaticamente por nome.
 - Cadastro rápido usa a mesma identidade do cadastro completo; inativação não elimina relações anteriores.
 - Consulta de CNPJ sob demanda, preenchimento conferido e alternativa manual. Falha do fornecedor externo não impede o protótipo nem o atendimento; serviço e validação serão verificados durante a implementação.

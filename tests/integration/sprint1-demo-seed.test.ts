@@ -18,6 +18,7 @@ describe("Exemplos da Sprint 1", () => {
     expect(await prisma.lodgingTariff.count()).toBe(6)
     expect(await prisma.authSession.count()).toBe(0)
     expect(await prisma.customer.findUnique({ where: { id: "demo-company" } })).toMatchObject({ roles: ["payer"] })
+    expect(await prisma.customer.count({ where: { companyId: "demo-company" } })).toBe(1)
     const booking = await prisma.reservation.findFirstOrThrow({ where: { payerId: "demo-company" } })
     expect(Number(booking.totalValue)).toBe(600)
     expect(booking.nightlyPrices).toHaveLength(3)

@@ -8,6 +8,8 @@ O objetivo e remover o uso produtivo de `local_data_entries` e de `localStorage`
 
 O esquema implementado acrescenta `customers.roles` e usa `customers.id` como identidade estável da pessoa/empresa. `guest_profiles.customerId` e `suppliers.customerId` são únicos e vinculados a essa identidade; a chave CPF do hóspede e seus créditos/referências antigas permanecem compatíveis. Documento normalizado não vazio é único. Não há fusão por nome.
 
+A extensão de 10/10/2026 acrescenta `customers.companyId`, chave estrangeira opcional para outra linha de `customers`, indexada. PF tem no máximo uma empresa atual; PJ pagadora pode ter várias pessoas. Restrição e trigger impedem auto vínculo e tipos incompatíveis. O serviço exige empresa ativa para novo vínculo; vínculos existentes com empresa inativa continuam restauráveis. Importação cria empresas antes das pessoas. Pagador das reservas continua independente dessa relação cadastral.
+
 `rooms.capacity` registra lotação; `lodging_tariffs` define preço por pessoa/noite, ocupação e vigência por categoria ou quarto. `reservations` guarda `guestCount`, `payerId`, `nightlyPrices` e `priceExceptionReason`; preços confirmados não são recalculados por mudança no cadastro. `pos_products` recebe unidade e situação, com barcode único quando informado.
 
 A migration é aditiva, verifica duplicidades antes da alteração e não inventa capacidades/preços antigos. Consulte a [entrega da Sprint 1](ENTREGA_SPRINT_1.md) para estratégia, ativação e limites. As seções abaixo conservam a base anterior; hospedagem independente, compras e lotes continuam no alvo das etapas seguintes.

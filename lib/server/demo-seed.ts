@@ -69,6 +69,7 @@ export async function seedDemo() {
       await tx.transaction.updateMany({ where: { refId: `Venda ${saleId}` }, data: { date } })
     }
     const customer = await tx.customer.findFirstOrThrow({ where: { cpfCnpj: guests[0][0] } })
+    await tx.customer.update({ where: { id: customer.id }, data: { companyId: "demo-company" } })
     await tx.accountReceivable.create({ data: { id: "demo-receivable", customerId: customer.id, customerName: customer.name, description: "Hospedagem de exemplo", value: 600, issueDate: new Date(day(-7)), dueDate: new Date(day(-2)), status: "pendente" } })
     for (const [id, description, value, offset] of [["demo-expense-1", "Material de limpeza (exemplo)", 280, 3], ["demo-expense-2", "Manutenção preventiva (exemplo)", 450, -1]] as const) await tx.expense.create({ data: { id, description, value, category: "Manutenção", dueDate: new Date(day(offset)) } })
     await evaluateStock(tx); await evaluateTimed(tx)

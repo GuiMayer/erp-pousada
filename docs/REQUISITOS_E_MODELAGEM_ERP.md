@@ -1,8 +1,10 @@
 # Requisitos e modelagem funcional — ERP Pousada
 
-**Versão:** 0.6 · **Data:** 09/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1 implementada.
+**Versão:** 0.7 · **Data:** 10/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1 implementada.
 
 Requisitos e entidades abaixo descrevem o alvo; não significam implementação de todas as sprints. A revisão 0.5 restaurou o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. A revisão 0.6 registra a [entrega da Sprint 1](ENTREGA_SPRINT_1.md), preservando integralmente os requisitos das etapas seguintes.
+
+A revisão 0.7 acrescenta o vínculo opcional da pessoa física à empresa atual, a lista de funcionários na ficha da empresa e sua sugestão como pagadora em novas hospedagens. Mantém todos os requisitos anteriores. Esse cadastro não representa o quadro de funcionários da pousada nem um módulo de recursos humanos.
 
 O [plano das sprints](SPRINTS_POUSADA.md) define a sequência de entrega. A [auditoria de escopo](REVISAO_ESCOPO_MODELAGEM.md) dá uma destinação explícita a cada requisito numerado da versão completa. A [versão 0.3 integral](../modules/abandoned/restaurant/docs/REQUISITOS_POUSADA_E_RESTAURANTE.md) permanece preservada como referência histórica, sem autoridade sobre o escopo ativo.
 
@@ -121,6 +123,7 @@ Entidades abaixo são responsabilidades de negócio; não obrigam uma tabela por
 | Entidade | Dados e relacionamento |
 | --- | --- |
 | Pessoa | ID estável, PF/PJ, nome, documento, contatos, situação; campos mínimos por rotina. Documento normalizado evita duplicação, mas não é chave técnica do histórico novo. |
+| Empresa atual da pessoa | Cada PF pode ter zero ou uma empresa vinculada; cada PJ pagadora pode ter várias pessoas. `Customer.companyId` referencia outra identidade `Customer.id`. CPF válido na pessoa e CNPJ válido/papel pagador na empresa; vínculo editado no cadastro da pessoa. Sem histórico de emprego, cargos ou datas nesta entrega. |
 | PapelPessoa | Uma pessoa pode ser hóspede, pagador e fornecedor. Views/telas conhecidas podem manter esses nomes. |
 | Produto | Bebida, unidade-base, categoria, barcode opcional, compra/venda, estoque/lote e situação. Serviço não participa do saldo de bebidas. |
 | PrecoProduto | Valor padrão e vigência; mudanças são auditadas. Não sobrescrever preço das linhas confirmadas. |
@@ -130,11 +133,14 @@ Entidades abaixo são responsabilidades de negócio; não obrigam uma tabela por
 ~~~mermaid
 erDiagram
   PESSOA ||--o{ PAPEL_PESSOA : assume
+  PESSOA o|--o{ PESSOA : empresa_atual
   PRODUTO ||--o{ PRECO_PRODUTO : precifica
   CATEGORIA_QUARTO ||--o{ QUARTO : classifica
   CATEGORIA_QUARTO ||--o{ TARIFA_HOSPEDAGEM : precifica
   QUARTO o|--o{ TARIFA_HOSPEDAGEM : especifica
 ~~~
+
+Empresa vinculada é uma sugestão para novas reservas e entradas, substituível pelo operador. Escolher outro pagador explicitamente prevalece sobre a sugestão. Reserva confirmada conserva seu próprio pagador, preço, crédito e dívida; trocar ou remover a empresa no cadastro não altera operações anteriores. Inativação preserva vínculos existentes e impede novos vínculos/sugestões; empresa com pessoas vinculadas conserva CNPJ e papel pagador. Não inferir empregador de registros antigos.
 
 ### 6.2 Reserva, hospedagem e consumo
 
@@ -252,7 +258,7 @@ Dados confirmados mantêm descrição, nome, unidade, conversão, preço/custo e
 
 | ID | Prioridade | Requisito verificável |
 | --- | --- | --- |
-| CAD-01 | N | Cadastrar PF/PJ, cliente/fornecedor/hóspede, contatos, situação e endereço quando necessário. |
+| CAD-01 | N | Cadastrar PF/PJ, cliente/fornecedor/hóspede, contatos, situação e endereço quando necessário. PF pode ter empresa atual opcional; ficha da empresa lista pessoas vinculadas. Sugestão de pagador para novas hospedagens é alterável e não reescreve histórico. |
 | CAD-02 | N | Buscar por nome, telefone e documento; impedir duplicação do mesmo documento normalizado, com tratamento de cadastros legados. |
 | CAD-03 | N | Venda avulsa de bebida pode ser anônima; venda a prazo exige pagador identificado e autorização. Identificar hóspedes segundo a política de hospedagem, sem exigir CPF de empresa para cada ocupante. |
 | CAD-04 | N | Consultar CNPJ sob demanda e confirmar dados antes de salvar; falha da API permite cadastro manual. |

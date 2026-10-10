@@ -25,6 +25,14 @@ Entre com usuário **teste** e senha **teste**, salvo se a senha exclusiva de de
 
 Depois, busque uma pessoa em **Pessoas e empresas**, confira seus papéis e veja uma bebida com seu preço padrão. Na reserva ou entrada, selecione o hóspede e quem paga. A empresa pode ser pagadora mesmo sem ser hóspede. A prévia mostra cada noite; a confirmação recalcula no servidor.
 
+### Vincular funcionário à empresa
+
+Em **Cadastros → Pessoas e empresas**, cadastre a empresa com CNPJ e papel **Pagador**. Edite a pessoa, informe seu CPF e escolha **Empresa vinculada (opcional)**. O cadastro rápido também oferece esse campo. Para trocar/remover o vínculo, edite a pessoa; a opção **Sem vínculo com empresa** remove a associação.
+
+Abra a ficha da empresa pelo botão de histórico/ficha para consultar **Funcionários vinculados**. Os exemplos incluem a **Empresa Horizonte · Exemplo** e uma pessoa vinculada. Em uma nova reserva ou entrada, essa empresa é sugerida como pagadora; você pode escolher outra. A escolha explícita prevalece mesmo ao trocar o hóspede no formulário. Empresa inativa mantém a associação existente, mas não entra nas novas sugestões.
+
+Reservas confirmadas usam seu pagador salvo. Trocar a empresa no cadastro não transfere cobranças, crédito nem preço antigo. O vínculo representa a empresa atual da pessoa; histórico empregatício e cargos ficam fora do escopo.
+
 Para encerrar a apresentação e descartar suas alterações:
 
 ```powershell
@@ -54,6 +62,8 @@ As mutações de produção continuam transacionais, com autorização no servid
 
 A migration `20261009000000_sprint1_contacts_tariffs` é aditiva e transacional. Antes de alterar as tabelas, verifica documentos duplicados normalizados em pessoas, hóspedes e fornecedores e códigos de barras duplicados. Se encontrar duplicidade, interrompe a atualização para revisão; não elimina registros nem escolhe automaticamente qual saldo conservar.
 
+A extensão `20261009010000_customer_company_link` adiciona o vínculo opcional, índice, referência e proteções no banco. Registros antigos iniciam sem empresa vinculada; não se deduz empregador por reserva, nome ou documento. Migração de dados legados e restauração com pessoas fora de ordem foram validadas em PostgreSQL isolado. Nenhuma dessas validações altera o banco operacional.
+
 Os IDs existentes de clientes e fornecedores são preservados. `GuestProfile.cpf` continua como chave de compatibilidade das reservas e créditos antigos, ligado à identidade estável por `customerId`. Corrigir o documento da pessoa não transfere crédito nem recria o histórico. Na migração, registros com o mesmo documento normalizado são vinculados; registros sem documento mantêm identidade própria. Nome sozinho nunca define correspondência.
 
 Capacidades, ocupações, pagadores e composições de preços ausentes nos registros antigos ficam desconhecidos, em vez de receber números inventados. Reservas antigas conservam seu valor e podem entrar pelo fluxo confirmado. Antes de cadastrar novas hospedagens com tarifa, configure **capacidades e tarifas**. Alterar datas ou preço de uma reserva antiga deve ser uma decisão explícita, respeitando as permissões existentes.
@@ -68,7 +78,9 @@ O serviço de migração usa suas credenciais próprias antes da aplicação. Um
 
 ## Validação e limites
 
-Foram aprovados 280 testes unitários e 104 testes de integração da suíte completa, incluindo a carga demonstrativa. Também passaram verificação de tipos, lint e compilação de produção. Os testes de interação cobrem simulação, alteração de ocupação, capacidade, edição versionada de tarifa, confirmação de preenchimento de CNPJ e acesso à aba Cadastros em navegação mobile.
+Na entrega inicial foram aprovados 280 testes unitários e 104 testes de integração, incluindo a carga demonstrativa. Na extensão do vínculo empresarial, a suíte passou a incluir testes de elegibilidade, cadastro rápido/completo, sugestão e escolha de pagador, preservação de reservas e restauração. Consulte os resultados finais abaixo. Os testes de interação anteriores cobrem simulação, alteração de ocupação, capacidade, edição versionada de tarifa, confirmação de preenchimento de CNPJ e acesso à aba Cadastros em navegação mobile.
+
+**Validação da extensão — 10/10/2026:** 295 testes unitários e 110 de integração aprovados; tipos, lint e compilação de produção aprovados. As 13 migrations foram aplicadas em banco PostgreSQL temporário, exclusivo dos testes. O teste de migração com dados legados também confirmou que os registros iniciam sem empregador inferido. O banco operacional e a demonstração em uso não foram atualizados durante essa validação. Homologação visual no protótipo reconstruído continua pendente.
 
 | Critério da modelagem | Evidência nesta entrega |
 | --- | --- |
