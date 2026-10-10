@@ -9,6 +9,7 @@ export type Stay = {
   allocations: { id: string; roomId: number; start: string; end: string; reason?: string | null }[]
   charges: { id: string; productId?: string | null; label: string; unitPrice: number; quantity: number; status: string; reason?: string | null; createdAt: string }[]
   payments: { id: string; value: number; bucket: string; method: string; createdAt: string; transactionId?: string | null }[]
+  adjustments?: { id: string; value: number; reason: string; createdAt: string }[]
 }
 const cents = (n: number) => Math.round(n * 100)
 export function stayBalance(stay: Stay) {

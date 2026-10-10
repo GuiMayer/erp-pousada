@@ -1,4 +1,5 @@
 import { prepareContact, syncContact } from "../contacts"
+import { ensureStay } from "../stays"
 import { validateTariff } from "../lodging-pricing"
 import { requireVersion, removed } from "../concurrency"
 import { recordAudit } from "../audit"
@@ -80,7 +81,7 @@ export function validateMappedData(modelName: string, data: Row, partial = false
     if (field.type === "Boolean" && typeof value !== "boolean") throw new HttpError(400, `Booleano inválido: ${name}`)
     if (["Int", "Float", "Decimal"].includes(field.type)) {
       if (typeof value !== "number" || !Number.isFinite(value) || (field.type === "Int" && !Number.isSafeInteger(value))) throw new HttpError(400, `Número inválido: ${name}`)
-      if (value < 0 && !["currentBalance", "initialBalance", "expectedValue", "divergence", "variance", "variancePercent"].includes(name)) throw new HttpError(400, `Valor negativo: ${name}`)
+      if (value < 0 && !(modelName === "stayAdjustment" && name === "value") && !["currentBalance", "initialBalance", "expectedValue", "divergence", "variance", "variancePercent"].includes(name)) throw new HttpError(400, `Valor negativo: ${name}`)
     }
     if (field.type === "DateTime" && (!(value instanceof Date) || !Number.isFinite(value.getTime()))) throw new HttpError(400, `Data inválida: ${name}`)
     result[name] = value
@@ -326,6 +327,8 @@ export async function importAllCollections(json: string, actor?: Actor) {
   let data: Row
   try { data = JSON.parse(json) } catch { throw new HttpError(400, "JSON inválido") }
   if (!data || Array.isArray(data) || typeof data !== "object" || Object.keys(data).some(k => !portableKeys.includes(k))) throw new HttpError(400, "Importação contém coleções não permitidas")
+  const legacySnapshot = !Object.hasOwn(data, "stays")
+  if (legacySnapshot) data.stays = []
   // Partial replacement would break references: portable imports are full snapshots.
   if (portableKeys.some(k => !Array.isArray(data[k]))) throw new HttpError(400, "Envie uma exportação completa")
   await prisma.$transaction(async tx => {
@@ -334,6 +337,10 @@ export async function importAllCollections(json: string, actor?: Actor) {
     if (actor) demand(actor, "data.restore")
     for (const key of [...portableKeys].reverse()) await model(key, tx).deleteMany()
     for (const key of portableKeys) for (const item of orderedItems(key, data[key] as unknown[])) await createCollectionItem(key, item, undefined, tx)
+    if (legacySnapshot) {
+      const reservations = await tx.reservation.findMany({ where: { status: { in: ["checkin", "checkout"] } } })
+      for (const reservation of reservations) await ensureStay(tx, reservation.id, true)
+    }
     await resetSessionsAfterRestore(tx, actor, "Dados restaurados")
   }, { timeout: 60000, isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }

@@ -16,12 +16,16 @@ export async function reconcileDemoStays(store: DataStore) {
       await store.stays.create(s); stays.push(s)
     }
     let changed=false
+    if (s.status === 'active' && r.totalValue !== s.lodgingValue) {
+      s.adjustments = [...s.adjustments ?? [], { id: crypto.randomUUID(), value: Math.round((r.totalValue-s.lodgingValue)*100)/100, reason: 'Ajuste de preço de exemplo', createdAt: new Date().toISOString() }]
+      s.lodgingValue=r.totalValue;changed=true
+    }
     const lodgingPaid=s.payments.filter(p=>p.bucket==='lodging').reduce((v,p)=>v+p.value,0)
     if ((r.paidValue??0)>lodgingPaid+.001) { s.payments.push({id:crypto.randomUUID(),value:Math.round(((r.paidValue??0)-lodgingPaid)*100)/100,bucket:'lodging',method:'sinal/recebimento de exemplo',createdAt:new Date().toISOString()}); changed=true }
     if(s.status==='active') for(const item of consumptions.find(c=>c.roomId===r.roomId)?.items??[]) if(!s.charges.some(c=>c.id===item.id)) {
       s.charges.push({...item,status:'active',createdAt:new Date().toISOString()}); changed=true
     }
-    if(changed) await store.stays.update(s.id,{payments:s.payments,charges:s.charges,recordVersion:s.recordVersion+1})
+    if(changed) await store.stays.update(s.id,{lodgingValue:s.lodgingValue,adjustments:s.adjustments,payments:s.payments,charges:s.charges,recordVersion:s.recordVersion+1})
   }
 }
 export async function demoConsumptionCorrection(store: DataStore, roomId: number, itemId?: string) {

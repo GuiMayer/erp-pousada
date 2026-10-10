@@ -80,6 +80,8 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
       return collectionMapper("reservations").toApp(await tx.reservation.findUniqueOrThrow({ where: { id: reservation.id } }))
     }
     if (input.paymentMethod === "credito_hospede") {
+      const guest = await tx.guestProfile.findUnique({ where: { cpf: reservation.cpf } })
+      if (reservation.payerId && reservation.payerId !== guest?.customerId) throw new HttpError(409, "Crédito pessoal não pode quitar conta da empresa")
       const changed = await tx.guestProfile.updateMany({ where: { cpf: reservation.cpf, creditValue: { gte: input.value } }, data: { creditValue: { decrement: input.value } } })
       if (!changed.count) throw new HttpError(409, "Crédito do hóspede insuficiente")
       await recordLedger(tx, actor, `Hospedagem ${reservation.id}`, D(input.value), "credito_utilizado")

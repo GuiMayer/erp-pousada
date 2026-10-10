@@ -17,18 +17,19 @@ const id = z.string().trim().min(1).max(200)
 const reason = z.string().trim().min(5).max(500)
 const money = z.number().finite().positive().max(999999999).refine(v => Math.abs(v * 100 - Math.round(v * 100)) < .00001, "Use até duas casas decimais")
 const target = { stayId: id, recordVersion: z.number().int().nonnegative() }
-export const stayInclude = { occupants: true, allocations: true, charges: true, payments: true }
+export const stayInclude = { occupants: true, allocations: true, charges: true, payments: true, adjustments: true }
 type Loaded = Prisma.StayGetPayload<{ include: typeof stayInclude }>
 export function mapStay(row: Loaded): Stay {
-  return { ...row, lodgingValue: Number(row.lodgingValue), checkIn: row.checkIn.toISOString().slice(0,10), checkOut: row.checkOut.toISOString().slice(0,10), endedAt: row.endedAt?.toISOString(), nightlyPrices: row.nightlyPrices as Stay["nightlyPrices"], allocations: row.allocations.map(a => ({ ...a, start: a.start.toISOString().slice(0,10), end: a.end.toISOString().slice(0,10) })), charges: row.charges.map(c => ({ ...c, unitPrice: Number(c.unitPrice), createdAt: c.createdAt.toISOString() })), payments: row.payments.map(p => ({ ...p, value: Number(p.value), createdAt: p.createdAt.toISOString() })) }
+  return { ...row, adjustments: row.adjustments.map(a => ({...a, value: Number(a.value), createdAt: a.createdAt.toISOString()})), lodgingValue: Number(row.lodgingValue), checkIn: row.checkIn.toISOString().slice(0,10), checkOut: row.checkOut.toISOString().slice(0,10), endedAt: row.endedAt?.toISOString(), nightlyPrices: row.nightlyPrices as Stay["nightlyPrices"], allocations: row.allocations.map(a => ({ ...a, start: a.start.toISOString().slice(0,10), end: a.end.toISOString().slice(0,10) })), charges: row.charges.map(c => ({ ...c, unitPrice: Number(c.unitPrice), createdAt: c.createdAt.toISOString() })), payments: row.payments.map(p => ({ ...p, value: Number(p.value), createdAt: p.createdAt.toISOString() })) }
 }
-export async function ensureStay(tx: Tx, reservationId: string) {
+export async function ensureStay(tx: Tx, reservationId: string, restoringLegacy = false) {
   const current = await tx.stay.findUnique({ where: { reservationId }, include: stayInclude })
   if (current) return current
   const r = await tx.reservation.findUniqueOrThrow({ where: { id: reservationId } })
-  if (r.status !== "checkin") throw new HttpError(409, "Hospedagem não iniciada")
+  if (r.status !== "checkin" && !(restoringLegacy && r.status === "checkout")) throw new HttpError(409, "Hospedagem não iniciada")
   const guest = await tx.guestProfile.findUnique({ where: { cpf: r.cpf } })
-  return tx.stay.create({ data: { id: randomUUID(), reservationId, payerId: r.payerId ?? guest?.customerId, guestName: r.guestName, guestCount: r.guestCount, roomId: r.roomId, checkIn: r.checkIn, checkOut: r.checkOut, lodgingValue: r.totalValue, groupId: r.groupId, nightlyPrices: r.nightlyPrices ?? undefined, occupants: { create: [{ id: randomUUID(), name: r.guestName, customerId: guest?.customerId }] }, allocations: { create: [{ id: randomUUID(), roomId: r.roomId, start: r.checkIn, end: r.checkOut }] }, payments: r.paidValue.gt(0) ? { create: [{ id: randomUUID(), value: r.paidValue, bucket: "lodging", method: "sinal anterior" }] } : undefined }, include: stayInclude })
+  const legacyConsumption = r.status === "checkin" ? await tx.roomConsumption.findUnique({ where: { roomId: r.roomId }, include: { items: true } }) : null
+  return tx.stay.create({ data: { id: randomUUID(), reservationId, status: r.status === "checkout" ? "closed" : "active", payerId: r.payerId ?? guest?.customerId, guestName: r.guestName, guestCount: r.guestCount, roomId: r.roomId, checkIn: r.checkIn, checkOut: r.checkOut, lodgingValue: r.totalValue, groupId: r.groupId, nightlyPrices: r.nightlyPrices ?? undefined, occupants: { create: [{ id: randomUUID(), name: r.guestName, customerId: guest?.customerId }] }, allocations: { create: [{ id: randomUUID(), roomId: r.roomId, start: r.checkIn, end: r.checkOut }] }, charges: legacyConsumption?.items.length ? { create: legacyConsumption.items.map(c => ({ id: c.id, label: c.label, unitPrice: c.unitPrice, quantity: c.quantity })) } : undefined, payments: r.paidValue.gt(0) ? { create: [{ id: randomUUID(), value: r.paidValue, bucket: "lodging", method: "sinal anterior" }] } : undefined }, include: stayInclude })
 }
 export async function roomStay(tx: Tx, roomId: number) {
   const active = await tx.stay.findFirst({ where: { roomId, status: "active" }, include: stayInclude })
@@ -140,6 +141,8 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
       const paid = stayBalance(mapStay(stay)).paid
       if (lodgingValue.lt(stay.lodgingValue)) demand(actor, "lodgingTariffs.override")
       if (lodgingValue.plus(stayBalance(mapStay(stay)).consumption).lt(paid)) throw new HttpError(409, "Novo preço inferior ao recebido; concilie antes")
+      const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: stay.reservationId } })
+      if (lodgingValue.lt(reservation.paidValue)) throw new HttpError(409, "Diárias abaixo do recebido; concilie antes de trocar")
       nightlyPrices = nights as unknown as Prisma.JsonValue
     }
     await tx.stayAllocation.updateMany({ where: { stayId: stay.id, end: { gt: start } }, data: { end: start } })

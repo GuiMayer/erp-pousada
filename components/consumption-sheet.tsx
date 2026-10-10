@@ -74,8 +74,8 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     removeItem: removeConsumptionItem,
   })
 
-  async function handleAddCatalogItem(name: string, unitPrice: number) {
-    try { await addCatalogItem(name, unitPrice) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
+  async function handleAddCatalogItem(name: string, unitPrice: number, productId: string) {
+    try { await addCatalogItem(name, unitPrice, productId) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
     addAuditEntry({
       user: username || "sistema",
       action: `Consumo lancado: ${name}`,
@@ -177,7 +177,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                 <button
                   disabled={!can("consumptions.create")}
                   key={product.id}
-                  onClick={() => handleAddCatalogItem(product.name, product.price)}
+                  onClick={() => handleAddCatalogItem(product.name, product.price, product.id)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent hover:border-primary"
                 >
                   <Package className="size-3.5 text-muted-foreground shrink-0" />

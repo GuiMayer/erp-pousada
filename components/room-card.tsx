@@ -1,7 +1,8 @@
 "use client"
 import { PermissionGate } from "@/components/permission-gate"
 import { ReservationPaymentButton } from "./reservation-payment-button"
-import { StayButton } from "./stay-sheet"
+import { StayButton, StaySheet } from "./stay-sheet"
+import type { Stay } from "@/lib/stays"
 import { getDataConfig } from "@/lib/data/config"
 
 import { useToast } from "@/hooks/use-toast"
@@ -94,6 +95,8 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   const [blockSnapshot, setBlockSnapshot] = useState<Room | null>(null)
   const [checkinOpen, setCheckinOpen] = useState(false)
   const [consumptionOpen, setConsumptionOpen] = useState(false)
+  const [checkoutStay, setCheckoutStay] = useState<Stay | null>(null)
+  const activeStay = stays.find(stay => stay.roomId === room.id && stay.status === "active")
 
   const consumption = getConsumption(room.id)
   const consumptionTotal = consumption
@@ -107,6 +110,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
   )
 
   async function handleCheckOut() {
+    if (activeStay) { setCheckoutStay(structuredClone(activeStay)); return }
     if (consumptionTotal > 0) {
       toast({ title: "Check-out bloqueado", description: "Quite o consumo antes do check-out.", variant: "destructive" })
       sendNotification(
@@ -309,8 +313,8 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
                   variant="outline"
                   className="gap-1.5 text-xs flex-1"
                   onClick={handleCheckOut}
-                  disabled={consumptionTotal > 0}
-                  title={consumptionTotal > 0 ? "Quite o consumo antes do check-out" : undefined}
+                  disabled={!activeStay && consumptionTotal > 0}
+                  title={activeStay ? "Revisar extrato e concluir saída" : consumptionTotal > 0 ? "Quite o consumo antes do check-out" : undefined}
                 >
                   <LogOutIcon className="size-3.5" /> Check-out
                 </Button></PermissionGate>
@@ -336,6 +340,7 @@ export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: str
         <div className="flex-1" />
 
         {room.status === "ocupado" && reservations.filter(reservation => reservation.roomId === room.id && reservation.status === "checkin").map(reservation => <div key={reservation.id} className="px-4 pb-2"><ReservationPaymentButton reservation={reservation} /></div>)}
+        {checkoutStay && <StaySheet stay={checkoutStay} onClose={() => setCheckoutStay(null)} />}
         {room.status === "ocupado" && stays.filter(stay => stay.roomId === room.id && stay.status === "active").map(stay => <div key={stay.id} className="px-4 pb-2"><StayButton stay={stay} /></div>)}
         <CardFooter className="hidden sm:flex flex-col items-stretch gap-0 pb-4 pt-0">
           <Separator className="mb-3 mt-3" />

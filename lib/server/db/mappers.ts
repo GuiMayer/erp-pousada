@@ -33,7 +33,7 @@ import type {
 } from "@/lib/store"
 import type { LodgingTariff } from "@/lib/lodging-pricing"
 import type { Stay } from "@/lib/stays"
-import { mapStay, stayInclude } from "../stays"
+import { mapStay } from "../stays"
 
 type Row = Record<string, any>
 
@@ -150,6 +150,7 @@ const reservationMapper: CollectionMapper<Reservation> = {
   orderBy: { checkIn: "asc" },
   toApp: row => ({
     guestCount: optional(row.guestCount), payerId: optional(row.payerId), nightlyPrices: optional(row.nightlyPrices), priceExceptionReason: optional(row.priceExceptionReason),
+    groupId: optional(row.groupId),
     recordVersion: row.recordVersion,
     id: row.id,
     roomId: row.roomId,
@@ -580,12 +581,13 @@ const lodgingTariffMapper: CollectionMapper<LodgingTariff> = {
 }
 export const collectionMappers = {
   stays: {
-    prismaModel: "stay", include: stayInclude, orderBy: { checkIn: "desc" },
+    prismaModel: "stay", include: { occupants: true, allocations: true, charges: true, payments: true, adjustments: true }, orderBy: { checkIn: "desc" },
     toApp: row => mapStay(row as Parameters<typeof mapStay>[0]),
     toCreate: (item: Stay) => stripUndefined({ ...item, checkIn: dateValue(item.checkIn), checkOut: dateValue(item.checkOut), endedAt: dateValue(item.endedAt),
       occupants: nestedCreate(item.occupants, o => ({ id: o.id, customerId: o.customerId, name: o.name })),
       allocations: nestedCreate(item.allocations, a => ({ id: a.id, roomId: a.roomId, start: dateValue(a.start), end: dateValue(a.end), reason: a.reason })),
       charges: nestedCreate(item.charges, c => ({ id: c.id, productId: c.productId, label: c.label, unitPrice: c.unitPrice, quantity: c.quantity, status: c.status, reason: c.reason, createdAt: dateValue(c.createdAt) })),
+      adjustments: nestedCreate(item.adjustments, a => ({ id: a.id, value: a.value, reason: a.reason, createdAt: dateValue(a.createdAt) })),
       payments: nestedCreate(item.payments, p => ({ id: p.id, value: p.value, bucket: p.bucket, method: p.method, transactionId: p.transactionId, createdAt: dateValue(p.createdAt) })) }),
     toUpdate: () => ({}),
   } satisfies CollectionMapper<Stay>,

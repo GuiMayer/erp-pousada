@@ -37,6 +37,8 @@ afterAll(async () => { await prisma.$disconnect() })
 beforeEach(async () => {
   await prisma.cashClose.deleteMany(); await prisma.bankAccount.update({ where: { id: "test-bank" }, data: { currentBalance: 1000 } })
   await executeOperation(actor, randomUUID(), "cash-open", { openingValue: 30 })
+  await prisma.accountReceivable.deleteMany({ where: { sourceStayId: { not: null } } })
+  await prisma.stay.deleteMany()
   await prisma.pOSSale.deleteMany(); await prisma.transaction.deleteMany(); await prisma.operationReceipt.deleteMany()
   await prisma.stockMovement.deleteMany(); await prisma.stockItem.update({ where: { id: "stock" }, data: { currentStock: 10, unit: "un" } })
   await prisma.pOSProduct.update({ where: { id: "product" }, data: { price: 10 } })

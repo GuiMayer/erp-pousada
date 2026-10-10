@@ -33,4 +33,5 @@ INSERT INTO stay_charges(id,"stayId",label,"unitPrice",quantity)
  SELECT i.id,s.id,i.label,i."unitPrice",i.quantity FROM room_consumption_items i JOIN room_consumptions c ON c.id=i."consumptionId" JOIN stays s ON s."roomId"=c."roomId" AND s.status='active';
 CREATE TRIGGER erp_version BEFORE UPDATE ON stays FOR EACH ROW EXECUTE FUNCTION erp_bump_version('recordVersion');
 CREATE TRIGGER erp_notify AFTER INSERT OR UPDATE OR DELETE ON stays FOR EACH STATEMENT EXECUTE FUNCTION erp_sync_notify('stays');
+CREATE TABLE stay_adjustments (id text PRIMARY KEY, "stayId" text NOT NULL REFERENCES stays(id) ON DELETE CASCADE, value numeric(12,2) NOT NULL CHECK (value <> 0), reason text NOT NULL, "createdAt" timestamp NOT NULL DEFAULT now());
 COMMIT;

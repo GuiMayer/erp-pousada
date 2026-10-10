@@ -443,6 +443,7 @@ export interface RecurringTransaction {
 
 export interface ConsumptionItem {
   id: string
+  productId?: string
   label: string
   unitPrice: number
   quantity: number

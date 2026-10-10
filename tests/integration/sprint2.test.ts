@@ -66,6 +66,10 @@ describe('Sprint 2 — hospedagem independente e cobrança',()=>{
     await op('check-in',{roomId:1,cpf:'52998224725',guestName:'Pessoa S2',guestCount:1,checkIn:day,checkOut:next(1),totalValue:100})
     const active=(await getCollection('stays') as Stay[]).find(s=>s.status==='active')!
     expect(active.id).not.toBe(s.id); expect(active.charges).toHaveLength(0); expect(stayBalance(active).balance).toBe(100)
+    await op('add-consumption',{roomId:1,item:{id:randomUUID(),productId:'s2-drink',label:'Água',unitPrice:12,quantity:1}})
+    const old=(await getCollection('stays') as Stay[]).find(row=>row.id===s.id)!
+    await op('stay-receive',{stayId:old.id,recordVersion:old.recordVersion,value:324,paymentMethod:'pix',accountId:'s2-bank'})
+    expect((await prisma.roomConsumption.findUniqueOrThrow({where:{roomId:1},include:{items:true}})).items).toHaveLength(1)
   })
   it('saída comum exige quitação e prazo exige empresa, permissão e confirmação',async()=>{
     let s=await start(false)
@@ -117,5 +121,22 @@ describe('Sprint 2 — hospedagem independente e cobrança',()=>{
     const snapshot=await exportAllCollections(); await importAllCollections(snapshot,actor)
     const restored=await current(); expect(restored.id).toBe(s.id); expect(stayBalance(restored).balance).toBe(324)
     expect(await prisma.accountReceivable.count({where:{sourceStayId:s.id}})).toBe(1)
+  })
+  it('desconto após entrada atualiza conta uma vez e restaura seu ajuste sem duplicar o desconto',async()=>{
+    const s=await start(true,100), request=randomUUID(), payload={reservationId:s.reservationId,type:'percent',value:10}
+    await op('reservation-discount',payload,actor,request); await op('reservation-discount',payload,actor,request)
+    const discounted=await current()
+    expect(discounted.adjustments).toHaveLength(1); expect(discounted.adjustments![0].value).toBe(-40)
+    expect(stayBalance(discounted).balance).toBe(284)
+    await importAllCollections(await exportAllCollections(),actor)
+    expect(stayBalance(await current()).balance).toBe(284)
+  })
+  it('restaura exportação anterior à Sprint 2 preservando sinal e consumo, sem baixar estoque novamente',async()=>{
+    await start(true,100)
+    const legacy=JSON.parse(await exportAllCollections()); delete legacy.stays
+    await importAllCollections(JSON.stringify(legacy),actor)
+    const restored=await current()
+    expect(stayBalance(restored).balance).toBe(324); expect(restored.charges[0].productId).toBeNull()
+    expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)).toBe(8)
   })
 })

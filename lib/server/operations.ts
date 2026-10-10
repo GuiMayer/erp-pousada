@@ -310,6 +310,11 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const original = reservation.originalValue ?? reservation.totalValue
     await checkDiscount(tx, actor, Number(original.minus(reservation.totalValue.minus(amount)).div(original).mul(100)))
     await tx.reservation.update({ where: { id: reservation.id }, data: { totalValue: reservation.totalValue.minus(amount) } })
+    const stay = await tx.stay.findUnique({ where: { reservationId: reservation.id } })
+    if (stay && amount.gt(0)) {
+      await tx.stayAdjustment.create({ data: { id: randomUUID(), stayId: stay.id, value: amount.negated(), reason: `Desconto autorizado por ${actor.username}` } })
+      await tx.stay.update({ where: { id: stay.id }, data: { lodgingValue: reservation.totalValue.minus(amount), recordVersion: { increment: 1 } } })
+    }
     await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`, { entityType: "reservations", entityId: reservation.id, operation: "update", metadata: { amount: Number(amount) } })
     return { success: true }
   }
@@ -445,8 +450,8 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         await emitOperation(tx, actor, requestId, kind, payload, result)
         // Avoid scanning unrelated modules while a user's transaction holds locks.
         // The existing worker still performs a full reconciliation every 30 seconds.
-        if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production"].includes(kind)) await evaluateStock(tx)
-        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
+        if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption"].includes(kind)) await evaluateStock(tx)
+        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "stay-checkout", "stay-receive", "stay-transfer"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })
