@@ -168,6 +168,10 @@ A instalação começa vazia e usa **https://localhost**, com certificado intern
 
 No Windows, siga o [guia de instalação no computador da pousada](docs/INSTALACAO_POUSADA.md), incluindo HTTPS na rede, credencial inicial, backup externo e recuperação. O menu `pousada-menu.bat` reúne preparação, inicialização, verificação e backup.
 
+## Origem da interface
+
+O v0 foi utilizado para criar o primeiro front-end, essencialmente a tela de mapa dos quartos da pousada. Essa interface inicial foi o ponto de partida visual, não uma geração do ERP completo. O projeto evoluiu com módulos de gestão, regras de negócio, API, persistência com Prisma/PostgreSQL, autenticação, permissões, auditoria, testes e ferramentas de operação, descritos neste repositório.
+
 ## Tecnologias e organização
 
 | Camada | Tecnologias |
@@ -240,7 +244,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 
 Para contribuir, abra uma issue descrevendo o problema ou a proposta e envie um pull request com contexto e validação da alteração. Mantenha os exemplos fictícios e documente mudanças de configuração ou persistência.
 
-O repositório ainda não possui um arquivo de licença. A disponibilização pública do código não substitui a definição de uma licença de uso e distribuição.
+Este projeto é distribuído sob a [licença MIT](LICENSE). As dependências e demais materiais de terceiros mantêm suas respectivas licenças.
 
 ### Notificações
 
