@@ -164,6 +164,7 @@ model GuestProfile {
 }
 
 model Reservation {
+  groupId String?
   guestCount Int?
   payerId String?
   payer Customer? @relation(fields: [payerId], references: [id])
@@ -392,6 +393,8 @@ model CashClose {
 }
 
 model AccountReceivable {
+  sourceStayId String? @unique
+  paidValue Decimal @default(0) @db.Decimal(12, 2)
   recordVersion Int @default(0)
   id            String   @id
   customerId    String
@@ -412,6 +415,88 @@ model AccountReceivable {
   @@index([customerId])
   @@index([dueDate, status])
   @@map("accounts_receivable")
+}
+
+model Stay {
+  id String @id
+  reservationId String @unique
+  payerId String?
+  guestName String
+  guestCount Int?
+  roomId Int
+  checkIn DateTime
+  checkOut DateTime
+  status String @default("active")
+  lodgingValue Decimal @db.Decimal(12, 2)
+  nightlyPrices Json?
+  recordVersion Int @default(0)
+  endedAt DateTime?
+  groupId String?
+  occupants StayOccupant[]
+  allocations StayAllocation[]
+  charges StayCharge[]
+  adjustments StayAdjustment[]
+  payments StayPayment[]
+  @@index([roomId, status])
+  @@index([payerId, status])
+  @@map("stays")
+}
+
+model StayOccupant {
+  id String @id
+  stayId String
+  customerId String?
+  name String
+  stay Stay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  @@map("stay_occupants")
+}
+
+model StayAllocation {
+  id String @id
+  stayId String
+  roomId Int
+  start DateTime
+  end DateTime
+  reason String?
+  stay Stay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  @@index([roomId, start, end])
+  @@map("stay_allocations")
+}
+
+model StayCharge {
+  id String @id
+  stayId String
+  productId String?
+  label String
+  unitPrice Decimal @db.Decimal(12, 2)
+  quantity Int
+  status String @default("active")
+  reason String?
+  createdAt DateTime @default(now())
+  stay Stay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  @@map("stay_charges")
+}
+
+model StayPayment {
+  id String @id
+  stayId String
+  value Decimal @db.Decimal(12, 2)
+  bucket String
+  method String
+  transactionId String? @unique
+  createdAt DateTime @default(now())
+  stay Stay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  @@map("stay_payments")
+}
+
+model StayAdjustment {
+  id String @id
+  stayId String
+  value Decimal @db.Decimal(12, 2)
+  reason String
+  createdAt DateTime @default(now())
+  stay Stay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  @@map("stay_adjustments")
 }
 
 model AccountReceivableInstallment {

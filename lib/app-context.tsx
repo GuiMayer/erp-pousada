@@ -29,6 +29,8 @@ import {
   calculateRoomTimeline,
 } from "./store"
 import type { LodgingTariff } from "./lodging-pricing"
+import type { Stay } from "./stays"
+import { reconcileDemoStays, demoStayOperation, demoConsumptionCorrection } from "./data/demo-stays"
 import { normalizeDocument } from "./utils/cpf-cnpj-validator"
 import { isPousadaPermission } from "./pousada-scope"
 import { syncDemoContact, saveDemoSupplier } from "./data/demo-contacts"
@@ -73,6 +75,7 @@ function assertReservationAvailability(
 }
 
 type AppContextType = {
+  stays: Stay[]
   lodgingTariffs: LodgingTariff[]
   saveTariff: (tariff: LodgingTariff, editing?: boolean) => Promise<void>
   rooms: Room[]
@@ -218,6 +221,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [rooms, setRooms] = useState<Room[]>([])
+  const [stays, setStays] = useState<Stay[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [guests, setGuests] = useState<GuestProfile[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -260,6 +264,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const generation = ++loadGeneration.current
     const loadingUser = accessKey
     try {
+      if (getDataConfig().adapter === "demo-localStorage") await reconcileDemoStays(dataStore)
+      const staysData = can("stays.read") ? await dataStore.stays.getAll() : []
       const [
         tariffsData, roomsData, reservationsData, guestsData, expensesData, transactionsData,
         auditLogData, categoriesData, cashClosesData, consumptionsData,
@@ -306,6 +312,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ])
 
       if (loadingUser !== currentUser.current || generation !== loadGeneration.current) return
+      setStays(staysData)
       if (tariffsData !== null) setLodgingTariffs(tariffsData)
       if (roomsData !== null) setRooms(roomsData)
       if (reservationsData !== null) setReservations(reservationsData)
@@ -352,16 +359,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const operationId = requestId ?? pendingOperationIds.current.get(key) ?? crypto.randomUUID()
     if (pendingOperationIds.current.size > 100) pendingOperationIds.current.clear()
     pendingOperationIds.current.set(key, operationId)
-    const result = await submitOperation<T>(kind, payload, operationId)
+    if (getDataConfig().adapter === "demo-localStorage" && kind === "receive-account") {
+      const input = payload as { accountReceivableId: string; value?: number; paymentMethod: string; accountId?: string }
+      const title = (await dataStore.accountsReceivable.getAll()).find(t => t.id === input.accountReceivableId)
+      const stay = (await dataStore.stays.getAll()).find(s => s.id === title?.sourceStayId)
+      if (title && stay) {
+        const result = await demoStayOperation(dataStore, kind, { ...input, stayId: stay.id, recordVersion: stay.recordVersion, value: input.value ?? title.value - (title.paidValue ?? 0) }, can, user?.username ?? "demo")
+        pendingOperationIds.current.delete(key)
+        await loadAllData()
+        return result as T
+      }
+    }
+    const result = getDataConfig().adapter === "demo-localStorage" && kind.startsWith("stay-")
+      ? await demoStayOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T
+      : await submitOperation<T>(kind, payload, operationId)
     window.dispatchEvent(new Event("erp:operation-completed"))
     pendingOperationIds.current.delete(key)
     await loadAllData().catch(() => {})
     return result
-  }, [loadAllData])
+  }, [loadAllData, dataStore, can, user?.username])
 
   useEffect(() => {
     pendingOperationIds.current.clear()
     setIsInitialized(false)
+    setStays([])
     setLodgingTariffs([]); setRooms([]); setReservations([]); setGuests([]); setExpenses([]); setTransactions([]); setAuditLog([]); setCategories([]); setCashCloses([]); setConsumptions([]); setPOSProducts([]); setPOSSales([]); setProductCategories([]); setRestaurantTables([]); setRestaurantOrders([]); setStockItems([]); setStockMovements([]); setRecipes([]); setProductions([]); setEmployees([]); setEmployeeConsumptions([]); setUsers([]); setUserSessions([]); setSuppliers([]); setCustomers([]); setAccountsReceivable([]); setBankAccounts([]); setBankTransfers([]); setCostCenters([]); setBudgets([]); setRecurringTransactions([])
     setSystemSettings(initialSystemSettings); setDataError(null)
   }, [accessKey])
@@ -463,8 +484,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!room) {
       return []
     }
-    return calculateRoomTimeline(room, reservations, startDate, days)
-  }, [rooms, reservations])
+    const allocated = stays.flatMap(stay => stay.allocations.filter(a => a.roomId === roomId && a.end > a.start).map(a => ({ ...reservations.find(r => r.id === stay.reservationId)!, id: a.id, roomId, checkIn: a.start, checkOut: a.end, status: stay.status === "active" ? "checkin" as const : "checkout" as const })))
+    return calculateRoomTimeline(room, [...reservations.filter(r => !stays.some(s => s.reservationId === r.id)), ...allocated], startDate, days)
+  }, [rooms, reservations, stays])
 
   // Reservation methods
   const addReservation = useCallback(async (r: Reservation) => {
@@ -477,6 +499,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const created = await dataStore.reservations.create(r)
     setReservations(await dataStore.reservations.getAll())
+    await reconcileDemoStays(dataStore)
+    setStays(await dataStore.stays.getAll())
 
     // Audit trail
     await addAuditEntry({
@@ -518,6 +542,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await dataStore.reservations.update(id, data)
     const after = await dataStore.reservations.getById(id)
     setReservations(await dataStore.reservations.getAll())
+    await reconcileDemoStays(dataStore)
+    setStays(await dataStore.stays.getAll())
 
     // Audit trail
     if (before && after) {
@@ -723,6 +749,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Consumption methods
   const addConsumptionItem = useCallback(async (roomId: number, item: ConsumptionItem) => {
     if (getDataConfig().adapter === "database") { await runOperation("add-consumption", { roomId, item }); return }
+    await reconcileDemoStays(dataStore)
     const existing = await dataStore.consumptions.getByRoomId(roomId)
     if (existing) {
       await dataStore.consumptions.update(existing.roomId, {
@@ -732,10 +759,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await dataStore.consumptions.create({ roomId, items: [item] })
     }
     setConsumptions(await dataStore.consumptions.getAll())
+    await reconcileDemoStays(dataStore)
+    setStays(await dataStore.stays.getAll())
   }, [runOperation, dataStore])
 
   const removeConsumptionItem = useCallback(async (roomId: number, itemId: string) => {
     if (getDataConfig().adapter === "database") { await runOperation("remove-consumption", { roomId, itemId }); return }
+    await demoConsumptionCorrection(dataStore, roomId, itemId)
+    setStays(await dataStore.stays.getAll())
     const existing = await dataStore.consumptions.getByRoomId(roomId)
     if (existing) {
       await dataStore.consumptions.update(roomId, {
@@ -750,8 +781,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [consumptions])
 
   const clearConsumption = useCallback(async (roomId: number) => {
+    if (getDataConfig().adapter === "demo-localStorage") await demoConsumptionCorrection(dataStore, roomId)
     await dataStore.consumptions.clearByRoomId(roomId)
     setConsumptions(await dataStore.consumptions.getAll())
+    setStays(await dataStore.stays.getAll())
   }, [dataStore])
 
   // POS Product methods
@@ -1213,7 +1246,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
-    saveTariff, lodgingTariffs, runOperation, dataError, rooms, reservations, guests, expenses, transactions,
+    stays, saveTariff, lodgingTariffs, runOperation, dataError, rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
     productCategories, restaurantTables, restaurantOrders,
@@ -1246,7 +1279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addRecurringTransaction, updateRecurringTransaction, removeRecurringTransaction,
     exportData, importData, clearAllData, getStorageUsage,
   }), [
-    saveTariff, lodgingTariffs, runOperation, dataError, rooms, reservations, guests, expenses, transactions,
+    stays, saveTariff, lodgingTariffs, runOperation, dataError, rooms, reservations, guests, expenses, transactions,
     auditLog, categories, cashCloses, consumptions, discountCeiling,
     posProducts, posSales,
     productCategories, restaurantTables, restaurantOrders,

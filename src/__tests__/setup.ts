@@ -60,6 +60,7 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
     suppliers: [] as any[],
     customers: [] as any[],
     lodgingTariffs: [] as any[],
+    stays: [] as any[],
     accountsReceivable: [] as any[],
     bankAccounts: [] as any[], bankTransfers: [] as any[], costCenters: [] as any[], budgets: [] as any[], recurringTransactions: [] as any[],
   }
@@ -67,6 +68,7 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
   // Export reset function for beforeEach hook
   resetSharedState = () => {
     sharedState.lodgingTariffs.length = 0
+    sharedState.stays.length = 0
     // Clear and repopulate arrays instead of reassigning to preserve references
     sharedState.rooms.length = 0
     sharedState.rooms.push(...store.initialRooms)
@@ -206,7 +208,7 @@ vi.mock('../../lib/hooks/useDataStore', async () => {
         users: createMockRepo('users'),
         userSessions: createMockRepo('userSessions'),
         suppliers: createMockRepo('suppliers'),
-        customers: createMockRepo('customers'), lodgingTariffs: createMockRepo('lodgingTariffs'),
+        customers: createMockRepo('customers'), lodgingTariffs: createMockRepo('lodgingTariffs'), stays: createMockRepo('stays'),
         accountsReceivable: createMockRepo('accountsReceivable'),
         bankAccounts: createMockRepo('bankAccounts'), bankTransfers: createMockRepo('bankTransfers'), costCenters: createMockRepo('costCenters'), budgets: createMockRepo('budgets'), recurringTransactions: createMockRepo('recurringTransactions'),
         systemSettings: {

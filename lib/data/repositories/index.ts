@@ -1,4 +1,5 @@
 import { LodgingTariffRepository } from "./lodging-tariff-repository"
+import { StayRepository } from "./stay-repository"
 /**
  * Data Repositories Index
  *
@@ -70,6 +71,7 @@ export function createDataStore(config?: Partial<DataStoreConfig>) {
 
   // Create all repositories
   const lodgingTariffs = new LodgingTariffRepository(adapter, userId)
+  const stays = new StayRepository(adapter, userId)
   const rooms = new RoomRepository(adapter, userId)
   const reservations = new ReservationRepository(adapter, userId)
   const guests = new GuestRepository(adapter, userId)
@@ -105,7 +107,7 @@ export function createDataStore(config?: Partial<DataStoreConfig>) {
   // Return DataStore interface
   return {
     // Core entities
-    lodgingTariffs, rooms,
+    stays, lodgingTariffs, rooms,
     reservations,
     guests,
     expenses,

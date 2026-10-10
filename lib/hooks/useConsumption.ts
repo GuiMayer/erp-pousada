@@ -26,12 +26,13 @@ export function useConsumption({ roomId, items, addItem, removeItem }: UseConsum
     })
   }, [roomId, addItem])
 
-  const addCatalogItem = useCallback(async (label: string, unitPrice: number) => {
+  const addCatalogItem = useCallback(async (label: string, unitPrice: number, productId?: string) => {
     await addItem(roomId, {
       id: generateConsumptionItemId(),
       label,
       unitPrice,
       quantity: 1,
+      ...(productId ? { productId } : {}),
     })
   }, [roomId, addItem])
 

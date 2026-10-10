@@ -27,6 +27,10 @@ const catalog: Record<string, { type: NotificationType; title: string; module: s
   "reservation-discount": { type: "reservation", title: "Desconto aplicado à reserva", module: "reservas", permissions: ["reservations.read"] },
   "check-in": { type: "check-in", title: "Check-in confirmado", module: "mapa", permissions: ["rooms.read", "reservations.read"] },
   "check-out": { type: "check-out", title: "Check-out confirmado", module: "mapa", permissions: ["rooms.read", "reservations.read"] },
+  "stay-checkout": { type: "check-out", title: "Saída de hospedagem confirmada", module: "reservas", permissions: ["stays.read"] },
+  "stay-transfer": { type: "reservation", title: "Troca de quarto confirmada", module: "reservas", permissions: ["stays.read"] },
+  "stay-occupants": { type: "reservation", title: "Ocupantes atualizados", module: "reservas", permissions: ["stays.read"] },
+  "stay-receive": { type: "payment", title: "Recebimento de hospedagem confirmado", module: "reservas", permissions: ["stays.read", "transactions.read"] },
   "release-room": { type: "cleaning", title: "Quarto liberado", module: "mapa", permissions: ["rooms.read"] },
   "pay-reservation": { type: "payment", title: "Pagamento de hospedagem confirmado", module: "reservas", permissions: ["reservations.read", "transactions.read"] },
   "add-consumption": { type: "payment", title: "Consumo registrado", module: "mapa", permissions: ["rooms.read", "consumptions.read"] },
@@ -50,7 +54,7 @@ export async function emitOperation(tx: Tx, actor: Actor, requestId: string, kin
   if (!entry) return
   const input = payload as Record<string, unknown>
   const output = result as Record<string, unknown> | null
-  const reference = String(input.roomId ?? input.reservationId ?? input.orderId ?? input.saleId ?? output?.id ?? "")
+  const reference = String(input.stayId ?? input.roomId ?? input.reservationId ?? input.orderId ?? input.saleId ?? output?.id ?? "")
   await emitEvent(tx, { dedupKey: `${actor.id}:${requestId}:${kind}`, type: entry.type, title: entry.title,
     message: "Operação concluída. Consulte os detalhes no módulo correspondente.", module: entry.module,
     requiredPermissions: entry.permissions, reference, actorId: actor.id })

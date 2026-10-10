@@ -1,3 +1,5 @@
+import { ensureStay, roomStay, stayOperation, finishStay, receiveStay, mapStay } from "./stays"
+import { stayBalance } from "@/lib/stays"
 import { ensureGuest } from "./contacts"
 import { agreedPrice } from "./lodging-pricing"
 import { requireVersion, retryDelay } from "./concurrency"
@@ -63,13 +65,17 @@ async function assertRoomPeriod(tx: Tx, room: { id: number; status: string; bloc
 export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload: unknown): Promise<unknown> {
   setLogOperation(kind)
   demandOperation(actor, kind)
+  const stayResult = await stayOperation(tx, actor, kind, payload)
+  if (stayResult !== undefined) return stayResult
   const financeResult = await financeOperation(tx, actor, kind, payload)
   if (financeResult !== undefined) return financeResult
   if (kind === "reserve-group") {
     const input = z.object({ payerId: id.optional(), rooms: z.array(z.object({ guestCount: z.number().int().min(1).max(100).optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, totalValue: money })).min(1).max(50), cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date() }).strict().parse(payload)
     if (new Set(input.rooms.map(room => room.roomId)).size !== input.rooms.length) throw new HttpError(400, "Quartos repetidos")
     const results = []
+    const groupId = randomUUID()
     for (const room of input.rooms) results.push(await applyOperation(tx, actor, "reserve", { ...room, payerId: input.payerId, cpf: input.cpf, guestName: input.guestName, checkIn: input.checkIn, checkOut: input.checkOut }))
+    for (const result of results) await tx.reservation.update({ where: { id: (result as { id: string }).id }, data: { groupId } })
     return results
   }
   if (kind === "sale") {
@@ -145,6 +151,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (checkOut <= checkIn) throw new HttpError(400, "Período inválido")
     const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
     if (room.status !== "disponivel") throw new HttpError(409, "Quarto indisponível")
+    if (await tx.roomConsumption.count({ where: { roomId: room.id } })) throw new HttpError(409, "Consumo legado sem hospedagem: regularize antes de ocupar o quarto")
     await assertRoomPeriod(tx, room, checkIn, checkOut)
     const guest = await ensureGuest(tx, actor, input.cpf, input.guestName)
     const existing = await tx.reservation.findFirst({ where: { roomId: room.id, cpf: guest.cpf, status: "confirmada", checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
@@ -160,6 +167,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     await tx.guestProfile.update({ where: { cpf: guest.cpf }, data: { totalStays: { increment: 1 } } })
     await tx.room.update({ where: { id: room.id }, data: { status: "ocupado", guest: guest.name, guestCpf: guest.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
     const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin" } }) : await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, guestName: guest.name, cpf: guest.cpf, guestCount: input.guestCount, payerId, nightlyPrices, priceExceptionReason: input.priceExceptionReason, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut), status: "checkin", totalValue: input.totalValue, originalValue: input.totalValue } })
+    await ensureStay(tx, reservation.id)
     await audit(tx, actor, "Check-in realizado", `${room.number}: ${reservation.id}`, { entityType: "reservations", entityId: reservation.id, operation: "update" })
     return collectionMapper("reservations").toApp(reservation)
   }
@@ -171,28 +179,28 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.room.update({ where: { id: roomId }, data: { status: "disponivel" } })
     } else {
       if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
-      const stay = await tx.reservation.findFirstOrThrow({ where: { roomId, status: "checkin" } })
-      if (stay.paidValue.lt(stay.totalValue)) throw new HttpError(409, "Quite a hospedagem antes do check-out")
-      const consumption = await tx.roomConsumption.findUnique({ where: { roomId }, include: { items: true } })
-      if (consumption?.items.some(i => i.unitPrice.mul(i.quantity).gt(0))) throw new HttpError(409, "Quite o consumo antes do check-out")
-      await tx.roomConsumption.deleteMany({ where: { roomId } })
-      await tx.room.update({ where: { id: roomId }, data: { status: "limpeza", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
-      await tx.reservation.updateMany({ where: { roomId, status: "checkin" }, data: { status: "checkout" } })
+      const stay = await roomStay(tx, roomId)
+      if (stayBalance(mapStay(stay)).balance > 0) throw new HttpError(409, "Quite a hospedagem e o consumo antes do check-out ou utilize saída empresarial autorizada")
+      await finishStay(tx, actor, stay)
     }
     await audit(tx, actor, kind === "release-room" ? "Quarto liberado" : "Check-out realizado", room.number, { entityType: "rooms", entityId: String(room.id), operation: "update" })
     return { success: true }
   }
   if (kind === "add-consumption") {
-    const { roomId, item } = z.object({ roomId: integer, item: z.object({ id, label: text, unitPrice: money, quantity: integer }) }).strict().parse(payload)
+    const { roomId, item } = z.object({ roomId: integer, item: z.object({ id, productId: id.optional(), label: text, unitPrice: money, quantity: integer }) }).strict().parse(payload)
     const room = await tx.room.findUniqueOrThrow({ where: { id: roomId } })
     if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
-    const product = await tx.pOSProduct.findFirst({ where: { name: item.label } })
+    const product = item.productId ? await tx.pOSProduct.findUnique({ where: { id: item.productId } }) : await tx.pOSProduct.findFirst({ where: { name: item.label } })
+    if (item.productId && !product) throw new HttpError(404, "Produto não encontrado")
     if (product && !product.active) throw new HttpError(409, "Bebida inativa; selecione um produto disponível")
     if (product) item.unitPrice = Number(product.price)
     else demand(actor, "consumptions.custom")
     if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number}`)
+    const stay = await roomStay(tx, roomId)
+    await tx.stayCharge.create({ data: { id: item.id, stayId: stay.id, productId: product?.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity } })
+    await tx.stay.update({ where: { id: stay.id }, data: { recordVersion: { increment: 1 } } })
     const consumption = await tx.roomConsumption.upsert({ where: { roomId }, create: { id: randomUUID(), roomId }, update: {} })
-    await tx.roomConsumptionItem.create({ data: { ...item, consumptionId: consumption.id } })
+    await tx.roomConsumptionItem.create({ data: { id: item.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity, consumptionId: consumption.id } })
     await audit(tx, actor, "Consumo lançado", `${room.number}: ${item.label}`, { entityType: "consumptions", entityId: item.id, operation: "create" })
     return { success: true }
   }
@@ -201,6 +209,12 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const input = z.object({ roomId: integer, itemId: id }).strict().parse(payload)
     const item = await tx.roomConsumptionItem.findUniqueOrThrow({ where: { id: input.itemId }, include: { consumption: true } })
     if (item.consumption.roomId !== input.roomId) throw new HttpError(404, "Item não encontrado")
+    const stay = await roomStay(tx, input.roomId)
+    const charge = stay.charges.find(c => c.id === input.itemId && c.status === "active")
+    if (!charge) throw new HttpError(409, "Consumo legado precisa de revisão")
+    if (stayBalance(mapStay(stay)).consumptionBalance < Number(charge.unitPrice) * charge.quantity) throw new HttpError(409, "Item possui recebimento; concilie antes de corrigir")
+    await tx.stayCharge.update({ where: { id: charge.id }, data: { status: "corrected", reason: "Correção autorizada; sem retorno físico" } })
+    await tx.stay.update({ where: { id: stay.id }, data: { recordVersion: { increment: 1 } } })
     // Removal is a billing correction; consumed goods are not returned to inventory.
     await tx.roomConsumptionItem.delete({ where: { id: item.id } })
     await audit(tx, actor, "Consumo removido", `${input.roomId}: ${item.label}`, { entityType: "consumptions", entityId: item.id, operation: "delete" })
@@ -208,11 +222,10 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   }
   if (kind === "pay-consumption") {
     const { roomId, paymentMethod, accountId } = z.object({ roomId: integer, ...paymentFields }).strict().parse(payload)
-    const consumption = await tx.roomConsumption.findUniqueOrThrow({ where: { roomId }, include: { items: true } })
-    const total = consumption.items.reduce((sum, item) => sum.plus(item.unitPrice.mul(item.quantity)), decimal(0))
-    if (total.lte(0)) throw new HttpError(409, "Consumo já quitado")
-    await ledger(tx, actor, `Consumo quarto ${roomId}`, total, "receita", paymentMethod, accountId)
-    await tx.roomConsumption.delete({ where: { id: consumption.id } })
+    const stay = await roomStay(tx, roomId)
+    const total = stayBalance(mapStay(stay)).consumptionBalance
+    if (total <= 0) throw new HttpError(409, "Consumo já quitado")
+    await receiveStay(tx, actor, stay, total, paymentMethod, accountId, "consumption")
     await audit(tx, actor, "Consumo quitado", String(roomId), { entityType: "consumptions", entityId: String(roomId), operation: "action" })
     return { success: true }
   }
@@ -297,6 +310,11 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const original = reservation.originalValue ?? reservation.totalValue
     await checkDiscount(tx, actor, Number(original.minus(reservation.totalValue.minus(amount)).div(original).mul(100)))
     await tx.reservation.update({ where: { id: reservation.id }, data: { totalValue: reservation.totalValue.minus(amount) } })
+    const stay = await tx.stay.findUnique({ where: { reservationId: reservation.id } })
+    if (stay && amount.gt(0)) {
+      await tx.stayAdjustment.create({ data: { id: randomUUID(), stayId: stay.id, value: amount.negated(), reason: `Desconto autorizado por ${actor.username}` } })
+      await tx.stay.update({ where: { id: stay.id }, data: { lodgingValue: reservation.totalValue.minus(amount), recordVersion: { increment: 1 } } })
+    }
     await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`, { entityType: "reservations", entityId: reservation.id, operation: "update", metadata: { amount: Number(amount) } })
     return { success: true }
   }
@@ -432,8 +450,8 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         await emitOperation(tx, actor, requestId, kind, payload, result)
         // Avoid scanning unrelated modules while a user's transaction holds locks.
         // The existing worker still performs a full reconciliation every 30 seconds.
-        if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production"].includes(kind)) await evaluateStock(tx)
-        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
+        if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption"].includes(kind)) await evaluateStock(tx)
+        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "stay-checkout", "stay-receive", "stay-transfer"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })

@@ -1,4 +1,5 @@
 import { prepareContact, syncContact } from "../contacts"
+import { ensureStay } from "../stays"
 import { validateTariff } from "../lodging-pricing"
 import { requireVersion, removed } from "../concurrency"
 import { recordAudit } from "../audit"
@@ -26,7 +27,7 @@ type Model = {
   delete(args: unknown): Promise<Row>
   deleteMany(args?: unknown): Promise<unknown>
 }
-export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
+export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockMovements", "productions", "employeeConsumptions", "stays", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
 export const portableKeys = collectionOrder.filter(key => !["users", "userSessions", "auditLog", "systemSettings"].includes(key))
 // Company rows must exist before importing their people, regardless of export order.
 const orderedItems = (key: string, items: unknown[]) => key === "customers" ? [...items].sort((a, b) => Number(!!(a as Row).companyId) - Number(!!(b as Row).companyId)) : items
@@ -80,7 +81,7 @@ export function validateMappedData(modelName: string, data: Row, partial = false
     if (field.type === "Boolean" && typeof value !== "boolean") throw new HttpError(400, `Booleano inválido: ${name}`)
     if (["Int", "Float", "Decimal"].includes(field.type)) {
       if (typeof value !== "number" || !Number.isFinite(value) || (field.type === "Int" && !Number.isSafeInteger(value))) throw new HttpError(400, `Número inválido: ${name}`)
-      if (value < 0 && !["currentBalance", "initialBalance", "expectedValue", "divergence", "variance", "variancePercent"].includes(name)) throw new HttpError(400, `Valor negativo: ${name}`)
+      if (value < 0 && !(modelName === "stayAdjustment" && name === "value") && !["currentBalance", "initialBalance", "expectedValue", "divergence", "variance", "variancePercent"].includes(name)) throw new HttpError(400, `Valor negativo: ${name}`)
     }
     if (field.type === "DateTime" && (!(value instanceof Date) || !Number.isFinite(value.getTime()))) throw new HttpError(400, `Data inválida: ${name}`)
     result[name] = value
@@ -116,6 +117,7 @@ async function mappedInput(key: string, item: unknown, partial: boolean, actor?:
     if (!partial) { input.createdBy = actor?.username ?? "setup"; input.createdAt = new Date().toISOString() }
   }
   if (actor) {
+    if (key === "accountsReceivable" && (input.sourceStayId !== undefined || input.paidValue !== undefined)) throw new HttpError(403, "Origem e recebimento são gerenciados pela hospedagem")
     if (key === "guests" && input.creditValue !== undefined) throw new HttpError(403, "Crédito é gerenciado pelo financeiro")
     if (["expenses", "accountsReceivable"].includes(key)) {
       if (input.paid === true || input.status === "pago" || input.paymentDate !== undefined) throw new HttpError(403, "Utilize o fluxo de pagamento")
@@ -219,6 +221,7 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   const input = await mappedInput(key, data, true, actor)
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
+  if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (actor) await prepareContact(client, key, input, snapshot, actor)
   if (key === "lodgingTariffs") await validateTariff(client, input, snapshot)
   await validateCatalog(client, key, input, snapshot)
@@ -275,6 +278,7 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
   if (actor && snapshot.recordVersion !== undefined) requireVersion(expectedVersion, snapshot.recordVersion)
+  if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (key === "rooms" && await client.lodgingTariff.count({ where: { roomId: Number(id) } })) throw new HttpError(409, "Quarto possui tarifas vinculadas; preserve o cadastro e seu histórico")
   if (["customers", "suppliers", "guests", "posProducts", "lodgingTariffs"].includes(key)) {
     const updated = await model(key, client).update({ where: itemWhere(key, id), data: { active: false, recordVersion: { increment: 1 } } })
@@ -323,6 +327,8 @@ export async function importAllCollections(json: string, actor?: Actor) {
   let data: Row
   try { data = JSON.parse(json) } catch { throw new HttpError(400, "JSON inválido") }
   if (!data || Array.isArray(data) || typeof data !== "object" || Object.keys(data).some(k => !portableKeys.includes(k))) throw new HttpError(400, "Importação contém coleções não permitidas")
+  const legacySnapshot = !Object.hasOwn(data, "stays")
+  if (legacySnapshot) data.stays = []
   // Partial replacement would break references: portable imports are full snapshots.
   if (portableKeys.some(k => !Array.isArray(data[k]))) throw new HttpError(400, "Envie uma exportação completa")
   await prisma.$transaction(async tx => {
@@ -331,6 +337,10 @@ export async function importAllCollections(json: string, actor?: Actor) {
     if (actor) demand(actor, "data.restore")
     for (const key of [...portableKeys].reverse()) await model(key, tx).deleteMany()
     for (const key of portableKeys) for (const item of orderedItems(key, data[key] as unknown[])) await createCollectionItem(key, item, undefined, tx)
+    if (legacySnapshot) {
+      const reservations = await tx.reservation.findMany({ where: { status: { in: ["checkin", "checkout"] } } })
+      for (const reservation of reservations) await ensureStay(tx, reservation.id, true)
+    }
     await resetSessionsAfterRestore(tx, actor, "Dados restaurados")
   }, { timeout: 60000, isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }
