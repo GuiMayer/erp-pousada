@@ -1,5 +1,8 @@
 "use client"
 import { CustomerCombobox } from "./customer-combobox"
+import { suggestPayerId } from "@/lib/customer-company"
+import type { Customer } from "@/lib/store"
+import { normalizeDocument } from "@/lib/utils/cpf-cnpj-validator"
 import { LodgingQuotePreview, previewLodging } from "./lodging-quote-preview"
 import { PermissionGate } from "@/components/permission-gate"
 
@@ -128,6 +131,7 @@ export function ReservationsTab() {
   // New reservation form state
   const [guestId, setGuestId] = useState("")
   const [payerId, setPayerId] = useState("")
+  const [payerTouched, setPayerTouched] = useState(false)
   const [occupancies, setOccupancies] = useState<Record<string, number>>({})
   const [exception, setException] = useState(false)
   const [exceptionReason, setExceptionReason] = useState("")
@@ -152,12 +156,16 @@ export function ReservationsTab() {
     return !reservations.some(reservation => reservation.roomId === room.id && ["confirmada", "checkin"].includes(reservation.status) && reservation.checkIn < newCheckOut && reservation.checkOut > newCheckIn)
   })
 
-  function handleCpfSearch(cpf: string) {
+  function handleCpfSearch(cpf: string, selected?: Customer) {
     setNewCpf(cpf)
+    const guest = findGuest(cpf)
+    const document = normalizeDocument(cpf)
+    const person = selected ?? (document ? customers.find(c => normalizeDocument(c.cpfCnpj) === document || c.id === guest?.customerId) : undefined)
+    setGuestId(person?.id ?? "")
+    if (!payerTouched) setPayerId(suggestPayerId(person, customers))
     if (cpf.length >= 11) {
-      const guest = findGuest(cpf)
       setFoundGuest(guest)
-      if (guest) setNewGuestName(guest.name)
+      if (person || guest) setNewGuestName(person?.name ?? guest!.name)
     } else {
       setFoundGuest(undefined)
     }
@@ -183,7 +191,7 @@ export function ReservationsTab() {
         const room = rooms.find(item => item.id === roomId)!
         await addReservation({ id: crypto.randomUUID(), roomId, roomNumber: room.number, cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut, ...pricing, payerId: payerId || guestId, status: "confirmada" })
       }
-      setGuestId(""); setPayerId(""); setException(false); setExceptionReason(""); setOccupancies({}); setNewCpf(""); setFoundGuest(undefined); setNewGuestName(""); setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal(""); setShowNewForm(false)
+      setGuestId(""); setPayerId(""); setPayerTouched(false); setException(false); setExceptionReason(""); setOccupancies({}); setNewCpf(""); setFoundGuest(undefined); setNewGuestName(""); setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal(""); setShowNewForm(false)
     } catch (error) { setOperationError(error instanceof Error ? error.message : "Reserva não concluída") }
     finally { setPending(false) }
   }
@@ -295,7 +303,10 @@ export function ReservationsTab() {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2"><div><Label>Buscar ou cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={id => { const person = customers.find(c => c.id === id); if (person) { setGuestId(id); handleCpfSearch(person.cpfCnpj); setNewGuestName(person.name) } }} /></div><div><Label>Quem paga a hospedagem?</Label><CustomerCombobox value={payerId || guestId} onChange={id => setPayerId(id)} /><p className="mt-1 text-xs text-muted-foreground">Pode ser o próprio hóspede ou uma empresa. Cobrança empresarial após a saída entra na sprint 2.</p></div></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><Label>Buscar ou cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={(id, _name, selected) => { const person = selected ?? customers.find(c => c.id === id); if (person) handleCpfSearch(person.cpfCnpj, person) }} /></div>
+              <div><Label>Quem paga a hospedagem?</Label><CustomerCombobox value={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} /><p className="mt-1 text-xs text-muted-foreground">A empresa vinculada é sugerida; você pode escolher outro pagador. Cobrança empresarial após a saída entra na sprint 2.</p></div>
+            </div>
             {/* Room selection with group support */}
             <div className="flex flex-col gap-3">
               <Label>Quartos</Label>

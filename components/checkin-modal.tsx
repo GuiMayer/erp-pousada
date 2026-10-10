@@ -1,5 +1,7 @@
 "use client"
 import { CustomerCombobox } from "./customer-combobox"
+import { suggestPayerId } from "@/lib/customer-company"
+import { normalizeDocument } from "@/lib/utils/cpf-cnpj-validator"
 import { LodgingQuotePreview, previewLodging } from "./lodging-quote-preview"
 import { getDataConfig } from "@/lib/data/config"
 import { useToast } from "@/hooks/use-toast"
@@ -35,6 +37,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
 
   const [guestId, setGuestId] = useState('')
   const [payerId, setPayerId] = useState('')
+  const [payerTouched, setPayerTouched] = useState(false)
   const [guestCount, setGuestCount] = useState(1)
   const [exception, setException] = useState(false)
   const [reason, setReason] = useState('')
@@ -67,6 +70,14 @@ export function CheckinModal({ room, open, onClose }: Props) {
       setCpf(person?.cpfCnpj ?? expected.cpf); setGuestName(person?.name ?? expected.guestName); setCheckOut(expected.checkOut); setTotalValue(String(expected.totalValue))
     }
   }, [open, reservations, room.id, setCpf, setGuestName, customers, guests])
+  useEffect(() => {
+    if (!open || expectedId) return
+    const guest = findGuest(cpf)
+    const document = normalizeDocument(cpf)
+    const person = document ? customers.find(c => normalizeDocument(c.cpfCnpj) === document || c.id === guest?.customerId) : undefined
+    setGuestId(person?.id ?? "")
+    if (!payerTouched) setPayerId(suggestPayerId(person, customers))
+  }, [open, expectedId, cpf, customers, findGuest, payerTouched])
   const { toast } = useToast()
   const [pending, setPending] = useState(false)
   async function handleConfirm() {
@@ -127,7 +138,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
     )
 
     // Reset and close
-    setExpectedId(null); setGuestId(""); setPayerId(""); setGuestCount(1); setException(false); setReason("")
+    setExpectedId(null); setGuestId(""); setPayerId(""); setPayerTouched(false); setGuestCount(1); setException(false); setReason("")
     resetGuest()
     setCheckOut("")
     setTotalValue("")
@@ -137,7 +148,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
   }
 
   function handleClose() {
-    setExpectedId(null); setGuestId(""); setPayerId(""); setGuestCount(1); setException(false); setReason("")
+    setExpectedId(null); setGuestId(""); setPayerId(""); setPayerTouched(false); setGuestCount(1); setException(false); setReason("")
     resetGuest()
     setCheckOut("")
     setTotalValue("")
@@ -158,7 +169,10 @@ export function CheckinModal({ room, open, onClose }: Props) {
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">
-          {!expectedId && <div className="grid gap-3 sm:grid-cols-2"><div><Label>Buscar / cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={id => { const person = customers.find(c => c.id === id); if(person) { setGuestId(id); setCpf(person.cpfCnpj); setGuestName(person.name) } }} /></div><div><Label>Pagador</Label><CustomerCombobox value={payerId || guestId} onChange={id => setPayerId(id)} /></div></div>}
+          {!expectedId && <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>Buscar / cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={(id, _name, selected) => { const person = selected ?? customers.find(c => c.id === id); if(person) { setGuestId(id); setCpf(person.cpfCnpj); setGuestName(person.name); if (!payerTouched) setPayerId(suggestPayerId(person, customers)) } }} /></div>
+            <div><Label>Pagador</Label><CustomerCombobox value={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} /><p className="mt-1 text-xs text-muted-foreground">Empresa vinculada sugerida; você pode alterar quem paga.</p></div>
+          </div>}
           <div><Label htmlFor="checkin-count">Quantidade de pessoas</Label><Input id="checkin-count" type="number" min={1} max={room.capacity ?? 100} disabled={!!expectedId} value={guestCount} onChange={e => setGuestCount(Number(e.target.value))} /></div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">

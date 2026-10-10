@@ -1,5 +1,6 @@
 "use client"
 import { CnpjLookup } from "./cnpj-lookup"
+import { CompanyAffiliationField, CompanyMembers } from "./company-affiliation"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { useState } from "react"
@@ -42,6 +43,7 @@ import {
 } from "@/lib/utils/cpf-cnpj-validator"
 
 interface CustomerFormData {
+  companyId: string | null
   roles: NonNullable<Customer["roles"]>
   recordVersion?: number
   name: string
@@ -60,6 +62,7 @@ interface CustomerFormData {
 }
 
 const emptyForm: CustomerFormData = {
+  companyId: null,
   roles: ["payer"],
   name: "",
   cpfCnpj: "",
@@ -130,6 +133,7 @@ export default function CustomersManagement() {
     if (customer) {
       setEditingId(customer.id)
       setFormData({
+        companyId: customer.companyId ?? null,
         recordVersion: customer.recordVersion,
         roles: customer.roles ?? ["payer"], name: customer.name,
         cpfCnpj: customer.cpfCnpj,
@@ -381,7 +385,7 @@ export default function CustomersManagement() {
                         <Building2 className="h-4 w-4 text-purple-500" />
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{customer.name}<div className="mt-1 flex flex-wrap gap-1">{(customer.roles ?? ["payer"]).map(role => <Badge key={role} variant="secondary">{{ guest: "Hóspede", payer: "Pagador", supplier: "Fornecedor" }[role]}</Badge>)}</div></TableCell>
+                    <TableCell className="font-medium">{customer.name}<div className="mt-1 flex flex-wrap gap-1">{(customer.roles ?? ["payer"]).map(role => <Badge key={role} variant="secondary">{{ guest: "Hóspede", payer: "Pagador", supplier: "Fornecedor" }[role]}</Badge>)}</div>{customer.companyId && <p className="mt-1 text-xs font-normal text-muted-foreground">Empresa: {customers.find(c => c.id === customer.companyId)?.name ?? "Cadastro indisponível"}</p>}</TableCell>
                     <TableCell className="font-mono text-sm">
                       {formatCpfCnpj(customer.cpfCnpj)}
                     </TableCell>
@@ -400,7 +404,8 @@ export default function CustomersManagement() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleOpenHistory(customer)}
-                          title="Ver histórico"
+                          title="Ver ficha e histórico"
+                          aria-label={`Ver ficha de ${customer.name}`}
                         >
                           <History className="h-4 w-4" />
                         </Button>
@@ -409,6 +414,7 @@ export default function CustomersManagement() {
                           size="sm"
                           onClick={() => handleOpenDialog(customer)}
                           title="Editar"
+                          aria-label={`Editar ${customer.name}`}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button></PermissionGate>
@@ -526,6 +532,9 @@ export default function CustomersManagement() {
               </div>
             </div>
 
+            {(getDocumentType(formData.cpfCnpj) !== "CNPJ" || formData.companyId) && <CompanyAffiliationField people={customers} document={formData.cpfCnpj} value={formData.companyId} onChange={companyId => setFormData({ ...formData, companyId })} />}
+            {editingId && getDocumentType(formData.cpfCnpj) === "CNPJ" && <CompanyMembers companyId={editingId} people={customers} />}
+
             {/* Address */}
             <div className="grid gap-4">
               <div className="grid gap-2">
@@ -625,8 +634,8 @@ export default function CustomersManagement() {
       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Histórico do Cliente</DialogTitle>
-            <DialogDescription>
+            <DialogTitle>Ficha e histórico</DialogTitle>
+            <DialogDescription asChild><div>
               {selectedCustomer && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -642,11 +651,13 @@ export default function CustomersManagement() {
                   </div>
                 </div>
               )}
-            </DialogDescription>
+            </div></DialogDescription>
           </DialogHeader>
 
           {selectedCustomer && (
             <div className="space-y-4">
+              {getDocumentType(selectedCustomer.cpfCnpj) === "CNPJ" && <CompanyMembers companyId={selectedCustomer.id} people={customers} />}
+              {selectedCustomer.companyId && <p className="text-sm">Empresa vinculada: {customers.find(c => c.id === selectedCustomer.companyId)?.name ?? "Cadastro indisponível"}</p>}
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-lg border p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">

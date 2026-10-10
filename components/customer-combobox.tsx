@@ -1,5 +1,6 @@
 "use client"
 import { CnpjLookup } from "./cnpj-lookup"
+import { CompanyAffiliationField } from "./company-affiliation"
 
 import { useState, useMemo } from "react"
 import { useApp } from "@/lib/app-context"
@@ -40,7 +41,7 @@ import {
 interface CustomerComboboxProps {
   purpose?: "guest" | "payer" | "supplier"
   value?: string
-  onChange: (customerId: string, customerName: string) => void
+  onChange: (customerId: string, customerName: string, customer?: Customer) => void
   allowCreate?: boolean
   filterActive?: boolean
   className?: string
@@ -48,6 +49,7 @@ interface CustomerComboboxProps {
 }
 
 interface QuickCustomerFormData {
+  companyId?: string | null
   name: string
   cpfCnpj: string
   email: string
@@ -59,6 +61,7 @@ interface QuickCustomerFormData {
 }
 
 const emptyQuickForm: QuickCustomerFormData = {
+  companyId: null,
   name: "",
   cpfCnpj: "",
   email: "",
@@ -147,6 +150,7 @@ export function CustomerCombobox({
     setPending(true)
     try {
       const customerData = {
+        companyId: quickFormData.companyId ?? null,
         roles: purpose === "guest" ? ["guest", "payer"] : [purpose], name: quickFormData.name,
         cpfCnpj: normalizeDocument(quickFormData.cpfCnpj),
         email: quickFormData.email || undefined,
@@ -159,7 +163,7 @@ export function CustomerCombobox({
       }
 
       const newCustomer = await addCustomer(customerData as Customer)
-      onChange(newCustomer.id, newCustomer.name)
+      onChange(newCustomer.id, newCustomer.name, newCustomer)
       handleCloseDialog()
     } catch (error) {
       console.error("Error creating customer:", error)
@@ -228,7 +232,7 @@ export function CustomerCombobox({
                       key={customer.id}
                       value={customer.id}
                       onSelect={() => {
-                        onChange(customer.id, customer.name)
+                        onChange(customer.id, customer.name, customer)
                         setOpen(false)
                         setSearchTerm("")
                       }}
@@ -313,6 +317,8 @@ export function CustomerCombobox({
                 <p className="text-sm text-red-500">{formErrors.cpfCnpj}</p>
               )}
             </div>
+
+            {(getDocumentType(quickFormData.cpfCnpj) !== "CNPJ" || quickFormData.companyId) && <CompanyAffiliationField people={customers} document={quickFormData.cpfCnpj} value={quickFormData.companyId} id="quick-company" onChange={companyId => setQuickFormData({ ...quickFormData, companyId })} />}
 
             <div className="grid gap-2">
               <Label htmlFor="quick-email">Email</Label>
