@@ -4,6 +4,8 @@ Este ambiente permite ao cliente experimentar a aplicação real com dados fict�
 
 ## Iniciar
 
+Pelo painel da área de trabalho **ERP Pousada - Servidores**, clique em **Iniciar** na coluna **Demonstração**. Esse botão atualiza a imagem com o código local e restaura os exemplos, usando o cache do Docker quando possível. Aguarde **Pronto** e clique em **Abrir site** ou **Copiar link**. Para carregar uma atualização do próprio painel, feche e abra o atalho novamente.
+
 Na pasta do projeto, com o motor Docker funcionando:
 
 ```powershell
@@ -14,7 +16,7 @@ No primeiro início, a imagem é construída e as contas exclusivas são geradas
 
 Há quartos disponíveis, ocupados, em limpeza e manutenção; reservas e hóspedes fictícios; vendas de bebidas e receitas financeiras; produtos, estoque e alertas; despesas e contas a receber. Datas são ajustadas ao dia de início. As operações usam as regras e permissões normais do sistema. O aviso de demonstração aparece no topo da página.
 
-A Sprint 1 acrescenta pessoas/empresas com papéis compartilhados, fornecedor, capacidades, tarifas por pessoa/noite e reservas com empresa pagadora. O [roteiro do protótipo](ENTREGA_SPRINT_1.md) mostra os exemplos. Ao atualizar o código, execute o início **sem `-NoBuild`** para reconstruir a imagem antes de apresentar.
+A Sprint 1 acrescenta pessoas/empresas com papéis compartilhados, fornecedor, capacidades, tarifas por pessoa/noite e reservas com empresa pagadora. O [roteiro do protótipo](ENTREGA_SPRINT_1.md) mostra os exemplos. O painel atualiza a imagem automaticamente; se preferir o comando, execute o início **sem `-NoBuild`** ao atualizar o código.
 
 Para repetir a apresentação usando a imagem já construída, sem recompilar:
 

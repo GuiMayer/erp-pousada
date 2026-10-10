@@ -17,6 +17,7 @@ $script:OperationDeadline=[DateTime]::UtcNow.AddMinutes(8)
 function Invoke-Docker([string[]]$Arguments) {
   $timeout=30
   if($Arguments -contains 'up' -or $Arguments -contains 'down' -or $Arguments -contains 'stop' -or $Arguments -contains 'exec'){$timeout=180}
+  if($Arguments -contains 'build'){$timeout=420}
   $invocation=Get-ErpDockerInvocation $Arguments
   return Invoke-PanelCommand $invocation.Executable $invocation.Arguments $timeout
 }
@@ -120,9 +121,8 @@ try {
         $result.Message = 'Sistema normal encerrado. Dados preservados.'
       }
       'StartDemo' {
-        Set-PanelStage 'Restaurando exemplos e iniciando o banco de demonstração…'
-        Invoke-Docker @('image','inspect','erp-pousada:demo','--format','{{.Id}}') | Out-Null
-        & (Join-Path $PSScriptRoot 'start-demo.ps1') -NoBuild
+        Set-PanelStage 'Atualizando a versão e restaurando os exemplos da demonstração…'
+        & (Join-Path $PSScriptRoot 'start-demo.ps1')
         $url=Connect-PanelApp $true
         $result.Message = "Demonstração pronta pelo Tailscale: $url"
       }

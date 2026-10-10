@@ -36,7 +36,7 @@ foreach($label in @($normalTitle,$demoTitle)) { $label.Font=New-Object Drawing.F
 $script:normalStatus=Label 'Verificando servidor…' 24 157 380 46
 $script:demoStatus=Label 'Verificando servidor…' 436 157 380 46
 $null=Label 'Dados permanentes. Encerrar preserva o banco e os backups.' 24 209 380 42
-$null=Label 'Dados fictícios. Iniciar restaura os exemplos; encerrar descarta as alterações.' 436 209 380 42
+$null=Label 'Iniciar atualiza a versão e restaura os exemplos; encerrar descarta as alterações.' 436 209 380 42
 function Run-Worker([string]$Action,[string]$BackupDirectory='') {
   if ($script:job) {
     if ($script:job.Action -eq 'Status' -and $Action -ne 'Status') {
@@ -64,7 +64,7 @@ function Run-Worker([string]$Action,[string]$BackupDirectory='') {
       foreach($button in $script:buttons) { $button.Enabled=$false }
       $script:message.Text=switch($Action) {
         'StartNormal' {'Iniciando sistema normal e preparando o endereço pelo Tailscale…'}
-        'StartDemo' {'Restaurando exemplos e iniciando a demonstração pelo Tailscale…'}
+        'StartDemo' {'Atualizando a demonstração, restaurando exemplos e preparando o Tailscale…'}
         'StopNormal' {'Encerrando o sistema normal. Os dados serão preservados…'}
         'StopDemo' {'Encerrando a demonstração e descartando as alterações…'}
         'BackupNow' {'Gerando backup e verificando as cópias…'}

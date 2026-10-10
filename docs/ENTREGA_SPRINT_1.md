@@ -6,7 +6,9 @@ A implementação entrega pessoas e empresas, fornecedores, bebidas, capacidade 
 
 ## Como apresentar o protótipo
 
-Na pasta do projeto, com o motor Docker funcionando, execute:
+Abra o atalho **ERP Pousada - Servidores** na área de trabalho e clique em **Iniciar** na coluna **Demonstração**. O painel atualiza a imagem, restaura os exemplos e prepara o link privado pelo Tailscale; aguarde o estado **Pronto** e use **Abrir site** ou **Copiar link**. Após atualizar o código do painel, feche e abra o painel novamente para carregar a mudança.
+
+Como alternativa, na pasta do projeto, com o motor Docker funcionando, execute:
 
 ```powershell
 .\scripts\start-demo.ps1

@@ -53,9 +53,11 @@ Invoke-DemoDocker @composeArguments down --volumes --remove-orphans
 if ($LASTEXITCODE -ne 0) { throw 'Não foi possível encerrar a demonstração anterior.' }
 try {
   if (!$NoBuild) {
+    if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Atualizando a versão da demonstração. A primeira construção pode levar alguns minutos…'}
     Invoke-DemoDocker @composeArguments build app-demo
     if ($LASTEXITCODE -ne 0) { throw 'Falha ao construir a imagem de demonstração.' }
   }
+  if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Versão pronta. Iniciando o banco e restaurando os exemplos…'}
   Invoke-DemoDocker @composeArguments up -d
   if ($LASTEXITCODE -ne 0) { throw 'Falha ao iniciar a demonstração.' }
   if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Exemplos restaurados. Aguardando o aplicativo de demonstração responder…'}
