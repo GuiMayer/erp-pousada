@@ -1,12 +1,14 @@
 # Requisitos e modelagem funcional — ERP Pousada
 
-**Versão:** 0.7 · **Data:** 10/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1 implementada.
+**Versão:** 0.8 · **Data:** 10/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1/S2 implementadas, aceite do cliente pendente.
 
 Requisitos e entidades abaixo descrevem o alvo; não significam implementação de todas as sprints. A revisão 0.5 restaurou o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. A revisão 0.6 registra a [entrega da Sprint 1](ENTREGA_SPRINT_1.md), preservando integralmente os requisitos das etapas seguintes.
 
 A revisão 0.7 acrescenta o vínculo opcional da pessoa física à empresa atual, a lista de funcionários na ficha da empresa e sua sugestão como pagadora em novas hospedagens. Mantém todos os requisitos anteriores. Esse cadastro não representa o quadro de funcionários da pousada nem um módulo de recursos humanos.
 
 O [plano das sprints](SPRINTS_POUSADA.md) define a sequência de entrega. A [auditoria de escopo](REVISAO_ESCOPO_MODELAGEM.md) dá uma destinação explícita a cada requisito numerado da versão completa. A [versão 0.3 integral](../modules/abandoned/restaurant/docs/REQUISITOS_POUSADA_E_RESTAURANTE.md) permanece preservada como referência histórica, sem autoridade sobre o escopo ativo.
+
+A revisão 0.8 registra a [entrega da Sprint 2](ENTREGA_SPRINT_2.md): hospedagem independente do quarto, ocupantes, histórico de acomodações, extrato preservado e título empresarial com recebimento posterior. Não remove requisitos, cenários ou decisões das sprints seguintes.
 
 ## 1. Contexto, confirmações e limites
 
@@ -591,3 +593,5 @@ A pesquisa de referências externas da versão 0.3 continua preservada em sua se
 | 0.4 | Retirada do restaurante; resumo ativo excessivamente curto. |
 | 0.5 | Restaura detalhes da pousada, mantém IDs e backlog, adiciona auditoria de todos os requisitos e sprints com dependências/aceitação. |
 | 0.6 | Registra S1 implementada, compatibilidade das identidades legadas, capacidades, tarifas e preços acordados; preserva requisitos e cenários das etapas seguintes. |
+| 0.7 | Vínculo opcional pessoa/empresa e sugestão de pagador, sem alterar operações anteriores. |
+| 0.8 | Registra S2 e suas relações de origem, migração e roteiro de aceite; preserva integralmente o backlog S3–S5. |

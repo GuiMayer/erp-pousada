@@ -63,7 +63,7 @@ As visualizações de vendas, produtos e estoque complementam a análise. Os dad
 | Aba | O que permite fazer |
 | --- | --- |
 | **Cadastros** | Gerenciar pessoas, empresas e seus funcionários vinculados, fornecedores, bebidas, capacidade dos quartos e tarifas por pessoa e ocupação. |
-| **Reservas** | Cadastrar e editar hospedagens, verificar conflitos de período, acompanhar cancelamentos, no-show e histórico de hóspedes. |
+| **Reservas** | Cadastrar reservas e acompanhar hospedagens, ocupantes, troca de quarto, extrato e cobranças empresariais após a saída; conferir cancelamentos e no-show. |
 | **Estoque** | Consultar produtos da pousada, registrar entradas, saídas, ajustes e perdas, e acompanhar alertas de estoque mínimo. |
 | **Configurações** | Ajustar os dados do estabelecimento e as preferências da interface. |
 | **Administração** | Gerenciar o cadastro de usuários. |
@@ -221,6 +221,7 @@ src/__tests__/         Testes automatizados
 
 - **Acesso:** no modo `database`, o servidor autentica usuários, protege as APIs e aplica permissões. Senhas são gravadas com bcrypt e não são devolvidas ao navegador. Sessões usam cookies HttpOnly e expiram em oito horas. Mudanças de perfil e permissões valem nas próximas requisições; desativação e troca de senha encerram as sessões. Há perfis por setor, exceções individuais e aprovações vinculadas a uma única operação.
 - **Operações:** vendas, estornos, check-in, reservas, consumo, estoque e pagamentos de despesas usam operações no servidor. Vendas recalculam valores e aplicam os limites de desconto. Operações possuem transação e identificação de reenvios.
+- **Hospedagem e cobrança:** a conta acompanha a estadia durante a troca de quarto e depois da saída. O extrato conserva bebidas e recebimentos. Saída empresarial autorizada gera cobrança pelo saldo, com vencimento e recebimento parcial posterior; próxima ocupação começa sem a dívida anterior. Veja o [roteiro da Sprint 2](docs/ENTREGA_SPRINT_2.md).
 - **Dados iniciais:** a produção começa vazia. O seed cria somente o primeiro supervisor e as configurações, exigindo credenciais definidas pelo responsável. A demonstração permanece separada.
 - **Verificação:** tipos e build não ignoram erros. O projeto inclui lint, testes unitários, integração com PostgreSQL e uma rotina de CI no GitHub.
 
@@ -229,6 +230,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 ## Documentação
 
 - [Requisitos da pousada e sequência revisada das sprints](docs/REQUISITOS_E_MODELAGEM_ERP.md)
+- [Sprint 2: hospedagem, cobrança empresarial e roteiro de teste](docs/ENTREGA_SPRINT_2.md)
 - [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
 - [Regras de hospedagem, cancelamentos, pagamentos e estoque](docs/REGRAS_NEGOCIO.md)
 - [Permissões individuais, perfis e aprovações por operação](docs/PERMISSOES.md)
