@@ -11,6 +11,8 @@ Esta versão opera com PostgreSQL 16 e Docker Desktop. O banco começa vazio, co
 
 Para desenvolvimento com dados separados, use `compose.dev.yml` e `.env.local` com `NEXT_PUBLIC_DATA_ADAPTER=database`. Os scripts Prisma agora leem os arquivos de ambiente na mesma ordem do Next.js. Variáveis explicitamente definidas no processo mantêm prioridade. O build Docker sempre seleciona `database`, independentemente da demonstração local.
 
+`npm run dev` ou `pnpm dev` inicia o desenvolvimento em `http://localhost:3002`, somente neste computador. Essa porta evita sobreposição com os serviços do painel nas portas 3000 e 3001. Se definir `APP_URL` no ambiente de desenvolvimento, use `http://localhost:3002`; os arquivos `.env.docker.local` e `.env.demo.local` continuam independentes e conservam seus links Tailscale.
+
 ## Painel de servidores no Windows
 
 Depois de preparar a instalação, execute `powershell -NoProfile -File scripts/install-server-panel.ps1`. Será criado o atalho **ERP Pousada - Servidores** na Área de Trabalho. O Docker Desktop precisa estar em execução.

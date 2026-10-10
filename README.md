@@ -97,7 +97,9 @@ Inicie a aplicação:
 pnpm dev
 ```
 
-Acesse **[http://localhost:3000](http://localhost:3000)**. O modo de demonstração não exige um servidor PostgreSQL.
+Acesse **[http://localhost:3002](http://localhost:3002)**. O modo de demonstração não exige um servidor PostgreSQL. `npm run dev` também executa esse comando. O desenvolvimento usa a porta 3002, reservando 3000 para o sistema normal e 3001 para a demonstração Docker do painel. Ele escuta somente neste computador.
+
+Se `.env` ou `.env.local` definir `APP_URL`, use `APP_URL=http://localhost:3002` no desenvolvimento. Os servidores Docker configurados para Tailscale devem ser acessados pelo link do painel; abrir suas portas locais pode causar **Origem não autorizada**. Reinicie o desenvolvimento após alterar variáveis de ambiente.
 
 ### Acesso de demonstração
 
