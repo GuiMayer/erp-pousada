@@ -55,8 +55,8 @@ export async function receiveTargets(tx:Tx,actor:Actor,targets:ReceivableTarget[
       if(part) {const paidValue=part.paidValue.plus(value);await tx.accountReceivableInstallment.update({where:{id:part.id},data:{paidValue,status:paidValue.equals(part.value)?'pago':'pendente',paymentDate:paidValue.equals(part.value)?new Date():null}})}
       const paidValue=account.paidValue.plus(value)
       await tx.accountReceivable.update({where:{id:account.id},data:{paidValue,status:paidValue.equals(account.value)?'pago':'pendente',paymentDate:paidValue.equals(account.value)?new Date():null}})
-      await allocate(tx,applied,part?'receivable-installment':'receivable',part?.id??account.id)
     }
+    await allocate(tx,applied,part?'receivable-installment':'receivable',part?.id??account.id)
     await recordAudit(tx,actor,'Título recebido',account.id,{entityType:'accountsReceivable',entityId:account.id,operation:'update',metadata:{value,installmentId:part?.id,batchId:result.batchId}})
   }
   return {success:true,change:result.change,batchId:result.batchId}

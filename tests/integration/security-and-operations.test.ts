@@ -234,7 +234,7 @@ describe("Regressões das regras de negócio", () => {
     expect((await prisma.room.findUniqueOrThrow({ where: { id: room.id } })).status).toBe("disponivel")
   })
   it("aceita desconto exatamente no teto sem erro de ponto flutuante", async () => {
-    const sale = salePayload(); sale.sale.items[0].discount = 5; sale.sale.total = 9.5
+    const sale = salePayload(); sale.sale.items[0].discount = 5; sale.sale.total = 9.5; sale.sale.amountPaid = 9.5
     await operate("sale", sale, operator())
     expect(Number((await prisma.pOSSale.findUniqueOrThrow({ where: { id: sale.sale.id } })).total)).toBe(9.5)
   })

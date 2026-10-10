@@ -223,9 +223,8 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   const input = await mappedInput(key, data, true, actor)
   const snapshot = await model(key, client).findUnique({ where: itemWhere(key, id) })
   if (!snapshot) throw removed()
-  if(actor&&['expenses','accountsReceivable'].includes(key)&&Number(snapshot.paidValue??0)>0)throw new HttpError(409,'Título com pagamento parcial não pode ser alterado')
   if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
-  if(actor&&['expenses','accountsReceivable'].includes(key)&&Number(snapshot.paidValue??0)>0)throw new HttpError(409,'T�tulo com pagamento parcial n�o pode ser alterado')
+  if (actor && ['expenses', 'accountsReceivable'].includes(key) && Number(snapshot.paidValue ?? 0) > 0) throw new HttpError(409, 'Título com pagamento parcial não pode ser alterado')
   if (actor) await prepareContact(client, key, input, snapshot, actor)
   if (key === "lodgingTariffs") await validateTariff(client, input, snapshot)
   await validateCatalog(client, key, input, snapshot)
@@ -286,7 +285,6 @@ export async function deleteCollectionItem(key: string, id: string, client: Clie
     if(Number(title?.paidValue??0)>0)throw new HttpError(409,'Título com recebimento/pagamento não pode ser excluído')
   }
   if (actor && snapshot.recordVersion !== undefined) requireVersion(expectedVersion, snapshot.recordVersion)
-  if(actor&&['expenses','accountsReceivable'].includes(key)&&Number(snapshot.paidValue??0)>0)throw new HttpError(409,'Título com pagamento parcial não pode ser alterado')
   if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
   if (key === "rooms" && await client.lodgingTariff.count({ where: { roomId: Number(id) } })) throw new HttpError(409, "Quarto possui tarifas vinculadas; preserve o cadastro e seu histórico")
   if (["customers", "suppliers", "guests", "posProducts", "lodgingTariffs"].includes(key)) {

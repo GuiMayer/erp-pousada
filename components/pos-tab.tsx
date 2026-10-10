@@ -5,6 +5,7 @@ import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
 import { getDataConfig } from "@/lib/data/config"
 
+import { POSCheckoutDialog,type CheckoutSelection } from "./pos-checkout-dialog"
 import { BankAccountPicker } from "./payment-fields"
 import { useState, useMemo, useRef, useEffect } from "react"
 import { pousadaProducts } from "@/lib/pousada-scope"
@@ -275,6 +276,12 @@ export function POSTab() {
     setPaymentOpen(true)
   }
 
+  async function finalizeIntegratedSale(selection:CheckoutSelection) {
+    operationRef.current??=crypto.randomUUID()
+    const saved=await runOperation<POSSale>('sale',{sale:{id:operationRef.current,items:cart,total,amountPaid:selection.stayId?0:selection.payments!.reduce((v,p)=>v+p.value,0),customer:customer||undefined,...selection},globalDiscount},operationRef.current)
+    setLastSale(saved);setPaymentOpen(false);setReceiptOpen(true);setCart([]);setGlobalDiscount(0);setCustomer('');operationRef.current=null
+    toast({title:selection.stayId?'Entrega lançada na hospedagem':'Venda recebida',description:saved.id})
+  }
   function calculateChange(): number {
     if (paymentMethod !== "dinheiro") return 0
     const paid = Number(amountPaid) || 0
@@ -404,7 +411,7 @@ export function POSTab() {
       toast({ title: "Aprovação recusada", variant: "destructive" }); return
     }
     if (getDataConfig().adapter === "database") {
-      try { await runOperation("cancel-sale", { saleId: saleToCancel.id, reason: cancelReason, returnToStock }); setSaleToCancel(null); setCancelReason(""); setSupervisorPassword("") }
+      try { await runOperation("cancel-sale", { saleId: saleToCancel.id, reason: cancelReason, returnToStock }); setCancelOpen(false); setSaleToCancel(null); setCancelReason(""); setSupervisorPassword("") }
       catch (error) { toast({ title: "Estorno não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
       return
     }
@@ -813,7 +820,7 @@ export function POSTab() {
       </div>
 
       {/* Payment Modal */}
-      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+      {getDataConfig().adapter==='database' ? (paymentOpen&&<POSCheckoutDialog total={total} onClose={()=>setPaymentOpen(false)} onConfirm={finalizeIntegratedSale}/>) : <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent mobileTask protectDraft className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -916,7 +923,7 @@ export function POSTab() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {/* Receipt Modal */}
       <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
