@@ -9,6 +9,14 @@ vi.mock('@/lib/app-context',()=>({useApp:()=>state}))
 vi.mock('@/lib/auth-context',()=>({useAuth:()=>({can:()=>true})}))
 describe('Controles de pagamento da Sprint 3',()=>{
   beforeEach(()=>{state.runOperation.mockReset();state.stays[0].recordVersion=3})
+  it('trocar crédito pessoal por pagamento misto não envia ordem de consumir crédito',async()=>{
+    const confirm=vi.fn()
+    render(<PaymentDialog open title="Receber" maximum={100} mixedEnabled allowCredit onClose={vi.fn()} onConfirm={confirm}/> )
+    fireEvent.change(screen.getByLabelText('Forma de pagamento'),{target:{value:'credito_hospede'}})
+    fireEvent.click(screen.getByText('Dividir entre formas de pagamento'))
+    fireEvent.click(screen.getByText('Confirmar pagamento'))
+    await waitFor(()=>expect(confirm).toHaveBeenCalledWith('pix',undefined,100,[{method:'pix',value:100,accountId:undefined}]))
+  })
   it('divide PIX 40 e dinheiro 70, mostra troco 10 e preserva o formulário em falha',async()=>{
     const confirm=vi.fn().mockRejectedValue(Error('Conflito: revise o saldo'))
     render(<PaymentDialog open title="Receber" maximum={100} mixedEnabled onClose={vi.fn()} onConfirm={confirm}/> )

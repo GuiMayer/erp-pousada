@@ -58,7 +58,7 @@ export function StaySheet({ stay, onClose }: { stay: Stay; onClose: ()=>void }) 
       {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
       <Button variant="outline" disabled={pending} onClick={onClose}>Fechar extrato</Button>
     </div>
-    <PaymentDialog mixedEnabled={getDataConfig().adapter==="database"} open={payment} onClose={()=>setPayment(false)} title="Receber hospedagem" maximum={balance.balance} allowCredit={active&&stay.payerId===stay.occupants[0]?.customerId} onConfirm={async(paymentMethod,accountId,value,payments)=>{await runOperation('stay-receive',{...target,paymentMethod,accountId,value,payments});onClose()}}/>
+    <PaymentDialog key={stay.id} mixedEnabled={getDataConfig().adapter==="database"} open={payment} onClose={()=>setPayment(false)} title="Receber hospedagem" maximum={balance.balance} allowCredit={active&&stay.payerId===stay.occupants[0]?.customerId} onConfirm={async(paymentMethod,accountId,value,payments)=>{await runOperation('stay-receive',{...target,paymentMethod,accountId,value,payments});onClose()}}/>
   </SheetContent></Sheet>
 }
 export function StaysList() {

@@ -1,6 +1,10 @@
 import { describe,it,expect } from 'vitest'
 import {distributePayment,cashIncoming} from '@/lib/payments'
 describe('Liquidação e troco',()=>{
+  it('cortesia não cria valor recebido e linha zero não quita dívida positiva',()=>{
+    expect(distributePayment(0,[{method:'dinheiro',value:0}])).toMatchObject({offered:0,change:0,lines:[{applied:0}]})
+    expect(()=>distributePayment(10,[{method:'dinheiro',value:0}])).toThrow()
+  })
   it('AP-15: PIX 40 + dinheiro 70 aplica 100 e devolve 10 do dinheiro',()=>{
     const result=distributePayment(100,[{method:'pix',value:40,accountId:'bank'},{method:'dinheiro',value:70}])
     expect(result.change).toBe(10);expect(result.lines.map(p=>p.applied)).toEqual([40,60])

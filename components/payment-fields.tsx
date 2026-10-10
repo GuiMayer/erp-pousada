@@ -39,7 +39,7 @@ export function PaymentDialog({ open, onClose, title, maximum, allowCredit, mixe
     if (maximum !== undefined && (!Number.isFinite(value) || value <= 0 || value > maximum)) { setError("Informe um valor positivo até o saldo pendente"); return }
     if(mixed)try{distributePayment(value,lines)}catch(e){setError((e as Error).message);return}
     setPending(true); setError("")
-    try { await onConfirm(method, ['dinheiro', 'credito_hospede'].includes(method) ? undefined : accountId || undefined, value,mixed?lines:undefined); setAmount("");setMixed(false);setLines([]); onClose() }
+    try { await onConfirm(mixed ? 'pix' : method, ['dinheiro', 'credito_hospede'].includes(method) ? undefined : accountId || undefined, value,mixed?lines:undefined); setAmount("");setMixed(false);setLines([]); onClose() }
     catch (failure) { setError(failure instanceof Error ? failure.message : "Pagamento não concluído") }
     finally { setPending(false) }
   }
