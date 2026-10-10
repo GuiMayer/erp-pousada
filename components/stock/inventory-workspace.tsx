@@ -453,7 +453,7 @@ export function InventoryPanels({
             <div className="space-y-4 rounded-lg border p-4">
               <h4 className="font-medium">
                 Contagem aberta ·{" "}
-                {open.capturedAt.replace("T", " ").slice(0, 19)}
+                {new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Sao_Paulo"}).format(new Date(open.capturedAt))}
               </h4>
               <p className="text-sm">{open.reason}</p>
               <p className="text-sm font-medium">
