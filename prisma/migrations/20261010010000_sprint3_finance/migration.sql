@@ -13,5 +13,5 @@ CREATE TABLE payment_allocations (id text PRIMARY KEY,"transactionId" text NOT N
 CREATE INDEX payment_allocations_target ON payment_allocations("targetType","targetId");
 ALTER TABLE pos_sales ADD COLUMN "stayId" text REFERENCES stays(id) DEFERRABLE INITIALLY DEFERRED, ADD COLUMN payments jsonb;
 ALTER TABLE stay_charges ADD COLUMN "sourceSaleId" text REFERENCES pos_sales(id) DEFERRABLE INITIALLY DEFERRED, ADD COLUMN "lineTotal" numeric(12,2) CHECK("lineTotal">=0);
-DROP INDEX IF EXISTS "stay_payments_transactionId_key";
+ALTER TABLE stay_payments DROP CONSTRAINT IF EXISTS "stay_payments_transactionId_key";
 COMMIT;

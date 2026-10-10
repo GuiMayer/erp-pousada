@@ -225,6 +225,7 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
   if (!snapshot) throw removed()
   if(actor&&['expenses','accountsReceivable'].includes(key)&&Number(snapshot.paidValue??0)>0)throw new HttpError(409,'Título com pagamento parcial não pode ser alterado')
   if (actor && key === "accountsReceivable" && snapshot.sourceStayId) throw new HttpError(403, "Cobrança vinculada à hospedagem; utilize seu extrato")
+  if(actor&&['expenses','accountsReceivable'].includes(key)&&Number(snapshot.paidValue??0)>0)throw new HttpError(409,'T�tulo com pagamento parcial n�o pode ser alterado')
   if (actor) await prepareContact(client, key, input, snapshot, actor)
   if (key === "lodgingTariffs") await validateTariff(client, input, snapshot)
   await validateCatalog(client, key, input, snapshot)
