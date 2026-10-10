@@ -12,15 +12,15 @@ Aplicação web em português para organizar a rotina de pousadas: da reserva ao
 
 </div>
 
-O restaurante saiu do escopo ativo. Seu código e a modelagem anterior estão preservados em [`modules/abandoned/restaurant`](modules/abandoned/restaurant/README.md), sem entrada na interface.
-
 ## Visão geral
 
 O ERP Pousada reúne a recepção, a frente de caixa e o financeiro em uma interface compartilhada. Os módulos trabalham com quartos, hóspedes, produtos e lançamentos para acompanhar a operação do estabelecimento.
 
 O projeto está em desenvolvimento. Há um modo de demonstração sem banco e uma camada de persistência com PostgreSQL; consulte o [estado atual](#estado-atual) antes de planejar uma instalação operacional.
 
-A Sprint 1 acrescentou a aba **Cadastros**, com pessoas/empresas, fornecedores, bebidas, capacidades dos quartos e tarifas por pessoa/noite. Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md); cobrança empresarial após a saída, compras e lotes seguem nas próximas sprints.
+A aba **Cadastros** reúne pessoas e empresas, fornecedores, bebidas, capacidades dos quartos e tarifas por pessoa/noite conforme a quantidade de hóspedes. Pessoas podem ser vinculadas a uma empresa, cuja ficha mostra seus funcionários. Nas novas reservas e entradas, a empresa é sugerida como pagadora e pode ser substituída pelo operador; alterar o vínculo cadastral preserva as operações anteriores.
+
+Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md). Cobrança empresarial após a saída, compras integradas, lotes e validade de estoque seguem nas próximas sprints.
 
 ## Telas do sistema
 
@@ -62,6 +62,7 @@ As visualizações de vendas, produtos e estoque complementam a análise. Os dad
 
 | Aba | O que permite fazer |
 | --- | --- |
+| **Cadastros** | Gerenciar pessoas, empresas e seus funcionários vinculados, fornecedores, bebidas, capacidade dos quartos e tarifas por pessoa e ocupação. |
 | **Reservas** | Cadastrar e editar hospedagens, verificar conflitos de período, acompanhar cancelamentos, no-show e histórico de hóspedes. |
 | **Estoque** | Consultar produtos da pousada, registrar entradas, saídas, ajustes e perdas, e acompanhar alertas de estoque mínimo. |
 | **Configurações** | Ajustar os dados do estabelecimento e as preferências da interface. |
@@ -197,7 +198,6 @@ lib/
 prisma/                Schema e migrations
 scripts/               Migração de dados e manutenção do banco
 docs/                  Documentação técnica e capturas de tela
-modules/abandoned/     Módulos fora do escopo ativo
 src/__tests__/         Testes automatizados
 ```
 
@@ -229,7 +229,6 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 ## Documentação
 
 - [Requisitos da pousada e sequência revisada das sprints](docs/REQUISITOS_E_MODELAGEM_ERP.md)
-- [Código e modelagem do restaurante arquivado](modules/abandoned/restaurant/README.md)
 - [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
 - [Regras de hospedagem, cancelamentos, pagamentos e estoque](docs/REGRAS_NEGOCIO.md)
 - [Permissões individuais, perfis e aprovações por operação](docs/PERMISSOES.md)
