@@ -143,6 +143,10 @@ async function validateCatalog(client: Client, key: string, data: Row, current?:
     if (data.capacity !== null && await client.reservation.count({ where: { roomId: Number(current.id), status: { in: ["confirmada", "checkin"] }, guestCount: { gt: Number(data.capacity) }, checkOut: { gt: new Date(businessDay()) } } })) throw new HttpError(409, "Capacidade inferior à ocupação de reserva ativa")
   }
   if (key !== "posProducts") return
+  if(current&&await client.stockLot.count({where:{productId:String(current.id)}})) {
+    if(data.trackStock===false)throw new HttpError(409,"Bebida com histórico de lotes deve conservar o controle de estoque; desative a venda se necessário")
+    if(data.categoryId!==undefined&&(await client.productCategory.findUnique({where:{id:String(data.categoryId)}}))?.isRestaurant)throw new HttpError(409,"Bebida com lotes pertence ao estoque da pousada")
+  }
   if (data.name !== undefined && !String(data.name).trim()) throw new HttpError(400, "Informe o nome da bebida")
   if (data.price !== undefined && (Number(data.price) <= 0 || Math.abs(Number(data.price) * 100 - Math.round(Number(data.price) * 100)) > .00001)) throw new HttpError(400, "Preço deve ser positivo, com até duas casas decimais")
   if (data.unit !== undefined && !["un", "ml", "l"].includes(String(data.unit))) throw new HttpError(400, "Unidade inválida")

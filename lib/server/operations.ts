@@ -136,7 +136,11 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
         await ledger(tx,actor,`Estorno ${sale.id}`,original.value,'estorno',original.paymentMethod??undefined,original.accountId??undefined,{originType:'sale-refund',originId:sale.id,reversalOfId:original.id})
       }
     }
-    if (input.returnToStock) for (const item of sale.items) await moveStock(tx, item.productId, item.quantity, actor, `Estorno ${sale.id}`, true)
+    if (input.returnToStock) {
+      const quantities=new Map<string,number>()
+      for(const item of sale.items)quantities.set(item.productId,(quantities.get(item.productId)??0)+item.quantity)
+      for(const [productId,quantity] of quantities)await moveStock(tx,productId,quantity,actor,`Estorno ${sale.id}`,true)
+    }
     await tx.pOSSale.update({ where: { id: sale.id }, data: { status: 'cancelada', cancelReason: input.reason } })
     await audit(tx, actor, "Venda estornada", `${sale.id}: ${input.reason}`, { entityType: "posSales", entityId: sale.id, operation: "update", metadata: { reason: input.reason } })
     return { success: true }

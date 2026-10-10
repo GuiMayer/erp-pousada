@@ -635,4 +635,13 @@ describe("S4 — recebimentos, lotes e contagem por corte", () => {
       }),
     ).toBe(0);
   });
+  it('estorno físico agrupa linhas da mesma bebida e não duplica restituição',async()=>{
+    await op('purchase-receive',receipt());const input=sale(2),first=input.sale.items[0];input.sale.items=[{...first,quantity:1},{...first,id:randomUUID(),quantity:1}]
+    await op('sale',input);await op('cancel-sale',{saleId:input.sale.id,reason:'Duas unidades devolvidas intactas',returnToStock:true});expect(await physical()).toBe(24);expect(Number((await lot()).remainingValue)).toBe(120)
+  })
+  it('cadastro não desativa rastreabilidade de bebida com lote',async()=>{
+    await op('purchase-receive',receipt());const product=await prisma.pOSProduct.findUniqueOrThrow({where:{id:'s4-water'}})
+    await expect(updateCollectionItem('posProducts',product.id,{trackStock:false,recordVersion:product.recordVersion},actor)).rejects.toMatchObject({status:409})
+  })
+
 });
