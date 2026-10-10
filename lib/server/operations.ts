@@ -383,7 +383,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const input = z.object({ recipeId: id, plannedQuantity: z.number().positive().finite(), producedQuantity: z.number().positive().finite(), notes: z.string().max(2000).optional() }).strict().parse(payload)
     const recipe = await tx.recipe.findUniqueOrThrow({ where: { id: input.recipeId }, include: { ingredients: { include: { product: { include: { category: true } } } } } })
     if (!recipe.active || recipe.expectedYield.lte(0) || !recipe.ingredients.length || recipe.ingredients.some(item => item.quantity.lte(0))) throw new HttpError(409, "Receita inválida ou inativa")
-    if (recipe.ingredients.some(item => !item.product.category.isRestaurant)) throw new HttpError(409, "O módulo arquivado de restaurante não pode consumir o estoque da pousada")
+    if (recipe.ingredients.some(item => !item.product.category.isRestaurant) || await tx.stockLot.count({ where: { productId: { in: recipe.ingredients.map(item => item.productId) } } })) throw new HttpError(409, "O módulo arquivado de restaurante não pode consumir o estoque da pousada")
     const productionId = randomUUID(); let totalCost = decimal(0)
     for (const ingredient of [...recipe.ingredients].sort((a, b) => a.productId.localeCompare(b.productId))) {
       const stock = await tx.stockItem.findUniqueOrThrow({ where: { productId: ingredient.productId } })

@@ -642,12 +642,16 @@ describe("S4 — recebimentos, lotes e contagem por corte", () => {
   it('cadastro não desativa rastreabilidade de bebida com lote',async()=>{
     await op('purchase-receive',receipt());const product=await prisma.pOSProduct.findUniqueOrThrow({where:{id:'s4-water'}})
     await expect(updateCollectionItem('posProducts',product.id,{trackStock:false,recordVersion:product.recordVersion},actor)).rejects.toMatchObject({status:409})
+    const category=await prisma.productCategory.findUniqueOrThrow({where:{id:'s4-category'}})
+    await expect(updateCollectionItem('productCategories',category.id,{isRestaurant:true,recordVersion:category.recordVersion},actor)).rejects.toMatchObject({status:409})
   })
 
   it("produção arquivada não contorna os lotes da pousada", async () => {
     await op("purchase-receive", receipt());
     const recipeId = randomUUID();
     await prisma.recipe.create({ data: { id: recipeId, name: "Receita indevida", category: "teste", version: 1, expectedYield: 1, yieldUnit: "un", preparationTime: 1, instructions: "Teste", ingredients: { create: [{ id: randomUUID(), productId: "s4-water", productName: "Água", quantity: 1, unit: "un", cost: 5 }] } } });
+    await expect(op("production", { recipeId, plannedQuantity: 1, producedQuantity: 1 })).rejects.toMatchObject({ status: 409 });
+    await prisma.productCategory.update({ where: { id: "s4-category" }, data: { isRestaurant: true } });
     await expect(op("production", { recipeId, plannedQuantity: 1, producedQuantity: 1 })).rejects.toMatchObject({ status: 409 });
     expect(await physical()).toBe(24);
     expect(Number((await lot()).remainingValue)).toBe(120);

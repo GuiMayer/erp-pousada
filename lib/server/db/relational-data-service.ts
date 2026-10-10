@@ -142,6 +142,7 @@ async function validateCatalog(client: Client, key: string, data: Row, current?:
     if (data.capacity === null && current.capacity !== null) throw new HttpError(409, "Um quarto configurado deve conservar sua capacidade")
     if (data.capacity !== null && await client.reservation.count({ where: { roomId: Number(current.id), status: { in: ["confirmada", "checkin"] }, guestCount: { gt: Number(data.capacity) }, checkOut: { gt: new Date(businessDay()) } } })) throw new HttpError(409, "Capacidade inferior à ocupação de reserva ativa")
   }
+  if (key === "productCategories" && current && data.isRestaurant !== undefined && data.isRestaurant !== current.isRestaurant && await client.stockLot.count({ where: { product: { categoryId: String(current.id) } } })) throw new HttpError(409, "Categoria com lotes deve permanecer no estoque de origem")
   if (key !== "posProducts") return
   if(current&&await client.stockLot.count({where:{productId:String(current.id)}})) {
     if(data.trackStock===false)throw new HttpError(409,"Bebida com histórico de lotes deve conservar o controle de estoque; desative a venda se necessário")
