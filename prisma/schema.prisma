@@ -354,6 +354,9 @@ model Transaction {
   originType String?
   originId String?
   reversalOfId String? @unique
+  reversalOf Transaction? @relation("TransactionReversal", fields: [reversalOfId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reversedBy Transaction? @relation("TransactionReversal")
+  stayPayments StayPayment[]
   checkedAt DateTime?
   checkedBy String?
   checkNote String?
@@ -391,8 +394,8 @@ model PaymentAllocation {
   targetType String
   targetId String
   value Decimal @db.Decimal(12,2)
-  transaction Transaction @relation(fields:[transactionId], references:[id], onDelete:Cascade)
-  @@index([targetType,targetId])
+  transaction Transaction @relation(fields:[transactionId], references:[id], onDelete:Cascade, onUpdate:NoAction)
+  @@index([targetType,targetId], map: "payment_allocations_target")
   @@map("payment_allocations")
 }
 
@@ -458,6 +461,7 @@ model Stay {
   charges StayCharge[]
   adjustments StayAdjustment[]
   payments StayPayment[]
+  chargedSales POSSale[]
   @@index([roomId, status])
   @@index([payerId, status])
   @@map("stays")
@@ -487,6 +491,7 @@ model StayAllocation {
 model StayCharge {
   lineTotal Decimal? @db.Decimal(12,2)
   sourceSaleId String?
+  sourceSale POSSale? @relation(fields: [sourceSaleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   id String @id
   stayId String
   productId String?
@@ -507,6 +512,7 @@ model StayPayment {
   bucket String
   method String
   transactionId String?
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt DateTime @default(now())
   stay Stay @relation(fields: [stayId], references: [id], onDelete: Cascade)
   @@map("stay_payments")
@@ -650,6 +656,8 @@ model POSProduct {
 
 model POSSale {
   stayId String?
+  stay Stay? @relation(fields: [stayId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stayCharges StayCharge[]
   payments Json?
   id            String   @id
   date          DateTime
