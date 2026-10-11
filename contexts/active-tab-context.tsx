@@ -24,9 +24,10 @@ export function useActiveTab() {
 }
 
 export function ActiveTabProvider({ children }: { children: ReactNode }) {
-  const [activeTab, setActiveTab] = useState<TabValue>("mapa")
+  const [activeTab, updateActiveTab] = useState<TabValue>("mapa")
   const [stockDestination,setStockDestination]=useState<StockDestination>()
-  const openStock=(destination:StockDestination)=>{setStockDestination({...destination});setActiveTab("estoque")}
+  const setActiveTab=(tab:TabValue)=>{setStockDestination(undefined);updateActiveTab(tab)}
+  const openStock=(destination:StockDestination)=>{setStockDestination({...destination});updateActiveTab("estoque")}
 
   return (
     <ActiveTabContext.Provider value={{ activeTab, setActiveTab,stockDestination,openStock }}>

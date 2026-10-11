@@ -381,6 +381,8 @@ export async function clearAllCollections(actor?: Actor) {
 export async function getStorageUsageBytes() { return Buffer.byteLength(await exportAllCollections(), "utf8") }
 
 async function resetSessionsAfterRestore(tx: Client, actor: Actor | undefined, action: string) {
+  // Import receipts refer to the replaced operational state, not the restored snapshot.
+  await tx.initialImportBatch.deleteMany()
   if (!actor) return
   await recordAudit(tx, actor, action, "Todas as coleções operacionais", { entityType: "database", operation: "action" })
   await tx.userSession.updateMany({ where: { logoutTime: null }, data: { logoutTime: new Date() } })
