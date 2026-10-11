@@ -7,6 +7,12 @@
 
 import type { StockItem } from "../store"
 
+export function stockAvailable(stockItem: StockItem | undefined, requireUsable = false): number | undefined {
+  if (!stockItem) return undefined
+  const value = stockItem.usableStock ?? (requireUsable ? undefined : stockItem.currentStock)
+  return value !== undefined && Number.isFinite(value) && value >= 0 ? value : undefined
+}
+
 export interface StockValidationResult {
   isValid: boolean
   error?: {
@@ -32,15 +38,19 @@ export interface StockValidationResult {
 export function validateStockAvailability(
   stockItem: StockItem | undefined,
   requestedQuantity: number,
-  productName: string
+  productName: string,
+  requireUsable = false
 ): StockValidationResult {
   // No stock tracking for this product
-  if (!stockItem) {
+  if (!stockItem && !requireUsable) {
     return { isValid: true }
   }
 
+  const available = stockAvailable(stockItem, requireUsable)
+  if (available === undefined) return { isValid: false, error: { title: "Saldo não confirmado", description: `Atualize o estoque utilizável de ${productName} antes de confirmar`, variant: "destructive" } }
+
   // Stock is completely depleted
-  if (stockItem.currentStock <= 0) {
+  if (available <= 0) {
     return {
       isValid: false,
       error: {
@@ -52,19 +62,19 @@ export function validateStockAvailability(
   }
 
   // Requested quantity exceeds available stock
-  if (requestedQuantity > stockItem.currentStock) {
+  if (requestedQuantity > available) {
     return {
       isValid: false,
       error: {
         title: "Estoque Insuficiente",
-        description: `${productName}: apenas ${stockItem.currentStock} ${stockItem.unit} disponível(is)`,
+        description: `${productName}: apenas ${available} ${stockItem?.unit ?? ""} disponível(is)`,
         variant: 'destructive'
       }
     }
   }
 
   // Warning: requesting the last available item
-  if (requestedQuantity === stockItem.currentStock) {
+  if (requestedQuantity === available) {
     return {
       isValid: true,
       warning: {

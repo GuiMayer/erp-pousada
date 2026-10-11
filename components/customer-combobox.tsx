@@ -1,4 +1,5 @@
 "use client"
+import { matchesPerson } from "@/lib/utils/person-search"
 import { CnpjLookup } from "./cnpj-lookup"
 import { CompanyAffiliationField } from "./company-affiliation"
 
@@ -89,11 +90,10 @@ export function CustomerCombobox({
     let list = (filterActive ? customers.filter(c => c.active) : [...customers]).filter(c => purpose === "guest" ? getDocumentType(c.cpfCnpj) === "CPF" : purpose === "supplier" || (c.roles ?? ["payer"]).includes("payer"))
     
     if (searchTerm) {
-      const term = searchTerm.toLowerCase()
+      const term = searchTerm
       list = list.filter(
         (c) =>
-          c.name.toLowerCase().includes(term) ||
-          c.cpfCnpj.includes(normalizeDocument(term))
+          matchesPerson(c, term)
       )
     }
     
