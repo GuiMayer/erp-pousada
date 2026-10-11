@@ -1,7 +1,9 @@
 "use client"
+import { useTaskState } from "@/contexts/task-drafts-context"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { businessDay } from "@/lib/utils/business-values"
+import { CashTurnShortcut } from "./cash-turn-shortcut"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { RoomCard } from "./room-card"
@@ -39,12 +41,12 @@ function getWeekDates(offset: number) {
 
 export function RoomGrid() {
   const { rooms } = useApp()
-  const [filter, setFilter] = useState<Filter>("todos")
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedDate, setSelectedDate] = useState<string>(businessDay())
+  const [filter, setFilter] = useTaskState<Filter>("map.filter", "todos", false)
+  const [weekOffset, setWeekOffset] = useTaskState("map.weekOffset", 0, false)
+  const [selectedDate, setSelectedDate] = useTaskState<string>("map.selectedDate", businessDay(), false)
   const [manageRoomsOpen, setManageRoomsOpen] = useState(false)
-  const [search, setSearch] = useState("")
-  const [agenda, setAgenda] = useState(false)
+  const [search, setSearch] = useTaskState("map.search", "", false)
+  const [agenda, setAgenda] = useTaskState("map.agenda", false, false)
   const weekDates = getWeekDates(weekOffset)
 
   const filtered =
@@ -52,6 +54,7 @@ export function RoomGrid() {
 
   return (
     <div className="room-map flex flex-col gap-6 animate-fade-in">
+      <div className="flex flex-wrap items-center gap-2"><CashTurnShortcut /></div>
       <div className="sm:hidden space-y-2">
         <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">Agora · {rooms.filter(r => r.status === "disponivel").length} quartos livres</span><Button variant="outline" size="sm" onClick={() => setAgenda(v => !v)} aria-expanded={agenda}>Agenda</Button><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />

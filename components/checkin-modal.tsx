@@ -237,7 +237,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
           </div>
         </fieldset>
 
-        {expectedId ? <p className="text-sm text-muted-foreground">Entrada vinculada à reserva confirmada. O valor acordado será mantido.</p> : <><LodgingQuotePreview result={previewLodging(room, lodgingTariffs, guestCount, businessDay(), checkOut)} />{can("lodgingTariffs.override") && <div className="space-y-2"><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={exception} onChange={e => setException(e.target.checked)} />Usar valor excepcional informado acima</label>{exception && <Input aria-label="Motivo do preço excepcional" value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da autorização" />}</div>}</>}
+        {expectedId ? <p className="text-sm text-muted-foreground">Entrada vinculada à reserva confirmada. O valor acordado será mantido.</p> : <><LodgingQuotePreview result={previewLodging(room, lodgingTariffs, guestCount, businessDay(), checkOut)} />{can("lodgingTariffs.override") && <div className="space-y-2"><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" disabled={pending} checked={exception} onChange={e => setException(e.target.checked)} />Usar valor excepcional informado acima</label>{exception && <Input aria-label="Motivo do preço excepcional" disabled={pending} value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da autorização" />}</div>}</>}
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={handleClose}>Cancelar</Button>
           <Button disabled={pending || !cpf || !guestName || !checkOut} onClick={handleConfirm}>

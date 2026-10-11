@@ -110,7 +110,7 @@ export function PurchaseReceipt({
         payments: payNow ? payments : undefined,
       });
       onSaved(result.priceChanges?.length?"Compra recebida. Revise o preço de venda, se necessário: "+result.priceChanges.map(p=>`${p.name}: custo por ${p.unit} ${p.previous===null?"anterior não registrado":formatCurrency(p.previous)} → ${formatCurrency(p.current)}`).join("; ")+". Nenhum preço foi alterado automaticamente.":"Compra recebida.");
-      setSupplier(""); setReference(""); setNotes(""); setItems([newLine()]); setFreight(0); setDiscount(0); setPayNow(false); setParts([]); setDue(businessDay());
+      setSupplier(""); setReference(""); setNotes(""); setItems([newLine()]); setFreight(0); setDiscount(0); setPayNow(false); setParts([]); setDue(businessDay()); setPayments([{ method: "pix", value: 0, accountId: bankAccounts.filter(a => a.active).length === 1 ? bankAccounts.filter(a => a.active)[0].id : undefined }]);
       onClose();
     } catch (e) {
       setError((e as Error).message);

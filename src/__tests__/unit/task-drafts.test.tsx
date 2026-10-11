@@ -15,3 +15,11 @@ describe('Rascunhos em memória por sessão',()=>{
   render(<TaskDraftProvider><Task/></TaskDraftProvider>);fireEvent.click(screen.getByRole('button',{name:'0'}));fireEvent.click(screen.getByRole('button',{name:'1'}));expect(screen.getByRole('button',{name:'2'})).toBeTruthy();expect(localStorage.length).toBe(0);
  });
 })
+
+function Filter(){const [value,setValue]=useTaskState('filter','',false);return <input aria-label="Filtro" value={value} onChange={e=>setValue(e.target.value)}/>}
+it('avisa ao recarregar com rascunho e ignora alterações de filtro',()=>{
+ render(<TaskDraftProvider><Filter/><Task/></TaskDraftProvider>);fireEvent.change(screen.getByLabelText('Filtro'),{target:{value:'agua'}});
+ const filtered=new Event('beforeunload',{cancelable:true});window.dispatchEvent(filtered);expect(filtered.defaultPrevented).toBe(false);
+ fireEvent.change(screen.getByLabelText('Rascunho'),{target:{value:'pendente'}});const dirty=new Event('beforeunload',{cancelable:true});window.dispatchEvent(dirty);expect(dirty.defaultPrevented).toBe(true);
+ fireEvent.change(screen.getByLabelText('Rascunho'),{target:{value:''}});const clean=new Event('beforeunload',{cancelable:true});window.dispatchEvent(clean);expect(clean.defaultPrevented).toBe(false);
+});

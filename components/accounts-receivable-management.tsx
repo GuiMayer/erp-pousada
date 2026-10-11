@@ -1,4 +1,5 @@
 "use client"
+import { useTaskState } from "@/contexts/task-drafts-context"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { BatchReceiptsPanel } from "./batch-receipts-panel"
@@ -32,13 +33,13 @@ export function AccountsReceivableManagement() {
     removeAccountReceivable,
     runOperation, addTransaction,
   } = useApp()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingAR, setEditingAR] = useState<AccountReceivable | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useTaskState("receivables.open", false)
+  const [editingAR, setEditingAR] = useTaskState<AccountReceivable | null>("receivables.editing", null)
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [search, setSearch] = useState("")
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useTaskState("receivables.form", {
     customerName: "",
     customerId: "",
     description: "",
@@ -151,7 +152,7 @@ export function AccountsReceivableManagement() {
     }
   }
 
-  const [payingAccount, setPayingAccount] = useState<AccountReceivable | null>(null)
+  const [payingAccount, setPayingAccount] = useTaskState<AccountReceivable | null>("receivables.editing", null)
   const handleMarkAsPaid = async (ar: AccountReceivable) => {
     if (["pago", "cancelado"].includes(ar.status)) return
     if (getDataConfig().adapter === "database" || ar.sourceStayId) { setPayingAccount(ar); return }

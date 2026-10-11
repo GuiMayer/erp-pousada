@@ -2,7 +2,7 @@
 import { RegistrationsTab } from "./registrations-tab"
 import { MobileNavigation } from "./mobile-navigation"
 import { usePhoneLayout } from "@/hooks/use-phone-layout"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { tabPermissions } from "@/lib/permissions"
 
 import { useApp } from "@/lib/app-context"
@@ -28,6 +28,9 @@ export function DashboardShell() {
   const visible = (tab: string) => tabPermissions[tab]?.some(can)
   const permittedTab = Object.keys(tabPermissions).find(visible)
   const { activeTab, setActiveTab } = useActiveTab()
+  const [visited, setVisited] = useState<string[]>([activeTab])
+  useEffect(() => { setVisited(old => old.includes(activeTab) ? old : [...old, activeTab]) }, [activeTab])
+  const retainLegacy = (tab: string) => phone && visited.includes(tab) ? true : undefined
   useEffect(() => {
     if (!tabPermissions[activeTab]?.some(can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
   }, [activeTab, can, permittedTab, setActiveTab])
@@ -92,20 +95,20 @@ export function DashboardShell() {
         {visible("estoque") && (<TabsContent value="estoque">
           <StockTab />
         </TabsContent>)}
-        {visible("cadastros") && <TabsContent value="cadastros"><RegistrationsTab /></TabsContent>}
+        {visible("cadastros") && <TabsContent value="cadastros" forceMount={retainLegacy("cadastros")} className="data-[state=inactive]:hidden"><RegistrationsTab /></TabsContent>}
         {visible("financeiro") && (<TabsContent value="financeiro">
           <FinancialTab />
         </TabsContent>)}
-        {visible("relatorios") && (<TabsContent value="relatorios">
+        {visible("relatorios") && (<TabsContent value="relatorios" forceMount={retainLegacy("relatorios")} className="data-[state=inactive]:hidden">
           <ReportsTab />
         </TabsContent>)}
-        {visible("configuracoes") && (<TabsContent value="configuracoes">
+        {visible("configuracoes") && (<TabsContent value="configuracoes" forceMount={retainLegacy("configuracoes")} className="data-[state=inactive]:hidden">
           <SettingsTab />
         </TabsContent>)}
-        {visible("administracao") && (<TabsContent value="administracao">
+        {visible("administracao") && (<TabsContent value="administracao" forceMount={retainLegacy("administracao")} className="data-[state=inactive]:hidden">
             <AdminTab />
           </TabsContent>)}
-        {visible("auditoria") && (<TabsContent value="auditoria">
+        {visible("auditoria") && (<TabsContent value="auditoria" forceMount={retainLegacy("auditoria")} className="data-[state=inactive]:hidden">
           <AuditLogTab />
         </TabsContent>)}
       </Tabs>
