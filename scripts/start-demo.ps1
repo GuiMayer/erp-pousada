@@ -1,4 +1,5 @@
-﻿param([string]$AppUrl = '', [switch]$NoBuild)
+﻿param([string]$AppUrl = '', [switch]$NoBuild, [switch]$Reset, [switch]$Update)
+if($NoBuild -and $Update){throw 'Use Atualizar ou NoBuild, não os dois juntos.'}
 function Invoke-DemoDocker {
   # Keep Docker flags literal: advanced PowerShell functions consume -d as Debug.
   $Arguments=$args
@@ -48,18 +49,31 @@ Protect-DemoFile $credentialFile
 Invoke-DemoDocker info --format '{{.ServerVersion}}' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Inicie o motor Docker pelo painel.' }
 $composeArguments = @('compose','--project-name','erp-pousada-demo','--env-file',$environmentFile,'-f','compose.demo.yml')
-Write-Host 'Recriando apenas a demonstração. Alterações da sessão anterior serão descartadas.'
-Invoke-DemoDocker @composeArguments down --volumes --remove-orphans
-if ($LASTEXITCODE -ne 0) { throw 'Não foi possível encerrar a demonstração anterior.' }
-try {
-  if (!$NoBuild) {
-    if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Atualizando a versão da demonstração. A primeira construção pode levar alguns minutos…'}
+$existing=Invoke-DemoDocker @composeArguments ps -q app-demo
+$newSession=$Reset -or $Update -or !$existing
+# Build before discarding a session: a failed build preserves a running demo.
+if($newSession) {
+  $image=Invoke-DemoDocker image ls --quiet erp-pousada:demo
+  if($NoBuild -and !$image){throw 'Imagem de demonstração não encontrada. Use Atualizar versão para prepará-la.'}
+  if($Update -or !$image) {
+    if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Construindo a versão da demonstração. Esta etapa pode levar alguns minutos…'}
     Invoke-DemoDocker @composeArguments build app-demo
-    if ($LASTEXITCODE -ne 0) { throw 'Falha ao construir a imagem de demonstração.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Falha ao construir a imagem. A sessão anterior foi preservada.' }
   }
-  if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Versão pronta. Iniciando o banco e restaurando os exemplos…'}
-  Invoke-DemoDocker @composeArguments up -d
-  if ($LASTEXITCODE -ne 0) { throw 'Falha ao iniciar a demonstração.' }
+  Write-Host 'Preparando uma nova sessão de demonstração. Somente os exemplos serão restaurados.'
+  Invoke-DemoDocker @composeArguments down --volumes --remove-orphans
+  if ($LASTEXITCODE -ne 0) { throw 'Não foi possível encerrar a demonstração anterior.' }
+} else { Write-Host 'Demonstração já ligada. A sessão atual será preservada.' }
+try {
+  if($newSession) {
+    if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Imagem pronta. Iniciando o banco e restaurando os exemplos…'}
+    Invoke-DemoDocker @composeArguments up -d --no-build
+    if ($LASTEXITCODE -ne 0) { throw 'Falha ao iniciar a demonstração.' }
+  } elseif($AppUrl) {
+    # Apply a requested origin without resetting the temporary database.
+    Invoke-DemoDocker @composeArguments up -d --no-deps --no-build app-demo
+    if ($LASTEXITCODE -ne 0) { throw 'Falha ao aplicar o endereço da demonstração.' }
+  }
   if(Get-Command Set-PanelStage -ErrorAction SilentlyContinue){Set-PanelStage 'Exemplos restaurados. Aguardando o aplicativo de demonstração responder…'}
   $deadline = [DateTime]::UtcNow.AddMinutes(3)
   do {
@@ -71,8 +85,12 @@ try {
     Start-Sleep -Seconds 2
   } while ([DateTime]::UtcNow -lt $deadline)
   if ($health -ne 'healthy') { throw 'Tempo de inicialização da demonstração excedido.' }
-  $localHealth = Invoke-WebRequest -Uri 'http://127.0.0.1:3001/api/health' -UseBasicParsing -TimeoutSec 10
-  if ($localHealth.StatusCode -ne 200) { throw 'A porta local da demonstração não está acessível.' }
+  if(Get-Command Test-PanelHealth -ErrorAction SilentlyContinue) {
+    if(!(Test-PanelHealth 'http://127.0.0.1:3001')){throw 'A porta local da demonstração não está acessível.'}
+  } else {
+    $localHealth = Invoke-WebRequest -Uri 'http://127.0.0.1:3001/api/health' -UseBasicParsing -TimeoutSec 10
+    if ($localHealth.StatusCode -ne 200) { throw 'A porta local da demonstração não está acessível.' }
+  }
   Write-Host "Demonstração pronta: $demoUrl"
   Write-Host "Acesso: $credentialFile"
   Write-Host 'Para encerrar e descartar alterações: .\scripts\stop-demo.ps1'
@@ -84,7 +102,7 @@ try {
     Protect-DemoFile $diagnosticFile
     Write-Host "Diagnóstico da inicialização: $diagnosticFile"
   } finally {
-    Invoke-DemoDocker @composeArguments down --volumes --remove-orphans | Out-Null
+    if($newSession){Invoke-DemoDocker @composeArguments down --volumes --remove-orphans | Out-Null}
   }
   throw $startupError
 }

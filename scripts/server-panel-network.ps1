@@ -1,5 +1,6 @@
 ﻿# Optional installation convenience; Tailscale remains external infrastructure.
 function Invoke-Tailscale([string[]]$Arguments) {
+  $script:PanelComponent='Tailscale'
   if (!(Get-Command tailscale -ErrorAction SilentlyContinue)) { throw 'Tailscale não instalado. Instale e conecte sua conta antes de ativar o link.' }
   return Invoke-PanelCommand (Get-Command tailscale -CommandType Application).Source $Arguments 30
 }
@@ -86,7 +87,6 @@ function Connect-PanelApp([bool]$Demo) {
       throw "Não foi possível aplicar o endereço ao aplicativo: $($_.Exception.Message)"
     }
   } else { Set-PanelAddress $Demo $url }
-  $response=Invoke-WebRequest -Uri "$url/api/health" -UseBasicParsing -TimeoutSec 15
-  if ($response.StatusCode -ne 200) { throw 'Link configurado, mas o acesso HTTPS ainda não respondeu. Confira o Tailscale.' }
+  if(!(Test-PanelHealth $url 3000)){throw 'Link configurado, mas o acesso HTTPS ainda não respondeu. Confira o Tailscale.'}
   return $url
 }
