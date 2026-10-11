@@ -1,6 +1,6 @@
 # Requisitos e modelagem funcional — ERP Pousada
 
-**Versão:** 1.1 · **Data:** 11/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** S1–S5 têm entrega técnica; há requisitos parciais e homologação pendente. Consulte a [conferência de implementação](CONFERENCIA_REQUISITOS_IMPLEMENTADOS.md).
+**Versão:** 1.2 · **Data:** 11/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** S1–S6 têm entrega técnica; homologação cliente/equipamento e evoluções adiadas permanecem pendentes. Consulte a [conferência de implementação](CONFERENCIA_REQUISITOS_IMPLEMENTADOS.md).
 
 Requisitos e entidades abaixo descrevem o alvo; não significam implementação de todas as sprints. A revisão 0.5 restaurou o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. A revisão 0.6 registra a [entrega da Sprint 1](ENTREGA_SPRINT_1.md), preservando integralmente os requisitos das etapas seguintes.
 
@@ -9,6 +9,8 @@ A revisão 0.7 acrescenta o vínculo opcional da pessoa física à empresa atual
 O [plano das sprints](SPRINTS_POUSADA.md) define a sequência de entrega. A [auditoria de escopo](REVISAO_ESCOPO_MODELAGEM.md) dá uma destinação explícita a cada requisito numerado da versão completa. A [versão 0.3 integral](../modules/abandoned/restaurant/docs/REQUISITOS_POUSADA_E_RESTAURANTE.md) permanece preservada como referência histórica, sem autoridade sobre o escopo ativo.
 
 A revisão 0.8 registra a [entrega da Sprint 2](ENTREGA_SPRINT_2.md): hospedagem independente do quarto, ocupantes, histórico de acomodações, extrato preservado e título empresarial com recebimento posterior. Não remove requisitos, cenários ou decisões das sprints seguintes.
+
+A revisão 1.2 registra a [entrega da Sprint 6](ENTREGA_SPRINT_6.md): ficha completa e dívida parcial, estoque utilizável no carrinho, projeção acumulada, destinos de alertas, busca por telefone, orientação de preço, cache CNPJ e importação inicial revisável. Critério de custo por lote alinhado deliberadamente; requisitos e pendências operacionais preservados.
 
 ## 1. Contexto, confirmações e limites
 
@@ -596,6 +598,7 @@ A pesquisa de referências externas da versão 0.3 continua preservada em sua se
 | 0.7 | Vínculo opcional pessoa/empresa e sugestão de pagador, sem alterar operações anteriores. |
 | 0.8 | Registra S2 e suas relações de origem, migração e roteiro de aceite; preserva integralmente o backlog S3–S5. |
 | 1.1 | Registra S5 e a conferência do código: requisitos parciais, divergência de método de custo e homologação pendente; preserva o alvo funcional. |
+| 1.2 | Registra S6 e fechamento técnico das oito lacunas; mantém custo histórico por lote e média do saldo físico, requisitos, backlog e homologação pendente. |
 
 A revisão 0.9 registra a [entrega da Sprint 3](ENTREGA_SPRINT_3.md): entrega/cobrança integrada, pagamento misto, alocação de recebimentos, pagamentos parciais, movimentação de caixa e conferência manual. Conserva todos os requisitos e condicionais de implementação posteriores.
 

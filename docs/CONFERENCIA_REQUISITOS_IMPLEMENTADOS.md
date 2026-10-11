@@ -2,7 +2,7 @@
 
 **Data:** 11/10/2026 · **Base do código:** `9cbff82` (main, entrega S5) · **Fonte:** [modelagem funcional](REQUISITOS_E_MODELAGEM_ERP.md).
 
-## Resultado
+## Resultado original — S1–S5
 
 **Não está tudo implementado conforme a redação integral do documento.** As cinco sprints entregaram os fluxos centrais da pousada, mas restam lacunas de consulta/interface, projeção financeira e importação. Há também uma divergência entre o método de custo descrito na modelagem e o método efetivamente implementado. Entrega técnica não substitui ativação da versão ou aceite do cliente.
 
@@ -12,7 +12,7 @@ Dos **69 requisitos funcionais numerados da seção 8**, 64 são núcleo N. Nest
 
 **Legenda:** I = implementação identificada no código, com evidência indicada; P = parcial; C = condicional adiado; E = evolução adiada; H = homologação/decisão operacional pendente. I não significa aceite comercial ou verificação exaustiva de todos os caminhos.
 
-## Lacunas verificadas — ordem sugerida de fechamento
+## Lacunas da revisão original — fechadas tecnicamente na S6
 
 | Ordem | Requisito | Lacuna e consequência | Evidência direta |
 | --- | --- | --- | --- |
@@ -35,6 +35,14 @@ Exemplo: lote A com 10 unidades a R$ 5 e B com 10 a R$ 10. Média inicial R$ 7,5
 
 Evidência: `lib/server/inventory-stock.ts:18` (`projectStock`), 53 (`lotMovement`) e 124 (`issueStock`); [entrega S4, critérios](ENTREGA_SPRINT_4.md). Não foi alterada a regra nesta auditoria. Deve haver decisão e revisão explícita do documento, ou adequação da implementação; não marcar equivalência automaticamente. Também não usar a média exibida como custo de uma venda histórica.
 
+## Atualização após a Sprint 6
+
+As seis lacunas funcionais e duas de qualidade listadas acima receberam implementação. O núcleo funcional de 64 requisitos passa a ter implementação identificada; isso não é percentual de prontidão para produção. Os dois condicionais e três evoluções continuam adiados. A tabela original de lacunas fica preservada como diagnóstico que motivou a S6. As matrizes abaixo refletem o estado pós-S6; H e P/H não foram apagados.
+
+Consulte [ENTREGA_SPRINT_6.md](ENTREGA_SPRINT_6.md) para critérios, caminho das telas, importação, atualização e evidência. Tipos/lint/unitários são validados localmente; banco, migrações, containers e recuperação ficam no CI isolado. A incorporação exige os checks aprovados da versão final no [PR #11](https://github.com/GuiMayer/erp-pousada/pull/11/checks). Inspeção de componentes com fixtures a 390 px não equivale a AP-33 no celular real.
+
+A divergência de custo foi resolvida por decisão explícita: manter custo histórico por lote/FEFO e nomear a média exibida como média do saldo físico atual, sem reavaliar documentos antigos.
+
 ## Matriz dos requisitos funcionais
 
 As referências S1–S5 abaixo apontam para `tests/integration/sprint1.test.ts` até `sprint5.test.ts`, suas migrações e os respectivos documentos `ENTREGA_SPRINT_n.md`. Evidência adicional está indicada quando o fluxo é anterior às sprints.
@@ -42,19 +50,19 @@ As referências S1–S5 abaixo apontam para `tests/integration/sprint1.test.ts` 
 | ID | Estado | Implementação/evidência ou limite |
 | --- | --- | --- |
 | CAD-01 | I | Pessoas PF/PJ, papéis, fornecedor reaproveitado, empresa atual e membros. `contacts`, cadastros, S1 e `customer-company.test.ts`. |
-| CAD-02 | P | Nome/documento e unicidade implementados; telefone ausente na busca. |
+| CAD-02 | I | Nome/documento e ambos os telefones normalizados na lista e seletor; `person-search.ts`, testes S6. |
 | CAD-03 | I | Venda anônima; ocupantes individuais e pagador empresarial separados. S2/S3. Prazo avulso continua condicional. |
 | CAD-04 | I | CNPJ sob demanda, prévia conferida, preenchimento manual. `CnpjLookup`, `company-lookup`, testes de consulta/UI. |
 | CAD-05 | I | Documento textual, CNPJ numérico/alfanumérico e CPF distinto. Validador e S1. |
 | CAD-06 | I | Cadastro rápido usa Customer; inativação e vínculos preservados. S1. |
-| CAD-07 | P | Ficha incompleta e resumo financeiro ignora pagamentos parciais. |
+| CAD-07 | I | Ficha no servidor por ID, histórias paginadas/escopadas, crédito próprio, saldo parcial e origem; `person-dossier.ts`, S6. |
 | CAD-08 | I | Unidade, categoria, controle de estoque/validade, situação e restrição pousada. S1/S4; item sem estoque não baixa lotes. |
 | PRE-01 | I | Tarifa por ocupação, categoria/quarto e conflitos; preço padrão bebida. S1. |
 | PRE-02 | I | Prioridade de quarto, exceção autorizada com motivo e preço salvo. `lodging-pricing`, S1/S2. |
 | PRE-03 | I | Preço por noite/item preservado após reajuste. S1–S3. |
 | PRE-04 | I | Desconto efetivo acumulado e aprovação vinculada. Comandos de operação e testes de desconto/acesso. |
 | PRE-05 | I | Faixa/ocupação/vigência por pessoa/noite, capacidade e preço por noite. S1. |
-| PRE-06 | P | Preço não muda automaticamente e custo é mostrado; sugestão de revisão ausente. |
+| PRE-06 | I | Compra sugere revisão por custo anterior/novo na unidade-base, sem alterar preço; `inventory-operations.ts`, S6. |
 | HOS-01 | I | Mapa físico e disponibilidade por período; proteção contra sobreposição em `operations`. |
 | HOS-02 | I | Pagador, período, acomodação/ocupação e prévia de diárias. S1/S2. |
 | HOS-03 | I | Grupo com referência comum, confirmação atômica e conflitos. `reserve-group`, testes de operações/concorrência. |
@@ -66,7 +74,7 @@ As referências S1–S5 abaixo apontam para `tests/integration/sprint1.test.ts` 
 | HOS-09 | I | Cancelamento/no-show com motivo, multa e destino do saldo. Comandos e testes de regras; legado conservado. |
 | HOS-10 | I | Crédito por operações/origem, sem edição genérica; crédito pessoal não quita empresa implicitamente. S1/S2. |
 | HOS-11 | I | Título de origem e recebimento posterior/parcial, saldo preservado. S2/S3. |
-| PDV-01 | P | Nome/barcode/preço e serviço sem baixa; saldo exibido/pré-validado é físico. |
+| PDV-01 | I | Carrinho usa utilizável e recusa saldo desconhecido no banco; serviço sem controle preservado. `stock-validation.ts`, S6 e regressão FEFO/concorrência. |
 | PDV-02 | I | Preço/quantidade/desconto por linha e recálculo no servidor. S3, comandos de venda. |
 | PDV-03 | I | Venda/estoque/recebimento atômicos; opção hospedagem sem dupla cobrança. S3/S4/S5. |
 | PDV-04 | I | Cliente identificado quando exigido; avulsa anônima. Prazo fora da hospedagem não foi incluído por ser condicional. |
@@ -89,7 +97,7 @@ As referências S1–S5 abaixo apontam para `tests/integration/sprint1.test.ts` 
 | EST-05 | I | Restaurante excluído e bloqueado para estoque pousada. `stockProduct`, S4. |
 | EST-06 | I | Perda/ajuste com motivo/executor/origem; APIs não sobrescrevem saldo livremente. S4. |
 | EST-07 | I | Contagem por corte e delta aplicado ao saldo corrente, sem perder saídas posteriores. S4. |
-| EST-09 | P | Mínimo/validade identificados; alerta abre módulo, não tarefa/registro. |
+| EST-09 | I | Destino estruturado abre/foca lote ou produto autorizado, sem baixa implícita; notificações/contexto/estoque, S6. |
 | EST-10 | I | Última unidade concorrente protegida e negativo recusado. S4. |
 | FIN-01 | I | Títulos/parcelas e origem de hospedagem/compra. S2/S3/S4. |
 | FIN-02 | I | Alocações parciais e saldo pelo valor pago. S3. Resumo da ficha CAD-07 ainda diverge. |
@@ -102,7 +110,7 @@ As referências S1–S5 abaixo apontam para `tests/integration/sprint1.test.ts` 
 | FIN-09 | I | Conferência manual por movimento, executor/data/nota sem alterar saldo. `TransactionCheck`, `check-transaction`, S3; não é conciliação automática/importada. |
 | FIN-10 | E | Importação de extrato CSV com deduplicação adiada. |
 | FIN-11 | E | Cadastro de recorrência existe; gerador único por período adiado. |
-| FIN-12 | P | Títulos previstos e saldos atuais existem; saldo projetado acumulado/previsão de reservas ausentes. |
+| FIN-12 | I | Projeção diária por base/contas/caixa opcional; vencidos e reservas separados; origens/exportação. `financial-forecast.ts`, S6. |
 | FIN-13 | I | Reversões com origem e limite, separadas de retorno físico. S2/S3/S4. |
 | REL-01 | I | Prestação/venda, recebimento, custo e saldos separados. S5. |
 | REL-03 | I | Noites-quarto, ADR, diárias/bebidas e dívida; ocupação pelo catálogo atual explicitamente limitada. S5. |
@@ -134,13 +142,13 @@ IDs ausentes, como EST-08 e REL-02, permanecem ausentes por destinação anterio
 | QUA-15 | H | RPO 24 h/RTO 4 h são propostas; faltam tolerância aceita, teste de recuperação completa e confirmação da cópia fora da máquina. |
 | QUA-16 | I | Banco/volumes/credenciais demo isolados, guard e manifesto antes/depois do reset. CI e scripts demo. |
 | QUA-17 | I/H | Acesso restrito e proteção de dados nos logs/exportações; prazo de retenção e revisão final de campos pessoais pendentes. |
-| QUA-18 | P | Timeout/rate limit/manual existem; cache de consulta CNPJ ausente. |
-| QUA-19 | P | Validação/restauração/migração existem; importação inicial com prévia/rejeições não. |
+| QUA-18 | I | Cache TTL 24 h/limite 1.000/coalescência, data e atualização autorizada; unitários S6. |
+| QUA-19 | I | CSV com modelo/prévia/rejeições, confirmação atômica/revalidada e recibo; migration e testes S6. Importação não substitui restauração. |
 | QUA-20 | I/H | Monólito, painel, guias, build/instalação/backup CI. Testar inicialização/atualização/recuperação na máquina final. |
 
 ## Cenários e prontidão
 
-- **AP-01–AP-32:** existem testes relacionados aos ciclos centrais, conforme as entregas e suítes. Essa cobertura não comprova toda a redação dos requisitos vinculados: por exemplo AP-18 conserva preço de venda, mas não testa uma sugestão de revisão; AP-32 restaura cópia, mas não entrega o importador com prévia QUA-19.
+- **AP-01–AP-32:** existem testes relacionados aos ciclos centrais, conforme as entregas e suítes. Essa cobertura não comprova toda a redação dos requisitos vinculados. A S6 acrescenta testes para a sugestão de preço e importação inicial com prévia, além de outras lacunas apontadas na revisão original.
 - **AP-33:** verificação mobile/falha integral com cliente continua pendente. Inspeções com fixtures e testes de componente não substituem rede/celular real.
 - **AP-34/AP-35:** cartão e recorrência são cenários futuros, deliberadamente fora da primeira entrega. Importação bancária FIN-10, COM-05 e PDV-07 também permanecem no backlog.
 - **Ativação:** atualização/migrações na instalação do cliente, revisão de saldos legados, preços/políticas reais e cópia externa verificável continuam dependências de operação; a aprovação do código não atesta que o servidor em uso está nessa versão.

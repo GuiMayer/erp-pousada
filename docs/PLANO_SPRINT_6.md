@@ -1,6 +1,6 @@
 # Sprint 6 — fechamento dos requisitos e preparação do aceite
 
-**Data:** 11/10/2026 · **Estado:** planejada, sem implementação nesta revisão.
+**Data:** 11/10/2026 · **Estado:** implementação técnica entregue; validação final nos checks do PR #11. Homologação cliente/equipamento pendente. Consulte [a entrega](ENTREGA_SPRINT_6.md).
 
 **Base:** [conferência dos requisitos](CONFERENCIA_REQUISITOS_IMPLEMENTADOS.md), código S1–S5 e [modelagem funcional](REQUISITOS_E_MODELAGEM_ERP.md). Objetivo: fechar os seis requisitos funcionais parciais e as duas lacunas técnicas de qualidade, resolver a divergência de custo e preparar a homologação dos fluxos completos.
 
