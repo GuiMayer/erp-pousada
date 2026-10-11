@@ -157,6 +157,9 @@ describe("S6 — revisão, falha e acesso na interface", () => {
       .mockResolvedValueOnce(response({ error: "Sem conexão" }, false))
       .mockResolvedValueOnce(
         response({
+          start: "2026-10-11",
+          end: "2026-10-17",
+          asOf: "2026-10-11T12:00:00Z",
           accounts: [],
           selected: [],
           metrics: [],
@@ -174,6 +177,9 @@ describe("S6 — revisão, falha e acesso na interface", () => {
     expect(screen.getByLabelText("Dias (1–90)")).toHaveValue(7);
     fireEvent.click(screen.getByText("Consultar projeção"));
     await screen.findByText("Contas para a próxima consulta");
+    expect(
+      screen.getByText(/período 2026-10-11 a 2026-10-17/),
+    ).toBeInTheDocument();
     expect(mocks.fetch.mock.calls.map((c) => String(c[0]))).toEqual([
       "/api/forecast?days=7&cash=0",
       "/api/forecast?days=7&cash=0",

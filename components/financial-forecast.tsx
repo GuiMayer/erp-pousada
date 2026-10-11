@@ -175,6 +175,14 @@ export function FinancialForecast() {
       <p role="status">{error}</p>
       {data && (
         <>
+          <p className="text-sm text-muted-foreground">
+            Consulta de{" "}
+            {new Date(data.asOf).toLocaleString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+            })}{" "}
+            · período {data.start} a {data.end}. Alterações de contas, caixa ou
+            horizonte serão aplicadas ao consultar novamente.
+          </p>
           <fieldset className="flex flex-wrap gap-3">
             <legend>Contas para a próxima consulta</legend>
             {data.accounts.map((a) => (
