@@ -3,7 +3,7 @@ import { RegistrationsTab } from "./registrations-tab"
 import { MobileNavigation } from "./mobile-navigation"
 import { usePhoneLayout } from "@/hooks/use-phone-layout"
 import { useEffect, useState } from "react"
-import { tabPermissions } from "@/lib/permissions"
+import { tabPermissions, canAccessTab } from "@/lib/permissions"
 
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -17,7 +17,6 @@ import { POSTab } from "./pos-tab"
 import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
 import { SettingsTab } from "./settings-tab"
-import { AdminTab } from "./admin-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, Package, BarChart3, Settings } from "lucide-react"
 
@@ -25,14 +24,14 @@ export function DashboardShell() {
   const phone = usePhoneLayout()
   const { rooms, dataError } = useApp()
   const { can } = useAuth()
-  const visible = (tab: string) => tabPermissions[tab]?.some(can)
+  const visible = (tab: string) => canAccessTab(tab, can)
   const permittedTab = Object.keys(tabPermissions).find(visible)
   const { activeTab, setActiveTab } = useActiveTab()
   const [visited, setVisited] = useState<string[]>([activeTab])
   useEffect(() => { setVisited(old => old.includes(activeTab) ? old : [...old, activeTab]) }, [activeTab])
   const retainLegacy = (tab: string) => phone && visited.includes(tab) ? true : undefined
   useEffect(() => {
-    if (!tabPermissions[activeTab]?.some(can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
+    if (!canAccessTab(activeTab, can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
   }, [activeTab, can, permittedTab, setActiveTab])
 
   return (
@@ -73,10 +72,6 @@ export function DashboardShell() {
             <Settings className="size-3.5" />
             Configurações
           </TabsTrigger>)}
-          {visible("administracao") && (<TabsTrigger value="administracao" className="gap-1.5">
-              <Shield className="size-3.5" />
-              Administração
-            </TabsTrigger>)}
           {visible("auditoria") && (<TabsTrigger value="auditoria" className="gap-1.5">
             <Shield className="size-3.5" />
             Auditoria
@@ -102,12 +97,9 @@ export function DashboardShell() {
         {visible("relatorios") && (<TabsContent value="relatorios" forceMount={retainLegacy("relatorios")} className="data-[state=inactive]:hidden">
           <ReportsTab />
         </TabsContent>)}
-        {visible("configuracoes") && (<TabsContent value="configuracoes" forceMount={retainLegacy("configuracoes")} className="data-[state=inactive]:hidden">
+        {visible("configuracoes") && (<TabsContent value="configuracoes">
           <SettingsTab />
         </TabsContent>)}
-        {visible("administracao") && (<TabsContent value="administracao" forceMount={retainLegacy("administracao")} className="data-[state=inactive]:hidden">
-            <AdminTab />
-          </TabsContent>)}
         {visible("auditoria") && (<TabsContent value="auditoria" forceMount={retainLegacy("auditoria")} className="data-[state=inactive]:hidden">
           <AuditLogTab />
         </TabsContent>)}

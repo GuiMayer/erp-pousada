@@ -4,7 +4,7 @@ import { useNotifications } from "@/lib/notification-context"
 import { useAlerts } from "@/lib/alert-context"
 import { useAuth } from "@/lib/auth-context"
 import { useActiveTab } from "@/contexts/active-tab-context"
-import { tabPermissions } from "@/lib/permissions"
+import { tabPermissions, canAccessTab } from "@/lib/permissions"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Bell, Check, Archive, RotateCcw } from "lucide-react"
@@ -38,7 +38,7 @@ export function NotificationCenter() {
           <div className="flex gap-2 justify-between"><strong className="text-sm break-words">{n.title}</strong><span className="text-xs shrink-0">{n.priority === "critical" && !n.resolvedAt ? "Crítico ativo" : n.resolvedAt ? "Resolvido" : !n.read ? "Nova" : ""}</span></div>
           <p className="text-sm text-muted-foreground break-words">{n.message}</p><p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(n.timestamp, { addSuffix: true, locale: ptBR })}</p>
           <div className="flex flex-wrap items-center gap-1 mt-1">
-            {n.module && Object.hasOwn(tabPermissions, n.module) && tabPermissions[n.module].some(can) && <Button size="sm" variant="ghost" className="min-h-11" onClick={() => { markAsRead(n.id); if(n.destination && can(n.destination.section === "lots" ? "stockLots.read" : "posProducts.read")) openStock(n.destination); else setActiveTab(n.module as Parameters<typeof setActiveTab>[0]); setOpen(false) }}>{n.destination ? "Abrir registro" : "Abrir módulo"}</Button>}
+            {n.module && Object.hasOwn(tabPermissions, n.module) && canAccessTab(n.module,can) && <Button size="sm" variant="ghost" className="min-h-11" onClick={() => { markAsRead(n.id); if(n.destination && can(n.destination.section === "lots" ? "stockLots.read" : "posProducts.read")) openStock(n.destination); else setActiveTab(n.module as Parameters<typeof setActiveTab>[0]); setOpen(false) }}>{n.destination ? "Abrir registro" : "Abrir módulo"}</Button>}
             {n.priority === "critical" && !n.resolvedAt && n.type === "cash" && can("approvals.issue") && <Button size="sm" variant="ghost" className="min-h-11" onClick={() => resolveNotification(n.id)}>Conferido: resolver</Button>}
             {!n.read && <Button size="icon" variant="ghost" className="size-11" aria-label={`Marcar ${n.title} como lida`} onClick={() => markAsRead(n.id)}><Check className="size-4" /></Button>}
             <Button size="icon" variant="ghost" className="size-11" disabled={!archived && n.priority === "critical" && !n.resolvedAt} aria-label={`${archived ? "Restaurar" : "Arquivar"} ${n.title}`} onClick={() => archived ? restoreNotification(n.id) : clearNotification(n.id)}>{archived ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}</Button>

@@ -1,10 +1,10 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { Map, CalendarDays, ShoppingCart, Package, DollarSign, BarChart3, Settings, Shield, History, Menu, UserRound } from "lucide-react"
+import { Map, CalendarDays, ShoppingCart, Package, DollarSign, BarChart3, Settings, History, Menu, UserRound } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
 import { useActiveTab } from "@/contexts/active-tab-context"
-import { tabPermissions } from "@/lib/permissions"
+import { canAccessTab } from "@/lib/permissions"
 import { NotificationCenter } from "./notification-center"
 import { Button } from "./ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet"
@@ -19,11 +19,10 @@ export const mobileModules = [
   { key: "financeiro", label: "Financeiro", icon: DollarSign, group: "Gestão" },
   { key: "relatorios", label: "Relatórios", icon: BarChart3, group: "Gestão" },
   { key: "configuracoes", label: "Configurações", icon: Settings, group: "Administração" },
-  { key: "administracao", label: "Administração", icon: Shield, group: "Administração" },
   { key: "auditoria", label: "Auditoria", icon: History, group: "Administração" },
 ] as const
 export function phoneDestinations(can: (permission: string) => boolean) {
-  return mobileModules.filter(module => tabPermissions[module.key]?.some(can))
+  return mobileModules.filter(module => canAccessTab(module.key,can))
 }
 export function MobileNavigation() {
   const { can, username, logout } = useAuth()

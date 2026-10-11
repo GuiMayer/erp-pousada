@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useStockNavigation } from "@/contexts/active-tab-context";
+import { useTaskState } from "@/contexts/task-drafts-context";
 import { useAuth } from "@/lib/auth-context";
 import { getDataConfig } from "@/lib/data/config";
 import {
@@ -27,10 +29,22 @@ function download(content: string, name: string) {
 }
 export function InitialImport() {
   const { user } = useAuth(),
-    [kind, setKind] = useState<ImportKind>("people"),
-    [csv, setCSV] = useState(""),
-    [preview, setPreview] = useState<ImportPreview | null>(null),
-    [accepted, setAccepted] = useState(false),
+    [kind, setKind] = useTaskState<ImportKind>(
+      "settings.import.kind",
+      "people",
+      false,
+    ),
+    [csv, setCSV] = useTaskState("settings.import.csv", ""),
+    [preview, setPreview] = useTaskState<ImportPreview | null>(
+      "settings.import.preview",
+      null,
+      false,
+    ),
+    [accepted, setAccepted] = useTaskState(
+      "settings.import.accepted",
+      false,
+      false,
+    ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [result, setResult] = useState(""),
@@ -40,16 +54,33 @@ export function InitialImport() {
     user?.accessVersion,
     user?.permissions,
   ]);
+  const navigation = useStockNavigation(),
+    previousAccess = useRef(access),
+    pendingRef = useRef(false);
   useEffect(() => {
-    generation.current++;
-    setCSV("");
-    setPreview(null);
-    setAccepted(false);
-    setResult("");
-    setError("");
-    setBusy(false);
-  }, [access]);
+    if (previousAccess.current !== access) {
+      setCSV("");
+      setPreview(null);
+      setAccepted(false);
+      setResult("");
+      setError("");
+      setBusy(false);
+    }
+    previousAccess.current = access;
+    return () => {
+      // Invalidate pending requests; this counter is not a DOM ref.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      generation.current++;
+    };
+  }, [access, setCSV, setPreview, setAccepted]);
+  const registerNavigationGuard = navigation?.registerNavigationGuard;
+  useEffect(
+    () => registerNavigationGuard?.(() => !pendingRef.current),
+    [registerNavigationGuard],
+  );
   async function request(action: "preview" | "confirm") {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     const token = ++generation.current;
     setBusy(true);
     setError("");
@@ -81,12 +112,17 @@ export function InitialImport() {
         setResult(
           `Importação concluída: ${body.created} novos registros e ${body.ignored} iguais ignorados.`,
         );
+        setCSV("");
+        setAccepted(false);
         window.dispatchEvent(new Event("erp:operation-completed"));
       }
     } catch (e) {
       if (token === generation.current) setError((e as Error).message);
     } finally {
-      if (token === generation.current) setBusy(false);
+      if (token === generation.current) {
+        pendingRef.current = false;
+        setBusy(false);
+      }
     }
   }
   if (getDataConfig().adapter !== "database")

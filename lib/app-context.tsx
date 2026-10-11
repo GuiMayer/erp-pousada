@@ -298,7 +298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         keys && !keys.has("productions") ? Promise.resolve(null) : (isPousadaPermission("productions.read") && can("productions.read")) ? dataStore.productions.getAll() : Promise.resolve([]),
         keys && !keys.has("employees") ? Promise.resolve(null) : (isPousadaPermission("employees.read") && can("employees.read")) ? dataStore.employees.getAll() : Promise.resolve([]),
         keys && !keys.has("employeeConsumptions") ? Promise.resolve(null) : (isPousadaPermission("employeeConsumptions.read") && can("employeeConsumptions.read")) ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
-        keys && !keys.has("users") ? Promise.resolve(null) : (can("users.read")) ? dataStore.users.getAll() : Promise.resolve([]),
+        keys && !keys.has("users") ? Promise.resolve(null) : (can("users.read") && can("users.manage") && can("settings.access")) ? dataStore.users.getAll() : Promise.resolve([]),
         keys && !keys.has("userSessions") ? Promise.resolve(null) : (can("userSessions.read")) ? dataStore.userSessions.getAll() : Promise.resolve([]),
         keys && !keys.has("systemSettings") ? Promise.resolve(null) : (can("systemSettings.read")) ? dataStore.systemSettings.getAll() : Promise.resolve([]),
         keys && !keys.has("suppliers") ? Promise.resolve(null) : (can("suppliers.read")) ? dataStore.suppliers.getAll() : Promise.resolve([]),
