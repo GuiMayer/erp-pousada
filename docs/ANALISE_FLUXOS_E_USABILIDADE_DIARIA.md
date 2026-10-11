@@ -1,5 +1,7 @@
 # Fluxos diários e usabilidade da pousada
 
+> Documento histórico do diagnóstico. A primeira implementação de teste e suas pendências estão em [Teste de usabilidade diária](TESTE_USABILIDADE_DIARIA.md).
+
 **Data:** 11/10/2026. **Base examinada:** `e149e42`, após a Sprint 6. **Escopo:** aplicação web da pousada, bebidas, estoque e financeiro. Restaurante permanece fora da operação.
 
 ## Conclusão
