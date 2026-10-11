@@ -14,6 +14,14 @@ import { executeOperation } from "@/lib/server/operations";
 import { businessDay } from "@/lib/utils/business-values";
 import { evaluateTimed } from "@/lib/server/notifications/rules";
 import { listInbox } from "@/lib/server/notifications/inbox";
+import { NextRequest } from "next/server";
+import { GET as getPerson } from "@/app/api/people/route";
+import { GET as getForecast } from "@/app/api/forecast/route";
+import { POST as postImport } from "@/app/api/initial-import/route";
+import {
+  exportAllCollections,
+  importAllCollections,
+} from "@/lib/server/db/relational-data-service";
 if (
   new URL(process.env.DATABASE_URL || "postgresql://localhost/invalid")
     .pathname !== "/erp_test"
@@ -138,6 +146,30 @@ const opening = (
     reason: "Abertura para testes S6",
   });
 describe("S6: fechamento dos requisitos", () => {
+  it("novas APIs recusam sessão ausente e importação de outra origem", async () => {
+    expect(
+      (
+        await getPerson(
+          new NextRequest("http://localhost:3000/api/people?id=s6-person"),
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (await getForecast(new NextRequest("http://localhost:3000/api/forecast")))
+        .status,
+    ).toBe(401);
+    expect(
+      (
+        await postImport(
+          new NextRequest("http://localhost:3000/api/initial-import", {
+            method: "POST",
+            headers: { origin: "https://outra-origem.invalid" },
+            body: "{}",
+          }),
+        )
+      ).status,
+    ).toBe(403);
+  });
   it("ficha totaliza saldo parcial e não oferece financeiro ao cadastral", async () => {
     await prisma.accountReceivable.create({
       data: {
@@ -199,7 +231,11 @@ describe("S6: fechamento dos requisitos", () => {
           accountReceivableId: "s6-title",
           installmentId: "s6-part",
           value: 250,
-          recordVersion: 0,
+          recordVersion: (
+            await prisma.accountReceivable.findUniqueOrThrow({
+              where: { id: "s6-title" },
+            })
+          ).recordVersion,
         },
       ],
       paymentMethod: "pix",
@@ -335,6 +371,93 @@ describe("S6: fechamento dos requisitos", () => {
       ),
     ).toBe(20);
   });
+  it("reservas ficam separadas, título substitui o cenário e caixa é opcional", async () => {
+    await prisma.room.create({
+      data: {
+        id: 61,
+        number: "61",
+        type: "casal",
+        capacity: 2,
+        status: "disponivel",
+      },
+    });
+    for (const id of ["s6-commercial", "s6-represented"])
+      await prisma.reservation.create({
+        data: {
+          id,
+          roomId: 61,
+          roomNumber: "61",
+          guestName: "Ana",
+          cpf: "52998224725",
+          payerId: "s6-person",
+          checkIn: new Date(today),
+          checkOut: new Date(day(1)),
+          status: "confirmada",
+          totalValue: 600,
+          paidValue: 100,
+        },
+      });
+    await prisma.stay.create({
+      data: {
+        id: "s6-stay",
+        reservationId: "s6-represented",
+        roomId: 61,
+        guestName: "Ana",
+        payerId: "s6-person",
+        checkIn: new Date(today),
+        checkOut: new Date(day(1)),
+        lodgingValue: 600,
+        status: "closed",
+      },
+    });
+    await prisma.accountReceivable.create({
+      data: {
+        id: "s6-title",
+        sourceStayId: "s6-stay",
+        customerId: "s6-person",
+        customerName: "Ana",
+        description: "Hospedagem",
+        value: 500,
+        status: "pendente",
+        issueDate: new Date(today),
+        dueDate: new Date(day(1)),
+      },
+    });
+    await operate("cash-open", { openingValue: 30 });
+    const withoutCash = await financialForecast(actor, {
+      days: 2,
+      accounts: "s6-bank",
+    });
+    expect(withoutCash.metrics.find((m) => m.key === "final")?.value).toBe(
+      1500,
+    );
+    expect(
+      withoutCash.rows
+        .filter((r) => r.kind === "reserva-cenario")
+        .map((r) => r.source.id),
+    ).toEqual(["s6-commercial"]);
+    const withCash = await financialForecast(
+      actor,
+      { days: 2, accounts: "s6-bank", cash: "1" },
+      "json",
+    );
+    expect(withCash.metrics.find((m) => m.key === "base")?.value).toBe(1030);
+    expect(
+      await prisma.auditEntry.count({
+        where: { action: "Projeção financeira exportada" },
+      }),
+    ).toBeGreaterThan(0);
+    const ficha = await personDossier(actor, {
+      id: "s6-person",
+      section: "titles",
+    });
+    expect(ficha.rows[0]).toMatchObject({ sourceStay: { id: "s6-stay" } });
+    const restricted = await personDossier(
+      { ...actor, permissions: ["customers.read", "accountsReceivable.read"] },
+      { id: "s6-person", section: "titles" },
+    );
+    expect(restricted.rows[0]).not.toHaveProperty("sourceStay");
+  });
   it("alerta identifica o lote para navegação sem baixa ou resolução implícita", async () => {
     const result = (await opening("VENCE", 10, 50, 1)) as { id: string };
     await prisma.$transaction((tx) => evaluateTimed(tx));
@@ -351,6 +474,89 @@ describe("S6: fechamento dos requisitos", () => {
           .quantity,
       ),
     ).toBe(10);
+  });
+  it("recebimento compartilhado mantém valor pessoal distinto do movimento", async () => {
+    await prisma.customer.create({
+      data: {
+        id: "s6-other",
+        name: "Outra pessoa",
+        cpfCnpj: "11144477735",
+        roles: ["payer"],
+      },
+    });
+    for (const [id, customerId, value] of [
+      ["s6-one", "s6-person", 250],
+      ["s6-two", "s6-other", 100],
+    ] as const)
+      await prisma.accountReceivable.create({
+        data: {
+          id,
+          customerId,
+          customerName: "Exemplo",
+          description: "Título",
+          value,
+          issueDate: new Date(today),
+          dueDate: new Date(today),
+          status: "pendente",
+        },
+      });
+    const titles = await prisma.accountReceivable.findMany();
+    await operate("receive-batch", {
+      targets: titles.map((t) => ({
+        accountReceivableId: t.id,
+        recordVersion: t.recordVersion,
+        value: Number(t.value),
+      })),
+      paymentMethod: "pix",
+      accountId: "s6-bank",
+    });
+    const data = await personDossier(actor, {
+      id: "s6-person",
+      section: "receipts",
+    });
+    expect(data.rows).toHaveLength(1);
+    expect(data.rows[0]).toMatchObject({ personValue: 250 });
+    expect(Number((data.rows[0] as { value: unknown }).value)).toBe(350);
+  });
+  it("compra compara custo por unidade e sugere revisão sem mudar preço", async () => {
+    await prisma.supplier.create({
+      data: { id: "s6-supplier", name: "Fornecedor" },
+    });
+    const receive = (price: number, code: string) =>
+      operate("purchase-receive", {
+        supplierId: "s6-supplier",
+        freight: 0,
+        discount: 0,
+        dueDate: day(10),
+        items: [
+          {
+            productId: "s6-water",
+            packaging: "Fardo",
+            factor: 12,
+            acceptedPackages: 1,
+            refusedPackages: 0,
+            packagePrice: price,
+            code,
+            expiresAt: day(20),
+          },
+        ],
+      });
+    await receive(60, "COMPRA-A");
+    const result = await receive(72, "COMPRA-B");
+    expect(result).toMatchObject({
+      priceChanges: [
+        { productId: "s6-water", previous: 5, current: 6, unit: "un" },
+      ],
+    });
+    expect(
+      Number(
+        (
+          await prisma.pOSProduct.findUniqueOrThrow({
+            where: { id: "s6-water" },
+          })
+        ).price,
+      ),
+    ).toBe(20);
   });
   it("importa empresa antes da pessoa mesmo fora de ordem e não duplica", async () => {
     const csv =
@@ -499,5 +705,18 @@ describe("S6: fechamento dos requisitos", () => {
     await expect(
       confirmInitialImport(actor, { id: preview.id, confirmed: true }),
     ).rejects.toMatchObject({ status: 403 });
+  });
+  it("restauração portátil invalida recibos da antiga importação", async () => {
+    const preview = await previewInitialImport(actor, {
+      kind: "products",
+      csv: importTemplate("products") + "Serviço;Bebidas;un;10;;nao;nao\n",
+    });
+    await confirmInitialImport(actor, { id: preview.id, confirmed: true });
+    const snapshot = await exportAllCollections();
+    await importAllCollections(snapshot, actor);
+    expect(await prisma.initialImportBatch.count()).toBe(0);
+    expect(await prisma.pOSProduct.count({ where: { name: "Serviço" } })).toBe(
+      1,
+    );
   });
 });

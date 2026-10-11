@@ -65,13 +65,40 @@ export async function personDossier(actor: Actor, input: unknown) {
           rows = records.map((r) => getCollectionMapper("stays")!.toApp(r));
           total = await tx.stay.count({ where: whereStay });
         } else if (q.section === "titles") {
-          rows = await tx.accountReceivable.findMany({
+          const records = await tx.accountReceivable.findMany({
             where: { customerId: q.id },
             include: { installments: true },
             orderBy: [{ dueDate: "desc" }, { id: "asc" }],
             skip,
             take: 20,
           });
+          const origins = access.stays
+            ? await tx.stay.findMany({
+                where: {
+                  id: {
+                    in: records.flatMap((r) =>
+                      r.sourceStayId ? [r.sourceStayId] : [],
+                    ),
+                  },
+                },
+                include: {
+                  occupants: true,
+                  allocations: true,
+                  charges: true,
+                  payments: true,
+                  adjustments: true,
+                },
+              })
+            : [];
+          const byId = new Map(
+            origins.map((s) => [s.id, getCollectionMapper("stays")!.toApp(s)]),
+          );
+          rows = records.map((r) => ({
+            ...r,
+            ...(r.sourceStayId && byId.has(r.sourceStayId)
+              ? { sourceStay: byId.get(r.sourceStayId) }
+              : {}),
+          }));
           total = await tx.accountReceivable.count({
             where: { customerId: q.id },
           });

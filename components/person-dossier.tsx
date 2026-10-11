@@ -18,6 +18,7 @@ type Row = {
   paymentMethod?: string;
   type?: string;
   sourceStayId?: string;
+  sourceStay?: Stay;
   reversalOfId?: string;
   installments?: {
     id: string;
@@ -181,6 +182,12 @@ export function PersonDossier({ id }: { id: string }) {
                         <p className="text-sm">
                           Hospedagem de origem: {row.sourceStayId}
                         </p>
+                      )}
+                      {row.sourceStay && (
+                        <StayButton
+                          stay={row.sourceStay}
+                          label="Abrir hospedagem de origem"
+                        />
                       )}
                     </details>
                   </>
