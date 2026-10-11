@@ -1,3 +1,4 @@
+import { demand } from "../permissions"
 import { recordAudit } from "../audit"
 import { notificationDestination } from "@/lib/notification-destination"
 import { Prisma } from "@prisma/client"
@@ -64,6 +65,9 @@ export async function updateInboxPreferences(actor: Actor, value: unknown) {
   const patch = preferenceSchema.partial().parse(value)
   return prisma.$transaction(async tx => {
     await inboxScope(tx, actor)
+    const current = await tx.user.findUniqueOrThrow({ where: { id: actor.id } })
+    const live = { ...actor, permissions: effectivePermissions(current), permissionOverrides: current.permissionOverrides as Actor["permissionOverrides"] }
+    demand(live, "settings.access"); demand(live, "settings.personal.edit")
     const next = { ...await preferences(tx, actor.id), ...patch }
     await tx.notificationPreference.upsert({ where: { userId: actor.id }, create: { userId: actor.id, value: next }, update: { value: next } })
     return next

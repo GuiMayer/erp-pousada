@@ -1,3 +1,4 @@
+import { projectRuntimeSettings } from "@/lib/server/settings"
 import { getCollectionMapper } from "@/lib/server/db/mappers"
 import { prisma } from "@/lib/db/client"
 import { NextRequest, NextResponse } from "next/server"
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest, context: Context) {
     const { key } = await context.params
     const actor = await authorizeCollection(request, key)
     const rows = key === "bankAccounts" && !actor.permissions?.includes("bankAccounts.read") ? await prisma.bankAccount.findMany({ where: { active: true }, select: { id: true, name: true, type: true, active: true } }) : key === "auditLog" ? (await prisma.auditEntry.findMany({ orderBy: [{ date: "desc" }, { id: "desc" }], take: 500 })).map(row => getCollectionMapper("auditLog")!.toApp(row)) : await getCollection(key)
-    return NextResponse.json(rows, { headers: { "Cache-Control": "no-store" } })
+    return NextResponse.json(key === "systemSettings" ? rows.map(row => projectRuntimeSettings(row as Record<string,unknown>)) : rows, { headers: { "Cache-Control": "no-store" } })
   }, request)
 }
 export async function PUT(request: NextRequest, context: Context) {

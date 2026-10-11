@@ -175,6 +175,7 @@ async function currentActor(client: Client, actor: Actor | undefined) {
 async function mutationActor(client: Client, actor: Actor | undefined, key: string, operation: string) {
   actor = await currentActor(client, actor)
   if (!actor) return undefined
+  if (key === "systemSettings") throw new HttpError(403, "Use a operação de configuração por seção")
   if ([...operationalCollections, "auditLog", "userSessions"].includes(key)) throw new HttpError(403, "Utilize a operação específica")
   demand(actor, `${key}.${operation}`)
   if (key === "users") demand(actor, "users.manage")

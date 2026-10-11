@@ -1,3 +1,4 @@
+import { canOpenSettings } from "./settings/sections"
 export const collectionLabels: Record<string, string> = {
   purchases: "Compras de bebidas",
   stockLots: "Lotes de bebidas",
@@ -38,6 +39,8 @@ export const collectionLabels: Record<string, string> = {
   auditLog: "Auditoria"
 }
 export const operationPermissions: Record<string, string> = {
+  "settings-update": "settings.access",
+  "settings-restore": "settings.access",
   "purchase-receive":"purchases.receive",
   "purchase-return":"purchases.return",
   "return-settle":"purchases.settleReturn",
@@ -91,6 +94,10 @@ const actionLabels: Record<string, string> = {
   delete: "Excluir"
 }
 const specialLabels: Record<string, string> = {
+  "settings.access": "Configurações · Entrar",
+  "settings.personal.edit": "Configurações · Alterar próprias preferências",
+  "settings.restore": "Configurações · Restaurar padrões da seção",
+  ...Object.fromEntries(Object.entries({business:"Dados da pousada",lodging:"Hospedagem",commercial:"Política comercial",alerts:"Regras de alertas"}).flatMap(([key,label])=>[[`settings.${key}.read`, `Configurações · ${label} · Consultar`],[`settings.${key}.edit`, `Configurações · ${label} · Editar`]])),
   "data.import": "Importar cadastros e abertura com prévia",
   "reports.read": "Consultar relatórios gerenciais",
   "reports.export": "Exportar relatórios gerenciais",
@@ -142,13 +149,13 @@ const specialLabels: Record<string, string> = {
   "cash.move": "Registrar sangria ou suprimento",
   "transactions.check": "Conferir movimento bancário"
 }
-export const PERMISSIONS = [...Object.entries(collectionLabels).flatMap(([key, label]) => Object.entries(actionLabels).filter(([action]) => action === "read" || ![...operationalCollections, "auditLog", "userSessions"].includes(key)).map(([action, title]) => ({ key: `${key}.${action}`, label: `${label} · ${title}` }))), ...Object.entries({ ...Object.fromEntries(Object.values(operationPermissions).map(key => [key, `${collectionLabels[key.split(".")[0]] ?? key} · ${actionLabels[key.split(".")[1]] ?? key}`])), ...specialLabels }).map(([key, label]) => ({ key, label }))].filter((item, index, items) => items.findIndex(other => other.key === item.key) === index)
+export const PERMISSIONS = [...Object.entries(collectionLabels).flatMap(([key, label]) => Object.entries(actionLabels).filter(([action]) => action === "read" || key !== "systemSettings" && ![...operationalCollections, "auditLog", "userSessions"].includes(key)).map(([action, title]) => ({ key: `${key}.${action}`, label: `${label} · ${title}` }))), ...Object.entries({ ...Object.fromEntries(Object.values(operationPermissions).map(key => [key, `${collectionLabels[key.split(".")[0]] ?? key} · ${actionLabels[key.split(".")[1]] ?? key}`])), ...specialLabels }).map(([key, label]) => ({ key, label }))].filter((item, index, items) => items.findIndex(other => other.key === item.key) === index)
 export const ALL_PERMISSIONS = PERMISSIONS.map(permission => permission.key)
 export const APPROVAL_PERMISSIONS = ["discount.override", "pos.refund", "restaurant.cancel", "consumptions.remove", "transactions.refund", "reservations.paidCancel"]
 export type PermissionOverrides = Record<string, "allow" | "deny">
 const reads = (...keys: string[]) => keys.map(key => `${key}.read`)
 const crud = (...keys: string[]) => keys.flatMap(key => ["read", "create", "edit", "delete"].map(action => `${key}.${action}`))
-const common = [...reads("systemSettings", "productCategories", "posProducts"), "bankAccounts.use"]
+const common = ["settings.access", "settings.personal.edit", ...reads("systemSettings", "productCategories", "posProducts"), "bankAccounts.use"]
 const daily = ["hospitality.transfer", "hospitality.occupants", "hospitality.checkin", "hospitality.checkout", "hospitality.release", "hospitality.receive", "reservations.create", "reservations.edit", "reservations.cancel", "reservations.discount", "pos.sell", "consumptions.create", "consumptions.receive", "restaurant.open", "restaurant.edit", "restaurant.receive", "cash.open", "cash.close"]
 export const PROFILES: Record<string, { label: string; permissions: string[] }> = {
   personalizado: { label: "Personalizado (sem acessos iniciais)", permissions: [] },
@@ -158,7 +165,7 @@ export const PROFILES: Record<string, { label: string; permissions: string[] }> 
   caixa: { label: "Caixa", permissions: [...common, ...reads("posSales", "cashCloses", "customers", "stays", "rooms", "stockItems"), ...crud("customers"), "pos.sell", "consumptions.create", "cash.open", "cash.close"] },
   restaurante: { label: "Restaurante", permissions: [...common, ...reads("restaurantTables", "restaurantOrders", "recipes"), "restaurant.open", "restaurant.edit", "restaurant.receive"] },
   estoque: { label: "Estoque", permissions: [...common, ...crud("customers", "stockItems", "recipes", "suppliers", "posProducts", "productCategories"), ...reads("stockMovements", "productions", "purchases", "stockLots", "stockInventories", "purchaseReturns"), "purchases.receive", "purchases.return", "stock.loss", "inventory.start", "stock.adjust", "production.register"] },
-  operador_legado: { label: "Operador (acessos anteriores)", permissions: [...reads(...Object.keys(collectionLabels).filter(key => !["users", "userSessions", "employees", "employeeConsumptions"].includes(key))), ...crud("guests", "customers"), ...daily] },
+  operador_legado: { label: "Operador (acessos anteriores)", permissions: [...reads(...Object.keys(collectionLabels).filter(key => !["users", "userSessions", "employees", "employeeConsumptions"].includes(key))), ...crud("guests", "customers"), "settings.access", "settings.personal.edit", ...daily] },
 }
 export function effectivePermissions(user: { role?: string; accessProfile?: string | null; permissionOverrides?: unknown }): string[] {
   const profile = user.accessProfile || (user.role === "supervisor" ? "administrador" : "operador_legado")
@@ -183,7 +190,8 @@ export const tabPermissions: Record<string, string[]> = {
   "cash.open",
   "cash.close", "bankAccounts.read"],
   relatorios: ["reports.read"],
-  configuracoes: ["systemSettings.edit"],
-  administracao: ["users.manage", "systemSettings.edit", "data.import"],
+  configuracoes: ["settings.access"],
   auditoria: ["auditLog.read"]
 }
+
+export function canAccessTab(tab: string, can: (permission: string) => boolean) { return tab === "configuracoes" || tab === "administracao" ? canOpenSettings(can) : !!tabPermissions[tab]?.some(can) }
