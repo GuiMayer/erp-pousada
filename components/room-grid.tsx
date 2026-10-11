@@ -1,7 +1,7 @@
 "use client"
 import { PermissionGate } from "@/components/permission-gate"
 
-import { usePhoneLayout } from "@/hooks/use-phone-layout"
+import { businessDay } from "@/lib/utils/business-values"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { RoomCard } from "./room-card"
@@ -25,13 +25,13 @@ function getWeekDates(offset: number) {
   for (let i = 0; i < 7; i++) {
     const d = new Date(startDate)
     d.setDate(d.getDate() + i)
-    const iso = d.toISOString().split("T")[0]
+    const iso = businessDay(d)
     dates.push({
       date: iso,
       weekday: weekdays[d.getDay()],
       day: String(d.getDate()),
       month: months[d.getMonth()],
-      isToday: iso === today.toISOString().split("T")[0],
+      isToday: iso === businessDay(today),
     })
   }
   return dates
@@ -39,22 +39,21 @@ function getWeekDates(offset: number) {
 
 export function RoomGrid() {
   const { rooms } = useApp()
-  const phone = usePhoneLayout()
   const [filter, setFilter] = useState<Filter>("todos")
   const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
+  const [selectedDate, setSelectedDate] = useState<string>(businessDay())
   const [manageRoomsOpen, setManageRoomsOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [agenda, setAgenda] = useState(false)
   const weekDates = getWeekDates(weekOffset)
 
   const filtered =
-    rooms.filter(r => (filter === "todos" || r.status === filter) && `${r.number} ${r.guest ?? ""}`.toLocaleLowerCase("pt-BR").includes((phone ? search : "").toLocaleLowerCase("pt-BR")))
+    rooms.filter(r => (filter === "todos" || r.status === filter) && `${r.number} ${r.guest ?? ""}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))
 
   return (
     <div className="room-map flex flex-col gap-6 animate-fade-in">
       <div className="sm:hidden space-y-2">
-        <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "long" })} · {rooms.filter(r => r.status === "disponivel").length} livres</span><Button variant="outline" size="sm" onClick={() => setAgenda(v => !v)} aria-expanded={agenda}>Agenda</Button><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
+        <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">Agora · {rooms.filter(r => r.status === "disponivel").length} quartos livres</span><Button variant="outline" size="sm" onClick={() => setAgenda(v => !v)} aria-expanded={agenda}>Agenda</Button><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
       </div>
       {/* Interactive date selector */}
@@ -87,13 +86,14 @@ export function RoomGrid() {
           </Button>
         </div>
         {weekOffset !== 0 && (
-          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => { setWeekOffset(0); setSelectedDate(new Date().toISOString().split("T")[0]) }}>
+          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => { setWeekOffset(0); setSelectedDate(businessDay()) }}>
             Hoje
           </Button>
         )}
       </div>
 
       <div className="room-filter-bar flex items-center justify-between gap-4 flex-wrap">
+        <Input className="hidden sm:block sm:max-w-xs" aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
         <RoomFilters active={filter} onChange={setFilter} />
         <div className="hidden sm:flex items-center gap-3">
           <p className="text-sm text-muted-foreground">

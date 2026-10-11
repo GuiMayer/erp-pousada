@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/popover"
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -213,17 +212,17 @@ export function CustomerCombobox({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[400px] p-0">
-          <Command>
+        <PopoverContent className="w-[400px] max-w-[calc(100vw-2rem)] p-0">
+          <Command shouldFilter={false}>
             <CommandInput
               placeholder="Buscar cliente..."
               value={searchTerm}
               onValueChange={setSearchTerm}
             />
             <CommandList>
-              <CommandEmpty>
+              {!filteredCustomers.length && <div role="status" className="py-6 text-center text-sm">
                 {searchTerm ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado."}
-              </CommandEmpty>
+              </div>}
               <CommandGroup>
                 {filteredCustomers.map((customer) => {
                   const docType = getDocumentType(customer.cpfCnpj)
