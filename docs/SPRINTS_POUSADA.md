@@ -16,6 +16,7 @@ A divisão é por fluxo utilizável, não por camada técnica. Reutilizar as fun
 | S3 | Frente de Caixa, caixa e financeiro | Origens e títulos de S2; controles existentes. | Vender bebida, lançar em hospedagem, receber por meios distintos, estornar e fechar turno sem duplicações. |
 | S4 | Compra e estoque de bebidas | Catálogo de S1 e financeiro de S2/S3. | Receber fardo, gerar lote/saldo e conta a pagar, controlar validade/perda e inventário. |
 | S5 | Relatórios, homologação e operação | Fluxos completos S1–S4. | Conferir números pela origem e recuperar instalação com dados e permissões reconciliados. |
+| S6 | Fechamento dos requisitos auditados | Entrega S5 e conferência de 11/10/2026. | Fichas/saldos corretos, projeção, alertas úteis, importação revisável e roteiro integrado de aceite. |
 
 S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3 foi implementada em 10/10/2026; consulte a [entrega e o roteiro de caixa](ENTREGA_SPRINT_3.md). S4 foi implementada em 10/10/2026; consulte a [entrega de compras, lotes e inventário](ENTREGA_SPRINT_4.md). S5 tem implementação técnica entregue; homologação no equipamento final e aceite do cliente continuam pendentes. Consulte a [entrega e critérios gerenciais](ENTREGA_SPRINT_5.md). A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
 
@@ -114,6 +115,10 @@ S0 foi executada como retirada do restaurante e revisão documental. S1 foi impl
 - Demonstrar que o banco temporário pode ser resetado sem afetar operação, usuários ou backup normal.
 
 **Aceitação principal:** AP-29–AP-33, além de reexecutar os ciclos essenciais no equipamento alvo. Reconciliar saldos, documentos e permissões depois da restauração. RPO 24 h/RTO 4 h continuam propostas para a homologação, sem presumir aceite.
+
+## S6 — Fechamento dos requisitos e preparação do aceite
+
+**Estado:** planejada. O [plano da Sprint 6](PLANO_SPRINT_6.md) detalha a ordem, decisões e aceitação para CAD-02/07, PRE-06, PDV-01, EST-09, FIN-12 e QUA-18/19. Também resolve deliberadamente a divergência do método de custo e prepara os ciclos de homologação. Condicionais/evoluções do backlog continuam adiados; entrega técnica não encerra aceite do cliente/equipamento final.
 
 ## Regras de conclusão que valem para todas as sprints
 
