@@ -2,7 +2,7 @@
 import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Package, Plus, Search, Edit, Trash2, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,7 +38,7 @@ import { ManageCategoriesModal } from "../manage-categories-modal"
 import { useApp } from "@/lib/app-context"
 import type { POSProduct } from "@/lib/store"
 
-export function ProductsManagementTab() {
+export function ProductsManagementTab({targetId}:{targetId?:string}={}) {
   const { posProducts, stockItems, removePOSProduct, productCategories } = useApp()
 
   const [searchQuery, setSearchQuery] = useState("")
@@ -49,6 +49,8 @@ export function ProductsManagementTab() {
   const [selectedProduct, setSelectedProduct] = useState<POSProduct | undefined>()
   const [deleteConfirm, setDeleteConfirm] = useState<POSProduct | null>(null)
 
+  useEffect(()=>{if(targetId){setSearchQuery("");setCategoryFilter("all");setStockFilter("all")}},[targetId])
+  useEffect(()=>{if(!targetId)return;const timer=requestAnimationFrame(()=>{const node=document.getElementById(`stock-product-${targetId}`);node?.scrollIntoView({block:"center"});node?.focus({preventScroll:true})});return()=>cancelAnimationFrame(timer)},[targetId,posProducts,searchQuery,categoryFilter,stockFilter])
   // Filter only PDV products (not restaurant)
   const pdvProducts = useMemo(() => {
     return posProducts.filter(product => {
@@ -128,6 +130,7 @@ export function ProductsManagementTab() {
 
   return (
     <div className="space-y-6">
+      {targetId && !posProducts.some(p=>p.id===targetId) && <p role="status">Produto não disponível. Confira seu acesso ou volte à lista.</p>}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -231,7 +234,7 @@ export function ProductsManagementTab() {
             </TableHeader>
             <TableBody>
               {filteredProducts.map(product => (
-                <TableRow key={product.id}>
+                <TableRow key={product.id} id={`stock-product-${product.id}`} tabIndex={-1} className={product.id === targetId ? "ring-2 ring-primary" : undefined}>
                   <TableCell className="font-medium">{product.name}<p className="text-xs font-normal text-muted-foreground">{product.unit ?? "un"} · {product.active === false ? "Inativa" : "Ativa"}</p></TableCell>
                   <TableCell>
                     <Badge 

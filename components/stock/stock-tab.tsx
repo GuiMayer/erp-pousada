@@ -4,7 +4,8 @@ import { getDataConfig } from "@/lib/data/config"
 import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
-import { useState } from "react"
+import { useStockNavigation } from "@/contexts/active-tab-context"
+import { useEffect, useState } from "react"
 import { Package, Plus, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -37,6 +38,9 @@ export function StockTab() {
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [movementModalOpen, setMovementModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("products")
+
+  const navigation = useStockNavigation()
+  useEffect(() => { if(navigation?.stockDestination) setActiveTab(navigation.stockDestination.section) }, [navigation?.stockDestination])
 
   const handleAddMovement = (item: StockItem) => {
     setSelectedItem(item)
@@ -99,11 +103,11 @@ export function StockTab() {
         </TabsList>
 
         <TabsContent value="purchases"><InventoryWorkspace section="purchases"/></TabsContent>
-        <TabsContent value="lots"><InventoryWorkspace section="lots"/></TabsContent>
+        <TabsContent value="lots"><InventoryWorkspace section="lots" targetId={navigation?.stockDestination?.section === "lots" ? navigation.stockDestination.id : undefined}/></TabsContent>
         <TabsContent value="inventory"><InventoryWorkspace section="inventory"/></TabsContent>
         {/* Products Tab */}
         <TabsContent value="products" className="space-y-6">
-          <ProductsManagementTab />
+          <ProductsManagementTab targetId={navigation?.stockDestination?.section === "products" ? navigation.stockDestination.id : undefined}/>
         </TabsContent>
 
         {/* Movements Tab */}
@@ -161,7 +165,7 @@ export function StockTab() {
                 <TableHead>Estoque Atual</TableHead>
                 <TableHead>Estoque Mínimo</TableHead>
                 <TableHead>Estoque Máximo</TableHead>
-                <TableHead>Custo Médio</TableHead>
+                <TableHead>Média do saldo físico</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>

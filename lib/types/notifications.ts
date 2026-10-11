@@ -13,6 +13,7 @@ export type NotificationType =
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical'
 
 export interface Notification {
+  destination?: import("@/lib/notification-destination").StockDestination
   id: string
   type: NotificationType
   title: string

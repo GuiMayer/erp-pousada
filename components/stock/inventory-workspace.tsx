@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useInventory } from "@/lib/hooks/useInventory";
 import { useApp } from "@/lib/app-context";
 import { useAuth } from "@/lib/auth-context";
@@ -28,7 +28,9 @@ import { PurchaseReceipt } from "./purchase-receipt";
 const fieldClass = "mt-1 min-h-11 w-full rounded-md border bg-background px-2";
 export function InventoryWorkspace({
   section,
+  targetId,
 }: {
+  targetId?: string;
   section: "purchases" | "lots" | "inventory";
 }) {
   const connected = getDataConfig().adapter === "database",
@@ -44,6 +46,7 @@ export function InventoryWorkspace({
   return (
     <InventoryPanels
       section={section}
+      targetId={targetId}
       data={read.data}
       error={read.error}
       loading={read.loading}
@@ -53,11 +56,13 @@ export function InventoryWorkspace({
 }
 export function InventoryPanels({
   section,
+  targetId,
   data,
   error,
   loading,
   refresh,
 }: {
+  targetId?: string;
   section: "purchases" | "lots" | "inventory";
   data: InventorySnapshot;
   error: string;
@@ -79,6 +84,8 @@ export function InventoryPanels({
     [busy, setBusy] = useState(false),
     [actionError, setActionError] = useState(""),
     [notice, setNotice] = useState("");
+  useEffect(()=>{if(targetId)setLotFilter("all")},[targetId]);
+  useEffect(()=>{if(!targetId||loading)return;const timer=requestAnimationFrame(()=>{const node=document.getElementById(`stock-lot-${targetId}`);node?.scrollIntoView({block:"center"});node?.focus({preventScroll:true})});return()=>cancelAnimationFrame(timer)},[targetId,data.lots,loading]);
   const today = businessDay(),
     open = data.inventories.find((i) => i.status === "open");
   async function act(kind: string, payload: unknown) {
@@ -106,7 +113,7 @@ export function InventoryPanels({
     );
   const visibleLots = data.lots.filter(
     (l) =>
-      l.quantity > 0 &&
+      (l.quantity > 0 || l.id === targetId) &&
       (lotFilter === "all" ||
         (lotFilter === "usable" && usable(l)) ||
         (lotFilter === "review" && l.status === "unverified") ||
@@ -123,6 +130,7 @@ export function InventoryPanels({
   if (loading) return <p role="status">Carregando documentos de estoque…</p>;
   return (
     <div className="space-y-4 [&_[data-slot=label]]:flex-col [&_[data-slot=label]]:items-stretch">
+      {targetId && !loading && !data.lots.some(l=>l.id===targetId) && <p role="status">Lote não disponível. Confira seu acesso ou volte à lista.</p>}
       {error && (
         <div role="alert" className="rounded border p-3 text-destructive">
           {error}
@@ -352,6 +360,9 @@ export function InventoryPanels({
             .map((l) => (
               <article
                 key={l.id}
+                id={`stock-lot-${l.id}`}
+                tabIndex={-1}
+                style={l.id===targetId?{outline:"2px solid var(--primary)",outlineOffset:2}:undefined}
                 className="space-y-3 rounded-lg border bg-card p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -589,7 +600,7 @@ export function InventoryPanels({
       {receiptOpen && (
         <PurchaseReceipt
           onClose={() => setReceiptOpen(false)}
-          onSaved={() => void refresh()}
+          onSaved={(message) => { setNotice(message ?? "Compra recebida."); void refresh(); }}
         />
       )}{" "}
       {lotAction && (
