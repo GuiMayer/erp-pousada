@@ -719,4 +719,39 @@ describe("S6: fechamento dos requisitos", () => {
       1,
     );
   });
+  it("nova revisão invalida identidade de confirmação da prévia anterior", async () => {
+    const input = {
+      kind: "products",
+      csv: importTemplate("products") + "Serviço;Bebidas;un;10;;nao;nao\n",
+    };
+    const old = await previewInitialImport(actor, input);
+    const current = await previewInitialImport(actor, input);
+    expect(current.id).not.toBe(old.id);
+    await expect(
+      confirmInitialImport(actor, { id: old.id, confirmed: true }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(await prisma.pOSProduct.count({ where: { name: "Serviço" } })).toBe(
+      0,
+    );
+    await confirmInitialImport(actor, { id: current.id, confirmed: true });
+    expect(await prisma.pOSProduct.count({ where: { name: "Serviço" } })).toBe(
+      1,
+    );
+  });
+  it("mudança de unidade após prévia exige nova revisão do saldo", async () => {
+    const preview = await previewInitialImport(actor, {
+      kind: "opening",
+      csv:
+        importTemplate("opening") +
+        `Água;S6-WATER;10;REVISAR;${day(10)};50;sim;Contagem inicial\n`,
+    });
+    await prisma.pOSProduct.update({
+      where: { id: "s6-water" },
+      data: { unit: "ml" },
+    });
+    await expect(
+      confirmInitialImport(actor, { id: preview.id, confirmed: true }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await prisma.stockLot.count()).toBe(0);
+  });
 });

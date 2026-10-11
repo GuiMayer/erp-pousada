@@ -130,6 +130,7 @@ async function inspect(
           throw Error("Papel hóspede exige CPF");
         if (roles.includes("supplier")) demand(actor, "suppliers.create");
         const company = r.empresa ? normalizeDocument(r.empresa) : null;
+        row.basis = { company: null };
         if (company) {
           if (!isCPF(doc) || company === doc)
             throw Error("Empresa vinculada requer pessoa física");
@@ -153,6 +154,11 @@ async function inspect(
             throw Error(
               "Empresa vinculada ausente, inativa ou sem papel pagador",
             );
+          row.basis = {
+            company: existing
+              ? { id: existing.id, version: existing.recordVersion }
+              : null,
+          };
         }
         if (
           r.telefone.length > 40 ||
@@ -175,6 +181,10 @@ async function inspect(
           include: { company: true },
         });
         if (existing) {
+          row.basis.person = {
+            id: existing.id,
+            version: existing.recordVersion,
+          };
           if (
             existing.name !== r.nome ||
             !existing.active ||
@@ -194,12 +204,13 @@ async function inspect(
       } else if (kind === "products") {
         const categories = await tx.productCategory.findMany({
           where: { name: r.categoria, active: true, isRestaurant: false },
-          select: { id: true },
+          select: { id: true, recordVersion: true },
         });
         if (categories.length !== 1)
           throw Error(
             "Categoria de bebida ausente ou ambígua; cadastre/conﬁra antes",
           );
+        row.basis = { category: categories[0] };
         const price = number(r.preco, 2),
           trackStock = bool(r.controla_estoque),
           requiresExpiry = bool(r.exige_validade);
@@ -231,6 +242,7 @@ async function inspect(
         });
         if (existing.length) {
           const e = existing[0];
+          row.basis.product = { id: e.id, version: e.recordVersion };
           if (
             existing.length !== 1 ||
             e.name !== r.nome ||
@@ -267,6 +279,13 @@ async function inspect(
           quantity = number(r.quantidade, 3),
           totalCost = number(r.custo_total, 2),
           costEstimated = bool(r.custo_estimado);
+        row.basis = {
+          product: {
+            id: product.id,
+            version: product.recordVersion,
+            unit: product.unit,
+          },
+        };
         if (
           !quantity ||
           !r.lote ||
@@ -315,12 +334,22 @@ async function inspect(
   const resolved = new Map<string, ImportLine[]>();
   for (const row of rows) {
     if (!row.payload) continue;
-    const key = kind === "opening" ? `${row.payload.productId}:${row.payload.code}` : kind === "products" ? `${row.payload.categoryId}:${String(row.payload.name).toLowerCase()}` : String(row.payload.cpfCnpj);
+    const key =
+      kind === "opening"
+        ? `${row.payload.productId}:${row.payload.code}`
+        : kind === "products"
+          ? `${row.payload.categoryId}:${String(row.payload.name).toLowerCase()}`
+          : String(row.payload.cpfCnpj);
     resolved.set(key, [...(resolved.get(key) ?? []), row]);
   }
-  for (const duplicates of resolved.values()) if (duplicates.length > 1) for (const row of duplicates) {
-    row.state = "invalid"; row.error = "O mesmo registro foi identificado mais de uma vez no arquivo"; delete row.payload;
-  }
+  for (const duplicates of resolved.values())
+    if (duplicates.length > 1)
+      for (const row of duplicates) {
+        row.state = "invalid";
+        row.error =
+          "O mesmo registro foi identificado mais de uma vez no arquivo";
+        delete row.payload;
+      }
   return rows;
 }
 const publicRows = (rows: ImportLine[]) =>
@@ -394,7 +423,8 @@ export async function previewInitialImport(actor: Actor, input: unknown) {
           payload,
           expiresAt,
         },
-        update: { userId: actor.id, payload, expiresAt },
+        // Every revision has a distinct confirmation identity; an older preview cannot approve newer data.
+        update: { id: randomUUID(), userId: actor.id, payload, expiresAt },
       });
       return {
         id: batch.id,
@@ -443,7 +473,12 @@ export async function confirmInitialImport(actor: Actor, input: unknown) {
       );
       if (
         rows.some(
-          (r, i) => r.state !== stored.rows[i].state || r.state === "invalid",
+          (r, i) =>
+            r.state !== stored.rows[i].state ||
+            r.state === "invalid" ||
+            JSON.stringify(r.basis) !== JSON.stringify(stored.rows[i].basis) ||
+            JSON.stringify({ ...r.payload, id: undefined }) !==
+              JSON.stringify({ ...stored.rows[i].payload, id: undefined }),
         )
       )
         throw new HttpError(

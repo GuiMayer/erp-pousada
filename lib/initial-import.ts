@@ -106,6 +106,7 @@ export type ImportLine = {
   state: "new" | "same" | "invalid";
   error?: string;
   payload?: Record<string, unknown>;
+  basis?: Record<string, unknown>;
 };
 export type ImportPreview = {
   id: string;
