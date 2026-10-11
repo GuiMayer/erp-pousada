@@ -40,13 +40,13 @@ function AppContent() {
 export default function Page() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <UserPreferencesProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <UserPreferencesProvider>
           <AppProvider>
             <AppContent />
           </AppProvider>
-        </AuthProvider>
-      </UserPreferencesProvider>
+        </UserPreferencesProvider>
+      </AuthProvider>
     </ThemeProvider>
   )
 }

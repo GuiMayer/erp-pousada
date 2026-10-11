@@ -4,7 +4,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest"
 import { NotificationProvider, useNotifications } from "@/lib/notification-context"
 import { presentNative, requestNativePermission } from "@/lib/native-notifications"
 const auth = vi.hoisted(() => ({ user: { id: "a", accessVersion: 0, permissions: ["reservations.read"] } }))
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => auth }))
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ ...auth, can: (permission:string) => ["settings.access","settings.personal.edit"].includes(permission) || auth.user.permissions.includes(permission) }) }))
 const wrapper = ({ children }: { children: React.ReactNode }) => <StrictMode><NotificationProvider>{children}</NotificationProvider></StrictMode>
 beforeEach(() => { localStorage.clear(); auth.user = { id: "a", accessVersion: 0, permissions: ["reservations.read"] }; vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage") })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })

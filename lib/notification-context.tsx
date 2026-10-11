@@ -13,11 +13,11 @@ interface NotificationContextType {
   refresh: () => void; loadMore: () => void; showArchived: (value: boolean) => void
   sendNotification: (type: NotificationType, title: string, message: string, priority?: NotificationPriority, reference?: string) => void
   markAsRead: (id: string) => void; markAllAsRead: () => void; clearNotification: (id: string) => void; clearAllNotifications: () => void
-  resolveNotification: (id: string) => void; restoreNotification: (id: string) => void; updatePreferences: (prefs: Partial<NotificationPreferences>) => void
+  resolveNotification: (id: string) => void; restoreNotification: (id: string) => void; updatePreferences: (prefs: Partial<NotificationPreferences>) => Promise<boolean>
 }
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, can } = useAuth()
   const demo = getDataConfig().adapter === "demo-localStorage"
   const key = `erp:demo:notifications:${user?.id ?? "anonymous"}`
   const prefKey = `${key}:preferences`
@@ -105,12 +105,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [demo, request, user?.id])
   const updatePreferences = useCallback(async (patch: Partial<NotificationPreferences>) => {
     const current = epoch.current
+    if (!can("settings.access") || !can("settings.personal.edit")) { setError("Sem permissão para alterar seus avisos."); return false }
+    setError("")
     try {
-      if (patch.browserNotifications) { const next = await requestNativePermission(); if (current !== epoch.current) return; setPermission(next) }
+      if (patch.browserNotifications) { const next = await requestNativePermission(); if (current !== epoch.current) return false; setPermission(next) }
       if (demo) setPreferences(prev => ({ ...prev, ...patch }))
       else { const next = await request("/api/notification-preferences", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); if (current === epoch.current) { setPreferences(next); void refreshRef.current() } }
-    } catch (failure) { if (current === epoch.current) setError((failure as Error).message) }
-  }, [demo, request])
+    return current === epoch.current
+    } catch (failure) { if (current === epoch.current) setError((failure as Error).message); return false }
+  }, [demo, request, can])
   const sendNotification = useCallback((type: NotificationType, title: string, message: string, priority: NotificationPriority = "medium", reference?: string) => {
     if (!demo) { void refreshRef.current(); return }
     if (!categoryEnabled(type, preferences)) return
