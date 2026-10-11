@@ -31,7 +31,7 @@ export function PurchaseReceipt({
   onSaved,
 }: {
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (message?:string) => void;
 }) {
   const {
       posProducts,
@@ -96,7 +96,7 @@ export function PurchaseReceipt({
     setBusy(true);
     setError("");
     try {
-      await runOperation("purchase-receive", {
+      const result=await runOperation<{priceChanges?:{name:string;unit:string;previous:number|null;current:number}[]}>("purchase-receive", {
         supplierId,
         reference: reference.trim() || undefined,
         notes: notes.trim() || undefined,
@@ -108,7 +108,7 @@ export function PurchaseReceipt({
         installments: parts.length ? parts : undefined,
         payments: payNow ? payments : undefined,
       });
-      onSaved();
+      onSaved(result.priceChanges?.length?"Compra recebida. Revise o preço de venda, se necessário: "+result.priceChanges.map(p=>`${p.name}: custo por ${p.unit} ${p.previous===null?"anterior não registrado":formatCurrency(p.previous)} → ${formatCurrency(p.current)}`).join("; ")+". Nenhum preço foi alterado automaticamente.":"Compra recebida.");
       onClose();
     } catch (e) {
       setError((e as Error).message);

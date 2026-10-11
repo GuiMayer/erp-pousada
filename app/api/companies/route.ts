@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { authorize } from "@/lib/server/auth"
 import { can } from "@/lib/server/permissions"
 import { handleRoute, HttpError } from "@/lib/server/http"
-import { lookupCompany } from "@/lib/server/company-lookup"
+import { lookupCompanyCached } from "@/lib/server/company-lookup"
 
 const attempts = new Map<string, { start: number; count: number }>()
 export async function GET(request: NextRequest) {
@@ -14,6 +14,6 @@ export async function GET(request: NextRequest) {
     const entry = attempts.get(actor.id) ?? { start: now, count: 0 }
     if (++entry.count > 10) throw new HttpError(429, "Aguarde um minuto para consultar novamente")
     attempts.set(actor.id, entry)
-    return NextResponse.json(await lookupCompany(request.nextUrl.searchParams.get("cnpj") ?? ""), { headers: { "Cache-Control": "no-store" } })
+    return NextResponse.json(await lookupCompanyCached(request.nextUrl.searchParams.get("cnpj") ?? "", request.nextUrl.searchParams.get("refresh") === "1"), { headers: { "Cache-Control": "no-store" } })
   }, request)
 }

@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { calculateCartSubtotal, calculateCartTotal, calculateItemTotal, formatCurrency, formatCurrencyFixed } from "@/lib/utils/price-calculations"
 import { getTodayISO, ROOM_STATUS } from "@/lib/utils/constants"
 import { formatDateTime } from "@/lib/utils/date-formatting"
-import { validateStockAvailability as validateStockItemAvailability } from "@/lib/utils/stock-validation"
+import { stockAvailable, validateStockAvailability as validateStockItemAvailability } from "@/lib/utils/stock-validation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -181,7 +181,7 @@ export function POSTab() {
     const newQuantity = currentInCart + 1
 
     // Use centralized stock validation
-    const validation = validateStockItemAvailability(stockItem, newQuantity, product.name)
+    const validation = product.trackStock ? validateStockItemAvailability(stockItem, newQuantity, product.name, getDataConfig().adapter === "database") : { isValid: true }
 
     if (!validation.isValid && validation.error) {
       toast(validation.error)
@@ -220,7 +220,7 @@ export function POSTab() {
       // If increasing quantity, check stock availability
       if (delta > 0) {
         const stockItem = stockItems.find(s => s.productId === item.product.id)
-        const validation = validateStockItemAvailability(stockItem, newQty, item.product.name)
+        const validation = item.product.trackStock ? validateStockItemAvailability(stockItem, newQty, item.product.name, getDataConfig().adapter === "database") : { isValid: true }
 
         if (!validation.isValid && validation.error) {
           toast(validation.error)
@@ -640,11 +640,11 @@ export function POSTab() {
             ) : (
               cart.map(item => {
                 const stockItem = stockItems.find(s => s.productId === item.product.id)
-                const availableStock = stockItem?.currentStock || 0
-                const stockStatus = !stockItem ? 'unknown' :
+                const availableStock = stockAvailable(stockItem, getDataConfig().adapter === "database")
+                const stockStatus = availableStock === undefined ? 'unknown' :
                   availableStock <= 0 ? 'critical' :
                   item.quantity >= availableStock ? 'warning' :
-                  availableStock <= (stockItem.minimumStock * 1.5) ? 'low' : 'ok'
+                  availableStock <= ((stockItem?.minimumStock ?? 0) * 1.5) ? 'low' : 'ok'
 
                 return (
                   <div
@@ -673,7 +673,7 @@ export function POSTab() {
                               stockStatus === 'low' ? 'text-warning' :
                               'text-muted-foreground'
                             }`}>
-                              {availableStock} {stockItem.unit}
+                              {availableStock === undefined ? "Saldo não confirmado" : `${availableStock} ${stockItem.unit} utilizáveis`}
                             </span>
                           </div>
                         )}

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import type { Actor } from "./auth";
-import { demand } from "./permissions";
+import { can, demand } from "./permissions";
 import { HttpError } from "./http";
 import { requireVersion } from "./concurrency";
 import { recordAudit } from "./audit";
@@ -148,6 +148,7 @@ export async function inventoryOperation(
         notes: input.notes,
       },
     });
+    const priceChanges: {productId:string;name:string;unit:string;previous:number|null;current:number}[]=[];
     for (let i = 0; i < input.items.length; i++) {
       const item = input.items[i],
         calculated = totals.lines[i],
@@ -171,6 +172,8 @@ export async function inventoryOperation(
         },
       });
       if (calculated.quantity) {
+        const previous=await tx.stockItem.findUnique({where:{productId:product.id}}),current=Number(D(calculated.totalCost).div(calculated.quantity).toDecimalPlaces(6));
+        if(can(actor,"stockItems.read")&&(!previous?.lastPurchaseDate||!previous.lastPurchasePrice.equals(D(current).toDecimalPlaces(2))))priceChanges.push({productId:product.id,name:product.name,unit:product.unit,previous:previous?.lastPurchaseDate?Number(previous.lastPurchasePrice):null,current});
         const lot = await tx.stockLot.create({
           data: {
             id: randomUUID(),
@@ -240,7 +243,7 @@ export async function inventoryOperation(
       total: totals.total,
       expenseId,
     });
-    return { id: purchaseId, expenseId };
+    return { id: purchaseId, expenseId, priceChanges };
   }
   if (kind === "stock-opening") {
     const input = z

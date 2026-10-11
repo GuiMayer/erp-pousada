@@ -1,4 +1,5 @@
 "use client"
+import { InitialImport } from "./initial-import"
 
 import { ruleSchema } from "@/lib/notification-policy"
 import { PROFILES, effectivePermissions, type PermissionOverrides } from "@/lib/permissions"
@@ -385,6 +386,7 @@ export function AdminTab() {
         </h2>
       </div>
 
+      {can("data.import") && <InitialImport/>}
       {can("systemSettings.edit") && <>
       {/* Informações da Pousada */}
       <Card>

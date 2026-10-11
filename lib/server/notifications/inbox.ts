@@ -1,4 +1,5 @@
 import { recordAudit } from "../audit"
+import { notificationDestination } from "@/lib/notification-destination"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db/client"
 import { ALL_PERMISSIONS, effectivePermissions } from "@/lib/permissions"
@@ -34,9 +35,9 @@ export async function listInbox(actor: Actor, cursor?: { date: string; id: strin
     const critical = archived ? [] : await tx.userNotification.findMany({ where: { AND: [where, { event: { priority: "critical", resolvedAt: null } }] }, include: { event: true }, orderBy: { event: { createdAt: "desc" } } })
     const unreadCount = await tx.userNotification.count({ where: { AND: [where, { readAt: null }, { OR: [{ archivedAt: null }, { event: { priority: "critical", resolvedAt: null } }] }] } })
     const page = rows.slice(0, 30); const last = page.at(-1)
-    return { notifications: page.map(row => ({ id: row.id, type: row.event.type, title: row.event.title, message: row.event.message, priority: row.event.priority,
+    return { notifications: page.map(row => ({ id: row.id, destination: notificationDestination(row.event), type: row.event.type, title: row.event.title, message: row.event.message, priority: row.event.priority,
       timestamp: row.event.createdAt, read: !!row.readAt, reference: row.event.reference, module: row.event.module, resolvedAt: row.event.resolvedAt, archived: !!row.archivedAt })),
-      activeAlerts: critical.map(row => ({ id: row.id, type: row.event.type, title: row.event.title, message: row.event.message, priority: row.event.priority, timestamp: row.event.createdAt, read: !!row.readAt, reference: row.event.reference, module: row.event.module, resolvedAt: row.event.resolvedAt, archived: !!row.archivedAt })),
+      activeAlerts: critical.map(row => ({ id: row.id, destination: notificationDestination(row.event), type: row.event.type, title: row.event.title, message: row.event.message, priority: row.event.priority, timestamp: row.event.createdAt, read: !!row.readAt, reference: row.event.reference, module: row.event.module, resolvedAt: row.event.resolvedAt, archived: !!row.archivedAt })),
       unreadCount, preferences: prefs, nextCursor: rows.length > 30 && last ? { date: last.event.createdAt.toISOString(), id: last.event.id } : null }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead })
 }

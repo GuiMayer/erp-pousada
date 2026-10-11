@@ -1,6 +1,6 @@
 # Sprints — pousada e venda de bebidas
 
-**Revisão:** 10/10/2026 · **Base:** [modelagem 1.0](REQUISITOS_E_MODELAGEM_ERP.md).
+**Revisão:** 11/10/2026 · **Base:** [modelagem 1.2](REQUISITOS_E_MODELAGEM_ERP.md).
 
 O restaurante deixou de ser responsabilidade do ERP. Não haverá sprints de salão, cozinha, buffet, marmitas, contratos de refeições ou integração com o fornecedor externo. Cadastro de empresa pagadora e cobrança de hospedagem continuam essenciais.
 
@@ -16,6 +16,7 @@ A divisão é por fluxo utilizável, não por camada técnica. Reutilizar as fun
 | S3 | Frente de Caixa, caixa e financeiro | Origens e títulos de S2; controles existentes. | Vender bebida, lançar em hospedagem, receber por meios distintos, estornar e fechar turno sem duplicações. |
 | S4 | Compra e estoque de bebidas | Catálogo de S1 e financeiro de S2/S3. | Receber fardo, gerar lote/saldo e conta a pagar, controlar validade/perda e inventário. |
 | S5 | Relatórios, homologação e operação | Fluxos completos S1–S4. | Conferir números pela origem e recuperar instalação com dados e permissões reconciliados. |
+| S6 | Fechamento dos requisitos auditados | Entrega S5 e conferência de 11/10/2026. | Fichas/saldos corretos, projeção, alertas úteis, importação revisável e roteiro integrado de aceite. |
 
 S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3 foi implementada em 10/10/2026; consulte a [entrega e o roteiro de caixa](ENTREGA_SPRINT_3.md). S4 foi implementada em 10/10/2026; consulte a [entrega de compras, lotes e inventário](ENTREGA_SPRINT_4.md). S5 tem implementação técnica entregue; homologação no equipamento final e aceite do cliente continuam pendentes. Consulte a [entrega e critérios gerenciais](ENTREGA_SPRINT_5.md). A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
 
@@ -115,6 +116,10 @@ S0 foi executada como retirada do restaurante e revisão documental. S1 foi impl
 
 **Aceitação principal:** AP-29–AP-33, além de reexecutar os ciclos essenciais no equipamento alvo. Reconciliar saldos, documentos e permissões depois da restauração. RPO 24 h/RTO 4 h continuam propostas para a homologação, sem presumir aceite.
 
+## S6 — Fechamento dos requisitos e preparação do aceite
+
+**Estado:** implementação técnica entregue, com [guia e evidências](ENTREGA_SPRINT_6.md); homologação no equipamento final pendente. O [plano da Sprint 6](PLANO_SPRINT_6.md) detalha a ordem, decisões e aceitação para CAD-02/07, PRE-06, PDV-01, EST-09, FIN-12 e QUA-18/19. Também resolve deliberadamente a divergência do método de custo e prepara os ciclos de homologação. Condicionais/evoluções do backlog continuam adiados; entrega técnica não encerra aceite do cliente/equipamento final.
+
 ## Regras de conclusão que valem para todas as sprints
 
 Uma sprint termina somente quando seu fluxo é demonstrável, os efeitos se reconciliam e a migração da fatia foi avaliada. Cada uma inclui autorização no servidor, auditoria, dados históricos preservados, transação, repetição segura, conflitos, falha de rede, atualização entre usuários, mobile afetado, documentação e commits por tarefa.
@@ -141,11 +146,11 @@ Essas decisões são propostas de priorização para manter o projeto viável; n
 
 | Domínio | Telas/fichas | Requisitos | Sprint principal | Cenários |
 | --- | --- | --- | --- | --- |
-| Pessoas e preços | T01/T02 | CAD/PRE | S1; PRE-06 em S4. | AP-01–AP-06, AP-18 |
+| Pessoas e preços | T01/T02 | CAD/PRE | S1; PRE-06 concluído em S6. | AP-01–AP-06, AP-18 |
 | Hospedagem e dívida | T03/T07 | HOS, FIN-01/02/03 | S2. | AP-07–AP-13, AP-24/27/30 |
 | Bebidas/caixa | T04/T07/T08 | PDV, FIN-04/06/07/08/09/13 | S3. | AP-14–AP-16, AP-23–AP-28 |
 | Compras/estoque | T05/T06 | COM/EST | S4. | AP-17–AP-23, AP-27 |
-| Gestão/recuperação | T09 | REL, FIN-12 | S5. | AP-29–AP-33 |
+| Gestão/recuperação | T09 | REL, FIN-12 | S5; projeção acumulada em S6. | AP-29–AP-33 |
 | Qualidade | Todas | QUA-01–QUA-20 | Todas; medição e restauração integradas em S5. | Cenários de acesso, falha, concorrência, mobile e recuperação |
 | Evoluções | T07/T08/T09 | FIN-05/10/11 | Backlog E, fora da primeira entrega. | AP-34/AP-35 e aceitação futura de importação |
 

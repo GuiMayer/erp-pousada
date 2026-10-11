@@ -1,6 +1,6 @@
 # Requisitos e modelagem funcional — ERP Pousada
 
-**Versão:** 1.0 · **Data:** 10/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1/S2/S3/S4 implementadas, aceite do cliente pendente.
+**Versão:** 1.2 · **Data:** 11/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** S1–S6 têm entrega técnica; homologação cliente/equipamento e evoluções adiadas permanecem pendentes. Consulte a [conferência de implementação](CONFERENCIA_REQUISITOS_IMPLEMENTADOS.md).
 
 Requisitos e entidades abaixo descrevem o alvo; não significam implementação de todas as sprints. A revisão 0.5 restaurou o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. A revisão 0.6 registra a [entrega da Sprint 1](ENTREGA_SPRINT_1.md), preservando integralmente os requisitos das etapas seguintes.
 
@@ -9,6 +9,8 @@ A revisão 0.7 acrescenta o vínculo opcional da pessoa física à empresa atual
 O [plano das sprints](SPRINTS_POUSADA.md) define a sequência de entrega. A [auditoria de escopo](REVISAO_ESCOPO_MODELAGEM.md) dá uma destinação explícita a cada requisito numerado da versão completa. A [versão 0.3 integral](../modules/abandoned/restaurant/docs/REQUISITOS_POUSADA_E_RESTAURANTE.md) permanece preservada como referência histórica, sem autoridade sobre o escopo ativo.
 
 A revisão 0.8 registra a [entrega da Sprint 2](ENTREGA_SPRINT_2.md): hospedagem independente do quarto, ocupantes, histórico de acomodações, extrato preservado e título empresarial com recebimento posterior. Não remove requisitos, cenários ou decisões das sprints seguintes.
+
+A revisão 1.2 registra a [entrega da Sprint 6](ENTREGA_SPRINT_6.md): ficha completa e dívida parcial, estoque utilizável no carrinho, projeção acumulada, destinos de alertas, busca por telefone, orientação de preço, cache CNPJ e importação inicial revisável. Critério de custo por lote alinhado deliberadamente; requisitos e pendências operacionais preservados.
 
 ## 1. Contexto, confirmações e limites
 
@@ -64,7 +66,7 @@ A versão 0.4 tinha 20 requisitos resumidos PO-01–PO-20 e um diagrama agregado
 
 ## 4. Revisão de cada superfície atual
 
-Manter significa conservar a finalidade. Revisar não significa refazer uma função existente. Estas constatações são leitura do código, não homologação visual de todos os formulários.
+Manter significa conservar a finalidade. Revisar não significa refazer uma função existente. A tabela abaixo preserva o **diagnóstico anterior às sprints**; frases sobre o estado “atual” ou “hoje” descrevem aquela base histórica, não a versão entregue em S5. Consulte a [conferência de implementação de 11/10/2026](CONFERENCIA_REQUISITOS_IMPLEMENTADOS.md) para o estado consolidado. Estas constatações não são homologação visual de todos os formulários.
 
 | Superfície atual | Situação e decisão |
 | --- | --- |
@@ -445,7 +447,7 @@ Esses estados são do alvo funcional. Não renomear valores persistidos durante 
 - **Receita prestada:** diária efetivamente prestada e bebida entregue; reserva futura/sinal não são prestação. Relatório de caixa considera recebimentos efetivos, explicitamente identificado.
 - **Compra:** quantidade aceita na unidade-base × custo-base, com distribuição de frete/descontos que reconcilie centavos. Pagamento e custo consumido são conceitos distintos.
 - **Saldo utilizável:** saldo físico menos quantidades bloqueadas/vencidas, sem contar o mesmo lote duas vezes. Mínimo compara quantidade utilizável.
-- **Custo médio:** média ponderada por entradas valorizadas do produto; retirada por validade não redefine a média. Perda/devolução conservam valor e origem segundo método declarado.
+- **Custo por lote (decisão S6):** consumo/perda usa o valor histórico alocado ao lote retirado por FEFO. A média exibida é o valor dos lotes físicos restantes dividido por sua quantidade e pode mudar na retirada; não recalcula custos históricos. Devolução restaura a origem e o valor da saída. Custos estimados/ausentes permanecem sinalizados.
 - **Inventário:** diferença no corte = contado − esperado; aplicar diferença ao saldo corrente, preservando os movimentos posteriores.
 - **Banco interno:** saldo inicial + entradas efetivas − saídas; transferência conserva o total entre contas. Só declarar conciliado quando conferido.
 - **Dinheiro:** fundo + movimentos líquidos em dinheiro = esperado do turno; troco devolvido não vira receita. Comparar com contagem física, sem esconder diferença mudando fundo.
@@ -595,6 +597,8 @@ A pesquisa de referências externas da versão 0.3 continua preservada em sua se
 | 0.6 | Registra S1 implementada, compatibilidade das identidades legadas, capacidades, tarifas e preços acordados; preserva requisitos e cenários das etapas seguintes. |
 | 0.7 | Vínculo opcional pessoa/empresa e sugestão de pagador, sem alterar operações anteriores. |
 | 0.8 | Registra S2 e suas relações de origem, migração e roteiro de aceite; preserva integralmente o backlog S3–S5. |
+| 1.1 | Registra S5 e a conferência do código: requisitos parciais, divergência de método de custo e homologação pendente; preserva o alvo funcional. |
+| 1.2 | Registra S6 e fechamento técnico das oito lacunas; mantém custo histórico por lote e média do saldo físico, requisitos, backlog e homologação pendente. |
 
 A revisão 0.9 registra a [entrega da Sprint 3](ENTREGA_SPRINT_3.md): entrega/cobrança integrada, pagamento misto, alocação de recebimentos, pagamentos parciais, movimentação de caixa e conferência manual. Conserva todos os requisitos e condicionais de implementação posteriores.
 

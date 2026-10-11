@@ -20,7 +20,7 @@ O projeto está em desenvolvimento. Há um modo de demonstração sem banco e um
 
 A aba **Cadastros** reúne pessoas e empresas, fornecedores, bebidas, capacidades dos quartos e tarifas por pessoa/noite conforme a quantidade de hóspedes. Pessoas podem ser vinculadas a uma empresa, cuja ficha mostra seus funcionários. Nas novas reservas e entradas, a empresa é sugerida como pagadora e pode ser substituída pelo operador; alterar o vínculo cadastral preserva as operações anteriores.
 
-Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md). Hospedagem e cobrança empresarial estão na [Sprint 2](docs/ENTREGA_SPRINT_2.md). Pagamentos mistos, recebimentos distribuídos e caixa estão na [Sprint 3](docs/ENTREGA_SPRINT_3.md). Compras integradas, lotes e validade de estoque seguem nas próximas sprints.
+Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md). Hospedagem e cobrança empresarial estão na [Sprint 2](docs/ENTREGA_SPRINT_2.md). Pagamentos mistos, recebimentos distribuídos e caixa estão na [Sprint 3](docs/ENTREGA_SPRINT_3.md). Compras, lotes e validade estão na [Sprint 4](docs/ENTREGA_SPRINT_4.md). A [Sprint 6](docs/ENTREGA_SPRINT_6.md) completa a ficha da pessoa, a projeção financeira e a importação inicial com revisão.
 
 ## Telas do sistema
 
@@ -223,6 +223,7 @@ src/__tests__/         Testes automatizados
 - **Operações:** vendas, estornos, check-in, reservas, consumo, estoque e pagamentos de despesas usam operações no servidor. Vendas recalculam valores e aplicam os limites de desconto. Operações possuem transação e identificação de reenvios.
 - **Hospedagem e cobrança:** a conta acompanha a estadia durante a troca de quarto e depois da saída. O extrato conserva bebidas e recebimentos. Saída empresarial autorizada gera cobrança pelo saldo, com vencimento e recebimento parcial posterior; próxima ocupação começa sem a dívida anterior. Veja o [roteiro da Sprint 2](docs/ENTREGA_SPRINT_2.md).
 - **Dados iniciais:** a produção começa vazia. O seed cria somente o primeiro supervisor e as configurações, exigindo credenciais definidas pelo responsável. A demonstração permanece separada.
+- **Fechamento S6:** ficha com saldos parciais e origens, carrinho por estoque utilizável, projeção diária com reservas separadas, alertas que abrem o registro, busca por telefone, orientação de preço e cache CNPJ. Importação CSV exige prévia/revisão, permissão própria e confirmação sem duplicar aberturas. [Guia e limites](docs/ENTREGA_SPRINT_6.md).
 - **Verificação:** tipos e build não ignoram erros. O projeto inclui lint, testes unitários, integração com PostgreSQL e uma rotina de CI no GitHub.
 
 Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), configure domínio e segredos, valide a cópia externa de backups e conclua a homologação dos fluxos da pousada. A configuração do repositório não comprova que uma infraestrutura remota já esteja implantada ou monitorada.
@@ -233,6 +234,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 - [Sprint 2: hospedagem, cobrança empresarial e roteiro de teste](docs/ENTREGA_SPRINT_2.md)
 - [Sprint 3: PDV, pagamentos, recebimentos e caixa](docs/ENTREGA_SPRINT_3.md)
 - [Sprint 5: critérios gerenciais, homologação e recuperação](docs/ENTREGA_SPRINT_5.md)
+- [Sprint 6: ficha, projeção, alertas e importação inicial](docs/ENTREGA_SPRINT_6.md)
 - [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
 - [Regras de hospedagem, cancelamentos, pagamentos e estoque](docs/REGRAS_NEGOCIO.md)
 - [Permissões individuais, perfis e aprovações por operação](docs/PERMISSOES.md)

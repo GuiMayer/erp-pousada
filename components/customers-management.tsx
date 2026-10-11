@@ -1,4 +1,7 @@
 "use client"
+import { PersonDossier } from "./person-dossier"
+import { getDataConfig } from "@/lib/data/config"
+import { matchesPerson } from "@/lib/utils/person-search"
 import { CnpjLookup } from "./cnpj-lookup"
 import { CompanyAffiliationField, CompanyMembers } from "./company-affiliation"
 import { PermissionGate } from "@/components/permission-gate"
@@ -94,8 +97,7 @@ export default function CustomersManagement() {
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      normalizeDocument(customer.cpfCnpj).includes(normalizeDocument(searchTerm))
+      matchesPerson(customer, searchTerm)
     const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "active" && customer.active) ||
@@ -658,6 +660,7 @@ export default function CustomersManagement() {
             <div className="space-y-4">
               {getDocumentType(selectedCustomer.cpfCnpj) === "CNPJ" && <CompanyMembers companyId={selectedCustomer.id} people={customers} />}
               {selectedCustomer.companyId && <p className="text-sm">Empresa vinculada: {customers.find(c => c.id === selectedCustomer.companyId)?.name ?? "Cadastro indisponível"}</p>}
+              {getDataConfig().adapter === "database" ? <PersonDossier id={selectedCustomer.id}/> : <>
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-lg border p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -732,6 +735,7 @@ export default function CustomersManagement() {
                   </div>
                 )}
               </div>
+              </>}
             </div>
           )}
 

@@ -2,6 +2,26 @@ import { normalizeDocument, validateCNPJ } from "@/lib/utils/cpf-cnpj-validator"
 import { HttpError } from "./http"
 
 export type CompanySuggestion = { cpfCnpj: string; name: string; email: string; phone: string; address: string; city: string; state: string; zipCode: string }
+export type CachedCompanySuggestion = CompanySuggestion & { consultedAt: string; cached: boolean }
+const companyCache = new Map<string, { value: CompanySuggestion; at: number }>()
+const companyPending = new Map<string, Promise<CachedCompanySuggestion>>()
+export async function lookupCompanyCached(document: string, force = false): Promise<CachedCompanySuggestion> {
+  const key = normalizeDocument(document), now = Date.now()
+  if (!validateCNPJ(key)) throw new HttpError(400, "CNPJ inválido")
+  for (const [id, entry] of companyCache) if (now - entry.at >= 86400000) companyCache.delete(id)
+  const entry = companyCache.get(key)
+  if (entry && !force) return { ...entry.value, consultedAt: new Date(entry.at).toISOString(), cached: true }
+  const pending = companyPending.get(key)
+  if (pending) return pending
+  const request = lookupCompany(key).then(value => {
+    const at = Date.now()
+    if (companyCache.size >= 1000 && !companyCache.has(key)) companyCache.delete(companyCache.keys().next().value!)
+    companyCache.set(key, { value, at })
+    return { ...value, consultedAt: new Date(at).toISOString(), cached: false }
+  }).finally(() => { companyPending.delete(key) })
+  companyPending.set(key, request)
+  return request
+}
 export async function lookupCompany(document: string): Promise<CompanySuggestion> {
   const cnpj = normalizeDocument(document)
   if (!validateCNPJ(cnpj)) throw new HttpError(400, "CNPJ inválido")

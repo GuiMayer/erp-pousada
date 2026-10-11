@@ -1,0 +1,254 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { getDataConfig } from "@/lib/data/config";
+import {
+  csvCell,
+  importTemplate,
+  type ImportKind,
+  type ImportPreview,
+} from "@/lib/initial-import";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+const kinds: Record<ImportKind, string> = {
+  people: "Pessoas, empresas e fornecedores",
+  products: "Catálogo de bebidas",
+  opening: "Saldo de abertura por lote",
+};
+function download(content: string, name: string) {
+  const url = URL.createObjectURL(
+      new Blob([content], { type: "text/csv;charset=utf-8" }),
+    ),
+    link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+export function InitialImport() {
+  const { user } = useAuth(),
+    [kind, setKind] = useState<ImportKind>("people"),
+    [csv, setCSV] = useState(""),
+    [preview, setPreview] = useState<ImportPreview | null>(null),
+    [accepted, setAccepted] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [result, setResult] = useState(""),
+    generation = useRef(0);
+  const access = JSON.stringify([
+    user?.id,
+    user?.accessVersion,
+    user?.permissions,
+  ]);
+  useEffect(() => {
+    generation.current++;
+    setCSV("");
+    setPreview(null);
+    setAccepted(false);
+    setResult("");
+    setError("");
+    setBusy(false);
+  }, [access]);
+  async function request(action: "preview" | "confirm") {
+    const token = ++generation.current;
+    setBusy(true);
+    setError("");
+    setResult("");
+    try {
+      const response = await fetch("/api/initial-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            data:
+              action === "preview"
+                ? { kind, csv }
+                : { id: preview?.id, confirmed: true },
+          }),
+        }),
+        body = await response.json();
+      if (!response.ok) throw Error(body.error ?? "Importação indisponível");
+      if (token !== generation.current) return;
+      if (action === "preview") {
+        setPreview(body);
+        setAccepted(false);
+        if (body.state === "confirmed")
+          setResult(
+            "Este conjunto já foi importado. Nenhum saldo será somado novamente.",
+          );
+      } else {
+        setPreview((p) => (p ? { ...p, state: "confirmed" } : null));
+        setResult(
+          `Importação concluída: ${body.created} novos registros e ${body.ignored} iguais ignorados.`,
+        );
+        window.dispatchEvent(new Event("erp:operation-completed"));
+      }
+    } catch (e) {
+      if (token === generation.current) setError((e as Error).message);
+    } finally {
+      if (token === generation.current) setBusy(false);
+    }
+  }
+  if (getDataConfig().adapter !== "database")
+    return <p>Importação inicial disponível no banco conectado.</p>;
+  return (
+    <section className="rounded-lg border p-4 space-y-4">
+      <h3 className="font-semibold">Importação inicial com conferência</h3>
+      <p className="text-sm text-muted-foreground">
+        Até 100 linhas por arquivo CSV UTF-8 (128 KB), separado por ponto e
+        vírgula. A prévia não altera cadastros ou estoque. Cadastre
+        categorias/produtos antes de importar os respectivos lotes. Não
+        substitui restauração de backup.
+      </p>
+      <label className="block">
+        Tipo de arquivo
+        <select
+          className="mt-1 min-h-11 w-full rounded border bg-background px-3"
+          disabled={busy}
+          value={kind}
+          onChange={(e) => {
+            generation.current++;
+            setKind(e.target.value as ImportKind);
+            setCSV("");
+            setPreview(null);
+            setAccepted(false);
+            setResult("");
+            setError("");
+          }}
+        >
+          {Object.entries(kinds).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Button
+        variant="outline"
+        onClick={() => download(importTemplate(kind), `modelo-${kind}.csv`)}
+      >
+        Baixar modelo
+      </Button>
+      <p className="text-sm">
+        {kind === "people"
+          ? "Papéis: hospede|pagador|fornecedor. Documento válido obrigatório no importador; empresa é seu CNPJ, cadastrado ou presente no mesmo arquivo. Telefones/documentos devem ser preservados como texto na planilha."
+          : kind === "products"
+            ? "Categoria já cadastrada; unidade un, ml ou l; controle/validade: sim ou não. Preço sem separador de milhar."
+            : "Produto por nome único ou código de barras. Quantidade na unidade-base; validade AAAA-MM-DD; custo total conhecido ou explicitamente estimado (sim/não). Motivo obrigatório. Lote de abertura já registrado não é somado novamente."}
+      </p>
+      <Input
+        aria-label="Arquivo de importação"
+        type="file"
+        key={kind + access}
+        accept=".csv,text/csv"
+        disabled={busy}
+        onChange={async (e) => {
+          setPreview(null);
+          setResult("");
+          setError("");
+          setAccepted(false);
+          const token = ++generation.current,
+            file = e.target.files?.[0];
+          if (!file) {
+            setCSV("");
+            return;
+          }
+          try {
+            if (file.size > 131072) throw Error("Use arquivo de até 128 KB");
+            const text = new TextDecoder("utf-8", { fatal: true }).decode(
+              await file.arrayBuffer(),
+            );
+            if (token === generation.current) setCSV(text);
+          } catch (err) {
+            if (token === generation.current) {
+              setCSV("");
+              setError((err as Error).message);
+            }
+          }
+        }}
+      />
+      <Button disabled={busy || !csv} onClick={() => request("preview")}>
+        {busy ? "Processando…" : "Conferir prévia"}
+      </Button>
+      <p role="status">{error || result}</p>
+      {preview && (
+        <>
+          <p>
+            Prévia válida até{" "}
+            {new Date(preview.expiresAt).toLocaleString("pt-BR")}. Nenhum
+            registro conflitante será sobrescrito.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <p>Novos: {preview.rows.filter((r) => r.state === "new").length}</p>
+            <p>
+              Iguais: {preview.rows.filter((r) => r.state === "same").length}
+            </p>
+            <p>
+              Rejeitados:{" "}
+              {preview.rows.filter((r) => r.state === "invalid").length}
+            </p>
+          </div>
+          <div className="max-h-80 overflow-y-auto space-y-2">
+            {preview.rows.map((r) => (
+              <article key={r.line} className="rounded border p-3">
+                <p className="font-medium">
+                  Linha {r.line} · {r.label}
+                </p>
+                <p>
+                  {r.state === "invalid"
+                    ? `Rejeitado: ${r.error}`
+                    : r.state === "same"
+                      ? "Já existe e é igual; será ignorado"
+                      : "Novo; será criado"}
+                </p>
+              </article>
+            ))}
+          </div>
+          {preview.rows.some((r) => r.state === "invalid") && (
+            <Button
+              variant="outline"
+              onClick={() =>
+                download(
+                  "\uFEFFlinha;registro;motivo\r\n" +
+                    preview.rows
+                      .filter((r) => r.state === "invalid")
+                      .map((r) =>
+                        [r.line, r.label, r.error].map(csvCell).join(";"),
+                      )
+                      .join("\r\n"),
+                  "rejeicoes-importacao.csv",
+                )
+              }
+            >
+              Baixar rejeições
+            </Button>
+          )}
+          {preview.state === "preview" && (
+            <>
+              <label className="flex min-h-11 gap-2 items-center">
+                <input
+                  type="checkbox"
+                  checked={accepted}
+                  disabled={busy}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                />
+                Conferi todos os registros e autorizo criar o conjunto sem
+                rejeições.
+              </label>
+              <Button
+                disabled={
+                  busy ||
+                  !accepted ||
+                  preview.rows.some((r) => r.state === "invalid")
+                }
+                onClick={() => request("confirm")}
+              >
+                Confirmar importação
+              </Button>
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
