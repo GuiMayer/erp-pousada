@@ -91,6 +91,7 @@ const actionLabels: Record<string, string> = {
   delete: "Excluir"
 }
 const specialLabels: Record<string, string> = {
+  "data.import": "Importar cadastros e abertura com prévia",
   "reports.read": "Consultar relatórios gerenciais",
   "reports.export": "Exportar relatórios gerenciais",
   "purchases.receive":"Confirmar recebimento de compra",
@@ -183,6 +184,6 @@ export const tabPermissions: Record<string, string[]> = {
   "cash.close", "bankAccounts.read"],
   relatorios: ["reports.read"],
   configuracoes: ["systemSettings.edit"],
-  administracao: ["users.manage", "systemSettings.edit"],
+  administracao: ["users.manage", "systemSettings.edit", "data.import"],
   auditoria: ["auditLog.read"]
 }
