@@ -17,6 +17,9 @@ jobs:
       - name: Validar monitoramento e operações com serviços simulados
         shell: powershell
         run: ./scripts/test-server-panel-monitor.ps1
+      - name: Validar interface adaptável sem serviços reais
+        shell: powershell
+        run: ./scripts/server-panel.ps1 -SelfTest
       - name: Validar isolamento da restauração descartável
         shell: powershell
         run: ./scripts/test-recovery-control.ps1

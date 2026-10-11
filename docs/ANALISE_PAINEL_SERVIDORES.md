@@ -110,3 +110,13 @@ São metas de implementação, não resultados já alcançados:
 - Falhas têm componente e causa identificáveis no diagnóstico, com retenção limitada e sem segredos.
 
 Prioridade: primeiro eliminar a espera da fila e as consultas com efeitos colaterais; depois reduzir trabalho e separar início/build; por fim reorganizar a apresentação e validar as metas. Melhorar somente as cores e os botões não resolve os gargalos encontrados.
+
+## Implementação em 11/10/2026
+
+O painel passou a usar monitor reutilizável com até três execuções, consultas independentes, listagem Docker agrupada e comando de alteração separado. Resultados anteriores a uma operação são descartados. Consultas passivas não criam keepalive e verificam distribuições já em execução antes de chamar o Docker no WSL.
+
+Início, restauração e atualização da demonstração foram separados. Uma sessão já ligada é preservada; a imagem é reutilizada e só é construída quando ausente ou na atualização explícita. O início publica disponibilidade local antes da preparação do Tailscale, com falhas distintas. Diagnóstico registra tempos por comando/etapa, componente e código de saída, com histórico limitado e sem stderr bruto ou argumentos.
+
+A janela é redimensionável, empilha cartões em largura menor, permite rolagem e mantém links disponíveis durante mutações. Testes simulados cobrem consultas lentas, resultados antigos, exceções antigas, prazos HTTP, cliques repetidos, isolamento de backup, falha de rede, demonstração idempotente e preservação de uma sessão quando build falha. Foram exercitados 30 ciclos de reutilização sem acúmulo de tarefas.
+
+O teste da interface aceitou um comando com consulta lenta em aproximadamente 71–161 ms, com executor simulado. Não é uma medição de início real de Docker/servidor nem comprova a meta de feedback de 100 ms em todas as execuções. Prévia ampla/compacta foi renderizada e inspecionada. Metas de percentil 95 com infraestrutura real, consumo de CPU/memória e DPI 125%/150% permanecem para homologação no computador da instalação. Consulte o [guia do painel](PAINEL_SERVIDORES.md).

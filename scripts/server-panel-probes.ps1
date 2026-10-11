@@ -27,7 +27,7 @@ function Invoke-PanelProbe([string]$Component,[string]$Url='') {
   $script:PanelMetrics=New-Object Collections.Generic.List[object]
   $script:PanelComponent=$Component
   $watch=[Diagnostics.Stopwatch]::StartNew()
-  $result=@{Component=$Component;Ok=$true;Observed=[DateTime]::UtcNow.ToString('o');Data=@{};Message=''}
+  $result=@{Component=$Component;Url=$Url;Ok=$true;Observed=[DateTime]::UtcNow.ToString('o');Data=@{};Message=''}
   try {
     switch($Component) {
       'Docker' {
