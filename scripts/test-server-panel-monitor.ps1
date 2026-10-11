@@ -147,6 +147,30 @@ function Invoke-PanelProbe($Component,$Url) {
   $result=Invoke-PanelAction 'StartDemo'
   Assert (!$result.Ok -and $result.Message -like '*cancelada*') 'Demo ignored cooperative cancellation'
   $script:CancelFile='';$script:ProgressFile=''
+  # Exercise the real worker's result/history handling with fully fake adapters.
+  Copy-Item (Join-Path $PSScriptRoot 'server-panel-worker.ps1') $scriptsDirectory
+  Copy-Item (Join-Path $PSScriptRoot 'server-panel-process.ps1') $scriptsDirectory
+  [IO.File]::WriteAllText((Join-Path $scriptsDirectory 'server-panel-probes.ps1'),@'
+. (Join-Path $PSScriptRoot 'server-panel-process.ps1')
+function Invoke-PanelProbe($Component){@{Ok=($Component -eq 'Backup');Message='simulated unavailable';Data=@{Backup='test backup'}} | ConvertTo-Json -Compress}
+'@)
+  [IO.File]::WriteAllText((Join-Path $scriptsDirectory 'server-panel-actions.ps1'),@'
+function Invoke-PanelAction($Action,$BackupDirectory){Set-PanelStage 'test stage';@{Ok=$true;Message='test completed';State=@{}}}
+'@)
+  $workerResult=Join-Path $testDirectory 'worker-result.json'
+  & (Join-Path $scriptsDirectory 'server-panel-worker.ps1') -Action Status -ResultFile $workerResult
+  $result=[IO.File]::ReadAllText($workerResult) | ConvertFrom-Json
+  Assert (!$result.Ok -and $result.Tailscale -eq 'simulated unavailable' -and $result.Backup -eq 'test backup') 'Legacy status masked or misclassified component failure'
+  for($iteration=0;$iteration -lt 31;$iteration++){& (Join-Path $scriptsDirectory 'server-panel-worker.ps1') -Action StartNormal -ResultFile $workerResult}
+  $history=Join-Path $testDirectory '.local/server-panel'
+  Assert (@(Get-ChildItem -LiteralPath $history -Filter 'operation-*.json').Count -eq 30) 'Operation history grew beyond retention limit'
+  $orphan=Join-Path $history ('job-'+[Guid]::NewGuid().ToString('N')+'.json')
+  [IO.File]::WriteAllText($orphan,'{}');[IO.File]::SetLastWriteTimeUtc($orphan,[DateTime]::UtcNow.AddDays(-2))
+  $unrelated=Join-Path $history 'job-user-document.json';[IO.File]::WriteAllText($unrelated,'{}');[IO.File]::SetLastWriteTimeUtc($unrelated,[DateTime]::UtcNow.AddDays(-2))
+  & (Join-Path $scriptsDirectory 'server-panel-worker.ps1') -Action StartNormal -ResultFile $workerResult
+  Assert (![IO.File]::Exists($orphan) -and [IO.File]::Exists($unrelated)) 'Orphan cleanup removed unrelated files or retained old jobs'
+  $result=[IO.File]::ReadAllText((Join-Path $history 'last-operation.json')) | ConvertFrom-Json
+  Assert ($result.Ok -and $result.Stages.Count -eq 1) 'Worker did not retain completed stage timing'
   Write-Output 'Monitoramento independente, resultados antigos, intervalos, WSL passivo, lote Docker e demonstração validados.'
 } finally {
   if($monitor){Stop-PanelMonitor $monitor}

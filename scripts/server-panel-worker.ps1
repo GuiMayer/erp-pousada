@@ -19,10 +19,19 @@ try {
     $result=@{Ok=$true;Message='Estados atualizados.';Normal='';Demo='';Docker='';Tailscale='';Backup='';NormalLink='';DemoLink='';NormalAccess='';DemoAccess=''}
     foreach($component in @('Docker','Network','Backup')) {
       $probe=Invoke-PanelProbe $component | ConvertFrom-Json
-      if(!$probe.Ok){$result[$component]=$probe.Message;continue}
+      if(!$probe.Ok){
+        $result.Ok=$false
+        if($component -eq 'Network'){$result.Tailscale=$probe.Message}
+        else {$result[$component]=$probe.Message}
+        if($component -eq 'Docker'){$result.Normal='Estado indisponível — confira o Docker.';$result.Demo=$result.Normal}
+        continue
+      }
       foreach($key in $probe.Data.PSObject.Properties.Name) {
         if($key -in @('Normal','Demo')) {
-          if($component -eq 'Docker'){$result[$key]=$probe.Data.$key.Text}
+          if($component -eq 'Docker'){
+            $result[$key]=$probe.Data.$key.Text
+            if($probe.Data.$key.State -in @('starting','degraded')){$result[$key]=(Invoke-PanelProbe $key | ConvertFrom-Json).Data.Text}
+          }
           else {$result["${key}Link"]=$probe.Data.$key.Url;$result["${key}Access"]=$probe.Data.$key.Access}
         } else {$result[$key]=$probe.Data.$key}
       }
@@ -48,5 +57,10 @@ finally {
     if(!$result.Ok){Write-PanelJson (Join-Path $directory 'last-error.json') $result}
     Write-PanelJson (Join-Path $directory ('operation-'+[Guid]::NewGuid().ToString('N')+'.json')) $result
     Get-ChildItem -LiteralPath $directory -Filter 'operation-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -Skip 30 | Remove-Item -Force
+    # A closed panel leaves its job files for the detached worker. Keep its
+    # result in history, then expire only our own old transient job files.
+    Get-ChildItem -LiteralPath $directory -Filter 'job-*' | Where-Object {
+      $_.Name -match '^job-[a-f0-9]{32}\.(json|progress\.json|cancel)$' -and $_.LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-1)
+    } | ForEach-Object {Remove-Item -LiteralPath $_.FullName -Force}
   }
 }
