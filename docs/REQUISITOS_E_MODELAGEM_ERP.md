@@ -1,6 +1,6 @@
 # Requisitos e modelagem funcional — ERP Pousada
 
-**Versão:** 1.0 · **Data:** 10/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** referência para protótipo e sprints; S1/S2/S3/S4 implementadas, aceite do cliente pendente.
+**Versão:** 1.1 · **Data:** 11/10/2026 · **Escopo ativo:** pousada e bebidas · **Situação:** S1–S5 têm entrega técnica; há requisitos parciais e homologação pendente. Consulte a [conferência de implementação](CONFERENCIA_REQUISITOS_IMPLEMENTADOS.md).
 
 Requisitos e entidades abaixo descrevem o alvo; não significam implementação de todas as sprints. A revisão 0.5 restaurou o detalhamento relevante para a pousada, com regras, telas, cardinalidades, transições, cálculos e aceitação. A revisão 0.6 registra a [entrega da Sprint 1](ENTREGA_SPRINT_1.md), preservando integralmente os requisitos das etapas seguintes.
 
@@ -64,7 +64,7 @@ A versão 0.4 tinha 20 requisitos resumidos PO-01–PO-20 e um diagrama agregado
 
 ## 4. Revisão de cada superfície atual
 
-Manter significa conservar a finalidade. Revisar não significa refazer uma função existente. Estas constatações são leitura do código, não homologação visual de todos os formulários.
+Manter significa conservar a finalidade. Revisar não significa refazer uma função existente. A tabela abaixo preserva o **diagnóstico anterior às sprints**; frases sobre o estado “atual” ou “hoje” descrevem aquela base histórica, não a versão entregue em S5. Consulte a [conferência de implementação de 11/10/2026](CONFERENCIA_REQUISITOS_IMPLEMENTADOS.md) para o estado consolidado. Estas constatações não são homologação visual de todos os formulários.
 
 | Superfície atual | Situação e decisão |
 | --- | --- |
@@ -595,6 +595,7 @@ A pesquisa de referências externas da versão 0.3 continua preservada em sua se
 | 0.6 | Registra S1 implementada, compatibilidade das identidades legadas, capacidades, tarifas e preços acordados; preserva requisitos e cenários das etapas seguintes. |
 | 0.7 | Vínculo opcional pessoa/empresa e sugestão de pagador, sem alterar operações anteriores. |
 | 0.8 | Registra S2 e suas relações de origem, migração e roteiro de aceite; preserva integralmente o backlog S3–S5. |
+| 1.1 | Registra S5 e a conferência do código: requisitos parciais, divergência de método de custo e homologação pendente; preserva o alvo funcional. |
 
 A revisão 0.9 registra a [entrega da Sprint 3](ENTREGA_SPRINT_3.md): entrega/cobrança integrada, pagamento misto, alocação de recebimentos, pagamentos parciais, movimentação de caixa e conferência manual. Conserva todos os requisitos e condicionais de implementação posteriores.
 
