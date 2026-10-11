@@ -52,6 +52,32 @@ async function upload() {
   await screen.findByText(/Linha 2/);
 }
 describe("S6 — revisão, falha e acesso na interface", () => {
+  it("recebimento perto da virada UTC mostra o dia da pousada", async () => {
+    mocks.fetch.mockResolvedValue(
+      response({
+        access: { stays: true, titles: true, receipts: true },
+        summary: { pending: 350, settled: 250, titles: 1 },
+        credit: 0,
+        rows: [
+          {
+            id: "receipt",
+            description: "Recebimento",
+            date: "2026-10-11T01:30:00Z",
+            type: "receita",
+            value: "250",
+            personValue: 250,
+          },
+        ],
+        page: 1,
+        total: 1,
+      }),
+    );
+    render(<PersonDossier id="person" />);
+    await screen.findByText("Recebimento");
+    fireEvent.click(screen.getByText("Recebimentos e estornos"));
+    await screen.findByText(/2026-10-10 · receita/);
+    expect(screen.queryByText(/2026-10-11 · receita/)).not.toBeInTheDocument();
+  });
   it("rejeição impede confirmar mesmo depois de marcar revisão", async () => {
     mocks.fetch.mockResolvedValue(
       response({

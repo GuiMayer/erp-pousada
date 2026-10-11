@@ -62,7 +62,7 @@ Migration aditiva `20261011020000_sprint6_initial_import` cria recibos/prévias 
 
 ## Validação e limites da evidência
 
-Regressão: **353 testes unitários** (incluindo cinco de interface S6) e **188 de integração**. Os novos testes cobrem dívida parcial, origem/escopo de recebimento compartilhado, projeção e vencidos/parcelas, reservas/caixa, custo por lote, orientação de preço, destino de alerta, importação/vínculos/deduplicação/repetição/conflito/revogação/expiração/restauração e acesso às novas APIs. Interface testa rejeição, confirmação revisada, resposta perdida/reenvio, troca de usuário, seção indisponível e preservação do horizonte após falha.
+Regressão: **354 testes unitários** (incluindo seis de interface S6) e **188 de integração**. Os novos testes cobrem dívida parcial, origem/escopo de recebimento compartilhado, projeção e vencidos/parcelas, reservas/caixa, custo por lote, orientação de preço, destino de alerta, importação/vínculos/deduplicação/repetição/conflito/revogação/expiração/restauração e acesso às novas APIs. Interface testa rejeição, confirmação revisada, resposta perdida/reenvio, troca de usuário, seção indisponível e preservação do horizonte após falha e dia operacional dos recebimentos na virada UTC.
 
 O CI deve aprovar tipos, lint, unitários, PostgreSQL isolado, migrações, build, auditoria de dependências, imagem, instalação com contas restritas, demonstração isolada, backup/restore e painel Windows antes da incorporação. Resultados da versão exata ficam nos [checks do PR #11](https://github.com/GuiMayer/erp-pousada/pull/11/checks).
 

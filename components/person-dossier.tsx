@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { businessDay } from "@/lib/utils/business-values";
 import type { Stay } from "@/lib/stays";
 import { StayButton } from "./stay-sheet";
 import { Button } from "./ui/button";
@@ -145,8 +146,9 @@ export function PersonDossier({ id }: { id: string }) {
                 ) : (
                   <>
                     <p>
-                      {row.dueDate?.slice(0, 10) ?? row.date?.slice(0, 10)} ·{" "}
-                      {row.status ?? row.type}
+                      {row.dueDate?.slice(0, 10) ??
+                        (row.date ? businessDay(row.date) : "")}{" "}
+                      · {row.status ?? row.type}
                       {row.reversalOfId ? " · estorno vinculado" : ""}
                     </p>
                     <p>
