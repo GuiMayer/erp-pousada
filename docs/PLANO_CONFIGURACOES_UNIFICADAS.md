@@ -1,6 +1,6 @@
 # Plano — Configurações unificadas
 
-Data: 11/10/2026. Base examinada: `63abc87`. Status: proposta de implementação; nenhuma mudança funcional nesta entrega.
+Data: 11/10/2026. Base examinada: `63abc87`. Status: implementação concluída, com validação visual no navegador pendente. O plano original abaixo mantém as decisões e critérios de aceite; consulte [Configurações e acessos](CONFIGURACOES_E_ACESSOS.md) para a estrutura entregue, migração e validações realizadas.
 
 ## Objetivo
 

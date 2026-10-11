@@ -65,9 +65,10 @@ CSV e JSON preservam período, totais, critérios e origem, com autorização no
 | **Cadastros** | Gerenciar pessoas, empresas e seus funcionários vinculados, fornecedores, bebidas, capacidade dos quartos e tarifas por pessoa e ocupação. |
 | **Reservas** | Cadastrar reservas e acompanhar hospedagens, ocupantes, troca de quarto, extrato e cobranças empresariais após a saída; conferir cancelamentos e no-show. |
 | **Estoque** | Receber compras com conta a pagar, converter embalagens, controlar lotes e validade, registrar perdas/devoluções e conferir inventário por corte. Saldo utilizável orienta vendas e alertas de reposição. |
-| **Configurações** | Ajustar os dados do estabelecimento e as preferências da interface. |
-| **Administração** | Gerenciar o cadastro de usuários. |
+| **Configurações** | Preferências pessoais, dados da pousada, hospedagem, política comercial, alertas, usuários e importação, com acesso por seção. |
 | **Auditoria** | Consultar os registros de ações realizadas no sistema. |
+
+Consulte o [guia de Configurações e acessos](docs/CONFIGURACOES_E_ACESSOS.md) para a organização das seções, permissões, salvamento e atualização da instalação.
 
 ## Demonstração local
 
