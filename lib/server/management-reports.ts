@@ -53,6 +53,11 @@ const sum = (rows: ReportLine[], kind: string) =>
       .filter((r) => r.kind === kind)
       .reduce((s, r) => s + cents(r.value ?? 0), 0),
   );
+function addLine(report: ManagementReport, line: ReportLine) {
+  if (report.rows.length >= 50000)
+    throw new HttpError(413, "Muitos registros; reduza o período");
+  report.rows.push(line);
+}
 export function authorizeReport(
   actor: Actor,
   section: ReportSection,
@@ -111,7 +116,7 @@ async function lodging(tx: Tx, q: ReportQuery, now: Date) {
         (a) => calendar(a.start) <= night.date && calendar(a.end) > night.date,
       );
       const providedNight = night.date < today && night.date < end;
-      out.rows.push({
+      addLine(out, {
         id: `${stay.id}:${night.date}`,
         date: night.date,
         kind: providedNight ? "diaria-prestada" : "diaria-acordada",
@@ -195,7 +200,7 @@ async function beverages(tx: Tx, q: ReportQuery, now: Date) {
       );
       continue;
     }
-    out.rows.push({
+    addLine(out, {
       id: sale.id,
       date: businessDay(sale.date),
       kind: sale.status === "concluida" ? "bebida-pdv" : "venda-cancelada",
@@ -206,7 +211,13 @@ async function beverages(tx: Tx, q: ReportQuery, now: Date) {
           ? sale.items.reduce((s, i) => s + i.quantity, 0)
           : 0,
       source: { collection: "posSales", id: sale.id },
-      details: { status: sale.status, paymentMethod: sale.paymentMethod },
+      details: {
+        status: sale.status,
+        paymentMethod: sale.paymentMethod,
+        untrackedProducts: sale.items.some((item) => !item.product.trackStock)
+          ? "Sim"
+          : "Não",
+      },
     });
   }
   const charges = cap(
@@ -217,7 +228,7 @@ async function beverages(tx: Tx, q: ReportQuery, now: Date) {
     }),
   );
   for (const charge of charges)
-    out.rows.push({
+    addLine(out, {
       id: charge.id,
       date: businessDay(charge.createdAt),
       kind:
@@ -300,7 +311,7 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
     if (valid) {
       usableValue += cents(lot.remainingValue);
     }
-    out.rows.push({
+    addLine(out, {
       id: lot.id,
       date: today,
       kind: "saldo-lote",
@@ -339,7 +350,7 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
       out.warnings.push(
         `Bebida ${stock.productName}: saldo agregado diverge dos lotes; confira antes de operar.`,
       );
-    out.rows.push({
+    addLine(out, {
       id: stock.id,
       date: today,
       kind: "resumo-produto",
@@ -363,7 +374,7 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
     await tx.purchase.findMany({ where: { receivedAt: bounds }, take: 50001 }),
   );
   for (const purchase of purchases)
-    out.rows.push({
+    addLine(out, {
       id: purchase.id,
       date: businessDay(purchase.receivedAt),
       kind: "compra",
@@ -399,7 +410,7 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
                 : null;
     if (!kind) {
       if (!type && ["saida", "perda"].includes(movement.type)) {
-        out.rows.push({
+        addLine(out, {
           id: movement.id,
           date: businessDay(movement.timestamp),
           kind: "custo-legado",
@@ -428,7 +439,7 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
     const estimated =
       !movement.allocations.length ||
       movement.allocations.some((a) => a.lot.costEstimated);
-    out.rows.push({
+    addLine(out, {
       id: movement.id,
       date: businessDay(movement.timestamp),
       kind,
@@ -498,7 +509,7 @@ async function expenses(tx: Tx, q: ReportQuery, now: Date) {
     }),
   );
   for (const d of documents)
-    out.rows.push({
+    addLine(out, {
       id: d.id,
       date: calendar(d.dueDate),
       kind: "despesa-gerencial",
@@ -530,7 +541,7 @@ async function finance(tx: Tx, q: ReportQuery, now: Date) {
         : ["despesa", "estorno"].includes(t.type)
           ? -1
           : 0;
-    out.rows.push({
+    addLine(out, {
       id: t.id,
       date: businessDay(t.date),
       kind:
@@ -579,7 +590,7 @@ async function finance(tx: Tx, q: ReportQuery, now: Date) {
       if (!balance) continue;
       const due = calendar(t.dueDate);
       if (!inside(due, q) && due >= q.start) continue;
-      out.rows.push({
+      addLine(out, {
         id: `receber:${t.id}`,
         date: due,
         kind: due < q.start ? "receber-anterior" : "receber-previsto",
@@ -602,7 +613,7 @@ async function finance(tx: Tx, q: ReportQuery, now: Date) {
       if (!balance) continue;
       const due = calendar(t.dueDate);
       if (!inside(due, q) && due >= q.start) continue;
-      out.rows.push({
+      addLine(out, {
         id: `pagar:${t.id}`,
         date: due,
         kind: due < q.start ? "pagar-anterior" : "pagar-previsto",
@@ -620,7 +631,7 @@ async function finance(tx: Tx, q: ReportQuery, now: Date) {
   }
   const accounts = await tx.bankAccount.findMany();
   for (const a of accounts)
-    out.rows.push({
+    addLine(out, {
       id: a.id,
       date: today,
       kind: "saldo-conta",
@@ -660,7 +671,7 @@ async function finance(tx: Tx, q: ReportQuery, now: Date) {
           : -cents(t.value)),
       cents(s.openingValue),
     );
-    out.rows.push({
+    addLine(out, {
       id: s.id,
       date: businessDay(s.closedAt ?? s.openedAt ?? s.date),
       kind: "turno-caixa",
@@ -769,6 +780,40 @@ export async function buildManagementReport(
       ...e.rows,
     ];
     out.warnings = [...l.warnings, ...b.warnings, ...i.warnings, ...e.warnings];
+    const costOrigins = new Set(
+      i.rows
+        .filter((r) => r.kind === "custo-consumido" && r.value !== null)
+        .map((r) => String(r.details?.originId ?? "")),
+    );
+    const costCharges = new Set(
+      [...costOrigins]
+        .filter((id) => id.includes(" · "))
+        .map((id) => id.slice(id.lastIndexOf(" · ") + 3)),
+    );
+    let missingCost = 0;
+    for (const row of b.rows) {
+      if (!["bebida-pdv", "bebida-hospedagem"].includes(row.kind)) continue;
+      const saleId =
+        row.kind === "bebida-pdv"
+          ? row.source.id
+          : String(row.details?.sourceSaleId ?? "");
+      const located = saleId
+        ? costOrigins.has(`Venda ${saleId}`)
+        : costCharges.has(String(row.details?.chargeId ?? ""));
+      if (!located || row.details?.untrackedProducts === "Sim") {
+        missingCost++;
+        row.estimated = true;
+        row.details = {
+          ...row.details,
+          costStatus: "Custo completo não localizado; resultado parcial",
+        };
+      }
+    }
+    if (missingCost)
+      out.warnings.push(
+        `${missingCost} documentos de bebidas sem custo completo rastreável no período. Os valores de venda são conhecidos; a margem não está completa.`,
+      );
+
     const provided = sum(out.rows, "diaria-prestada"),
       sold = sum(out.rows, "bebida-pdv") + sum(out.rows, "bebida-hospedagem"),
       consumed =
@@ -776,6 +821,12 @@ export async function buildManagementReport(
       loss = sum(out.rows, "perda"),
       expense = sum(out.rows, "despesa-gerencial");
     out.metrics = [
+      metric(
+        "missingCost",
+        "Documentos de bebidas com custo incompleto",
+        missingCost,
+        "number",
+      ),
       metric("provided", "Hospedagem prestada", provided),
       metric("beverages", "Bebidas vendidas/lançadas", sold),
       metric("consumedCost", "Custo consumido conhecido", consumed),
@@ -801,6 +852,7 @@ export async function buildManagementReport(
       "Resultado gerencial não fiscal; não é apuração contábil de lucro. Dados e custos ausentes permanecem identificados.",
     ];
   }
+  cap(out.rows);
   out.rows.sort(
     (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
   );

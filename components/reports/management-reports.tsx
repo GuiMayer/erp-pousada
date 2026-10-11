@@ -143,6 +143,7 @@ const fields: Record<string, string> = {
   usableQuantity: "Quantidade utilizável",
   minimumStock: "Estoque mínimo",
   maximumStock: "Estoque máximo",
+  costStatus: "Rastreabilidade do custo",
   overdue: "Vencido",
   position: "Posição",
   category: "Categoria",
@@ -363,7 +364,7 @@ export function ReportView({
                 </span>
                 {row.estimated && (
                   <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                    Estimado
+                    {row.details?.costStatus ? "Custo incompleto" : "Estimado"}
                   </span>
                 )}
               </div>
@@ -386,6 +387,7 @@ export function ReportView({
                         "maximumStock",
                         "overdue",
                         "position",
+                        "costStatus",
                         "paymentMethod",
                         "status",
                         "divergence",

@@ -171,6 +171,7 @@ describe("Sprint 5 — números pela origem e recuperação", () => {
     expect(value(r, "provided")).toBe(300);
     expect(value(r, "beverages")).toBe(20);
     expect(value(r, "partialResult")).toBe(320);
+    expect(value(r, "missingCost")).toBe(1);
     const f = await report("financeiro");
     expect(value(f, "inflow")).toBe(50);
   });
