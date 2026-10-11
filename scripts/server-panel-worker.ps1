@@ -10,6 +10,7 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 $script:ProgressFile=$ProgressFile;$script:CancelFile=$CancelFile
 $script:OperationDeadline=[DateTime]::UtcNow.AddMinutes(12)
 $script:PanelMetrics=New-Object Collections.Generic.List[object]
+$script:PanelStages=New-Object Collections.Generic.List[object]
 $watch=[Diagnostics.Stopwatch]::StartNew()
 $mutex=$null;$locked=$false
 $result=@{Ok=$false;Message='';State=@{}}
@@ -36,6 +37,8 @@ try {
 finally {
   if($locked){$mutex.ReleaseMutex()};if($mutex){$mutex.Dispose()}
   $watch.Stop();$result.Action=$Action;$result.Observed=[DateTime]::UtcNow.ToString('o')
+  Set-PanelStage 'Operação finalizada.' $result.State
+  $result.Stages=@($script:PanelStages.ToArray())
   $result.DurationMs=[math]::Round($watch.Elapsed.TotalMilliseconds);$result.Commands=@($script:PanelMetrics.ToArray())
   Write-PanelJson $ResultFile $result
   if($Action -ne 'Status') {

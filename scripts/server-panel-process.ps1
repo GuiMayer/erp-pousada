@@ -1,12 +1,17 @@
 ﻿# Single adapter for bounded external commands. Only its own child is terminated.
 function Write-PanelJson([string]$Path,$Value) {
   $temporary="$Path.$([Guid]::NewGuid().ToString('N')).tmp"
+  $backup="$temporary.bak"
   try {
     [IO.File]::WriteAllText($temporary,($Value | ConvertTo-Json -Depth 8 -Compress),(New-Object Text.UTF8Encoding($false)))
-    if([IO.File]::Exists($Path)){[IO.File]::Replace($temporary,$Path,$null)}else{[IO.File]::Move($temporary,$Path)}
-  } finally {if([IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)}}
+    if([IO.File]::Exists($Path)){[IO.File]::Replace($temporary,$Path,$backup)}else{[IO.File]::Move($temporary,$Path)}
+  } finally {foreach($file in @($temporary,$backup)){if([IO.File]::Exists($file)){[IO.File]::Delete($file)}}}
 }
 function Set-PanelStage([string]$Text,[hashtable]$State=@{}) {
+  if($null -ne $script:PanelStages) {
+    if($script:PanelStageWatch){$script:PanelStageWatch.Stop();$script:PanelStages.Add(@{Stage=$script:PanelStageName;DurationMs=[math]::Round($script:PanelStageWatch.Elapsed.TotalMilliseconds)}) | Out-Null}
+    $script:PanelStageName=$Text;$script:PanelStageWatch=[Diagnostics.Stopwatch]::StartNew()
+  }
   if ($script:ProgressFile) {
     if(!$script:PanelProgressState){$script:PanelProgressState=@{}}
     foreach($key in $State.Keys){$script:PanelProgressState[$key]=$State[$key]}
@@ -58,6 +63,9 @@ function Invoke-PanelCommand([string]$Executable,[string[]]$Arguments,[int]$Time
     }
     $outcome='ok'
     return @(Get-Content -LiteralPath $outputFile -ErrorAction SilentlyContinue)
+  } catch {
+    if($_.Exception.Message -like '*cancelada*'){$outcome='cancelled'}
+    throw
   } finally {
     if ($process) {
       if (!$process.HasExited) { $process.Kill(); $process.WaitForExit(3000) | Out-Null }

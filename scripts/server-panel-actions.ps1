@@ -82,12 +82,13 @@ function Invoke-PanelAction([string]$Action,[string]$BackupDirectory='') {
       }
       {$_ -in @('StartDemo','ResetDemo','UpdateDemo')} {
         Set-PanelStage 'Preparando a demonstração…'
-        & (Join-Path $PSScriptRoot 'start-demo.ps1') -Reset:($Action -eq 'ResetDemo') -Update:($Action -eq 'UpdateDemo')
+        # Keep progress, cancellation and deadline in the worker's script scope.
+        . (Join-Path $PSScriptRoot 'start-demo.ps1') -Reset:($Action -eq 'ResetDemo') -Update:($Action -eq 'UpdateDemo')
         Set-PanelLocalReady $result $true
       }
       'StopDemo' {
         Set-PanelStage 'Encerrando demonstração e descartando somente os exemplos…'
-        & (Join-Path $PSScriptRoot 'stop-demo.ps1')
+        . (Join-Path $PSScriptRoot 'stop-demo.ps1')
         $result.State.Demo=@{State='stopped';Text='Desligado — alterações dos exemplos descartadas.'}
         $result.Message='Demonstração encerrada. Alterações descartadas.'
       }

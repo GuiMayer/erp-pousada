@@ -8,7 +8,7 @@ function Start-PanelProbe($Monitor,[string]$Component,[string]$Url='',[switch]$F
   if($Monitor.Jobs.ContainsKey($Component)){return $false}
   if(!$Force -and $Monitor.Next.ContainsKey($Component) -and [DateTime]::UtcNow -lt $Monitor.Next[$Component]){return $false}
   $pipeline=[PowerShell]::Create();$pipeline.RunspacePool=$Monitor.Pool
-  $null=$pipeline.AddScript('param($file,$component,$url); . $file; Invoke-PanelProbe $component $url').AddArgument($Monitor.ProbeFile).AddArgument($Component).AddArgument($Url)
+  $null=$pipeline.AddScript('param($file,$component,$url); $ErrorActionPreference="Stop"; . $file; Invoke-PanelProbe $component $url').AddArgument($Monitor.ProbeFile).AddArgument($Component).AddArgument($Url)
   $Monitor.Jobs[$Component]=@{Pipeline=$pipeline;Async=$pipeline.BeginInvoke();Generation=$Monitor.Generation;Started=[DateTime]::UtcNow}
   return $true
 }
@@ -32,8 +32,10 @@ function Receive-PanelProbes($Monitor,[bool]$Busy=$false,[bool]$Minimized=$false
       $Monitor.Next[$component]=[DateTime]::UtcNow.AddSeconds($seconds)
       $result
     } catch {
-      $Monitor.Next[$component]=[DateTime]::UtcNow.AddSeconds(30)
-      [pscustomobject]@{Component=$component;Ok=$false;Message='Não foi possível consultar este componente.';Observed=[DateTime]::UtcNow.ToString('o');DurationMs=0;Data=@{};Commands=@()}
+      if($job.Generation -eq $Monitor.Generation) {
+        $Monitor.Next[$component]=[DateTime]::UtcNow.AddSeconds(30)
+        [pscustomobject]@{Component=$component;Ok=$false;Message='Não foi possível consultar este componente.';Observed=[DateTime]::UtcNow.ToString('o');DurationMs=0;Data=@{};Commands=@()}
+      }
     } finally {$job.Pipeline.Dispose();$job.Async.AsyncWaitHandle.Close();$Monitor.Jobs.Remove($component)}
   }
 }
