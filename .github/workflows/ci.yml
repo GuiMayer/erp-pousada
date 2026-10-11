@@ -14,6 +14,9 @@ jobs:
       - name: Validar prazo e cancelamento dos comandos
         shell: powershell
         run: ./scripts/test-server-panel.ps1
+      - name: Validar isolamento da restauração descartável
+        shell: powershell
+        run: ./scripts/test-recovery-control.ps1
       - name: Validar caminhos e argumentos do adaptador Docker
         shell: powershell
         run: ./scripts/test-docker-runtime.ps1
@@ -61,6 +64,7 @@ jobs:
           DEMO_MODE: "true"
           DEMO_LOGIN_PASSWORD: teste
         run: |
+          docker exec -i "$POSTGRES_CONTAINER" psql -q -U testadmin -d erp_test --csv -f - < scripts/db-recovery-manifest.sql > /tmp/before-demo.csv
           echo '127.0.0.1 postgres-demo' | sudo tee -a /etc/hosts
           docker exec "$POSTGRES_CONTAINER" createdb -U testadmin pousada_demo
           pnpm exec prisma migrate deploy
@@ -70,6 +74,8 @@ jobs:
           actual=$(docker exec "$POSTGRES_CONTAINER" psql -U testadmin -d pousada_demo -Atc "SELECT count(*) FROM stock_lots WHERE status='unverified'")
           test "$actual" = "0"
           docker exec "$POSTGRES_CONTAINER" dropdb -U testadmin pousada_demo
+          docker exec -i "$POSTGRES_CONTAINER" psql -q -U testadmin -d erp_test --csv -f - < scripts/db-recovery-manifest.sql > /tmp/after-demo.csv
+          cmp /tmp/before-demo.csv /tmp/after-demo.csv
       - run: pnpm audit --prod --audit-level=moderate
       - run: pnpm build
       - name: Validar backup e restauração em banco separado
@@ -82,6 +88,10 @@ jobs:
           expected=$(docker exec "$POSTGRES_CONTAINER" psql -U testadmin -d erp_test -Atc 'SELECT count(*) FROM rooms')
           actual=$(docker exec "$POSTGRES_CONTAINER" psql -U testadmin -d erp_restore -Atc 'SELECT count(*) FROM rooms')
           test "$expected" = "$actual"
+          docker exec -i "$POSTGRES_CONTAINER" psql -q -U testadmin -d erp_test --csv -f - < scripts/db-recovery-manifest.sql > /tmp/source-manifest.csv
+          docker exec -i "$POSTGRES_CONTAINER" psql -q -U testadmin -d erp_restore --csv -f - < scripts/db-recovery-manifest.sql > /tmp/restored-manifest.csv
+          cmp /tmp/source-manifest.csv /tmp/restored-manifest.csv
+          docker exec -i "$POSTGRES_CONTAINER" psql -U testadmin -d erp_restore -f - < scripts/db-recovery-check.sql
       - name: Validar imagem de produção
         env:
           POSTGRES_PASSWORD: ci-container-test-only

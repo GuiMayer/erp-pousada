@@ -17,7 +17,7 @@ A divisão é por fluxo utilizável, não por camada técnica. Reutilizar as fun
 | S4 | Compra e estoque de bebidas | Catálogo de S1 e financeiro de S2/S3. | Receber fardo, gerar lote/saldo e conta a pagar, controlar validade/perda e inventário. |
 | S5 | Relatórios, homologação e operação | Fluxos completos S1–S4. | Conferir números pela origem e recuperar instalação com dados e permissões reconciliados. |
 
-S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3 foi implementada em 10/10/2026; consulte a [entrega e o roteiro de caixa](ENTREGA_SPRINT_3.md). S4 foi implementada em 10/10/2026; consulte a [entrega de compras, lotes e inventário](ENTREGA_SPRINT_4.md). S5 continua planejada. A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
+S0 foi executada como retirada do restaurante e revisão documental. S1 foi implementada em 09/10/2026, com migração e testes em banco isolado; a [entrega e o roteiro do protótipo](ENTREGA_SPRINT_1.md) descrevem a ativação e seus limites. S2 foi implementada em 10/10/2026; consulte sua [entrega, migração e roteiro de aceite](ENTREGA_SPRINT_2.md). S3 foi implementada em 10/10/2026; consulte a [entrega e o roteiro de caixa](ENTREGA_SPRINT_3.md). S4 foi implementada em 10/10/2026; consulte a [entrega de compras, lotes e inventário](ENTREGA_SPRINT_4.md). S5 tem implementação técnica entregue; homologação no equipamento final e aceite do cliente continuam pendentes. Consulte a [entrega e critérios gerenciais](ENTREGA_SPRINT_5.md). A ordem S3 antes de S4 evita ampliar compras sem ter um núcleo financeiro consistente. S2 inclui o título e o recebimento mínimos de sua dívida.
 
 ## S1 — Base cadastral e preços
 
@@ -99,6 +99,8 @@ S0 foi executada como retirada do restaurante e revisão documental. S1 foi impl
 **Limite:** um estoque da pousada, somente bebidas. Sem cozinha, transferências entre negócios, produção, múltiplos armazéns ou prazo de validade calculado pelo aplicativo. Saldo legado sem validade requer tratamento de abertura explícito.
 
 ## S5 — Gestão, homologação e operação
+
+**Estado:** implementação técnica entregue: relatórios por origem, previsões, exportação autorizada/auditada, reconciliação de restauração e ensaio com cinco usuários. Homologação cliente/equipamento e metas propostas pendentes. Consulte a [entrega](ENTREGA_SPRINT_5.md).
 
 **Objetivo:** conferir os números e provar que a instalação é operável e recuperável na máquina da pousada.
 

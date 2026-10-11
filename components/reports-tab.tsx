@@ -12,6 +12,8 @@
 "use client"
 
 import { useState } from "react"
+import { ManagementReports } from "./reports/management-reports"
+import { getDataConfig } from "@/lib/data/config"
 import { useReports } from "@/lib/hooks/useReports"
 import { useUserPreferences } from "@/contexts/user-preferences-context"
 import { useApp } from "@/lib/app-context"
@@ -50,7 +52,7 @@ import { toast } from "sonner"
 import type { StockReportProduct } from "@/lib/reports/stock-report"
 import type { Reservation } from "@/lib/store"
 
-export function ReportsTab() {
+function LegacyReportsTab() {
   const { preferences } = useUserPreferences()
   const {
     reservations,
@@ -461,3 +463,5 @@ export function ReportsTab() {
     </div>
   )
 }
+
+export function ReportsTab() { return getDataConfig().adapter === "database" ? <ManagementReports /> : <LegacyReportsTab /> }

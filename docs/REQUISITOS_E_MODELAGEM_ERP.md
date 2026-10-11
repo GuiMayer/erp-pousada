@@ -599,3 +599,8 @@ A pesquisa de referências externas da versão 0.3 continua preservada em sua se
 A revisão 0.9 registra a [entrega da Sprint 3](ENTREGA_SPRINT_3.md): entrega/cobrança integrada, pagamento misto, alocação de recebimentos, pagamentos parciais, movimentação de caixa e conferência manual. Conserva todos os requisitos e condicionais de implementação posteriores.
 
 A revisão 1.0 registra a [entrega da Sprint 4](ENTREGA_SPRINT_4.md): compras com obrigação financeira, lotes e FEFO, abertura explícita, perdas/devoluções, acordo de fornecedor, inventário por corte e rastreabilidade de custos. Mantém todos os requisitos anteriores, condicionais e backlog de S5; atualização operacional e homologação do cliente ainda não foram realizadas.
+
+
+### Revisão da Sprint 5 — 10/10/2026
+
+Relatórios REL-01/03–07 implementados com origem, critérios, custo parcial/ausente, ocupação pelo catálogo atual, previsão por saldos atuais e exportação controlada. Recuperação compara todas as tabelas e regras de saldo/origem; ensaio de cinco usuários mede tempos em ambiente isolado. AP-29/30/31/32 têm cobertura técnica; AP-33 e metas QUA-13/14 precisam do ciclo real com cliente/equipamento. Não equivale a homologação de produção. Veja [entrega S5](ENTREGA_SPRINT_5.md) para limites deliberados, roteiro e pendências.

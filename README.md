@@ -52,11 +52,11 @@ Além do resumo, a aba oferece controle de despesas e parcelas, contas a receber
 
 ### Relatórios — transforme a operação em indicadores
 
-Selecione um período para consultar receita, quantidade de vendas, ticket médio e alertas de estoque. Os gráficos mostram a distribuição por categoria, forma de pagamento e horário, permitindo comparar o movimento e reconhecer os produtos que contribuem para as vendas.
+Consulte hospedagem prestada, bebidas, compras/estoque, fluxo e cobrança e resultado gerencial por período. Os indicadores distinguem atividade, recebimentos, mercadoria recebida e custo consumido; cada linha permite abrir seu documento de origem. Valores estimados, custos ausentes e saldos internos não conciliados são identificados.
 
-As visualizações de vendas, produtos e estoque complementam a análise. Os dados podem ser exportados em CSV, e os relatórios de reservas e estoque estão disponíveis em PDF.
+CSV e JSON preservam período, totais, critérios e origem, com autorização no servidor e auditoria. Veja os [critérios e o roteiro de homologação da Sprint 5](docs/ENTREGA_SPRINT_5.md).
 
-![Relatórios em modo claro com indicadores, gráficos de vendas e exportação CSV e PDF](docs/images/relatorios.jpg)
+![Prévia do resultado gerencial com exemplos fictícios em modo claro](docs/images/relatorios-sprint5.png)
 
 ### Outras abas
 
@@ -232,6 +232,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 - [Requisitos da pousada e sequência revisada das sprints](docs/REQUISITOS_E_MODELAGEM_ERP.md)
 - [Sprint 2: hospedagem, cobrança empresarial e roteiro de teste](docs/ENTREGA_SPRINT_2.md)
 - [Sprint 3: PDV, pagamentos, recebimentos e caixa](docs/ENTREGA_SPRINT_3.md)
+- [Sprint 5: critérios gerenciais, homologação e recuperação](docs/ENTREGA_SPRINT_5.md)
 - [Produção, HTTPS, atualização e backups](docs/PRODUCAO.md)
 - [Regras de hospedagem, cancelamentos, pagamentos e estoque](docs/REGRAS_NEGOCIO.md)
 - [Permissões individuais, perfis e aprovações por operação](docs/PERMISSOES.md)
