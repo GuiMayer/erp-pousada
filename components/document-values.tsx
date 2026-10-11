@@ -4,6 +4,7 @@ export const documentFields: Record<string, string> = {
   date: "Data",
   value: "Valor",
   total: "Total",
+  totalValue: "Valor acordado",
   status: "Situação",
   label: "Descrição",
   name: "Nome",
