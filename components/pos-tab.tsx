@@ -1,5 +1,6 @@
 "use client"
 import { useTaskState, useTaskRef } from "@/contexts/task-drafts-context"
+import { CashTurnShortcut } from "./cash-turn-shortcut"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
@@ -506,6 +507,7 @@ export function POSTab() {
         </div>
       </div>
 
+      <CashTurnShortcut />
       <Button className={`mobile-cart-bar sm:hidden ${mobileCartOpen ? "mobile-cart-bar-review" : ""}`} onClick={() => { setMobileCartOpen(true); requestAnimationFrame(() => cartRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })) }}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Ver carrinho</Button>
       {/* Main POS Layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">

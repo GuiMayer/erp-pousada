@@ -12,6 +12,14 @@ function viewport(phone: boolean) {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('Mobile interface', () => {
+  it('prevents closing a task while confirmation is pending', () => {
+    viewport(false)
+    const close=vi.fn()
+    render(<Dialog open onOpenChange={close}><DialogContent busy mobileTask><DialogHeader><DialogTitle>Confirmando</DialogTitle><DialogDescription>Aguarde</DialogDescription></DialogHeader><input aria-label="Dado" /></DialogContent></Dialog>)
+    expect(screen.getByRole('button',{name:'Close'})).toBeDisabled()
+    fireEvent.keyDown(screen.getByLabelText('Dado'),{key:'Escape'})
+    expect(close).not.toHaveBeenCalled()
+  })
   it('retains the administrator operational shortcuts', () => {
     expect(phoneDestinations(() => true).slice(0, 4).map(item => item.key)).toEqual(['mapa', 'reservas', 'pdv', 'estoque'])
     expect(phoneDestinations(() => false)).toEqual([])

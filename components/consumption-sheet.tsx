@@ -48,6 +48,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   const [boundStayId, setBoundStayId] = useState<string>()
   const initialized = useRef(false)
   const currentStay = stays.find(stay => stay.roomId === room.id && stay.status === "active")
+  const changedContext = getDataConfig().adapter === 'database' && open && (!boundStayId || currentStay?.id !== boundStayId)
   useEffect(() => {
     if (!open) { initialized.current = false; return }
     if (!initialized.current) { expectedStayId.current = currentStay?.id; setBoundStayId(currentStay?.id); initialized.current = true }
@@ -186,6 +187,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
           {/* Product catalog */}
           <div className="flex flex-col gap-2">
+            {changedContext && <p role="alert" className="text-sm text-destructive">A hospedagem mudou ou ainda não está identificada. Feche e reabra o consumo do hóspede correto.</p>}
             <Label>Quantidade por entrega<Input aria-label="Quantidade por entrega" type="number" min={1} max={1000} value={quantity} disabled={sending || paying} onChange={event => setQuantity(Number(event.target.value))} /></Label>
             {sending && <p role="status" className="text-sm">Registrando entrega…</p>}
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -194,7 +196,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {filteredProducts.map((product) => (
                 <button
-                  disabled={!can("consumptions.create") || sending || paying || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000}
+                  disabled={!can("consumptions.create") || changedContext || sending || paying || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000}
                   key={product.id}
                   onClick={() => handleAddCatalogItem(product.name, product.price, product.id)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent hover:border-primary"
@@ -246,7 +248,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                 variant="outline"
                 size="icon"
                 className="shrink-0"
-                disabled={!customLabel || !customPrice || sending || paying}
+                disabled={!customLabel || !customPrice || changedContext || sending || paying}
                 onClick={handleAddCustomItem}
               >
                 <Plus className="size-4" />
@@ -297,7 +299,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <select aria-label="Forma de pagamento" className="rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
             </select>
-            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={paying || sending} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
+            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={changedContext || paying || sending} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
           </div>}
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">

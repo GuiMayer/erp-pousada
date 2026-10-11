@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { Prisma } from "@prisma/client"
 import { z } from "zod"
 import type { Actor } from "./auth"
-import { demand } from "./permissions"
+import { demand, can } from "./permissions"
 import { HttpError } from "./http"
 import { requireVersion } from "./concurrency"
 import { recordAudit } from "./audit"
@@ -118,14 +118,14 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
     await tx.stayOccupant.deleteMany({ where: { stayId: stay.id } })
     await tx.stayOccupant.createMany({ data: input.occupants.map(o => ({ ...o, id: randomUUID(), stayId: stay.id })) })
     await touched(tx, actor, stay.id, "Ocupantes atualizados", { occupants: input.occupants })
-    return { success: true, stay: mapStay(await tx.stay.findUniqueOrThrow({where:{id:stay.id},include:stayInclude})) }
+    return { success: true, ...(can(actor,'stays.read') ? {stay:mapStay(await tx.stay.findUniqueOrThrow({where:{id:stay.id},include:stayInclude}))} : {}) }
   }
   if (kind === "stay-receive") {
     const input = z.object({ ...target, value: money, paymentMethod: paymentSchema.or(z.literal("credito_hospede")).optional(), accountId: id.optional(),payments:paymentLinesSchema.optional() }).strict().parse(payload)
     const stay = await load(tx, input, false)
     if (stay.status === "closed") demand(actor, "accountsReceivable.receive")
     await receiveStay(tx, actor, stay, input.value, input.paymentMethod, input.accountId,'general',input.payments)
-    return { success: true, stay: mapStay(await tx.stay.findUniqueOrThrow({where:{id:stay.id},include:stayInclude})) }
+    return { success: true, ...(can(actor,'stays.read') ? {stay:mapStay(await tx.stay.findUniqueOrThrow({where:{id:stay.id},include:stayInclude}))} : {}) }
   }
   if (kind === "stay-checkout") {
     const input = z.object({ ...target, dueDate: z.string().date().optional(), confirmed: z.boolean().optional() }).strict().parse(payload)
