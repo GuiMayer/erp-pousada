@@ -43,14 +43,14 @@ describe('Mobile interface', () => {
     expect(close).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Nome')).toHaveValue('Rascunho')
   })
-  it('does not change desktop cancellation behavior', () => {
+  it('protects an edited draft on desktop too', () => {
     viewport(false)
-    const confirm = vi.spyOn(window, 'confirm')
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const close = form()
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Teste' } })
     fireEvent.click(screen.getByText('Cancelar'))
-    expect(confirm).not.toHaveBeenCalled()
-    expect(close).toHaveBeenCalledWith(false)
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(close).not.toHaveBeenCalled()
   })
   it('does not discard the main draft when closing an auxiliary portal', () => {
     viewport(true)

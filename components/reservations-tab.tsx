@@ -1,4 +1,5 @@
 "use client"
+import { useTaskState } from "@/contexts/task-drafts-context"
 import { StaysList } from "./stay-sheet"
 import { CustomerCombobox } from "./customer-combobox"
 import { suggestPayerId } from "@/lib/customer-company"
@@ -119,32 +120,32 @@ export function ReservationsTab() {
   } = useApp()
   const { username, can } = useAuth()
 
-  const [showNewForm, setShowNewForm] = useState(false)
+  const [showNewForm, setShowNewForm] = useTaskState("reservation.showNewForm", false)
   const [cancelModal, setCancelModal] = useState<Reservation | null>(null)
   const [cancelTreatment, setCancelTreatment] = useState<string>("")
   const [cancellationFee, setCancellationFee] = useState("0")
   const [noShow, setNoShow] = useState(false)
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useTaskState("reservation.pending", false)
   const [operationError, setOperationError] = useState("")
   const [detailSheet, setDetailSheet] = useState<Reservation | null>(null)
   const [editModal, setEditModal] = useState<Reservation | null>(null)
 
   // New reservation form state
-  const [guestId, setGuestId] = useState("")
-  const [payerId, setPayerId] = useState("")
-  const [payerTouched, setPayerTouched] = useState(false)
-  const [occupancies, setOccupancies] = useState<Record<string, number>>({})
-  const [exception, setException] = useState(false)
-  const [exceptionReason, setExceptionReason] = useState("")
+  const [guestId, setGuestId] = useTaskState("reservation.guestId", "")
+  const [payerId, setPayerId] = useTaskState("reservation.payerId", "")
+  const [payerTouched, setPayerTouched] = useTaskState("reservation.payerTouched", false)
+  const [occupancies, setOccupancies] = useTaskState<Record<string, number>>("reservation.occupancies", {})
+  const [exception, setException] = useTaskState("reservation.exception", false)
+  const [exceptionReason, setExceptionReason] = useTaskState("reservation.exceptionReason", "")
   const [editReason, setEditReason] = useState("")
-  const [newCpf, setNewCpf] = useState("")
-  const [foundGuest, setFoundGuest] = useState<GuestProfile | undefined>()
-  const [newGuestName, setNewGuestName] = useState("")
-  const [newCheckIn, setNewCheckIn] = useState("")
-  const [newCheckOut, setNewCheckOut] = useState("")
-  const [newTotal, setNewTotal] = useState("")
+  const [newCpf, setNewCpf] = useTaskState("reservation.newCpf", "")
+  const [foundGuest, setFoundGuest] = useTaskState<GuestProfile | undefined>("reservation.foundGuest", undefined)
+  const [newGuestName, setNewGuestName] = useTaskState("reservation.newGuestName", "")
+  const [newCheckIn, setNewCheckIn] = useTaskState("reservation.newCheckIn", "")
+  const [newCheckOut, setNewCheckOut] = useTaskState("reservation.newCheckOut", "")
+  const [newTotal, setNewTotal] = useTaskState("reservation.newTotal", "")
   // Group reservations: multiple rooms
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([""])
+  const [selectedRooms, setSelectedRooms] = useTaskState<string[]>("reservation.selectedRooms", [""])
 
   // Edit form
   const [editCheckIn, setEditCheckIn] = useState("")
@@ -307,7 +308,7 @@ export function ReservationsTab() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div><Label>Buscar ou cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={(id, _name, selected) => { const person = selected ?? customers.find(c => c.id === id); if (person) handleCpfSearch(person.cpfCnpj, person) }} /></div>
-              <div><Label>Quem paga a hospedagem?</Label><CustomerCombobox value={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} /><p className="mt-1 text-xs text-muted-foreground">A empresa vinculada é sugerida; você pode escolher outro pagador. Cobrança empresarial após a saída entra na sprint 2.</p></div>
+              <div><Label>Quem paga a hospedagem?</Label><CustomerCombobox value={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} /><p className="mt-1 text-xs text-muted-foreground">A empresa vinculada é sugerida; você pode escolher outro pagador. A saída empresarial autorizada mantém a cobrança em aberto.</p></div>
             </div>
             {/* Room selection with group support */}
             <div className="flex flex-col gap-3">

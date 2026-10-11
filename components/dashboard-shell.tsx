@@ -2,7 +2,7 @@
 import { RegistrationsTab } from "./registrations-tab"
 import { MobileNavigation } from "./mobile-navigation"
 import { usePhoneLayout } from "@/hooks/use-phone-layout"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { tabPermissions } from "@/lib/permissions"
 
 import { useApp } from "@/lib/app-context"
@@ -28,10 +28,6 @@ export function DashboardShell() {
   const visible = (tab: string) => tabPermissions[tab]?.some(can)
   const permittedTab = Object.keys(tabPermissions).find(visible)
   const { activeTab, setActiveTab } = useActiveTab()
-  const [visited, setVisited] = useState(() => new Set([activeTab]))
-  useEffect(() => {
-    if (phone) setVisited(previous => previous.has(activeTab) ? previous : new Set([...previous, activeTab]))
-  }, [activeTab, phone])
   useEffect(() => {
     if (!tabPermissions[activeTab]?.some(can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
   }, [activeTab, can, permittedTab, setActiveTab])
@@ -84,32 +80,32 @@ export function DashboardShell() {
           </TabsTrigger>)}
         </TabsList>
 
-        {visible("mapa") && (<TabsContent forceMount={phone && visited.has("mapa") ? true : undefined} value="mapa">
+        {visible("mapa") && (<TabsContent value="mapa">
           <RoomGrid />
         </TabsContent>)}
-        {visible("reservas") && (<TabsContent forceMount={phone && visited.has("reservas") ? true : undefined} value="reservas">
+        {visible("reservas") && (<TabsContent value="reservas">
           <ReservationsTab />
         </TabsContent>)}
-        {visible("pdv") && (<TabsContent forceMount={phone && visited.has("pdv") ? true : undefined} value="pdv">
+        {visible("pdv") && (<TabsContent value="pdv">
           <POSTab />
         </TabsContent>)}
-        {visible("estoque") && (<TabsContent forceMount={phone && visited.has("estoque") ? true : undefined} value="estoque">
+        {visible("estoque") && (<TabsContent value="estoque">
           <StockTab />
         </TabsContent>)}
-        {visible("cadastros") && <TabsContent forceMount={phone && visited.has("cadastros") ? true : undefined} value="cadastros"><RegistrationsTab /></TabsContent>}
-        {visible("financeiro") && (<TabsContent forceMount={phone && visited.has("financeiro") ? true : undefined} value="financeiro">
+        {visible("cadastros") && <TabsContent value="cadastros"><RegistrationsTab /></TabsContent>}
+        {visible("financeiro") && (<TabsContent value="financeiro">
           <FinancialTab />
         </TabsContent>)}
-        {visible("relatorios") && (<TabsContent forceMount={phone && visited.has("relatorios") ? true : undefined} value="relatorios">
+        {visible("relatorios") && (<TabsContent value="relatorios">
           <ReportsTab />
         </TabsContent>)}
-        {visible("configuracoes") && (<TabsContent forceMount={phone && visited.has("configuracoes") ? true : undefined} value="configuracoes">
+        {visible("configuracoes") && (<TabsContent value="configuracoes">
           <SettingsTab />
         </TabsContent>)}
-        {visible("administracao") && (<TabsContent forceMount={phone && visited.has("administracao") ? true : undefined} value="administracao">
+        {visible("administracao") && (<TabsContent value="administracao">
             <AdminTab />
           </TabsContent>)}
-        {visible("auditoria") && (<TabsContent forceMount={phone && visited.has("auditoria") ? true : undefined} value="auditoria">
+        {visible("auditoria") && (<TabsContent value="auditoria">
           <AuditLogTab />
         </TabsContent>)}
       </Tabs>

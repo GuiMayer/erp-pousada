@@ -148,6 +148,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
   }
 
   function handleClose() {
+    if (pending) return
     setExpectedId(null); setGuestId(""); setPayerId(""); setPayerTouched(false); setGuestCount(1); setException(false); setReason("")
     resetGuest()
     setCheckOut("")
@@ -157,7 +158,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent mobileTask protectDraft className="sm:max-w-lg">
+      <DialogContent mobileTask protectDraft busy={pending} className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LogIn className="size-5 text-primary" />
@@ -168,7 +169,7 @@ export function CheckinModal({ room, open, onClose }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
+        <fieldset disabled={pending} className="flex flex-col gap-4 py-2">
           {!expectedId && <div className="grid gap-3 sm:grid-cols-2">
             <div><Label>Buscar / cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={(id, _name, selected) => { const person = selected ?? customers.find(c => c.id === id); if(person) { setGuestId(id); setCpf(person.cpfCnpj); setGuestName(person.name); if (!payerTouched) setPayerId(suggestPayerId(person, customers)) } }} /></div>
             <div><Label>Pagador</Label><CustomerCombobox value={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} /><p className="mt-1 text-xs text-muted-foreground">Empresa vinculada sugerida; você pode alterar quem paga.</p></div>
@@ -234,11 +235,11 @@ export function CheckinModal({ room, open, onClose }: Props) {
               <Input id="checkin-total" readOnly={!exception || !!expectedId} inputMode="decimal" type="number" value={expectedId || exception ? totalValue : previewLodging(room, lodgingTariffs, guestCount, businessDay(), checkOut).quote?.total ?? ""} onChange={e => setTotalValue(e.target.value)} placeholder="0,00" />
             </div>
           </div>
-        </div>
+        </fieldset>
 
         {expectedId ? <p className="text-sm text-muted-foreground">Entrada vinculada à reserva confirmada. O valor acordado será mantido.</p> : <><LodgingQuotePreview result={previewLodging(room, lodgingTariffs, guestCount, businessDay(), checkOut)} />{can("lodgingTariffs.override") && <div className="space-y-2"><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={exception} onChange={e => setException(e.target.checked)} />Usar valor excepcional informado acima</label>{exception && <Input aria-label="Motivo do preço excepcional" value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da autorização" />}</div>}</>}
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancelar</Button>
+          <Button variant="outline" disabled={pending} onClick={handleClose}>Cancelar</Button>
           <Button disabled={pending || !cpf || !guestName || !checkOut} onClick={handleConfirm}>
             Confirmar Check-in
           </Button>
