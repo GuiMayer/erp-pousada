@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
@@ -476,9 +477,13 @@ export async function confirmInitialImport(actor: Actor, input: unknown) {
           (r, i) =>
             r.state !== stored.rows[i].state ||
             r.state === "invalid" ||
-            JSON.stringify(r.basis) !== JSON.stringify(stored.rows[i].basis) ||
-            JSON.stringify({ ...r.payload, id: undefined }) !==
-              JSON.stringify({ ...stored.rows[i].payload, id: undefined }),
+            !isDeepStrictEqual(r.basis, stored.rows[i].basis) ||
+            !isDeepStrictEqual(
+              JSON.parse(JSON.stringify({ ...r.payload, id: undefined })),
+              JSON.parse(
+                JSON.stringify({ ...stored.rows[i].payload, id: undefined }),
+              ),
+            ),
         )
       )
         throw new HttpError(
