@@ -38,6 +38,11 @@ export async function roomStay(tx: Tx, roomId: number) {
   const r = await tx.reservation.findFirstOrThrow({ where: { roomId, status: "checkin" } })
   return ensureStay(tx, r.id)
 }
+export async function expectedRoomStay(tx: Tx, roomId: number, stayId: string) {
+  const stay = await tx.stay.findUnique({ where: { id: stayId }, include: stayInclude })
+  if (!stay || stay.status !== "active" || stay.roomId !== roomId) throw new HttpError(409, "A hospedagem deste atendimento mudou. Reabra o consumo do hóspede correto antes de continuar.")
+  return stay
+}
 async function load(tx: Tx, input: { stayId: string; recordVersion: number }, active = true) {
   const stay = await tx.stay.findUniqueOrThrow({ where: { id: input.stayId }, include: stayInclude })
   requireVersion(input.recordVersion, stay.recordVersion)
@@ -113,14 +118,14 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
     await tx.stayOccupant.deleteMany({ where: { stayId: stay.id } })
     await tx.stayOccupant.createMany({ data: input.occupants.map(o => ({ ...o, id: randomUUID(), stayId: stay.id })) })
     await touched(tx, actor, stay.id, "Ocupantes atualizados", { occupants: input.occupants })
-    return { success: true }
+    return { success: true, stay: mapStay(await tx.stay.findUniqueOrThrow({where:{id:stay.id},include:stayInclude})) }
   }
   if (kind === "stay-receive") {
     const input = z.object({ ...target, value: money, paymentMethod: paymentSchema.or(z.literal("credito_hospede")).optional(), accountId: id.optional(),payments:paymentLinesSchema.optional() }).strict().parse(payload)
     const stay = await load(tx, input, false)
     if (stay.status === "closed") demand(actor, "accountsReceivable.receive")
     await receiveStay(tx, actor, stay, input.value, input.paymentMethod, input.accountId,'general',input.payments)
-    return { success: true }
+    return { success: true, stay: mapStay(await tx.stay.findUniqueOrThrow({where:{id:stay.id},include:stayInclude})) }
   }
   if (kind === "stay-checkout") {
     const input = z.object({ ...target, dueDate: z.string().date().optional(), confirmed: z.boolean().optional() }).strict().parse(payload)

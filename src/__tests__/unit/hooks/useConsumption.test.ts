@@ -26,6 +26,16 @@ describe('useConsumption', () => {
     mockAddItem.mockClear()
     mockRemoveItem.mockClear()
   })
+  it('reenvio após resposta perdida mantém o item e nova entrega usa outro ID',async()=>{
+    const add=vi.fn().mockRejectedValueOnce(new Error('Rede indisponível')).mockResolvedValue(undefined)
+    const {result}=renderHook(()=>useConsumption({roomId:1,stayId:'stay',items:[],addItem:add,removeItem:mockRemoveItem}))
+    await act(async()=>{await expect(result.current.addCatalogItem('Água',5,'water',3)).rejects.toThrow()})
+    const id=add.mock.calls[0][1].id
+    await act(async()=>{await result.current.addCatalogItem('Água',5,'water',3)})
+    expect(add.mock.calls[1][1]).toMatchObject({id,quantity:3})
+    await act(async()=>{await result.current.addCatalogItem('Água',5,'water',3)})
+    expect(add.mock.calls[2][1].id).not.toBe(id)
+  })
 
   it('should calculate total correctly', () => {
     const { result } = renderHook(() => useConsumption({

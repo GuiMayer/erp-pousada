@@ -41,7 +41,7 @@ async function start(company=true, deposit=0) {
   const r = await op('reserve',payload) as {id:string}
   if(deposit) await op('pay-reservation',{reservationId:r.id,value:deposit,paymentMethod:'pix',accountId:'s2-bank'})
   await op('check-in',payload)
-  await op('add-consumption',{roomId:1,item:{id:randomUUID(),productId:'s2-drink',label:'nome adulterado',unitPrice:1,quantity:2}})
+  await op('add-consumption',{roomId:1,expectedStayId:(await prisma.stay.findFirstOrThrow({where:{roomId:1,status:'active'}})).id,item:{id:randomUUID(),productId:'s2-drink',label:'nome adulterado',unitPrice:1,quantity:2}})
   return current()
 }
 async function current() { return (await getCollection('stays'))[0] as Stay }

@@ -114,5 +114,5 @@ export async function demoStayOperation(store: DataStore,kind: string,payload: u
   }else throw Error('Operação de hospedagem inválida')
   await store.stays.update(s.id,{...s,recordVersion:s.recordVersion+1})
   await store.auditLog.create({date:new Date().toISOString(),user:username,action:kind,reference:s.id})
-  return {success:true}
+  return {success:true,stay:await store.stays.getById(s.id)}
 }

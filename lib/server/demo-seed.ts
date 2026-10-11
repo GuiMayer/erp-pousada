@@ -61,7 +61,7 @@ export async function seedDemo() {
     }
     await applyOperation(tx, actor, "reserve", { roomId: 5, cpf: guests[0][0], guestName: guests[0][1], checkIn: day(0), checkOut: day(3), guestCount: 2, payerId: "demo-company", totalValue: 600 })
     await applyOperation(tx, actor, "reserve", { roomId: 6, cpf: guests[1][0], guestName: guests[1][1], checkIn: day(2), checkOut: day(5), guestCount: 2, totalValue: 600 })
-    await applyOperation(tx, actor, "add-consumption", { roomId: 1, item: { id: "demo-consumption-item", label: "Água mineral", quantity: 2, unitPrice: 5 } })
+    await applyOperation(tx, actor, "add-consumption", { roomId: 1, expectedStayId: (await tx.stay.findFirstOrThrow({ where: { roomId: 1, status: "active" } })).id, item: { id: "demo-consumption-item", label: "Água mineral", quantity: 2, unitPrice: 5 } })
     await applyOperation(tx, actor, "cash-open", { openingValue: 200 })
     for (let index = 0; index < 14; index++) {
       const product = products[index % 2 === 0 ? 0 : 1], quantity = index % 3 + 1, total = product.price * quantity, saleId = `demo-sale-${index}`

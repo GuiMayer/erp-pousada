@@ -132,7 +132,7 @@ type AppContextType = {
   updateGuest: (cpf: string, data: Partial<GuestProfile>) => Promise<void>
   removeGuest: (cpf: string, expectedVersion?: number) => Promise<void>
   setDiscountCeiling: (v: number) => void
-  addConsumptionItem: (roomId: number, item: ConsumptionItem) => Promise<void>
+  addConsumptionItem: (roomId: number, item: ConsumptionItem, expectedStayId?: string) => Promise<void>
   removeConsumptionItem: (roomId: number, itemId: string) => Promise<void>
   getConsumption: (roomId: number) => RoomConsumption | undefined
   clearConsumption: (roomId: number) => Promise<void>
@@ -747,8 +747,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [dataStore])
 
   // Consumption methods
-  const addConsumptionItem = useCallback(async (roomId: number, item: ConsumptionItem) => {
-    if (getDataConfig().adapter === "database") { await runOperation("add-consumption", { roomId, item }); return }
+  const addConsumptionItem = useCallback(async (roomId: number, item: ConsumptionItem, expectedStayId?: string) => {
+    if (getDataConfig().adapter === "database") {
+      if (!expectedStayId) throw new Error("Reabra o consumo para identificar a hospedagem deste atendimento")
+      await runOperation("add-consumption", { roomId, expectedStayId, item }); return
+    }
     await reconcileDemoStays(dataStore)
     const existing = await dataStore.consumptions.getByRoomId(roomId)
     if (existing) {

@@ -1,6 +1,6 @@
 import { inventoryOperation } from './inventory-operations'
 import { issueStock,restoreStock } from './inventory-stock'
-import { ensureStay, roomStay, stayOperation, finishStay, receiveStay, mapStay } from "./stays"
+import { ensureStay, roomStay, expectedRoomStay, stayOperation, finishStay, receiveStay, mapStay } from "./stays"
 import { stayBalance } from "@/lib/stays"
 import { ensureGuest } from "./contacts"
 import { agreedPrice } from "./lodging-pricing"
@@ -220,16 +220,16 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "add-consumption") {
-    const { roomId, item } = z.object({ roomId: integer, item: z.object({ id, productId: id.optional(), label: text, unitPrice: money, quantity: integer }) }).strict().parse(payload)
+    const { roomId, expectedStayId, item } = z.object({ roomId: integer, expectedStayId: id, item: z.object({ id, productId: id.optional(), label: text, unitPrice: money, quantity: integer }) }).strict().parse(payload)
     const room = await tx.room.findUniqueOrThrow({ where: { id: roomId } })
     if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
+    const stay = await expectedRoomStay(tx, roomId, expectedStayId)
     const product = item.productId ? await tx.pOSProduct.findUnique({ where: { id: item.productId } }) : await tx.pOSProduct.findFirst({ where: { name: item.label } })
     if (item.productId && !product) throw new HttpError(404, "Produto não encontrado")
     if (product && !product.active) throw new HttpError(409, "Bebida inativa; selecione um produto disponível")
     if (product) item.unitPrice = Number(product.price)
     else demand(actor, "consumptions.custom")
     if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number} · ${item.id}`)
-    const stay = await roomStay(tx, roomId)
     await tx.stayCharge.create({ data: { id: item.id, stayId: stay.id, productId: product?.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity } })
     await tx.stay.update({ where: { id: stay.id }, data: { recordVersion: { increment: 1 } } })
     const consumption = await tx.roomConsumption.upsert({ where: { roomId }, create: { id: randomUUID(), roomId }, update: {} })
@@ -255,8 +255,9 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "pay-consumption") {
-    const { roomId, paymentMethod, accountId, payments } = z.object({ roomId: integer, ...paymentFields }).strict().parse(payload)
-    const stay = await roomStay(tx, roomId)
+    const { roomId, expectedStayId, recordVersion, paymentMethod, accountId, payments } = z.object({ roomId: integer, expectedStayId: id, recordVersion: z.number().int().nonnegative(), ...paymentFields }).strict().parse(payload)
+    const stay = await expectedRoomStay(tx, roomId, expectedStayId)
+    requireVersion(recordVersion, stay.recordVersion)
     const total = stayBalance(mapStay(stay)).consumptionBalance
     if (total <= 0) throw new HttpError(409, "Consumo já quitado")
     await receiveStay(tx, actor, stay, total, paymentMethod, accountId, "consumption",payments)
