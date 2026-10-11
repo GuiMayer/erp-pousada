@@ -41,6 +41,7 @@ const number = (v: string, places: number) => {
   return Number(v.replace(",", "."));
 };
 function access(actor: Actor, kind: ImportKind) {
+  demand(actor, "settings.access");
   demand(actor, "data.import");
   if (kind === "people") {
     demand(actor, "customers.create");

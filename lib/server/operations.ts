@@ -438,7 +438,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
             const input = z.object({ key: id }).passthrough().parse(payload)
             demand(actor, `${input.key}.${kind === "admin-create" ? "create" : "edit"}`)
             demand(actor, `${input.key}.read`)
-            if (input.key === "users") demand(actor, "users.manage")
+            if (input.key === "users") { demand(actor, "settings.access"); demand(actor, "users.manage") }
           }
           return receipt.result
         }
