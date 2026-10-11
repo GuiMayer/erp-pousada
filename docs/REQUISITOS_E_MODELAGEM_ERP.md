@@ -445,7 +445,7 @@ Esses estados são do alvo funcional. Não renomear valores persistidos durante 
 - **Receita prestada:** diária efetivamente prestada e bebida entregue; reserva futura/sinal não são prestação. Relatório de caixa considera recebimentos efetivos, explicitamente identificado.
 - **Compra:** quantidade aceita na unidade-base × custo-base, com distribuição de frete/descontos que reconcilie centavos. Pagamento e custo consumido são conceitos distintos.
 - **Saldo utilizável:** saldo físico menos quantidades bloqueadas/vencidas, sem contar o mesmo lote duas vezes. Mínimo compara quantidade utilizável.
-- **Custo médio:** média ponderada por entradas valorizadas do produto; retirada por validade não redefine a média. Perda/devolução conservam valor e origem segundo método declarado.
+- **Custo por lote (decisão S6):** consumo/perda usa o valor histórico alocado ao lote retirado por FEFO. A média exibida é o valor dos lotes físicos restantes dividido por sua quantidade e pode mudar na retirada; não recalcula custos históricos. Devolução restaura a origem e o valor da saída. Custos estimados/ausentes permanecem sinalizados.
 - **Inventário:** diferença no corte = contado − esperado; aplicar diferença ao saldo corrente, preservando os movimentos posteriores.
 - **Banco interno:** saldo inicial + entradas efetivas − saídas; transferência conserva o total entre contas. Só declarar conciliado quando conferido.
 - **Dinheiro:** fundo + movimentos líquidos em dinheiro = esperado do turno; troco devolvido não vira receita. Comparar com contagem física, sem esconder diferença mudando fundo.
