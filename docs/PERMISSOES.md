@@ -16,9 +16,11 @@ No modo `database`, a autorização é verificada no servidor em cada consulta e
 
 O restaurante foi arquivado. Suas permissões e perfis legados continuam no servidor por compatibilidade, mas não aparecem como opções ativas no editor de acessos.
 
-O perfil fornece uma base. Em **Administração → Usuários → Editar**, escolha **Herdar**, **Permitir** ou **Bloquear** para cada ação. A busca facilita localizar permissões; a prévia mostra o resultado antes de salvar. Um bloqueio individual prevalece sobre a herança e sobre aprovações temporárias.
+O perfil fornece uma base. Em **Configurações → Usuários e acessos → Editar**, escolha **Herdar**, **Permitir** ou **Bloquear** para cada ação. A busca facilita localizar permissões; a prévia mostra o resultado antes de salvar. Um bloqueio individual prevalece sobre a herança e sobre aprovações temporárias.
 
 Consultar, cadastrar, editar e excluir são permissões independentes nos cadastros. Operações como receber hospedagem, estornar venda, pagar despesa, transferir saldo e fechar caixa têm permissões próprias. Registros operacionais e históricos não podem ser alterados pelas APIs genéricas de cadastro.
+
+Prorrogar estadia exige `hospitality.extend`, além de `stays.read`, `rooms.read` e `lodgingTariffs.read` para revisar a hospedagem e suas novas diárias. Os perfis iniciais de administrador, supervisor, recepção e operador legado incluem essa ação; perfis personalizados precisam de concessão explícita. A revogação também impede consultar o resultado de uma prorrogação anteriormente confirmada pela mesma operação.
 
 Selecionar uma conta para receber pagamentos não permite consultar saldo, agência ou número. Os perfis operacionais recebem somente identificador, nome, tipo e situação das contas ativas. Consultar dados financeiros e movimentar valores são poderes separados.
 

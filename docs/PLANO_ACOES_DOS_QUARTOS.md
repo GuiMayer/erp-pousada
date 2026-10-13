@@ -1,6 +1,6 @@
 # Cartões dos quartos: ações contextuais
 
-Data: 12/10/2026. Base analisada: `e047ee6`. Status: pesquisa e proposta de interface; o aplicativo ainda não foi alterado nesta entrega.
+Data: 12/10/2026. Base analisada: `e047ee6`. Status: implementado, incluindo prorrogação. Consulte [a entrega e validação](ENTREGA_ACOES_DOS_QUARTOS.md) para o comportamento final e os testes.
 
 ## Decisão
 
@@ -46,7 +46,7 @@ Os valores são exemplos: R$ 200 de diárias e R$ 10 de bebidas, ambos em aberto
 
 1. Receber pagamento — somente com saldo positivo e autorização.
 2. Ver hospedagem e extrato.
-3. Prorrogar estadia — função futura, a implementar depois da reorganização.
+3. Prorrogar estadia — revisar novas diárias, disponibilidade e motivo antes de confirmar.
 4. Trocar de quarto.
 5. Editar ocupantes.
 
@@ -59,7 +59,7 @@ Manter uma ordem estável. Disponibilidade e permissões mudam os itens oferecid
 | Estado | Atalhos preservados | Conteúdo adicional |
 | --- | --- | --- |
 | Disponível | Check-in e Bloquear | Detalhes do quarto; não exibir funções de uma estadia inexistente |
-| Ocupado | Check-out e Consumo | Extrato, recebimento, ocupantes, troca e futura prorrogação |
+| Ocupado | Check-out e Consumo | Extrato, recebimento, ocupantes, troca e prorrogação |
 | Limpeza | Liberar quarto | Informação de limpeza; sem ações de hospedagem ativa |
 | Bloqueado | Desbloquear quarto, preservando a revisão atual do bloqueio | Motivo, responsável e previsão |
 

@@ -70,6 +70,8 @@ CSV e JSON preservam período, totais, critérios e origem, com autorização no
 
 Consulte o [guia de Configurações e acessos](docs/CONFIGURACOES_E_ACESSOS.md) para a organização das seções, permissões, salvamento e atualização da instalação.
 
+No mapa de quartos, o nome do hóspede abre o extrato e o saldo abre o recebimento. **Mais ações** reúne troca de quarto, ocupantes e **prorrogação da estadia**, com revisão das novas diárias e da disponibilidade. Veja a [entrega das ações dos quartos](docs/ENTREGA_ACOES_DOS_QUARTOS.md).
+
 ## Demonstração local
 
 ### Requisitos
