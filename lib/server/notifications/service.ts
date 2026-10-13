@@ -29,6 +29,7 @@ const catalog: Record<string, { type: NotificationType; title: string; module: s
   "check-out": { type: "check-out", title: "Check-out confirmado", module: "mapa", permissions: ["rooms.read", "reservations.read"] },
   "stay-checkout": { type: "check-out", title: "Saída de hospedagem confirmada", module: "reservas", permissions: ["stays.read"] },
   "stay-transfer": { type: "reservation", title: "Troca de quarto confirmada", module: "reservas", permissions: ["stays.read"] },
+  "stay-extend": { type: "reservation", title: "Estadia prorrogada", module: "reservas", permissions: ["stays.read"] },
   "stay-occupants": { type: "reservation", title: "Ocupantes atualizados", module: "reservas", permissions: ["stays.read"] },
   "stay-receive": { type: "payment", title: "Recebimento de hospedagem confirmado", module: "reservas", permissions: ["stays.read", "transactions.read"] },
   "release-room": { type: "cleaning", title: "Quarto liberado", module: "mapa", permissions: ["rooms.read"] },

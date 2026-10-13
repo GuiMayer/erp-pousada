@@ -12,6 +12,7 @@ import { serverQuote } from "./lodging-pricing"
 import { businessDay } from "@/lib/utils/business-values"
 import { isCPF } from "@/lib/utils/cpf-cnpj-validator"
 import { stayBalance, type Stay } from "@/lib/stays"
+import { extensionInput, extensionDateError, extensionQuoteSignature } from "@/lib/stay-extension"
 
 type Tx = Prisma.TransactionClient
 const id = z.string().trim().min(1).max(200)
@@ -104,6 +105,40 @@ export async function finishStay(tx: Tx, actor: Actor, stay: Loaded, dueDate?: s
   await touched(tx, actor, stay.id, "Check-out realizado", { balance, dueDate, corporate: balance > 0 })
 }
 export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload: unknown) {
+  if (kind === "stay-extend") {
+    demand(actor, "stays.read"); demand(actor, "rooms.read"); demand(actor, "lodgingTariffs.read")
+    const input = extensionInput.parse(payload), stay = await load(tx, input)
+    const oldEnd = stay.checkOut.toISOString().slice(0,10)
+    const invalidDate = extensionDateError(oldEnd, input.checkOut, businessDay())
+    if (invalidDate) throw new HttpError(400, invalidDate)
+    const previous = stay.nightlyPrices as Stay["nightlyPrices"]
+    if (!stay.guestCount || !previous?.length) throw new HttpError(409, "Regularize a ocupação e a composição das diárias antes de prorrogar esta hospedagem.")
+    const room = await tx.room.findUniqueOrThrow({where:{id:stay.roomId}})
+    const reservation = await tx.reservation.findUniqueOrThrow({where:{id:stay.reservationId}})
+    const allocation = stay.allocations.filter(a => a.roomId === room.id && a.end.getTime() === stay.checkOut.getTime() && a.start < a.end)
+    if (room.status !== "ocupado" || reservation.status !== "checkin" || reservation.roomId !== room.id || reservation.checkOut.getTime() !== stay.checkOut.getTime() || allocation.length !== 1 ||
+        await tx.stay.count({where:{roomId:room.id,status:"active",id:{not:stay.id}}}))
+      throw new HttpError(409, "A ocupação do quarto mudou ou está inconsistente. Revise o atendimento.")
+    const end = new Date(input.checkOut)
+    if (await tx.reservation.count({where:{id:{not:reservation.id},roomId:room.id,status:{in:["confirmada","checkin"]},checkIn:{lt:end},checkOut:{gt:stay.checkOut}}}))
+      throw new HttpError(409, "O quarto possui outra reserva no período adicional. Escolha outra saída ou revise a troca de quarto.")
+    const quote = await serverQuote(tx, {roomId:room.id,guestCount:stay.guestCount,checkIn:oldEnd,checkOut:input.checkOut})
+    if (extensionQuoteSignature(quote) !== input.quoteSignature || Math.round(quote.total*100) !== Math.round(input.quotedTotal*100))
+      throw new HttpError(409, "A tarifa das noites adicionais mudou. Recalcule e confirme a nova prévia.")
+    const nightlyPrices = [...previous, ...quote.nights] as unknown as Prisma.InputJsonValue
+    const lodgingValue = stay.lodgingValue.plus(quote.total)
+    const previousGross = new Prisma.Decimal(previous.reduce((sum, night) => sum + Math.round(night.total * 100), 0)).div(100)
+    const originalValue = Prisma.Decimal.max(reservation.originalValue ?? reservation.totalValue, stay.lodgingValue, previousGross).plus(quote.total)
+    if (lodgingValue.gt(999999999)) throw new HttpError(400, "O total da hospedagem excede o limite permitido.")
+    const changed = await tx.stayAllocation.updateMany({where:{id:allocation[0].id,end:stay.checkOut},data:{end}})
+    if (changed.count !== 1) throw new HttpError(409, "A alocação do quarto mudou. Reabra a hospedagem.")
+    await tx.reservation.update({where:{id:reservation.id},data:{checkOut:end,totalValue:lodgingValue,originalValue,nightlyPrices,recordVersion:{increment:1}}})
+    await tx.room.update({where:{id:room.id},data:{checkOut:end,recordVersion:{increment:1}}})
+    const updated = await tx.stay.updateMany({where:{id:stay.id,recordVersion:input.recordVersion,status:"active",roomId:room.id},data:{checkOut:end,lodgingValue,nightlyPrices,recordVersion:{increment:1}}})
+    if (updated.count !== 1) throw new HttpError(409, "A hospedagem mudou. Reabra o atendimento antes de prorrogar.")
+    await recordAudit(tx, actor, "Estadia prorrogada", stay.id, {entityType:"stays",entityId:stay.id,operation:"update",metadata:{from:oldEnd,to:input.checkOut,additionalValue:quote.total,reason:input.reason,nights:quote.nights}})
+    return {success:true,stay:mapStay(await tx.stay.findUniqueOrThrow({where:{id:stay.id},include:stayInclude}))}
+  }
   if (kind === "stay-occupants") {
     const input = z.object({ ...target, occupants: z.array(z.object({ name: id, customerId: id.optional() }).strict()).min(1).max(100) }).strict().parse(payload)
     const stay = await load(tx, input)

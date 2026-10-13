@@ -433,6 +433,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
           // A completed approval permits only retrieving this receipt; explicit
           // denials and current access to the underlying action still apply.
           demandOperation({ ...actor, grantedPermissions: DELEGATABLE }, kind)
+          if (kind === "stay-extend") { demand(actor, "stays.read"); demand(actor, "rooms.read"); demand(actor, "lodgingTariffs.read") }
           if (kind === "settings-update" || kind === "settings-restore") demandSettings(actor, String((payload as {section?:unknown})?.section), true, kind === "settings-restore")
           if (kind === "admin-create" || kind === "admin-update") {
             const input = z.object({ key: id }).passthrough().parse(payload)
@@ -459,7 +460,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         // Avoid scanning unrelated modules while a user's transaction holds locks.
         // The existing worker still performs a full reconciliation every 30 seconds.
         if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption", "remove-consumption"].includes(kind) || operationIsInventory(kind)) { await evaluateStock(tx); if(operationIsInventory(kind))await evaluateTimed(tx) }
-        if (["settings-update", "settings-restore", "reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
+        if (["settings-update", "settings-restore", "reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer", "stay-extend"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })

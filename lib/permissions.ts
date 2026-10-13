@@ -57,6 +57,7 @@ export const operationPermissions: Record<string, string> = {
   "check-out": "hospitality.checkout",
   "stay-checkout": "hospitality.checkout",
   "stay-transfer": "hospitality.transfer",
+  "stay-extend": "hospitality.extend",
   "stay-occupants": "hospitality.occupants",
   "stay-receive": "hospitality.receive",
   "release-room": "hospitality.release",
@@ -124,6 +125,7 @@ const specialLabels: Record<string, string> = {
   "reservations.feeCredit": "Definir multa e crédito",
   "consumptions.custom": "Lançar consumo personalizado",
   "hospitality.checkin": "Realizar check-in",
+  "hospitality.extend": "Prorrogar estadia",
   "hospitality.checkout": "Realizar check-out",
   "hospitality.release": "Liberar quarto",
   "hospitality.receive": "Receber hospedagem",
@@ -156,7 +158,7 @@ export type PermissionOverrides = Record<string, "allow" | "deny">
 const reads = (...keys: string[]) => keys.map(key => `${key}.read`)
 const crud = (...keys: string[]) => keys.flatMap(key => ["read", "create", "edit", "delete"].map(action => `${key}.${action}`))
 const common = ["settings.access", "settings.personal.edit", ...reads("systemSettings", "productCategories", "posProducts"), "bankAccounts.use"]
-const daily = ["hospitality.transfer", "hospitality.occupants", "hospitality.checkin", "hospitality.checkout", "hospitality.release", "hospitality.receive", "reservations.create", "reservations.edit", "reservations.cancel", "reservations.discount", "pos.sell", "consumptions.create", "consumptions.receive", "restaurant.open", "restaurant.edit", "restaurant.receive", "cash.open", "cash.close"]
+const daily = ["hospitality.extend", "hospitality.transfer", "hospitality.occupants", "hospitality.checkin", "hospitality.checkout", "hospitality.release", "hospitality.receive", "reservations.create", "reservations.edit", "reservations.cancel", "reservations.discount", "pos.sell", "consumptions.create", "consumptions.receive", "restaurant.open", "restaurant.edit", "restaurant.receive", "cash.open", "cash.close"]
 export const PROFILES: Record<string, { label: string; permissions: string[] }> = {
   personalizado: { label: "Personalizado (sem acessos iniciais)", permissions: [] },
   administrador: { label: "Administrador", permissions: ALL_PERMISSIONS },
