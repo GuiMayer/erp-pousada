@@ -413,9 +413,9 @@ export function ReservationsTab() {
                     <div className="flex gap-1 justify-end">
                       {(r.status === "confirmada" || r.status === "checkin") && (
                         <>
-                          <PermissionGate permission="reservations.edit"><Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => openEdit(r)}>
+                          {r.status === "confirmada" && <PermissionGate permission="reservations.edit"><Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => openEdit(r)}>
                             <Pencil className="size-3.5" /> Editar
-                          </Button></PermissionGate>
+                          </Button></PermissionGate>}
                           <PermissionGate permission="reservations.cancel"><Button
                             variant="ghost" size="sm"
                             className="gap-1 text-xs text-destructive hover:text-destructive"
@@ -482,9 +482,9 @@ export function ReservationsTab() {
                 <div className="flex gap-2 pt-2">
                   {(detailSheet.status === "confirmada" || detailSheet.status === "checkin") && (
                     <>
-                      <PermissionGate permission="reservations.edit"><Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={() => { openEdit(detailSheet); setDetailSheet(null) }}>
+                      {detailSheet.status === "confirmada" && <PermissionGate permission="reservations.edit"><Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={() => { openEdit(detailSheet); setDetailSheet(null) }}>
                         <Pencil className="size-3.5" /> Editar
-                      </Button></PermissionGate>
+                      </Button></PermissionGate>}
                       <PermissionGate permission="reservations.cancel"><Button
                         variant="outline" size="sm"
                         className="gap-1.5 flex-1 text-destructive hover:text-destructive"

@@ -1,366 +1,597 @@
-"use client"
-import { PermissionGate } from "@/components/permission-gate"
-import { ReservationPaymentButton } from "./reservation-payment-button"
-import { StayButton, StaySheet } from "./stay-sheet"
-import type { Stay } from "@/lib/stays"
-import { getDataConfig } from "@/lib/data/config"
-
-import { useToast } from "@/hooks/use-toast"
-import { useState, useMemo } from "react"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+"use client";
+import { useMemo, useRef, useState } from "react";
 import {
-  User, CalendarClock, DoorOpen, Lock, BedDouble,
-  SprayCan, LogIn, LogOut as LogOutIcon, ShoppingCart,
-  CheckCircle2, Eye, AlertTriangle,
-} from "lucide-react"
-import type { Room, RoomStatus } from "@/lib/store"
-import { useApp } from "@/lib/app-context"
-import { useAuth } from "@/lib/auth-context"
-import { useNotifications } from "@/lib/notification-context"
-import { formatCurrency } from "@/lib/utils/formatters"
-import { MiniTimeline } from "./mini-timeline"
-import { BlockRoomModal } from "./block-room-modal"
-import { CheckinModal } from "./checkin-modal"
-import { ConsumptionSheet } from "./consumption-sheet"
-
-const statusConfig: Record<
-  RoomStatus,
-  { label: string; badgeClass: string; borderClass: string; accent: string; icon: React.ReactNode }
-> = {
+  User,
+  CalendarClock,
+  DoorOpen,
+  Lock,
+  BedDouble,
+  SprayCan,
+  LogIn,
+  LogOut,
+  ShoppingCart,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronRight,
+} from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
+import { MiniTimeline } from "./mini-timeline";
+import { BlockRoomModal } from "./block-room-modal";
+import { CheckinModal } from "./checkin-modal";
+import { ConsumptionSheet } from "./consumption-sheet";
+import { StaySheet } from "./stay-sheet";
+import { ReservationPaymentDialog } from "./reservation-payment-button";
+import { RoomActionsMenu } from "./room-actions-menu";
+import {
+  roomActionLists,
+  type RoomActionId,
+  type StayIntent,
+} from "@/lib/room-actions";
+import { stayBalance, type Stay } from "@/lib/stays";
+import type { Room, RoomStatus, Reservation } from "@/lib/store";
+import { useApp } from "@/lib/app-context";
+import { useAuth } from "@/lib/auth-context";
+import { useNotifications } from "@/lib/notification-context";
+import { useToast } from "@/hooks/use-toast";
+import { getDataConfig } from "@/lib/data/config";
+import { formatCurrency } from "@/lib/utils/formatters";
+const statusConfig = {
   disponivel: {
-    label: "Disponivel",
-    badgeClass: "bg-success text-success-foreground border-transparent",
-    borderClass: "border-success/30 hover:border-success/50",
+    label: "Disponível",
+    badge: "bg-success text-success-foreground",
+    border: "border-success/30",
     accent: "bg-success",
-    icon: <DoorOpen className="size-3.5" />,
+    icon: DoorOpen,
   },
   ocupado: {
     label: "Ocupado",
-    badgeClass: "bg-warning text-warning-foreground border-transparent",
-    borderClass: "border-warning/30 hover:border-warning/50",
+    badge: "bg-warning text-warning-foreground",
+    border: "border-warning/30",
     accent: "bg-warning",
-    icon: <BedDouble className="size-3.5" />,
+    icon: BedDouble,
   },
   limpeza: {
     label: "Limpeza",
-    badgeClass: "bg-cleaning text-cleaning-foreground border-transparent",
-    borderClass: "border-cleaning/30 hover:border-cleaning/50",
+    badge: "bg-cleaning text-cleaning-foreground",
+    border: "border-cleaning/30",
     accent: "bg-cleaning",
-    icon: <SprayCan className="size-3.5" />,
+    icon: SprayCan,
   },
   bloqueado: {
     label: "Bloqueado",
-    badgeClass: "bg-info text-info-foreground border-transparent",
-    borderClass: "border-info/30 hover:border-info/50",
+    badge: "bg-info text-info-foreground",
+    border: "border-info/30",
     accent: "bg-info",
-    icon: <Lock className="size-3.5" />,
+    icon: Lock,
   },
+} satisfies Record<RoomStatus, object>;
+const icons = {
+  checkin: LogIn,
+  block: Lock,
+  checkout: LogOut,
+  consumption: ShoppingCart,
+  release: CheckCircle2,
+  unblock: Lock,
+};
+type Task =
+  | { kind: "stay"; stay: Stay; intent: StayIntent }
+  | { kind: "legacyPayment"; reservation: Reservation }
+  | { kind: "checkin" }
+  | { kind: "consumption" }
+  | { kind: "block"; room: Room }
+  | { kind: "details"; room: Room };
+const dateBR = (day: string) =>
+  new Date(day + "T12:00:00").toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
+function daysUntil(day: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(day + "T12:00:00");
+  end.setHours(0, 0, 0, 0);
+  const days = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+  return days === 0
+    ? "Hoje"
+    : days === 1
+      ? "Amanhã"
+      : days < 0
+        ? Math.abs(days) + "d atrasado"
+        : days + " dias";
 }
-
-function formatDateBR(iso: string) {
-  const date = new Date(iso + "T12:00:00")
-  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
-}
-
-function daysUntil(iso: string) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(iso + "T12:00:00")
-  target.setHours(0, 0, 0, 0)
-  const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diff === 0) return "Hoje"
-  if (diff === 1) return "Amanha"
-  if (diff < 0) return `${Math.abs(diff)}d atrasado`
-  return `${diff} dias`
-}
-
-function isOverdue(room: Room): boolean {
-  if (room.status !== "ocupado" || !room.checkOut) return false
-  const now = new Date()
-  const checkoutDate = new Date(room.checkOut + "T" + (room.checkOutTime || "12:00") + ":00")
-  return now > checkoutDate
-}
-
-export function RoomCard({ room, selectedDate }: { room: Room; selectedDate: string }) {
-  const config = statusConfig[room.status]
-  const overdue = isOverdue(room)
-  const { toast } = useToast()
-  const { stays = [], reservations, runOperation, updateRoom, addAuditEntry, getConsumption, clearConsumption, getRoomTimeline } = useApp()
-  const { username } = useAuth()
-  const { sendNotification } = useNotifications()
-  const [blockModalOpen, setBlockModalOpen] = useState(false)
-  const [blockSnapshot, setBlockSnapshot] = useState<Room | null>(null)
-  const [checkinOpen, setCheckinOpen] = useState(false)
-  const [consumptionOpen, setConsumptionOpen] = useState(false)
-  const [checkoutStay, setCheckoutStay] = useState<Stay | null>(null)
-  const activeStay = stays.find(stay => stay.roomId === room.id && stay.status === "active")
-
-  const consumption = getConsumption(room.id)
-  const consumptionTotal = consumption
-    ? consumption.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-    : 0
-
-  // Calculate dynamic timeline based on selected date (memoized for performance)
+export function RoomCard({
+  room,
+  selectedDate,
+}: {
+  room: Room;
+  selectedDate: string;
+}) {
+  const {
+    stays = [],
+    reservations,
+    runOperation,
+    updateRoom,
+    addAuditEntry,
+    getConsumption,
+    clearConsumption,
+    getRoomTimeline,
+  } = useApp();
+  const { can, username } = useAuth(),
+    { sendNotification } = useNotifications(),
+    { toast } = useToast();
+  const [task, setTask] = useState<Task | null>(null),
+    [pending, setPending] = useState(false);
+  const busy = useRef(false),
+    card = useRef<HTMLDivElement>(null),
+    origin = useRef<HTMLButtonElement | null>(null);
+  const config = statusConfig[room.status],
+    StatusIcon = config.icon;
+  const occupied = room.status === "ocupado",
+    overdue =
+      occupied &&
+      !!room.checkOut &&
+      new Date() >
+        new Date(room.checkOut + "T" + (room.checkOutTime || "12:00") + ":00");
+  const candidates = occupied
+    ? stays.filter((s) => s.roomId === room.id && s.status === "active")
+    : [];
+  const bookings = occupied
+    ? reservations.filter((r) => r.roomId === room.id && r.status === "checkin")
+    : [];
+  const ambiguous = candidates.length > 1 || bookings.length > 1;
+  const stay = !ambiguous && can("stays.read") ? candidates[0] : undefined;
+  const legacy =
+    !ambiguous && !stay && can("reservations.read") ? bookings[0] : undefined;
+  const consumption = getConsumption(room.id);
+  const legacyConsumption =
+    consumption?.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0) ??
+    0;
+  const balances = stay ? stayBalance(stay) : undefined;
+  const consumptionTotal = balances?.consumption ?? legacyConsumption;
+  const balance =
+    balances?.balance ??
+    (legacy ? Math.max(0, legacy.totalValue - (legacy.paidValue ?? 0)) : 0);
+  const lists = roomActionLists(
+    {
+      status: room.status,
+      hasStay: !!stay,
+      hasLegacyReservation: !!legacy,
+      balance,
+      regularStay: !!stay?.guestCount && !!stay.nightlyPrices?.length,
+      occupancyKnown: !!stay?.guestCount,
+      ambiguous,
+      pending,
+    },
+    can,
+  );
   const timeline = useMemo(
     () => getRoomTimeline(room.id, selectedDate, 7),
-    [room.id, selectedDate, getRoomTimeline]
-  )
-
-  async function handleCheckOut() {
-    if (activeStay) { setCheckoutStay(structuredClone(activeStay)); return }
-    if (consumptionTotal > 0) {
-      toast({ title: "Check-out bloqueado", description: "Quite o consumo antes do check-out.", variant: "destructive" })
-      sendNotification(
-        'payment',
-        'Check-out bloqueado',
-        `Quarto ${room.number} possui ${formatCurrency(consumptionTotal)} em consumo pendente`,
-        'high',
-        String(room.id)
-      )
-      return
+    [room.id, selectedDate, getRoomTimeline],
+  );
+  function closeTask() {
+    if (busy.current) return;
+    setTask(null);
+    requestAnimationFrame(() => {
+      if (origin.current?.isConnected) origin.current.focus();
+      else card.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    });
+  }
+  async function mutate(action: () => Promise<void>) {
+    if (busy.current) return;
+    busy.current = true;
+    setPending(true);
+    try {
+      await action();
+    } catch (e) {
+      toast({
+        title: "Operação não concluída",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      busy.current = false;
+      setPending(false);
     }
-
-    if (getDataConfig().adapter === "database") {
-      try { await runOperation("check-out", { roomId: room.id }) }
-      catch (error) { toast({ title: "Check-out não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
-    } else {
-    await updateRoom(room.id, { recordVersion: room.recordVersion,
-      status: "limpeza",
-      guest: undefined, guestCpf: undefined,
-      checkIn: undefined, checkOut: undefined,
-    })
-    await clearConsumption(room.id)
-    addAuditEntry({
-      user: username || "sistema",
-      action: "Check-out realizado",
-      reference: `Quarto ${room.number}`,
-    })
+  }
+  function openAction(id: RoomActionId) {
+    const action = [...lists.primary, ...lists.secondary].find(
+      (a) => a.id === id,
+    );
+    if (!action?.enabled || busy.current) return;
+    if (!origin.current?.isConnected)
+      origin.current =
+        card.current?.querySelector<HTMLButtonElement>(
+          '[data-slot="dropdown-menu-trigger"]',
+        ) ?? null;
+    const intents: Partial<Record<RoomActionId, StayIntent>> = {
+      overview: "overview",
+      receive: "payment",
+      checkout: "checkout",
+      transfer: "transfer",
+      occupants: "occupants",
+      extend: "extend",
+    };
+    if (stay && intents[id]) {
+      setTask({
+        kind: "stay",
+        stay: structuredClone(stay),
+        intent: intents[id]!,
+      });
+      return;
     }
-    sendNotification(
-      'check-out',
-      'Check-out Realizado',
-      `Quarto ${room.number} - ${room.guest || 'Hóspede'} realizou check-out`,
-      'medium',
-      String(room.id)
-    )
+    if (id === "receive" && legacy) {
+      setTask({ kind: "legacyPayment", reservation: structuredClone(legacy) });
+      return;
+    }
+    if (id === "checkin" || id === "consumption") {
+      setTask({ kind: id });
+      return;
+    }
+    if (id === "block" || id === "unblock") {
+      setTask({ kind: "block", room: structuredClone(room) });
+      return;
+    }
+    if (id === "details") {
+      setTask({ kind: "details", room: structuredClone(room) });
+      return;
+    }
+    if (id === "release")
+      void mutate(async () => {
+        await updateRoom(room.id, {
+          recordVersion: room.recordVersion,
+          status: "disponivel",
+        });
+        addAuditEntry({
+          user: username || "sistema",
+          action: "Quarto liberado (limpeza concluída)",
+          reference: "Quarto " + room.number,
+        });
+        sendNotification(
+          "cleaning",
+          "Limpeza concluída",
+          "Quarto " + room.number + " disponível.",
+          "low",
+          String(room.id),
+        );
+      });
+    if (id === "checkout")
+      void mutate(async () => {
+        if (legacyConsumption > 0)
+          throw Error("Quite o consumo antes do check-out.");
+        if (getDataConfig().adapter === "database")
+          await runOperation("check-out", { roomId: room.id });
+        else {
+          await updateRoom(room.id, {
+            recordVersion: room.recordVersion,
+            status: "limpeza",
+            guest: undefined,
+            guestCpf: undefined,
+            checkIn: undefined,
+            checkOut: undefined,
+          });
+          await clearConsumption(room.id);
+          addAuditEntry({
+            user: username || "sistema",
+            action: "Check-out realizado",
+            reference: "Quarto " + room.number,
+          });
+        }
+        sendNotification(
+          "check-out",
+          "Check-out realizado",
+          "Quarto " + room.number + " liberado para limpeza.",
+          "medium",
+          String(room.id),
+        );
+      });
   }
-
-  async function handleRelease() {
-    try { await updateRoom(room.id, { recordVersion: room.recordVersion, status: "disponivel" }) }
-    catch (error) { toast({ title: "Quarto não liberado", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
-    addAuditEntry({
-      user: username || "sistema",
-      action: "Quarto liberado (limpeza concluida)",
-      reference: `Quarto ${room.number}`,
-    })
-    sendNotification(
-      'cleaning',
-      'Limpeza Concluída',
-      `Quarto ${room.number} está disponível para nova reserva`,
-      'low',
-      String(room.id)
-    )
-  }
-
-  async function handleBlock(endDate: string, responsible: string, reason: string) {
-    try { await updateRoom(room.id, { recordVersion: blockSnapshot?.recordVersion,
-      status: "bloqueado",
-      blockEndDate: endDate, blockResponsible: responsible, blockReason: reason,
-    }) } catch (error) { toast({ title: "Bloqueio não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
-    addAuditEntry({
-      user: username || "sistema",
-      action: "Quarto bloqueado",
-      reference: `Quarto ${room.number} - ${reason}`,
-    })
-    sendNotification(
-      'reservation',
-      'Quarto Bloqueado',
-      `Quarto ${room.number} bloqueado até ${formatDateBR(endDate)} - ${reason}`,
-      'high',
-      String(room.id)
-    )
-    setBlockModalOpen(false)
-  }
-
-  async function handleUnblock() {
-    try { await updateRoom(room.id, { recordVersion: blockSnapshot?.recordVersion,
-      status: "disponivel",
-      blockEndDate: undefined, blockResponsible: undefined, blockReason: undefined,
-    }) } catch (error) { toast({ title: "Desbloqueio não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }); return }
-    addAuditEntry({
-      user: username || "sistema",
-      action: "Desbloqueio de quarto",
-      reference: `Quarto ${room.number}`,
-    })
-    sendNotification(
-      'reservation',
-      'Quarto Desbloqueado',
-      `Quarto ${room.number} está disponível novamente`,
-      'medium',
-      String(room.id)
-    )
-    setBlockModalOpen(false)
-  }
-
+  const more = (
+    <RoomActionsMenu
+      roomNumber={room.number}
+      actions={lists.secondary}
+      disabled={pending}
+      onAction={(id) => {
+        origin.current =
+          card.current?.querySelector<HTMLButtonElement>(
+            '[data-slot="dropdown-menu-trigger"]',
+          ) ?? null;
+        openAction(id);
+      }}
+    />
+  );
   return (
     <>
-      <Card className={`mobile-room-card group relative overflow-hidden transition-all duration-200 hover:shadow-md ${config.borderClass} flex flex-col`}>
+      <Card
+        ref={card}
+        className={`mobile-room-card room-summary-card relative gap-0 overflow-hidden py-3 transition-shadow motion-reduce:transition-none hover:shadow-md ${config.border}`}
+      >
         <div className={`absolute inset-x-0 top-0 h-1 ${config.accent}`} />
-
-        <CardHeader className="pb-0 pt-5">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold tabular-nums tracking-tight text-foreground">{room.number}</span>
-              <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{room.type}</span>
+        <CardHeader className="px-3 pb-0 pt-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="text-2xl font-bold tabular-nums">
+                {room.number}
+              </span>
+              <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                {room.type}
+              </span>
             </div>
-            {overdue ? (
-              <Badge className="animate-pulse-alert gap-1 bg-destructive text-white border-transparent text-[10px]">
+            <Badge
+              className={`shrink-0 gap-1 border-transparent text-[11px] ${overdue ? "bg-destructive text-white" : config.badge}`}
+            >
+              {overdue ? (
                 <AlertTriangle className="size-3" />
-                Atrasado
-              </Badge>
-            ) : (
-              <Badge className={`${config.badgeClass} gap-1 text-[11px]`}>
-                {config.icon}
-                {config.label}
-              </Badge>
-            )}
+              ) : (
+                <StatusIcon className="size-3" />
+              )}
+              {overdue ? "Atrasado" : config.label}
+            </Badge>
           </div>
         </CardHeader>
-
-        <CardContent className="py-0">
-          {room.status === "ocupado" && room.guest && (
-            <div className="mt-3 flex flex-col gap-2 rounded-lg bg-secondary/60 px-3 py-2.5">
-              <div className="flex items-center gap-2">
-                <User className="size-3.5 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">{room.guest}</span>
-              </div>
-              {room.checkOut && (
-                <div className="flex items-center gap-2">
-                  <CalendarClock className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">
-                    {"Saida: "}
-                    <span className="font-medium text-foreground">{formatDateBR(room.checkOut)}</span>
-                    <span className={`ml-1.5 rounded px-1 py-0.5 text-[10px] font-medium ${
-                      overdue ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning-foreground"
-                    }`}>
-                      {daysUntil(room.checkOut)}
+        <CardContent className="px-3 py-0">
+          <div className="mt-2 rounded-lg bg-secondary/60 px-2 py-1.5">
+            <div className="flex items-center justify-between gap-1">
+              {occupied ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <User className="size-3.5 shrink-0 text-muted-foreground" />
+                  {stay ? (
+                    <button
+                      type="button"
+                      className="flex min-h-11 min-w-0 items-center gap-1 rounded text-left text-sm font-medium hover:underline focus-visible:outline focus-visible:outline-2"
+                      aria-label={`Abrir hospedagem do quarto ${room.number}`}
+                      onClick={(e) => {
+                        origin.current = e.currentTarget;
+                        openAction("overview");
+                      }}
+                    >
+                      <span className="line-clamp-2 break-words">
+                        {room.guest || stay.guestName}
+                      </span>
+                      <ChevronRight className="size-3.5 shrink-0" />
+                    </button>
+                  ) : (
+                    <span className="min-h-11 content-center break-words text-sm font-medium">
+                      {room.guest || "Hóspede"}
                     </span>
-                  </span>
+                  )}
                 </div>
-              )}
-              {consumptionTotal > 0 && (
-                <div className="flex items-center gap-2">
-                  <ShoppingCart className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">
-                    {"Consumo: "}
-                    <span className="font-semibold text-foreground tabular-nums">
-                      {formatCurrency(consumptionTotal)}
-                    </span>
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {room.status === "disponivel" && (
-            <div className="mt-3 flex items-center gap-2 rounded-lg bg-success/5 px-3 py-2.5">
-              <DoorOpen className="size-4 text-success" />
-              <span className="text-sm text-success">Disponivel para reserva</span>
-            </div>
-          )}
-
-          {room.status === "limpeza" && (
-            <div className="mt-3 flex items-center gap-2 rounded-lg bg-cleaning/5 px-3 py-2.5">
-              <SprayCan className="size-4 text-cleaning" />
-              <span className="text-sm text-cleaning">Aguardando limpeza</span>
-            </div>
-          )}
-
-          {room.status === "bloqueado" && (
-            <div className="mt-3 flex flex-col gap-1 rounded-lg bg-info/5 px-3 py-2.5">
-              <div className="flex items-center gap-2">
-                <Lock className="size-3.5 text-info" />
-                <span className="text-sm font-medium text-info">{room.blockReason || "Bloqueado"}</span>
-              </div>
-              {room.blockEndDate && (
-                <span className="text-xs text-muted-foreground">
-                  {"Previsao: "}
-                  <span className="font-medium text-foreground">{formatDateBR(room.blockEndDate)}</span>
+              ) : (
+                <span className="min-h-11 min-w-0 content-center break-words text-sm">
+                  {room.status === "disponivel"
+                    ? "Disponível para entrada"
+                    : room.status === "limpeza"
+                      ? "Aguardando limpeza"
+                      : room.blockReason || "Bloqueado"}
                 </span>
               )}
+              {more}
             </div>
-          )}
-
-          {/* Conditional action buttons */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {room.status === "disponivel" && (
-              <>
-                <PermissionGate permission="hospitality.checkin"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setCheckinOpen(true)}>
-                  <LogIn className="size-3.5" /> Check-in
-                </Button></PermissionGate>
-                <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" aria-label={`Bloquear quarto ${room.number}`} className="gap-1.5 text-xs" onClick={() => { setBlockSnapshot(room); setBlockModalOpen(true) }}>
-                  <Lock className="size-3.5" />
-                </Button></PermissionGate>
-              </>
+            {occupied && room.checkOut && (
+              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarClock className="size-3.5 shrink-0" />
+                <span>
+                  Saída:{" "}
+                  <strong className="font-medium text-foreground">
+                    {dateBR(room.checkOut)}
+                  </strong>{" "}
+                  · {daysUntil(room.checkOut)}
+                </span>
+              </p>
             )}
-            {room.status === "ocupado" && (
-              <>
-                <PermissionGate permission="hospitality.checkout"><Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 text-xs flex-1"
-                  onClick={handleCheckOut}
-                  disabled={!activeStay && consumptionTotal > 0}
-                  title={activeStay ? "Revisar extrato e concluir saída" : consumptionTotal > 0 ? "Quite o consumo antes do check-out" : undefined}
-                >
-                  <LogOutIcon className="size-3.5" /> Check-out
-                </Button></PermissionGate>
-                <PermissionGate permission="consumptions.read"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => setConsumptionOpen(true)}>
-                  <ShoppingCart className="size-3.5" /> Consumo
-                </Button></PermissionGate>
-              </>
+            {occupied &&
+              can("consumptions.read") &&
+              consumptionTotal > 0 &&
+              !ambiguous && (
+                <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <ShoppingCart className="size-3.5" />
+                  Consumo:{" "}
+                  <strong className="text-foreground">
+                    {formatCurrency(consumptionTotal)}
+                  </strong>
+                </p>
+              )}
+            {room.status === "bloqueado" && room.blockEndDate && (
+              <p className="text-xs text-muted-foreground">
+                Previsão: {dateBR(room.blockEndDate)}
+              </p>
             )}
-            {room.status === "limpeza" && (
-              <PermissionGate permission="hospitality.release"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={handleRelease}>
-                <CheckCircle2 className="size-3.5" /> Liberar Quarto
-              </Button></PermissionGate>
+            {occupied && !ambiguous && (stay || legacy) && (
+              <div className="mt-1">
+                {balance > 0 ? (
+                  lists.secondary.some((a) => a.id === "receive") ? (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      className="flex min-h-11 w-full flex-wrap items-center justify-between gap-1 rounded text-left text-xs hover:underline focus-visible:outline focus-visible:outline-2"
+                      aria-label={`Receber pagamento do quarto ${room.number}`}
+                      onClick={(e) => {
+                        origin.current = e.currentTarget;
+                        openAction("receive");
+                      }}
+                    >
+                      <span>
+                        {stay ? "Saldo total a receber" : "Diárias a receber"}
+                      </span>
+                      <strong className="flex items-center gap-1 text-sm">
+                        {formatCurrency(balance)}
+                        <ChevronRight className="size-3.5" />
+                      </strong>
+                    </button>
+                  ) : (
+                    <p className="flex min-h-11 flex-wrap items-center justify-between gap-1 text-xs">
+                      <span>
+                        {stay ? "Saldo total a receber" : "Diárias a receber"}
+                      </span>
+                      <strong className="text-sm">
+                        {formatCurrency(balance)}
+                      </strong>
+                    </p>
+                  )
+                ) : (
+                  <p className="min-h-11 content-center text-xs text-muted-foreground">
+                    {balance < 0 ? "Crédito a conciliar" : "Hospedagem quitada"}
+                  </p>
+                )}
+              </div>
             )}
-            {room.status === "bloqueado" && (
-              <PermissionGate permission="rooms.edit"><Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={() => { setBlockSnapshot(room); setBlockModalOpen(true) }}>
-                <Eye className="size-3.5" /> Detalhes / Desbloquear
-              </Button></PermissionGate>
+            {ambiguous && (
+              <p role="alert" className="py-2 text-xs text-destructive">
+                A ocupação precisa de revisão. Solicite ao administrador.
+              </p>
             )}
           </div>
+          {lists.primary.length > 0 && (
+            <div className="mt-2 flex gap-2">
+              {lists.primary.map((action) => {
+                const Icon = icons[action.id as keyof typeof icons];
+                return (
+                  <Button
+                    key={action.id}
+                    size="sm"
+                    variant="outline"
+                    disabled={!action.enabled}
+                    className="min-h-11 min-w-0 flex-1 gap-1.5 px-2 text-xs"
+                    onClick={(e) => {
+                      origin.current = e.currentTarget;
+                      openAction(action.id);
+                    }}
+                  >
+                    {Icon && <Icon className="size-3.5" />}
+                    {action.label}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
-
-        {/* Flexible spacer to push timeline to consistent bottom position */}
-        <div className="flex-1" />
-
-        {room.status === "ocupado" && reservations.filter(reservation => reservation.roomId === room.id && reservation.status === "checkin").map(reservation => <div key={reservation.id} className="px-4 pb-2"><ReservationPaymentButton reservation={reservation} /></div>)}
-        {checkoutStay && <StaySheet stay={checkoutStay} onClose={() => setCheckoutStay(null)} />}
-        {room.status === "ocupado" && stays.filter(stay => stay.roomId === room.id && stay.status === "active").map(stay => <div key={stay.id} className="px-4 pb-2"><StayButton stay={stay} /></div>)}
-        <CardFooter className="hidden sm:flex flex-col items-stretch gap-0 pb-4 pt-0">
-          <Separator className="mb-3 mt-3" />
+        <CardFooter className="hidden flex-col items-stretch px-3 pb-0 pt-0 sm:flex">
+          <Separator className="my-3" />
           <MiniTimeline days={timeline} highlightDate={selectedDate} />
         </CardFooter>
       </Card>
-
-      {blockModalOpen && <BlockRoomModal
-        room={blockSnapshot ?? room} open={blockModalOpen}
-        onClose={() => setBlockModalOpen(false)}
-        onConfirmBlock={handleBlock} onUnblock={handleUnblock}
-      />}
-      <CheckinModal
-        room={room} open={checkinOpen}
-        onClose={() => setCheckinOpen(false)}
-      />
-      <ConsumptionSheet
-        room={room} open={consumptionOpen}
-        onClose={() => setConsumptionOpen(false)}
-      />
+      {task?.kind === "stay" && (
+        <StaySheet
+          key={task.stay.id}
+          stay={task.stay}
+          initialIntent={task.intent}
+          onClose={closeTask}
+        />
+      )}
+      {task?.kind === "legacyPayment" && (
+        <ReservationPaymentDialog
+          reservation={task.reservation}
+          open
+          onClose={closeTask}
+        />
+      )}
+      {task?.kind === "checkin" && (
+        <CheckinModal room={room} open onClose={closeTask} />
+      )}
+      {task?.kind === "consumption" && (
+        <ConsumptionSheet room={room} open onClose={closeTask} />
+      )}
+      {task?.kind === "block" && (
+        <BlockRoomModal
+          room={task.room}
+          open
+          pending={pending}
+          onClose={closeTask}
+          onConfirmBlock={(end, responsible, reason) =>
+            void mutate(async () => {
+              if (!can("rooms.edit"))
+                throw Error("Sem permissão para bloquear.");
+              await updateRoom(room.id, {
+                recordVersion: task.room.recordVersion,
+                status: "bloqueado",
+                blockEndDate: end,
+                blockResponsible: responsible,
+                blockReason: reason,
+              });
+              addAuditEntry({
+                user: username || "sistema",
+                action: "Quarto bloqueado",
+                reference: "Quarto " + room.number + " · " + reason,
+              });
+              setTask(null);
+            })
+          }
+          onUnblock={() =>
+            void mutate(async () => {
+              if (!can("rooms.edit"))
+                throw Error("Sem permissão para desbloquear.");
+              await updateRoom(room.id, {
+                recordVersion: task.room.recordVersion,
+                status: "disponivel",
+                blockEndDate: undefined,
+                blockResponsible: undefined,
+                blockReason: undefined,
+              });
+              addAuditEntry({
+                user: username || "sistema",
+                action: "Quarto desbloqueado",
+                reference: "Quarto " + room.number,
+              });
+              setTask(null);
+            })
+          }
+        />
+      )}
+      {task?.kind === "details" && (
+        <Dialog
+          open
+          onOpenChange={(value) => {
+            if (!value) closeTask();
+          }}
+        >
+          <DialogContent mobileTask>
+            <DialogHeader>
+              <DialogTitle>Quarto {task.room.number}</DialogTitle>
+              <DialogDescription>
+                {statusConfig[task.room.status].label} · {task.room.type}
+              </DialogDescription>
+            </DialogHeader>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt>Capacidade</dt>
+                <dd>{task.room.capacity ?? "Não configurada"} pessoa(s)</dd>
+              </div>
+              {task.room.status === "bloqueado" && (
+                <>
+                  <div>
+                    <dt>Motivo</dt>
+                    <dd>{task.room.blockReason || "Não informado"}</dd>
+                  </div>
+                  <div>
+                    <dt>Responsável</dt>
+                    <dd>{task.room.blockResponsible || "Não informado"}</dd>
+                  </div>
+                  <div>
+                    <dt>Previsão</dt>
+                    <dd>
+                      {task.room.blockEndDate
+                        ? dateBR(task.room.blockEndDate)
+                        : "Não informada"}
+                    </dd>
+                  </div>
+                </>
+              )}
+            </dl>
+            <Button variant="outline" onClick={closeTask}>
+              Fechar
+            </Button>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
-  )
+  );
 }
