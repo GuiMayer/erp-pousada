@@ -17,6 +17,7 @@ export const mobileModules = [
   { key: "estoque", label: "Estoque", icon: Package, group: "Operação" },
   { key: "cadastros", label: "Cadastros", icon: UserRound, group: "Gestão" },
   { key: "financeiro", label: "Financeiro", icon: DollarSign, group: "Gestão" },
+  { key: "historico", label: "Histórico", icon: History, group: "Gestão" },
   { key: "relatorios", label: "Relatórios", icon: BarChart3, group: "Gestão" },
   { key: "configuracoes", label: "Configurações", icon: Settings, group: "Administração" },
   { key: "auditoria", label: "Auditoria", icon: History, group: "Administração" },

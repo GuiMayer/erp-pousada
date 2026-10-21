@@ -7,6 +7,7 @@ import { useActiveTab } from "@/contexts/active-tab-context"
 const TAB_NAMES: Record<string, string> = {
   mapa: "Mapa",
   reservas: "Reservas",
+  historico: "Histórico",
   pdv: "Frente de Caixa",
   estoque: "Estoque",
   financeiro: "Financeiro",

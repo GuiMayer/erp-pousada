@@ -15,6 +15,7 @@ type TabValue =
   | "cadastros"
   | "mapa"
   | "reservas"
+  | "historico"
   | "pdv"
   | "estoque"
   | "financeiro"
@@ -126,6 +127,7 @@ export function ActiveTabProvider({ children }: { children: ReactNode }) {
         const fallback = [
           "mapa",
           "reservas",
+          "historico",
           "pdv",
           "estoque",
           "cadastros",

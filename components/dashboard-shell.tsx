@@ -11,6 +11,7 @@ import { useActiveTab } from "@/contexts/active-tab-context"
 import { DashboardHeader } from "./dashboard-header"
 import { RoomGrid } from "./room-grid"
 import { ReservationsTab } from "./reservations-tab"
+import { HistoryTab } from "./history-tab"
 import { FinancialTab } from "./financial-tab"
 import { AuditLogTab } from "./audit-log-tab"
 import { POSTab } from "./pos-tab"
@@ -18,7 +19,7 @@ import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
 import { SettingsTab } from "./settings-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, Package, BarChart3, Settings } from "lucide-react"
+import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, Package, BarChart3, Settings, History } from "lucide-react"
 
 export function DashboardShell() {
   const phone = usePhoneLayout()
@@ -51,6 +52,7 @@ export function DashboardShell() {
             <CalendarDays className="size-3.5" />
             Reservas
           </TabsTrigger>)}
+          {visible("historico") && (<TabsTrigger value="historico" className="gap-1.5"><History className="size-3.5" />Histórico</TabsTrigger>)}
           {visible("pdv") && (<TabsTrigger value="pdv" className="gap-1.5">
             <ShoppingCart className="size-3.5" />
             Frente de Caixa
@@ -84,6 +86,7 @@ export function DashboardShell() {
         {visible("reservas") && (<TabsContent value="reservas">
           <ReservationsTab />
         </TabsContent>)}
+        {visible("historico") && (<TabsContent value="historico"><HistoryTab /></TabsContent>)}
         {visible("pdv") && (<TabsContent value="pdv">
           <POSTab />
         </TabsContent>)}

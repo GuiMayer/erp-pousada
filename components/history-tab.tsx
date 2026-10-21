@@ -46,14 +46,14 @@ export function HistoryTab() {
     </div>
     {invalidPeriod && <p role="alert" className="text-sm text-destructive">A data final deve ser igual ou posterior à data inicial.</p>}
     {(query || status !== "all" || from || until) && <Button variant="ghost" size="sm" onClick={() => { setQuery(""); setStatus("all"); setFrom(""); setUntil("") }}>Limpar filtros</Button>}
-    <Card><CardContent className="p-0"><Table mobilePreview={["Hóspede", "Quarto", "Entrada", "Situação"]} mobileColumns={["Hóspede", "Quarto", "Entrada", "Saída", "Situação", "Saldo", "Detalhes"]}>
-      <TableHeader><TableRow>{["Hóspede", "Quarto", "Entrada", "Saída", "Situação", "Saldo", "Detalhes"].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader>
+    <Card><CardContent className="p-0"><Table mobilePreview={["Hóspede", "Quarto", "Entrada", "Situação"]} mobileColumns={["Hóspede", "Quarto", "Entrada", "Saída", "Situação", "Saldo", "Ações"]}>
+      <TableHeader><TableRow>{["Hóspede", "Quarto", "Entrada", "Saída", "Situação", "Saldo", "Ações"].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader>
       <TableBody>{filtered.map(e => <TableRow key={e.key}>
-        <TableCell><span className="font-medium">{e.guestName}</span>{customers.find(c => c.id === e.payerId)?.name && <p className="text-xs text-muted-foreground">{customers.find(c => c.id === e.payerId)!.name}</p>}</TableCell>
+        <TableCell><span className="font-medium">{e.guestName}</span>{customers.find(c => c.id === e.payerId)?.name && customers.find(c => c.id === e.payerId)?.name !== e.guestName && <p className="text-xs text-muted-foreground">{customers.find(c => c.id === e.payerId)!.name}</p>}</TableCell>
         <TableCell>{e.roomNumber}</TableCell><TableCell>{date(e.checkIn)}</TableCell><TableCell>{date(e.checkOut)}</TableCell>
         <TableCell><Badge variant={e.status === "checkout" ? "secondary" : "destructive"}>{reservationLabels[e.status as Reservation["status"]]}</Badge></TableCell>
         <TableCell>{e.status !== "checkout" ? "—" : e.stay ? formatCurrency(stayBalance(e.stay).balance) : "Consulte a reserva"}</TableCell>
-        <TableCell><Button size="sm" variant="outline" aria-label={`Ver detalhes de ${e.guestName}`} onClick={() => setSelected(e.key)}>Ver detalhes</Button></TableCell>
+        <TableCell><Button size="sm" variant="outline" aria-label={`Ver detalhes de ${e.guestName}`} onClick={() => setSelected(e.key)}>{e.stay ? "Abrir extrato" : "Abrir reserva"}</Button></TableCell>
       </TableRow>)}{!filtered.length && <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhum registro encontrado no histórico.</TableCell></TableRow>}</TableBody>
     </Table></CardContent></Card>
     {detail?.stay && <StaySheet key={detail.key} stay={detail.stay} readOnly onClose={() => setSelected(null)} />}
