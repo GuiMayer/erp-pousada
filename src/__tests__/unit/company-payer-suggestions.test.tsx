@@ -83,6 +83,23 @@ describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
 
 const booking = (patch: Partial<Reservation> = {}): Reservation => ({ id: "reservation", recordVersion: 3, roomId: 1, roomNumber: "101", cpf: "52998224725", guestName: "Pessoa A", payerId: "company", guestCount: 1, totalValue: 120, status: "confirmada", checkIn: businessDay(), checkOut: new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10), ...patch })
 describe("Atendimento compartilhado", () => {
+  it("reagenda a própria reserva para o futuro sem duplicar nem iniciar hospedagem", async () => {
+    const r = booking({paidValue:100})
+    const start = new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10)
+    const end = new Date(Date.parse(start) + 86400000).toISOString().slice(0, 10)
+    const onDone = vi.fn()
+    runOperation.mockResolvedValueOnce({...r,checkIn:start,checkOut:end,recordVersion:4})
+    render(<BookingForm intent="checkin" reservation={r} onDone={onDone} />)
+    fireEvent.change(screen.getByLabelText("Chegada efetiva"), {target:{value:start}})
+    expect(screen.queryByRole("button", {name:"Criar reserva para essa data"})).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", {name:"Reagendar esta reserva"}))
+    expect(screen.getByLabelText("Entrada prevista")).toHaveValue(start)
+    fireEvent.change(screen.getByLabelText("Saída"), {target:{value:end}})
+    fireEvent.click(screen.getByRole("button", {name:"Salvar reserva"}))
+    await waitFor(() => expect(onDone).toHaveBeenCalledOnce())
+    expect(runOperation).toHaveBeenCalledOnce()
+    expect(runOperation).toHaveBeenCalledWith("edit-reservation", expect.objectContaining({id:r.id,recordVersion:3,payerId:"company",checkIn:start,checkOut:end,totalValue:120}))
+  })
   it("não exige caixa quando a devolução parcial usa somente o PIX mais recente", async () => {
     app.transactions = [
       {id:"cash",date:"2026-10-21T14:00:00Z",description:"Sinal",refId:"Hospedagem reservation",value:50,type:"receita",paymentMethod:"Dinheiro"},

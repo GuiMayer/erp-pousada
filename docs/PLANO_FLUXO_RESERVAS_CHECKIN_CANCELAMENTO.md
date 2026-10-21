@@ -65,6 +65,7 @@ Não recalcular preço confirmado silenciosamente. Em alteração de datas, quar
 - `chegada efetiva <= hoje`; `saída > chegada efetiva`.
 - Data futura enviada à operação de check-in deve ser recusada antes de criar ou modificar qualquer registro.
 - Na tela, oferecer **Criar reserva para essa data** ao tentar uma entrada futura, preservando pessoa, pagador, quarto, ocupação e saída preenchidos. Não transformar a operação e confirmá-la silenciosamente.
+- Quando já existe uma reserva vinculada, oferecer **Reagendar esta reserva**, sujeito à permissão de edição. A confirmação atualiza o mesmo ID, preserva recebimentos e encerra o atendimento quando a nova chegada é futura; não cria uma segunda reserva nem inicia uma hospedagem.
 - Selecionar dia futuro na agenda do mapa serve para consulta/reserva; não deve oferecer uma confirmação de check-in futuro.
 
 ### Identificação da reserva
