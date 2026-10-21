@@ -384,7 +384,7 @@ export function RoomCard({
                   <strong className="font-medium text-foreground">
                     {dateBR(room.checkOut)}
                   </strong>{" "}
-                  · {daysUntil(room.checkOut)}
+                  · <span className={overdue ? "font-semibold text-destructive" : undefined}>{daysUntil(room.checkOut)}</span>
                 </span>
               </p>
             )}
