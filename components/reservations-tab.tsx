@@ -10,20 +10,18 @@ import { BookingForm } from "./booking-form"
 import { CheckinModal } from "./checkin-modal"
 import { ReservationCancellationDialog } from "./reservation-cancellation-dialog"
 import { ReservationPaymentButton } from "./reservation-payment-button"
-import { LodgingQuotePreview } from "./lodging-quote-preview"
+import { ReservationDetailsSheet, reservationLabels as labels } from "./reservation-details-sheet"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Card, CardContent } from "./ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "./ui/dropdown-menu"
 import { MoreHorizontal, Pencil, XCircle, UserX } from "lucide-react"
-const labels = { confirmada: "Confirmada", checkin: "Hospedado", checkout: "Encerrada", cancelada: "Cancelada", noshow: "Ausência" }
 const date = (value: string) => value.split("-").reverse().join("/")
 
 export function ReservationsTab() {
-  const { reservations, rooms, customers, systemSettings } = useApp()
+  const { reservations, rooms, systemSettings } = useApp()
   const { can } = useAuth()
   const [form, setForm] = useState<"new" | Reservation | null>(null)
   const [busy, setBusy] = useState(false)
@@ -62,7 +60,7 @@ export function ReservationsTab() {
     <Dialog open={!!form} onOpenChange={v => { if (!v && !busy) setForm(null) }}><DialogContent mobileTask protectDraft busy={busy} className="sm:max-w-xl"><DialogHeader><DialogTitle>{form === "new" ? "Nova reserva" : "Editar reserva"}</DialogTitle><DialogDescription>Escolha o hóspede e revise período, quarto, ocupação e preço.</DialogDescription></DialogHeader>{form && <BookingForm key={form === "new" ? "new" : form.id} intent={form === "new" ? "reservation" : "edit"} reservation={form === "new" ? undefined : form} onBusy={setBusy} onDone={() => setForm(null)} />}</DialogContent></Dialog>
     {entry && entryRoom && <CheckinModal room={entryRoom} reservation={entry} open onClose={() => setEntry(null)} />}
     {cancel && <ReservationCancellationDialog reservation={cancel.reservation} noShow={cancel.noShow} onClose={() => setCancel(null)} />}
-    <Sheet open={!!detail} onOpenChange={v => { if (!v) setDetailId(null) }}><SheetContent className="overflow-y-auto sm:max-w-lg">{detail && <><SheetHeader><SheetTitle>Reserva · {detail.guestName}</SheetTitle><SheetDescription>Quarto {detail.roomNumber} · {labels[detail.status]}</SheetDescription></SheetHeader><div className="space-y-4 py-6 text-sm"><p>CPF: {detail.cpf}</p><p>Entrada prevista: {date(detail.checkIn)} · Saída: {date(detail.checkOut)}</p><p>Pessoas: {detail.guestCount ?? "Informe a ocupação"} · Responsável: {customers.find(c => c.id === detail.payerId)?.name ?? "Revise o pagador"}</p><p>Contratado: {formatCurrency(detail.totalValue)} · Recebido: {formatCurrency(detail.paidValue ?? 0)}</p>{detail.nightlyPrices && <details><summary className="cursor-pointer">Composição do preço contratado</summary><LodgingQuotePreview result={{ quote: { nights: detail.nightlyPrices, total: detail.nightlyPrices.reduce((s, n) => s + n.total, 0) } }} /></details>}{detail.priceExceptionReason && <p>Preço autorizado: {detail.priceExceptionReason}</p>}{["cancelada", "noshow"].includes(detail.status) && <section className="space-y-2 rounded border p-3"><p>Devolvido: {formatCurrency(detail.refundedValue ?? 0)} · Retido: {formatCurrency(detail.retainedValue ?? 0)} · Crédito: {formatCurrency(detail.cancelTreatment === "credito" ? (detail.cancellationReceivedValue ?? detail.paidValue ?? 0) - (detail.retainedValue ?? 0) : 0)}</p>{detail.cancellationReason && <p className="whitespace-pre-wrap break-words">Motivo do cancelamento: {detail.cancellationReason}</p>}{detail.cancellationFinancialReason && <p className="whitespace-pre-wrap break-words">Justificativa financeira: {detail.cancellationFinancialReason}</p>}{detail.cancelledAt && <p>Cancelado em {new Date(detail.cancelledAt).toLocaleString("pt-BR")} por {detail.cancelledBy}.</p>}</section>}{actions(detail)}</div></>}</SheetContent></Sheet>
+    {detail && <ReservationDetailsSheet reservation={detail} onClose={() => setDetailId(null)}>{actions(detail)}</ReservationDetailsSheet>}
   </div>
 }
 

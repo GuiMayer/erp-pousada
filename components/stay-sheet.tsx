@@ -36,9 +36,11 @@ import { previewLodging, LodgingQuotePreview } from "./lodging-quote-preview";
 export function StayButton({
   stay,
   label = "Hospedagem / extrato",
+  readOnly = false,
 }: {
   stay: Stay;
   label?: string;
+  readOnly?: boolean;
 }) {
   const [snapshot, setSnapshot] = useState<Stay | null>(null);
   return (
@@ -51,7 +53,7 @@ export function StayButton({
         {label}
       </Button>
       {snapshot && (
-        <StaySheet stay={snapshot} onClose={() => setSnapshot(null)} />
+        <StaySheet stay={snapshot} readOnly={readOnly} onClose={() => setSnapshot(null)} />
       )}
     </>
   );
@@ -60,13 +62,15 @@ export function StaySheet({
   stay: openedStay,
   onClose,
   initialIntent = "overview",
+  readOnly = false,
 }: {
   stay: Stay;
   onClose: () => void;
   initialIntent?: StayIntent;
+  readOnly?: boolean;
 }) {
   const [stay, setStay] = useState(openedStay);
-  const [intent, setIntent] = useState<StayIntent>(initialIntent);
+  const [intent, setIntent] = useState<StayIntent>(readOnly ? "overview" : initialIntent);
   const pendingRef = useRef(false),
     heading = useRef<HTMLHeadingElement>(null);
   const [exit, setExit] = useState<(() => void) | null>(null);
@@ -97,7 +101,7 @@ export function StaySheet({
     [reprice, setReprice] = useState(false);
   const [dueDate, setDueDate] = useState(""),
     [confirmed, setConfirmed] = useState(false);
-  const [payment, setPayment] = useState(initialIntent === "payment"),
+  const [payment, setPayment] = useState(!readOnly && initialIntent === "payment"),
     [pending, setPending] = useState(false),
     [error, setError] = useState("");
   const balance = stayBalance(stay),
@@ -109,7 +113,7 @@ export function StaySheet({
     payer.cpfCnpj.replace(/[^0-9A-Z]/gi, "").length === 14 &&
     !!payer.roles?.includes("payer");
   const allowedReceive =
-    can("hospitality.receive") && (active || can("accountsReceivable.receive"));
+    !readOnly && can("hospitality.receive") && (active || can("accountsReceivable.receive"));
   const target = { stayId: stay.id, recordVersion: stay.recordVersion };
   const titles: Record<StayIntent, string> = {
     overview: "Hospedagem",
@@ -353,7 +357,7 @@ export function StaySheet({
                 </section>
               )}
               {["overview", "checkout"].includes(intent) &&
-                active &&
+                !readOnly && active &&
                 can("hospitality.checkout") && (
                   <section className="space-y-3 rounded-lg border p-4">
                     <h3 className="font-semibold">Encerrar hospedagem</h3>
@@ -512,7 +516,7 @@ export function StaySheet({
                         <Input
                           value={o.name}
                           disabled={
-                            !active ||
+                            readOnly || !active ||
                             !can("hospitality.occupants") ||
                             !!o.customerId
                           }
@@ -531,7 +535,7 @@ export function StaySheet({
                           aria-label={`Pessoa cadastrada ${i + 1}`}
                           className="mt-1 min-h-11 w-full rounded border bg-background px-2"
                           value={o.customerId}
-                          disabled={!active || !can("hospitality.occupants")}
+                          disabled={readOnly || !active || !can("hospitality.occupants")}
                           onChange={(e) =>
                             setOccupants((v) =>
                               v.map((p, j) =>
@@ -564,7 +568,7 @@ export function StaySheet({
                       </Label>
                     </div>
                   ))}
-                  {active &&
+                  {!readOnly && active &&
                     can("hospitality.occupants") &&
                     stay.guestCount && (
                       <Button
@@ -605,7 +609,7 @@ export function StaySheet({
                 </section>
               )}
               {["overview", "transfer"].includes(intent) &&
-                active &&
+                !readOnly && active &&
                 can("hospitality.transfer") && (
                   <details
                     open={intent === "transfer" ? true : undefined}
@@ -702,7 +706,7 @@ export function StaySheet({
                 )}
 
               {["overview", "extend"].includes(intent) &&
-                active &&
+                !readOnly && active &&
                 can("hospitality.extend") && (
                   <section
                     className="space-y-3 rounded-lg border p-4"
@@ -826,7 +830,7 @@ export function StaySheet({
                 disabled={pending}
                 onClick={() => requestExit(onClose)}
               >
-                Fechar atendimento
+                {readOnly ? "Fechar consulta" : "Fechar atendimento"}
               </Button>
             </fieldset>
           ) : (
@@ -903,67 +907,5 @@ export function StaySheet({
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-export function StaysList() {
-  const { stays = [], customers = [] } = useApp(),
-    { can } = useAuth();
-  const [query, setQuery] = useState(""),
-    [status, setStatus] = useState("active");
-  if (!can("stays.read")) return null;
-  const filtered = stays.filter(
-    (s) =>
-      (status === "all" || s.status === status) &&
-      `${s.guestName} ${s.reservationId} ${customers.find((c) => c.id === s.payerId)?.name ?? ""}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
-  );
-  return (
-    <section className="space-y-3 rounded-lg border p-4">
-      <h2 className="font-semibold">Hospedagens e cobranças</h2>
-      <p className="text-sm text-muted-foreground">
-        Acompanhe a estadia, seus ocupantes e a conta, inclusive após a saída.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          className="flex-1"
-          aria-label="Buscar hospedagem"
-          placeholder="Hóspede, empresa ou reserva"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <select
-          className="min-h-11 rounded border bg-background px-2"
-          aria-label="Situação da hospedagem"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="active">Em andamento</option>
-          <option value="closed">Encerradas</option>
-          <option value="all">Todas</option>
-        </select>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {filtered.map((s) => (
-          <div key={s.id} className="space-y-2 rounded border p-3">
-            <p className="font-medium">{s.guestName}</p>
-            <p className="text-sm">
-              {customers.find((c) => c.id === s.payerId)?.name ??
-                "Pagador não informado"}{" "}
-              · {s.status === "active" ? "Em andamento" : "Encerrada"}
-            </p>
-            <p className="text-sm">
-              Saldo: {formatCurrency(stayBalance(s).balance)}
-            </p>
-            <StayButton stay={s} />
-          </div>
-        ))}
-      </div>
-      {!filtered.length && (
-        <p className="text-sm text-muted-foreground">
-          Nenhuma hospedagem neste filtro.
-        </p>
-      )}
-    </section>
   );
 }
