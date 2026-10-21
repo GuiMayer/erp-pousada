@@ -161,6 +161,28 @@
   }
 }
 
+/* Main navigation: responsive feedback without changing tab dimensions. */
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-module-tabs [role="tab"] {
+    transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease,
+      box-shadow 160ms ease, transform 160ms ease;
+  }
+  .dashboard-module-tabs [role="tab"]:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px #0002;
+  }
+  .dashboard-module-tabs [role="tab"][data-state="inactive"]:hover:not(:disabled) {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-module-tabs [role="tab"] {
+    transition: none;
+    transform: none !important;
+  }
+}
+
 @keyframes pulse-alert {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
