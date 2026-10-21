@@ -1,76 +1,48 @@
+"use client"
+
+import { useState } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { TimelineDay, RoomStatus } from "@/lib/store"
 import { businessDay } from "@/lib/utils/business-values"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 const statusColors: Record<RoomStatus, string> = {
-  disponivel: "bg-success",
-  ocupado: "bg-warning",
-  limpeza: "bg-cleaning",
-  bloqueado: "bg-info",
+  disponivel: "bg-success", ocupado: "bg-warning", limpeza: "bg-cleaning", bloqueado: "bg-info",
 }
-
 const statusLabels: Record<RoomStatus, string> = {
-  disponivel: "Disponível",
-  ocupado: "Ocupado",
-  limpeza: "Limpeza",
-  bloqueado: "Bloqueado",
+  disponivel: "Disponível", ocupado: "Ocupado", limpeza: "Limpeza", bloqueado: "Bloqueado",
 }
-const shortStatus: Record<RoomStatus, string> = { disponivel: "Livre", ocupado: "Ocup.", limpeza: "Limp.", bloqueado: "Bloq." }
 
-export function MiniTimeline({ days, startIndex = 0, highlightDate }: { days: TimelineDay[]; startIndex?: number; highlightDate?: string }) {
-  const todayISO = businessDay()
-
-  return (
-    <TooltipProvider delayDuration={200}>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-            Agenda 7 dias
-          </span>
-          {days.length > 0 && <span className="text-[10px] text-muted-foreground sm:hidden">{format(parseISO(days[0].date), "dd/MM")} – {format(parseISO(days[days.length - 1].date), "dd/MM")}</span>}
-        </div>
-        <div className="grid grid-cols-7 gap-1 w-full">
-          {days.map((day, i) => {
-            const isToday = day.date === todayISO
-            const isHighlighted = highlightDate && day.date === highlightDate
-            const isEdge = (i === 0 || i === days.length - 1) && day.status === "ocupado"
-
-            return (
-              <Tooltip key={day.date}>
-                <TooltipTrigger asChild>
-                  <div className="flex min-w-0 flex-col items-center gap-1" aria-label={`${format(parseISO(day.date), "EEEE, d 'de' MMMM", { locale: ptBR })}: ${statusLabels[day.status]}`}>
-                    <span className="text-[9px] uppercase text-muted-foreground sm:hidden">{format(parseISO(day.date), "EEE", { locale: ptBR }).slice(0, 3)}</span>
-                    <div
-                      className={`h-2 w-full rounded-full transition-all ${statusColors[day.status]} ${
-                        isHighlighted ? "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110" : 
-                        isToday ? "ring-2 ring-foreground/20 ring-offset-1 ring-offset-card" : ""
-                      } ${isEdge ? "opacity-60" : ""}`}
-                    />
-                    <span
-                      className={`text-[11px] tabular-nums sm:text-[9px] ${
-                        isHighlighted ? "font-bold text-primary" :
-                        isToday ? "font-bold text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      <span className="sm:hidden">{format(parseISO(day.date), "d")}</span><span className="hidden sm:inline">{day.label.split(" ")[0]}</span>
-                    </span>
-                    <span className="text-[10px] text-muted-foreground sm:hidden">{shortStatus[day.status]}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  <p className="font-medium">{day.label}</p>
-                  <p className="text-muted-foreground">
-                    {statusLabels[day.status]}
-                    {isEdge && " >"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            )
-          })}
-        </div>
-      </div>
-    </TooltipProvider>
-  )
+export function MiniTimeline({ days, highlightDate }: { days: TimelineDay[]; startIndex?: number; highlightDate?: string }) {
+  const today = businessDay()
+  const [openDay, setOpenDay] = useState<string | null>(null)
+  return <TooltipProvider delayDuration={200}>
+    <div className="grid w-full grid-cols-7 gap-1" role="group" aria-label="Agenda dos próximos sete dias">
+      {days.map(day => {
+        const selected = day.date === highlightDate
+        const current = day.date === today
+        const dateLabel = format(parseISO(day.date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
+        const description = dateLabel + ": " + statusLabels[day.status]
+        return <Popover key={day.date} open={openDay === day.date} onOpenChange={open => setOpenDay(open ? day.date : null)}>
+          <Tooltip open={openDay === day.date ? false : undefined}>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <button type="button" aria-label={description} className="flex min-h-8 min-w-0 cursor-pointer flex-col justify-center gap-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card">
+                  <span aria-hidden="true" className={`h-2 w-full rounded-full ${statusColors[day.status]} ${selected ? "ring-2 ring-primary ring-offset-1 ring-offset-card" : current ? "ring-2 ring-foreground/20 ring-offset-1 ring-offset-card" : ""}`} />
+                  <span aria-hidden="true" className={`text-[11px] tabular-nums sm:text-[9px] ${selected ? "font-bold text-primary" : current ? "font-bold text-foreground" : "text-muted-foreground"}`}>{format(parseISO(day.date), "d")}</span>
+                </button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">{description}</TooltipContent>
+          </Tooltip>
+          <PopoverContent side="top" align="center" collisionPadding={12} aria-label={description} className="w-auto max-w-[calc(100vw-1.5rem)] p-3 text-xs">
+            <p className="font-medium">{dateLabel}</p>
+            <p className="mt-1 text-muted-foreground">{statusLabels[day.status]}</p>
+          </PopoverContent>
+        </Popover>
+      })}
+    </div>
+  </TooltipProvider>
 }

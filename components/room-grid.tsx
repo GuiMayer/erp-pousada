@@ -78,12 +78,11 @@ export function RoomGrid() {
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
       </div>
       {/* Interactive date selector */}
-      <div className="flex w-full flex-col items-center gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-        <div className="room-date-strip grid w-full min-w-0 max-w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 pb-1 sm:flex sm:w-auto xl:col-start-2" role="group" aria-label="Navegar pelos dias">
+      <div className="grid w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 sm:flex sm:flex-col sm:gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div className="room-date-strip contents sm:flex sm:min-w-0 sm:max-w-full sm:items-center sm:gap-2 sm:pb-1 xl:col-start-2" role="group" aria-label="Navegar pelos dias">
           <Button variant="outline" size="icon" aria-label="Semana anterior" className="col-start-1 row-start-1 size-9 shrink-0" onClick={() => moveWeek(-1)}>
             <ChevronLeft className="size-4" />
           </Button>
-          <p className="col-start-2 row-start-1 text-center text-xs font-medium sm:hidden">{format(parseISO(weekDates[0].date), "d MMM", { locale: ptBR })} – {format(parseISO(weekDates[6].date), "d MMM yyyy", { locale: ptBR })}</p>
           <div className="col-span-3 row-start-2 grid grid-cols-7 gap-1 sm:flex sm:gap-1.5">
             {weekDates.map((d) => (
               <button
@@ -110,12 +109,13 @@ export function RoomGrid() {
             <ChevronRight className="size-4" />
           </Button>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-2 xl:col-start-3 xl:justify-self-end">
+        <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-center gap-1 sm:gap-2 xl:col-start-3 xl:justify-self-end">
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2" aria-label="Escolher data no calendário">
                 <CalendarDays className="size-4" />
-                <span className="hidden sm:inline">Calendário</span> <span className="tabular-nums text-muted-foreground">{format(calendarDate, "dd/MM/yyyy")}</span>
+                <span className="text-xs sm:hidden">{format(parseISO(weekDates[0].date), "d MMM", { locale: ptBR })} – {format(parseISO(weekDates[6].date), "d MMM", { locale: ptBR })}</span>
+                <span className="hidden sm:inline">Calendário</span><span className="hidden tabular-nums text-muted-foreground sm:inline">{format(calendarDate, "dd/MM/yyyy")}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto max-w-[calc(100vw-1.5rem)] p-0" align="center" collisionPadding={12} aria-label="Calendário do mapa de quartos">
@@ -134,9 +134,12 @@ export function RoomGrid() {
                 }}
                 autoFocus
               />
+              <div className="border-t p-2 sm:hidden">
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => selectCalendarDate(parseISO(businessDay()))}>Voltar para hoje</Button>
+              </div>
             </PopoverContent>
           </Popover>
-          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => { setWeekOffset(0); setSelectedDate(businessDay()) }}>
+          <Button variant="link" size="sm" className="hidden text-xs shrink-0 sm:inline-flex" onClick={() => { setWeekOffset(0); setSelectedDate(businessDay()) }}>
             Hoje
           </Button>
         </div>
@@ -154,6 +157,10 @@ export function RoomGrid() {
             <span className="hidden sm:inline">Gerenciar Quartos</span><span className="sm:hidden">Gerenciar</span>
           </Button></PermissionGate>
         </div>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground sm:hidden" aria-label="Legenda da agenda">
+        {[["bg-success", "Livre"], ["bg-warning", "Ocupado"], ["bg-cleaning", "Limpeza"], ["bg-info", "Bloqueado"]].map(([color, label]) => <span key={label} className="inline-flex items-center gap-1"><span aria-hidden="true" className={`size-2 rounded-full ${color}`} />{label}</span>)}
       </div>
 
       <div className="grid grid-cols-1 items-start gap-4 sm:auto-rows-fr sm:grid-cols-2 sm:items-stretch lg:grid-cols-3 xl:grid-cols-4">

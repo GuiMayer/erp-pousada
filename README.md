@@ -72,7 +72,7 @@ Consulte o [guia de Configurações e acessos](docs/CONFIGURACOES_E_ACESSOS.md) 
 
 No mapa de quartos, o nome do hóspede abre o extrato e o saldo abre o recebimento. **Mais ações** reúne troca de quarto, ocupantes e **prorrogação da estadia**, com revisão das novas diárias e da disponibilidade. Veja a [entrega das ações dos quartos](docs/ENTREGA_ACOES_DOS_QUARTOS.md).
 
-No celular, a navegação por sete dias e o calendário ficam sempre disponíveis. Cada quarto exibe uma miniagenda com datas, cores e situações resumidas; as setas de semana atualizam o período dos cartões, sem exigir consulta dia a dia.
+No celular, a navegação por sete dias fica sempre disponível, e o período exibido abre o calendário. Cada quarto mostra somente barrinhas coloridas e números dos dias; uma legenda única explica as cores e o toque numa barra apresenta a data e a situação. As setas de semana atualizam o período dos cartões, sem exigir consulta dia a dia.
 
 O vínculo com uma empresa é definido no cadastro da pessoa, inclusive no cadastro rápido. Nas novas reservas e entradas sem reserva, a empresa vinculada ativa é a pagadora por padrão. Somente pessoas vinculadas exibem **Pagar por conta própria, fora da empresa**: marcar essa opção direciona a cobrança ao hóspede, sem desfazer o vínculo. Pessoas sem empresa pagam pela própria hospedagem, sem essa opção adicional. Trocar de hóspede redefine a escolha; reservas já confirmadas preservam seu pagador.
 
