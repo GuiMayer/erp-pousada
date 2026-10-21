@@ -30,6 +30,7 @@ import {
 } from "./store"
 import type { LodgingTariff } from "./lodging-pricing"
 import type { Stay } from "./stays"
+import { demoBookingOperation, demoBookingKinds } from "./data/demo-bookings"
 import { reconcileDemoStays, demoStayOperation, demoConsumptionCorrection } from "./data/demo-stays"
 import { normalizeDocument } from "./utils/cpf-cnpj-validator"
 import { isPousadaPermission } from "./pousada-scope"
@@ -370,7 +371,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return result as T
       }
     }
-    const result = getDataConfig().adapter === "demo-localStorage" && kind.startsWith("stay-")
+    const result = getDataConfig().adapter === "demo-localStorage" && demoBookingKinds.includes(kind)
+      ? await demoBookingOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T
+      : getDataConfig().adapter === "demo-localStorage" && kind.startsWith("stay-")
       ? await demoStayOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T
       : await submitOperation<T>(kind, payload, operationId)
     window.dispatchEvent(new Event("erp:operation-completed"))

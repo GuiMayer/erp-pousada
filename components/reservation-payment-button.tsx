@@ -3,7 +3,6 @@ import { PermissionGate } from "@/components/permission-gate";
 import { useState } from "react";
 import type { Reservation } from "@/lib/store";
 import { useApp } from "@/lib/app-context";
-import { getDataConfig } from "@/lib/data/config";
 import { Button } from "@/components/ui/button";
 import { PaymentDialog } from "./payment-fields";
 
@@ -52,7 +51,7 @@ export function ReservationPaymentDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const { runOperation, guests, updateReservation, addTransaction } = useApp();
+  const { runOperation, guests } = useApp();
   const balance = Math.max(
     0,
     reservation.totalValue - (reservation.paidValue ?? 0),
@@ -61,36 +60,18 @@ export function ReservationPaymentDialog({
     guests.find((guest) => guest.cpf === reservation.cpf)?.creditValue ?? 0;
   return (
     <PaymentDialog
-      mixedEnabled={getDataConfig().adapter === "database"}
+      mixedEnabled
       open={open}
       onClose={onClose}
       title={`Hospedagem — ${reservation.guestName}${credit ? ` · crédito R$ ${credit.toFixed(2)}` : ""}`}
       maximum={balance}
-      allowCredit={credit > 0 && getDataConfig().adapter === "database"}
+      allowCredit={credit > 0}
       onConfirm={async (paymentMethod, accountId, value, payments) => {
-        if (getDataConfig().adapter === "database")
-          await runOperation("pay-reservation", {
-            reservationId: reservation.id,
-            recordVersion: reservation.recordVersion,
-            value,
-            paymentMethod,
-            accountId,
-            payments,
-          });
-        else {
-          await addTransaction({
-            id: crypto.randomUUID(),
-            date: new Date().toISOString(),
-            description: `Hospedagem ${reservation.id}`,
-            refId: reservation.id,
-            type: "receita",
-            value,
-            paymentMethod,
-          });
-          await updateReservation(reservation.id, {
-            paidValue: (reservation.paidValue ?? 0) + value,
-          });
-        }
+        await runOperation("pay-reservation", {
+          reservationId: reservation.id,
+          recordVersion: reservation.recordVersion,
+          value, paymentMethod, accountId, payments,
+        });
       }}
     />
   );

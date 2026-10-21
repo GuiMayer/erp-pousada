@@ -91,6 +91,7 @@ export async function demoStayOperation(store: DataStore,kind: string,payload: u
       await store.accountsReceivable.create({sourceStayId:s.id,customerId:payer.id,customerName:payer.name,description:'Hospedagem '+s.reservationId,value:balances.balance,paidValue:0,issueDate:businessDay(),dueDate:due,status:'pendente'})
     }
     s.status='closed';s.endedAt=new Date().toISOString()
+    s.allocations=s.allocations.map(a=>({...a,end:a.end>businessDay()?(a.start>businessDay()?a.start:businessDay()):a.end}))
     await store.reservations.update(s.reservationId,{status:'checkout'})
     await store.rooms.update(s.roomId,{status:'limpeza',guest:undefined,guestCpf:undefined,checkIn:undefined,checkOut:undefined})
     await store.consumptions.clearByRoomId(s.roomId)

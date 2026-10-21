@@ -1,5 +1,6 @@
-import type { LodgingTariff } from "./lodging-pricing"
+import { quoteLodging, type LodgingTariff } from "./lodging-pricing"
 import { normalizeDocument } from "./utils/cpf-cnpj-validator"
+import { businessDay } from "./utils/business-values"
 import seed from "./seed-data.json"
 import {
   initialCategories, initialProductCategories, initialPOSProducts,
@@ -13,8 +14,8 @@ import type { DataStore } from "./data/types"
 /** Fictitious examples for the explicit browser demo; never a production seed. */
 export function createDemoData(now = new Date()) {
   const date = (offset: number) => {
-    const value = new Date(now)
-    value.setDate(value.getDate() + offset)
+    const value = new Date(businessDay(now) + "T12:00:00Z")
+    value.setUTCDate(value.getUTCDate() + offset)
     return value.toISOString().slice(0, 10)
   }
   const timestamp = (offset: number, hour = 12) => `${date(offset)}T${String(hour).padStart(2, "0")}:00:00.000Z`
@@ -49,6 +50,21 @@ export function createDemoData(now = new Date()) {
     { cpf: "000.000.000-02", name: "Felipe Rocha", totalStays: 1, avgTicket: 1350, noShows: 0 },
   )
 
+  // Synthetic documents for fixtures only, with valid check digits for testing forms.
+  const documents = new Map<string, string>()
+  guests.forEach((guest, index) => {
+    const digits = String(100000000 + index * 1237).split("").map(Number)
+    for (let size = 9; size <= 10; size++) {
+      const remainder = digits.reduce((sum, digit, i) => sum + digit * (size + 1 - i), 0) * 10 % 11
+      digits.push(remainder === 10 ? 0 : remainder)
+    }
+    const cpf = digits.join("")
+    documents.set(normalizeDocument(guest.cpf), cpf)
+    guest.cpf = cpf
+  })
+  reservations.forEach(r => { r.cpf = documents.get(normalizeDocument(r.cpf))! })
+  rooms.forEach(r => { if (r.guestCpf) r.guestCpf = documents.get(normalizeDocument(r.guestCpf)) })
+
   const posProducts: POSProduct[] = [
     ...initialPOSProducts.map((product, index) => ({ ...product, trackStock: index < 12 })),
   ]
@@ -75,13 +91,6 @@ export function createDemoData(now = new Date()) {
         value: total, type: "receita", category: "PDV", paymentMethod, responsible: "operador", refId: sale.id,
       })
     }
-  }
-  for (const reservation of reservations.filter((item) => item.status === "checkin" || item.status === "checkout")) {
-    transactions.push({
-      id: `DEMO-T-${reservation.id}`, date: reservation.checkIn,
-      description: `Hospedagem — ${reservation.guestName}`, value: reservation.totalValue,
-      type: "receita", category: "Hospedagem", paymentMethod: "PIX", responsible: "supervisor", refId: reservation.id,
-    })
   }
   const expenses: Expense[] = seed.expenses.map((expense) => ({
     id: expense.id, description: expense.description, category: expense.category,
@@ -127,6 +136,14 @@ export function createDemoData(now = new Date()) {
     { id: 'DEMO-T'+index+'-one', name: roomType+' · uma pessoa', roomType, minGuests: 1, maxGuests: 1, pricePerPerson: 120, validFrom: date(-365), active: true },
     { id: 'DEMO-T'+index+'-group', name: roomType+' · duas ou três pessoas', roomType, minGuests: 2, maxGuests: 3, pricePerPerson: 100, validFrom: date(-365), active: true },
   ])
+  for (const [index, r] of reservations.entries()) {
+    const person = customers.find(c => c.cpfCnpj === r.cpf)!
+    r.guestCount = 2; r.payerId = person.companyId ?? person.id; r.recordVersion = 0
+    const quote = quoteLodging(rooms.find(room => room.id === r.roomId)!, lodgingTariffs, { roomId: r.roomId, guestCount: 2, checkIn: r.checkIn, checkOut: r.checkOut })
+    r.totalValue = quote.total; r.originalValue = quote.total; r.nightlyPrices = quote.nights
+    r.paidValue = r.status === "checkout" ? r.totalValue : r.status === "checkin" || r.id === "DEMO-R008" ? Math.min(100, r.totalValue) : 0
+    if (r.paidValue > 0) transactions.push({ id: `DEMO-T-BOOKING-${index}`, date: timestamp(0), description: `Hospedagem ${r.id}`, refId: `Hospedagem ${r.id}`, value: r.paidValue, type: "receita", paymentMethod: "PIX", accountId: "DEMO-BANK", responsible: "supervisor", originType: "reservation", originId: r.id })
+  }
   const accountsReceivable: AccountReceivable[] = [0, 2, 5].map((index) => ({
     id: `DEMO-AR${index}`, customerId: customers[index].id, customerName: customers[index].name,
     description: "Saldo de hospedagem — exemplo", value: [320, 480, 650][index % 3],
@@ -140,13 +157,13 @@ export function createDemoData(now = new Date()) {
     employees: [], users: structuredClone(initialUsers), userSessions: [],
     systemSettings: [{ ...initialSystemSettings, contactEmail: "contato@example.com", contactPhone: "", address: "", notifyLowStock: false }],
     auditLog: seed.auditLog.map((entry) => ({ ...entry, date: new Date(now.getTime() - entry.hoursAgo * 3600000).toISOString() })),
-    cashCloses: seed.cashCloses.map((entry) => ({ ...entry, date: new Date(now.getTime() - entry.hoursAgo * 3600000).toISOString() })),
+    cashCloses: [...seed.cashCloses.map((entry) => ({ ...entry, status: "fechado", date: new Date(now.getTime() - entry.hoursAgo * 3600000).toISOString() })), { id: "DEMO-OPEN-CASH", date: timestamp(0), status: "aberto", openedAt: timestamp(0), openingValue: 200, operator: "supervisor", physicalValue: 200, expectedValue: 200, divergence: 0 }],
     consumptions: rooms.filter((room) => room.status === "ocupado").map((room) => ({
       id: room.id, roomId: room.id,
       items: [{ id: `DEMO-C${room.id}`, label: "Água mineral 500 ml", unitPrice: 5, quantity: 2 }],
     })),
     recipes: [], productions: [], employeeConsumptions: [], suppliers: [],
-    bankAccounts: [], bankTransfers: [], costCenters: [], budgets: [], recurringTransactions: [],
+    bankAccounts: [{ id: "DEMO-BANK", name: "Conta de demonstração", type: "corrente", active: true, initialBalance: 5000, currentBalance: 5000 + reservations.reduce((sum, r) => sum + (r.paidValue ?? 0), 0) }], bankTransfers: [], costCenters: [], budgets: [], recurringTransactions: [],
   }
 }
 

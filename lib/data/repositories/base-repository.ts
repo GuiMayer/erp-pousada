@@ -86,7 +86,7 @@ export abstract class BaseRepository<T extends { id: string | number }> implemen
   /**
    * Invalidate cache
    */
-  protected invalidateCache(): void {
+  public invalidateCache(): void {
     this.cache.clear()
   }
 
