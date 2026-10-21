@@ -1,4 +1,5 @@
 "use client"
+import { useTaskState } from "@/contexts/task-drafts-context"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { Button } from "./ui/button"
@@ -8,7 +9,7 @@ import { PaymentDialog } from "./payment-fields"
 type Target = { accountReceivableId: string; recordVersion: number; value: number; installmentId?: string }
 export function BatchReceiptsPanel() {
   const { accountsReceivable, runOperation } = useApp()
-  const [selected, setSelected] = useState<Record<string, Target>>({})
+  const [selected, setSelected] = useTaskState<Record<string, Target>>("receivables.batch.selection", {})
   const [open, setOpen] = useState(false)
   const candidates = accountsReceivable.filter(a => ['pendente', 'vencido'].includes(a.status))
   const targets = Object.values(selected)

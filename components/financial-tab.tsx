@@ -1,4 +1,5 @@
 "use client"
+import { useTaskState } from "@/contexts/task-drafts-context"
 import { TransactionCheck } from "./transaction-check"
 import { PermissionGate } from "@/components/permission-gate"
 
@@ -66,16 +67,17 @@ export function FinancialTab() {
   const { isSupervisor, username, can } = useAuth()
   const financialTabs: Record<string, string[]> = { vencimentos: ["expenses.read"], transacoes: ["transactions.read"], fornecedores: ["suppliers.read"], clientes: ["customers.read"], hospedes: ["guests.read"], "contas-receber": ["accountsReceivable.read"], cadastros: ["bankAccounts.read", "categories.read", "costCenters.read"], "fechar-turno": ["cash.open", "cash.close"] }
   const visible = (tab: string) => financialTabs[tab]?.some(can)
+  const [section, setSection] = useTaskState("finance.section", Object.keys(financialTabs).find(visible), false)
 
   // New expense modal
-  const [showNewExpense, setShowNewExpense] = useState(false)
-  const [savingExpense, setSavingExpense] = useState(false), [expenseError, setExpenseError] = useState("")
-  const [expDesc, setExpDesc] = useState("")
-  const [expCategory, setExpCategory] = useState("")
-  const [expValue, setExpValue] = useState("")
-  const [expDueDate, setExpDueDate] = useState("")
-  const [expInstallments, setExpInstallments] = useState("1")
-  const [expInstallmentInterval, setExpInstallmentInterval] = useState("30")
+  const [showNewExpense, setShowNewExpense] = useTaskState("expense.showNewExpense", false)
+  const [savingExpense, setSavingExpense] = useTaskState("expense.savingExpense", false), [expenseError, setExpenseError] = useState("")
+  const [expDesc, setExpDesc] = useTaskState("expense.expDesc", "")
+  const [expCategory, setExpCategory] = useTaskState("expense.expCategory", "")
+  const [expValue, setExpValue] = useTaskState("expense.expValue", "")
+  const [expDueDate, setExpDueDate] = useTaskState("expense.expDueDate", "")
+  const [expInstallments, setExpInstallments] = useTaskState("expense.expInstallments", "1")
+  const [expInstallmentInterval, setExpInstallmentInterval] = useTaskState("expense.expInstallmentInterval", "30")
   const [showNewCategory, setShowNewCategory] = useState(false)
   const [newCategoryLabel, setNewCategoryLabel] = useState("")
 
@@ -346,7 +348,7 @@ export function FinancialTab() {
         )}
       </div>}
 
-      <Tabs defaultValue={Object.keys(financialTabs).find(visible)}>
+      <Tabs value={section && visible(section) ? section : Object.keys(financialTabs).find(visible)} onValueChange={setSection}>
         <TabsList mobilePriority={["vencimentos", "contas-receber", "transacoes"]}>
           {visible("vencimentos") && (<TabsTrigger value="vencimentos">Vencimentos</TabsTrigger>)}
           {visible("transacoes") && (<TabsTrigger value="transacoes">Transacoes</TabsTrigger>)}
@@ -355,7 +357,7 @@ export function FinancialTab() {
           {visible("hospedes") && (<TabsTrigger value="hospedes">Hospedes</TabsTrigger>)}
           {visible("contas-receber") && (<TabsTrigger value="contas-receber">Contas a Receber</TabsTrigger>)}
           {visible("cadastros") && (<TabsTrigger value="cadastros">Cadastros</TabsTrigger>)}
-          {visible("fechar-turno") && (<TabsTrigger value="fechar-turno">Fechar Turno</TabsTrigger>)}
+          {visible("fechar-turno") && (<TabsTrigger value="fechar-turno">Turno de caixa</TabsTrigger>)}
         </TabsList>
 
         {/* Upcoming payments */}

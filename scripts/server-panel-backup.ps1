@@ -1,11 +1,13 @@
 ﻿function Read-PanelConfig([string]$Key,[string]$Default='') {
   $file=Join-Path (Split-Path $PSScriptRoot -Parent) '.env.docker.local'
+  if(!(Test-Path -LiteralPath $file)){return $Default}
   $line=Get-Content -LiteralPath $file | Where-Object { $_.StartsWith("$Key=") } | Select-Object -First 1
   if($line){return $line.Substring($Key.Length+1).Trim().Trim('"',"'")}
   return $Default
 }
 function Get-PanelBackupState {
   $root=Split-Path $PSScriptRoot -Parent
+  if(!(Test-Path -LiteralPath (Join-Path $root '.env.docker.local'))){return 'Instalação normal ainda não configurada.'}
   $directory=Read-PanelConfig 'BACKUP_HOST_DIR' './backups'
   if(![IO.Path]::IsPathRooted($directory)){$directory=Join-Path $root $directory}
   $messages=@()

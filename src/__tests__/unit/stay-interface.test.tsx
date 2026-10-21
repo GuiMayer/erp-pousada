@@ -8,6 +8,24 @@ vi.mock('@/lib/app-context',()=>({useApp:()=>({runOperation,rooms:[{id:1,number:
 const stay:Stay={id:'s',reservationId:'r',payerId:'company',guestName:'Pessoa Exemplo',guestCount:2,roomId:1,status:'active',recordVersion:7,checkIn:'2026-10-10',checkOut:'2026-10-12',lodgingValue:400,occupants:[{id:'o',name:'Pessoa Exemplo'}],allocations:[{id:'a',roomId:1,start:'2026-10-10',end:'2026-10-12'}],charges:[{id:'c',label:'Água',unitPrice:12,quantity:2,status:'active',createdAt:''}],payments:[{id:'p',value:100,bucket:'lodging',method:'pix',createdAt:''}]}
 beforeEach(()=>{cleanup();runOperation.mockReset();runOperation.mockResolvedValue({success:true});can.mockImplementation(()=>true)})
 describe('Extrato e saída da hospedagem',()=>{
+  it('mantém extrato após pagamento e usa a nova versão para concluir a saída',async()=>{
+    const close=vi.fn()
+    const paid={...stay,recordVersion:8,payments:[...stay.payments,{id:'paid',value:324,bucket:'general',method:'pix',createdAt:''}]}
+    runOperation.mockResolvedValueOnce({success:true,stay:paid})
+    render(<StaySheet stay={stay} onClose={close}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Receber valor parcial ou total'}));
+    fireEvent.click(await screen.findByRole('button',{name:'Confirmar pagamento'}));
+    await screen.findByText('Pagamento registrado. Confirme o check-out para concluir a saída.');
+    expect(close).not.toHaveBeenCalled();expect(screen.getByText(/Saldo a receber:/)).toHaveTextContent('0,00');
+    fireEvent.click(screen.getByRole('button',{name:'Confirmar check-out quitado'}));
+    await waitFor(()=>expect(runOperation).toHaveBeenLastCalledWith('stay-checkout',{stayId:'s',recordVersion:8}));
+    expect(close).toHaveBeenCalledOnce();
+  })
+  it('salva ocupantes sem fechar o atendimento',async()=>{
+    const close=vi.fn();runOperation.mockResolvedValueOnce({success:true,stay:{...stay,recordVersion:8}})
+    render(<StaySheet stay={stay} onClose={close}/>);fireEvent.change(screen.getByLabelText('Nome do ocupante 2'),{target:{value:'Acompanhante'}});fireEvent.click(screen.getByRole('button',{name:'Salvar ocupantes'}));
+    await screen.findByText('Ocupantes salvos. Você pode continuar o atendimento.');expect(close).not.toHaveBeenCalled();
+  })
   it('mostra saldo 324 e histórico sem duplicar o sinal',()=>{
     render(<StaySheet stay={stay} onClose={()=>{}}/>);
     expect(screen.getByText(/Saldo a receber:/).textContent).toContain('324,00');expect(screen.getByText('Consumo preservado')).toBeTruthy();expect(screen.getByText(/Pagador:/).textContent).toContain('Empresa Exemplo')

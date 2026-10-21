@@ -132,7 +132,7 @@ type AppContextType = {
   updateGuest: (cpf: string, data: Partial<GuestProfile>) => Promise<void>
   removeGuest: (cpf: string, expectedVersion?: number) => Promise<void>
   setDiscountCeiling: (v: number) => void
-  addConsumptionItem: (roomId: number, item: ConsumptionItem) => Promise<void>
+  addConsumptionItem: (roomId: number, item: ConsumptionItem, expectedStayId?: string) => Promise<void>
   removeConsumptionItem: (roomId: number, itemId: string) => Promise<void>
   getConsumption: (roomId: number) => RoomConsumption | undefined
   clearConsumption: (roomId: number) => Promise<void>
@@ -298,7 +298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         keys && !keys.has("productions") ? Promise.resolve(null) : (isPousadaPermission("productions.read") && can("productions.read")) ? dataStore.productions.getAll() : Promise.resolve([]),
         keys && !keys.has("employees") ? Promise.resolve(null) : (isPousadaPermission("employees.read") && can("employees.read")) ? dataStore.employees.getAll() : Promise.resolve([]),
         keys && !keys.has("employeeConsumptions") ? Promise.resolve(null) : (isPousadaPermission("employeeConsumptions.read") && can("employeeConsumptions.read")) ? dataStore.employeeConsumptions.getAll() : Promise.resolve([]),
-        keys && !keys.has("users") ? Promise.resolve(null) : (can("users.read")) ? dataStore.users.getAll() : Promise.resolve([]),
+        keys && !keys.has("users") ? Promise.resolve(null) : (can("users.read") && can("users.manage") && can("settings.access")) ? dataStore.users.getAll() : Promise.resolve([]),
         keys && !keys.has("userSessions") ? Promise.resolve(null) : (can("userSessions.read")) ? dataStore.userSessions.getAll() : Promise.resolve([]),
         keys && !keys.has("systemSettings") ? Promise.resolve(null) : (can("systemSettings.read")) ? dataStore.systemSettings.getAll() : Promise.resolve([]),
         keys && !keys.has("suppliers") ? Promise.resolve(null) : (can("suppliers.read")) ? dataStore.suppliers.getAll() : Promise.resolve([]),
@@ -747,8 +747,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [dataStore])
 
   // Consumption methods
-  const addConsumptionItem = useCallback(async (roomId: number, item: ConsumptionItem) => {
-    if (getDataConfig().adapter === "database") { await runOperation("add-consumption", { roomId, item }); return }
+  const addConsumptionItem = useCallback(async (roomId: number, item: ConsumptionItem, expectedStayId?: string) => {
+    if (getDataConfig().adapter === "database") {
+      if (!expectedStayId) throw new Error("Reabra o consumo para identificar a hospedagem deste atendimento")
+      await runOperation("add-consumption", { roomId, expectedStayId, item }); return
+    }
     await reconcileDemoStays(dataStore)
     const existing = await dataStore.consumptions.getByRoomId(roomId)
     if (existing) {

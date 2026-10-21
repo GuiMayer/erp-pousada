@@ -8,8 +8,9 @@ export async function authorizeCollection(request: NextRequest, key: string) {
   collectionMapper(key)
   const actor = await authorize(request)
   const write = !["GET", "HEAD"].includes(request.method)
+  if (write && key === "systemSettings") throw new HttpError(403, "Use o formulário de configuração por seção")
   if (write && [...operationalCollections, "auditLog", "userSessions"].includes(key)) throw new HttpError(403, "Utilize a operação específica; histórico é registrado pelo servidor")
-  if (key === "users" && write) demand(actor, "users.manage")
+  if (key === "users") { demand(actor, "settings.access"); demand(actor, "users.manage") }
   const action = !write ? "read" : request.method === "POST" ? "create" : request.method === "DELETE" ? "delete" : "edit"
   if (!(key === "bankAccounts" && !write && actor.permissions?.includes("bankAccounts.use"))) demand(actor, `${key}.${action}`)
   return actor

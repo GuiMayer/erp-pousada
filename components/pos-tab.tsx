@@ -1,4 +1,6 @@
 "use client"
+import { useTaskState, useTaskRef } from "@/contexts/task-drafts-context"
+import { CashTurnShortcut } from "./cash-turn-shortcut"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
@@ -74,15 +76,15 @@ export function POSTab() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const cartRef = useRef<HTMLDivElement>(null)
   // Cart state
-  const [cart, setCart] = useState<POSCartItem[]>([])
+  const [cart, setCart] = useTaskState<POSCartItem[]>("pos.cart", [])
   const [searchQuery, setSearchQuery] = useState("")
   const [barcodeInput, setBarcodeInput] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
-  const [globalDiscount, setGlobalDiscount] = useState(0)
-  const [customer, setCustomer] = useState("")
+  const [globalDiscount, setGlobalDiscount] = useTaskState("pos.globalDiscount", 0)
+  const [customer, setCustomer] = useTaskState("pos.customer", "")
 
   // Payment modal
-  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [paymentOpen, setPaymentOpen] = useTaskState("pos.paymentOpen", false)
   const [paymentAccountId, setPaymentAccountId] = useState("")
   const [returnToStock, setReturnToStock] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("dinheiro")
@@ -288,8 +290,8 @@ export function POSTab() {
     return Math.max(0, paid - total)
   }
 
-  const [submitting, setSubmitting] = useState(false)
-  const operationRef = useRef<string | null>(null)
+  const [submitting, setSubmitting] = useTaskState("pos.submitting", false)
+  const operationRef = useTaskRef<string | null>("pos.operation", null)
   async function finalizeSale() {
     if (submitting) return
     operationRef.current ??= crypto.randomUUID()
@@ -505,6 +507,7 @@ export function POSTab() {
         </div>
       </div>
 
+      <CashTurnShortcut />
       <Button className={`mobile-cart-bar sm:hidden ${mobileCartOpen ? "mobile-cart-bar-review" : ""}`} onClick={() => { setMobileCartOpen(true); requestAnimationFrame(() => cartRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })) }}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Ver carrinho</Button>
       {/* Main POS Layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">

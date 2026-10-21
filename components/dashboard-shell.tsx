@@ -3,7 +3,7 @@ import { RegistrationsTab } from "./registrations-tab"
 import { MobileNavigation } from "./mobile-navigation"
 import { usePhoneLayout } from "@/hooks/use-phone-layout"
 import { useEffect, useState } from "react"
-import { tabPermissions } from "@/lib/permissions"
+import { tabPermissions, canAccessTab } from "@/lib/permissions"
 
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -17,7 +17,6 @@ import { POSTab } from "./pos-tab"
 import { StockTab } from "./stock/stock-tab"
 import { ReportsTab } from "./reports-tab"
 import { SettingsTab } from "./settings-tab"
-import { AdminTab } from "./admin-tab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Map, CalendarDays, DollarSign, Shield, ShoppingCart, Package, BarChart3, Settings } from "lucide-react"
 
@@ -25,15 +24,14 @@ export function DashboardShell() {
   const phone = usePhoneLayout()
   const { rooms, dataError } = useApp()
   const { can } = useAuth()
-  const visible = (tab: string) => tabPermissions[tab]?.some(can)
+  const visible = (tab: string) => canAccessTab(tab, can)
   const permittedTab = Object.keys(tabPermissions).find(visible)
   const { activeTab, setActiveTab } = useActiveTab()
-  const [visited, setVisited] = useState(() => new Set([activeTab]))
+  const [visited, setVisited] = useState<string[]>([activeTab])
+  useEffect(() => { setVisited(old => old.includes(activeTab) ? old : [...old, activeTab]) }, [activeTab])
+  const retainLegacy = (tab: string) => phone && visited.includes(tab) ? true : undefined
   useEffect(() => {
-    if (phone) setVisited(previous => previous.has(activeTab) ? previous : new Set([...previous, activeTab]))
-  }, [activeTab, phone])
-  useEffect(() => {
-    if (!tabPermissions[activeTab]?.some(can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
+    if (!canAccessTab(activeTab, can) && permittedTab) setActiveTab(permittedTab as typeof activeTab)
   }, [activeTab, can, permittedTab, setActiveTab])
 
   return (
@@ -74,42 +72,35 @@ export function DashboardShell() {
             <Settings className="size-3.5" />
             Configurações
           </TabsTrigger>)}
-          {visible("administracao") && (<TabsTrigger value="administracao" className="gap-1.5">
-              <Shield className="size-3.5" />
-              Administração
-            </TabsTrigger>)}
           {visible("auditoria") && (<TabsTrigger value="auditoria" className="gap-1.5">
             <Shield className="size-3.5" />
             Auditoria
           </TabsTrigger>)}
         </TabsList>
 
-        {visible("mapa") && (<TabsContent forceMount={phone && visited.has("mapa") ? true : undefined} value="mapa">
+        {visible("mapa") && (<TabsContent value="mapa">
           <RoomGrid />
         </TabsContent>)}
-        {visible("reservas") && (<TabsContent forceMount={phone && visited.has("reservas") ? true : undefined} value="reservas">
+        {visible("reservas") && (<TabsContent value="reservas">
           <ReservationsTab />
         </TabsContent>)}
-        {visible("pdv") && (<TabsContent forceMount={phone && visited.has("pdv") ? true : undefined} value="pdv">
+        {visible("pdv") && (<TabsContent value="pdv">
           <POSTab />
         </TabsContent>)}
-        {visible("estoque") && (<TabsContent forceMount={phone && visited.has("estoque") ? true : undefined} value="estoque">
+        {visible("estoque") && (<TabsContent value="estoque">
           <StockTab />
         </TabsContent>)}
-        {visible("cadastros") && <TabsContent forceMount={phone && visited.has("cadastros") ? true : undefined} value="cadastros"><RegistrationsTab /></TabsContent>}
-        {visible("financeiro") && (<TabsContent forceMount={phone && visited.has("financeiro") ? true : undefined} value="financeiro">
+        {visible("cadastros") && <TabsContent value="cadastros" forceMount={retainLegacy("cadastros")} className="data-[state=inactive]:hidden"><RegistrationsTab /></TabsContent>}
+        {visible("financeiro") && (<TabsContent value="financeiro">
           <FinancialTab />
         </TabsContent>)}
-        {visible("relatorios") && (<TabsContent forceMount={phone && visited.has("relatorios") ? true : undefined} value="relatorios">
+        {visible("relatorios") && (<TabsContent value="relatorios" forceMount={retainLegacy("relatorios")} className="data-[state=inactive]:hidden">
           <ReportsTab />
         </TabsContent>)}
-        {visible("configuracoes") && (<TabsContent forceMount={phone && visited.has("configuracoes") ? true : undefined} value="configuracoes">
+        {visible("configuracoes") && (<TabsContent value="configuracoes">
           <SettingsTab />
         </TabsContent>)}
-        {visible("administracao") && (<TabsContent forceMount={phone && visited.has("administracao") ? true : undefined} value="administracao">
-            <AdminTab />
-          </TabsContent>)}
-        {visible("auditoria") && (<TabsContent forceMount={phone && visited.has("auditoria") ? true : undefined} value="auditoria">
+        {visible("auditoria") && (<TabsContent value="auditoria" forceMount={retainLegacy("auditoria")} className="data-[state=inactive]:hidden">
           <AuditLogTab />
         </TabsContent>)}
       </Tabs>

@@ -1,4 +1,5 @@
 "use client";
+import { useTaskState } from "@/contexts/task-drafts-context";
 import { useState, type FormEvent } from "react";
 import { useApp } from "@/lib/app-context";
 import { useAuth } from "@/lib/auth-context";
@@ -47,16 +48,16 @@ export function PurchaseReceipt({
         p.trackStock &&
         productCategories.some((c) => c.id === p.categoryId && !c.isRestaurant),
     ),
-    [supplierId, setSupplier] = useState(""),
-    [reference, setReference] = useState(""),
-    [notes, setNotes] = useState(""),
-    [items, setItems] = useState<ReceiptLine[]>([newLine()]),
-    [freight, setFreight] = useState(0),
-    [discount, setDiscount] = useState(0),
-    [dueDate, setDue] = useState(businessDay()),
-    [payNow, setPayNow] = useState(false),
-    [parts, setParts] = useState<{ value: number; dueDate: string }[]>([]),
-    [payments, setPayments] = useState<PaymentLine[]>([
+    [supplierId, setSupplier] = useTaskState("purchase.supplierId", ""),
+    [reference, setReference] = useTaskState("purchase.reference", ""),
+    [notes, setNotes] = useTaskState("purchase.notes", ""),
+    [items, setItems] = useTaskState<ReceiptLine[]>("purchase.items", [newLine()]),
+    [freight, setFreight] = useTaskState("purchase.freight", 0),
+    [discount, setDiscount] = useTaskState("purchase.discount", 0),
+    [dueDate, setDue] = useTaskState("purchase.dueDate", businessDay()),
+    [payNow, setPayNow] = useTaskState("purchase.payNow", false),
+    [parts, setParts] = useTaskState<{ value: number; dueDate: string }[]>("purchase.parts", []),
+    [payments, setPayments] = useTaskState<PaymentLine[]>("purchase.payments", [
       {
         method: "pix",
         value: 0,
@@ -66,7 +67,7 @@ export function PurchaseReceipt({
             : undefined,
       },
     ]),
-    [busy, setBusy] = useState(false),
+    [busy, setBusy] = useTaskState("purchase.busy", false),
     [error, setError] = useState("");
   let totals: ReturnType<typeof receiptTotals> | null = null,
     calculationError = "";
@@ -109,6 +110,7 @@ export function PurchaseReceipt({
         payments: payNow ? payments : undefined,
       });
       onSaved(result.priceChanges?.length?"Compra recebida. Revise o preço de venda, se necessário: "+result.priceChanges.map(p=>`${p.name}: custo por ${p.unit} ${p.previous===null?"anterior não registrado":formatCurrency(p.previous)} → ${formatCurrency(p.current)}`).join("; ")+". Nenhum preço foi alterado automaticamente.":"Compra recebida.");
+      setSupplier(""); setReference(""); setNotes(""); setItems([newLine()]); setFreight(0); setDiscount(0); setPayNow(false); setParts([]); setDue(businessDay()); setPayments([{ method: "pix", value: 0, accountId: bankAccounts.filter(a => a.active).length === 1 ? bankAccounts.filter(a => a.active)[0].id : undefined }]);
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -124,6 +126,7 @@ export function PurchaseReceipt({
       }}
     >
       <DialogContent
+        busy={busy}
         mobileTask
         protectDraft
         aria-describedby={undefined}
@@ -136,6 +139,7 @@ export function PurchaseReceipt({
           onSubmit={submit}
           className="space-y-5 [&_[data-slot=label]]:flex-col [&_[data-slot=label]]:items-stretch"
         >
+          <fieldset disabled={busy} className="space-y-5">
           <p className="text-sm text-muted-foreground">
             Uma confirmação registra o recebimento, os lotes e a conta a pagar.
             Recusadas não entram no estoque nem na cobrança.
@@ -503,6 +507,7 @@ export function PurchaseReceipt({
                 : "Confirmar recebimento e conta"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </DialogContent>
     </Dialog>

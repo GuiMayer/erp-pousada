@@ -8,6 +8,16 @@ const state = vi.hoisted(() => ({runOperation:vi.fn(),stays:[{id:'stay',status:'
 vi.mock('@/lib/app-context',()=>({useApp:()=>state}))
 vi.mock('@/lib/auth-context',()=>({useAuth:()=>({can:()=>true})}))
 describe('Controles de pagamento da Sprint 3',()=>{
+  it('identifica caixa fechado antes do envio e permite PIX sem abrir dinheiro',async()=>{
+    vi.stubEnv('NEXT_PUBLIC_DATA_ADAPTER','database')
+    const confirm=vi.fn();render(<POSCheckoutDialog total={12} onClose={vi.fn()} onConfirm={confirm}/>)
+    expect(screen.getByRole('button',{name:'Confirmar venda'})).toBeDisabled()
+    expect(screen.getByText(/Abra o caixa para receber em dinheiro/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Meio do pagamento 1'),{target:{value:'pix'}})
+    expect(screen.getByRole('button',{name:'Confirmar venda'})).toBeEnabled()
+    fireEvent.click(screen.getByRole('button',{name:'Confirmar venda'}))
+    await waitFor(()=>expect(confirm).toHaveBeenCalledOnce())
+  })
   beforeEach(()=>{state.runOperation.mockReset();state.stays[0].recordVersion=3})
   it('trocar crédito pessoal por pagamento misto não envia ordem de consumir crédito',async()=>{
     const confirm=vi.fn()

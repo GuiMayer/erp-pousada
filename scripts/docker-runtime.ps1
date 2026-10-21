@@ -11,10 +11,14 @@ function Get-ErpDockerRuntime {
   if($runtime.Backend -ne 'wsl' -or $runtime.Distribution -notmatch '^[A-Za-z0-9_-]+$'){throw 'Configuração do motor Docker inválida.'}
   return $runtime
 }
-function Get-ErpDockerInvocation([string[]]$Arguments) {
+function Get-ErpDockerInvocation([string[]]$Arguments,[switch]$ReadOnly) {
   $runtime=Get-ErpDockerRuntime
   if($runtime.Backend -eq 'wsl') {
-    Start-ErpDockerKeepAlive $runtime.Distribution
+    # A passive probe must never create the WSL keeper or start a distribution.
+    if(!$ReadOnly -and !$script:ErpDockerKeeperChecked) {
+      Start-ErpDockerKeepAlive $runtime.Distribution
+      $script:ErpDockerKeeperChecked=$true
+    }
     $root=ConvertTo-ErpLinuxPath $script:ErpDockerRoot
     $payload=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(((@($root)+$Arguments) -join [char]0)+[char]0))
     return @{Executable=(Get-Command wsl.exe -CommandType Application | Select-Object -First 1).Source; Arguments=@('--distribution',$runtime.Distribution,'--user','root','--exec','/usr/local/bin/erp-pousada-docker',$payload)}

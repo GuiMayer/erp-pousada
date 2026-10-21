@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 
 import { BankAccountPicker } from "./payment-fields"
 import { pousadaProducts } from "@/lib/pousada-scope"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
   SheetDescription, SheetFooter,
@@ -36,11 +36,23 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   const {
     addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry,
     runOperation, clearConsumption, addTransaction, posProducts,
-    getCategoryName, productCategories,
+    getCategoryName, productCategories, stays = [],
   } = useApp()
   const { username, can } = useAuth()
   const { toast } = useToast()
   const [paying, setPaying] = useState(false)
+  const [sending, setSending] = useState(false)
+  const sendingRef = useRef(false)
+  const [quantity, setQuantity] = useState(1)
+  const expectedStayId = useRef<string | undefined>(undefined)
+  const [boundStayId, setBoundStayId] = useState<string>()
+  const initialized = useRef(false)
+  const currentStay = stays.find(stay => stay.roomId === room.id && stay.status === "active")
+  const changedContext = getDataConfig().adapter === 'database' && open && (!boundStayId || currentStay?.id !== boundStayId)
+  useEffect(() => {
+    if (!open) { initialized.current = false; return }
+    if (!initialized.current) { expectedStayId.current = currentStay?.id; setBoundStayId(currentStay?.id); initialized.current = true }
+  }, [open, currentStay?.id])
   const [paymentAccountId, setPaymentAccountId] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("pix")
   const { sendNotification } = useNotifications()
@@ -69,13 +81,17 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     removeConsumptionItem: removeItem
   } = useConsumption({
     roomId: room.id,
+    stayId: boundStayId,
     items,
-    addItem: addConsumptionItem,
+    addItem: (roomId, item) => addConsumptionItem(roomId, item, expectedStayId.current),
     removeItem: removeConsumptionItem,
   })
 
   async function handleAddCatalogItem(name: string, unitPrice: number, productId: string) {
-    try { await addCatalogItem(name, unitPrice, productId) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
+    if (sendingRef.current || paying) return
+    sendingRef.current = true; setSending(true)
+    try { await addCatalogItem(name, unitPrice, productId, quantity) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
+    finally { sendingRef.current = false; setSending(false) }
     addAuditEntry({
       user: username || "sistema",
       action: `Consumo lancado: ${name}`,
@@ -91,8 +107,10 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   }
 
   async function handleAddCustomItem() {
-    if (!customLabel || !customPrice) return
+    if (!customLabel || !customPrice || sendingRef.current || paying) return
+    sendingRef.current = true; setSending(true)
     try { await addCustomItem(customLabel, Number(customPrice), Number(customQty) || 1) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
+    finally { sendingRef.current = false; setSending(false) }
     addAuditEntry({
       user: username || "sistema",
       action: `Consumo lancado: ${customLabel}`,
@@ -114,10 +132,10 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     try { await removeItem(itemId) } catch (error) { toast({ title: "Item não removido", description: String(error), variant: "destructive" }) }
   }
   async function payConsumption() {
-    if (paying) return
+    if (paying || sendingRef.current) return
     setPaying(true)
     try {
-      if (getDataConfig().adapter === "database") await runOperation("pay-consumption", { roomId: room.id, paymentMethod, accountId: paymentMethod.toLowerCase() === "dinheiro" ? undefined : paymentAccountId || undefined })
+      if (getDataConfig().adapter === "database") await runOperation("pay-consumption", { roomId: room.id, expectedStayId: expectedStayId.current, recordVersion: currentStay?.recordVersion, paymentMethod, accountId: paymentMethod.toLowerCase() === "dinheiro" ? undefined : paymentAccountId || undefined })
       else {
         await addTransaction({ id: crypto.randomUUID(), date: new Date().toISOString(), description: `Consumo quarto ${room.number}`, value: total, type: "receita", paymentMethod, responsible: username || "demo" })
         await clearConsumption(room.id)
@@ -128,8 +146,8 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <SheetContent className="flex flex-col overflow-y-auto sm:max-w-lg">
+    <Sheet open={open} onOpenChange={v => { if (!v && !sendingRef.current && !paying) onClose() }}>
+      <SheetContent onEscapeKeyDown={event => { if (sending || paying) event.preventDefault() }} onInteractOutside={event => { if (sending || paying) event.preventDefault() }} className="flex flex-col overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="size-5 text-primary" />
@@ -169,13 +187,16 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
           {/* Product catalog */}
           <div className="flex flex-col gap-2">
+            {changedContext && <p role="alert" className="text-sm text-destructive">A hospedagem mudou ou ainda não está identificada. Feche e reabra o consumo do hóspede correto.</p>}
+            <Label>Quantidade por entrega<Input aria-label="Quantidade por entrega" type="number" min={1} max={1000} value={quantity} disabled={sending || paying} onChange={event => setQuantity(Number(event.target.value))} /></Label>
+            {sending && <p role="status" className="text-sm">Registrando entrega…</p>}
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Catalogo de Produtos ({filteredProducts.length})
             </Label>
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {filteredProducts.map((product) => (
                 <button
-                  disabled={!can("consumptions.create")}
+                  disabled={!can("consumptions.create") || changedContext || sending || paying || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000}
                   key={product.id}
                   onClick={() => handleAddCatalogItem(product.name, product.price, product.id)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent hover:border-primary"
@@ -227,7 +248,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                 variant="outline"
                 size="icon"
                 className="shrink-0"
-                disabled={!customLabel || !customPrice}
+                disabled={!customLabel || !customPrice || changedContext || sending || paying}
                 onClick={handleAddCustomItem}
               >
                 <Plus className="size-4" />
@@ -278,7 +299,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <select aria-label="Forma de pagamento" className="rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
             </select>
-            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={paying} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
+            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={changedContext || paying || sending} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
           </div>}
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">

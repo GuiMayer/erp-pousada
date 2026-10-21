@@ -1,6 +1,7 @@
+import { settingsOperation, demandSettings } from "./settings"
 import { inventoryOperation } from './inventory-operations'
 import { issueStock,restoreStock } from './inventory-stock'
-import { ensureStay, roomStay, stayOperation, finishStay, receiveStay, mapStay } from "./stays"
+import { ensureStay, roomStay, expectedRoomStay, stayOperation, finishStay, receiveStay, mapStay } from "./stays"
 import { stayBalance } from "@/lib/stays"
 import { ensureGuest } from "./contacts"
 import { agreedPrice } from "./lodging-pricing"
@@ -63,6 +64,7 @@ async function assertRoomPeriod(tx: Tx, room: { id: number; status: string; bloc
 export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload: unknown): Promise<unknown> {
   setLogOperation(kind)
   demandOperation(actor, kind)
+  if (kind === "settings-update" || kind === "settings-restore") return settingsOperation(tx, actor, kind, payload)
   const stayResult = await stayOperation(tx, actor, kind, payload)
   if (stayResult !== undefined) return stayResult
   const financeResult = await financeOperation(tx, actor, kind, payload)
@@ -220,16 +222,16 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "add-consumption") {
-    const { roomId, item } = z.object({ roomId: integer, item: z.object({ id, productId: id.optional(), label: text, unitPrice: money, quantity: integer }) }).strict().parse(payload)
+    const { roomId, expectedStayId, item } = z.object({ roomId: integer, expectedStayId: id, item: z.object({ id, productId: id.optional(), label: text, unitPrice: money, quantity: integer }) }).strict().parse(payload)
     const room = await tx.room.findUniqueOrThrow({ where: { id: roomId } })
     if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
+    const stay = await expectedRoomStay(tx, roomId, expectedStayId)
     const product = item.productId ? await tx.pOSProduct.findUnique({ where: { id: item.productId } }) : await tx.pOSProduct.findFirst({ where: { name: item.label } })
     if (item.productId && !product) throw new HttpError(404, "Produto não encontrado")
     if (product && !product.active) throw new HttpError(409, "Bebida inativa; selecione um produto disponível")
     if (product) item.unitPrice = Number(product.price)
     else demand(actor, "consumptions.custom")
     if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number} · ${item.id}`)
-    const stay = await roomStay(tx, roomId)
     await tx.stayCharge.create({ data: { id: item.id, stayId: stay.id, productId: product?.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity } })
     await tx.stay.update({ where: { id: stay.id }, data: { recordVersion: { increment: 1 } } })
     const consumption = await tx.roomConsumption.upsert({ where: { roomId }, create: { id: randomUUID(), roomId }, update: {} })
@@ -255,8 +257,9 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "pay-consumption") {
-    const { roomId, paymentMethod, accountId, payments } = z.object({ roomId: integer, ...paymentFields }).strict().parse(payload)
-    const stay = await roomStay(tx, roomId)
+    const { roomId, expectedStayId, recordVersion, paymentMethod, accountId, payments } = z.object({ roomId: integer, expectedStayId: id, recordVersion: z.number().int().nonnegative(), ...paymentFields }).strict().parse(payload)
+    const stay = await expectedRoomStay(tx, roomId, expectedStayId)
+    requireVersion(recordVersion, stay.recordVersion)
     const total = stayBalance(mapStay(stay)).consumptionBalance
     if (total <= 0) throw new HttpError(409, "Consumo já quitado")
     await receiveStay(tx, actor, stay, total, paymentMethod, accountId, "consumption",payments)
@@ -430,11 +433,13 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
           // A completed approval permits only retrieving this receipt; explicit
           // denials and current access to the underlying action still apply.
           demandOperation({ ...actor, grantedPermissions: DELEGATABLE }, kind)
+          if (kind === "stay-extend") { demand(actor, "stays.read"); demand(actor, "rooms.read"); demand(actor, "lodgingTariffs.read") }
+          if (kind === "settings-update" || kind === "settings-restore") demandSettings(actor, String((payload as {section?:unknown})?.section), true, kind === "settings-restore")
           if (kind === "admin-create" || kind === "admin-update") {
             const input = z.object({ key: id }).passthrough().parse(payload)
             demand(actor, `${input.key}.${kind === "admin-create" ? "create" : "edit"}`)
             demand(actor, `${input.key}.read`)
-            if (input.key === "users") demand(actor, "users.manage")
+            if (input.key === "users") { demand(actor, "settings.access"); demand(actor, "users.manage") }
           }
           return receipt.result
         }
@@ -455,7 +460,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         // Avoid scanning unrelated modules while a user's transaction holds locks.
         // The existing worker still performs a full reconciliation every 30 seconds.
         if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption", "remove-consumption"].includes(kind) || operationIsInventory(kind)) { await evaluateStock(tx); if(operationIsInventory(kind))await evaluateTimed(tx) }
-        if (["reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
+        if (["settings-update", "settings-restore", "reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer", "stay-extend"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { TaskDraftProvider } from "@/contexts/task-drafts-context";
 import { PurchaseReceipt } from "@/components/stock/purchase-receipt";
 import { InventoryPanels } from "@/components/stock/inventory-workspace";
 import type { InventorySnapshot } from "@/lib/inventory";
@@ -194,4 +195,12 @@ describe("Compras, lotes e contagem da Sprint 4", () => {
       screen.queryByRole("button", { name: "Registrar abertura física" }),
     ).not.toBeInTheDocument();
   });
+});
+
+it("preserva a contagem ao desmontar a aba e não aplica contagem de outro inventário",()=>{
+ const snapshot=data();snapshot.inventories=[{id:"inv",recordVersion:3,status:"open",capturedAt:"2026-10-10T12:00:00Z",postedAt:null,reason:"Semanal",lines:[{id:"line",lotId:"lot",productName:"Água",expectedQuantity:20,unitCost:5,countedQuantity:null,delta:null}]}];
+ const panel=()=> <InventoryPanels section="inventory" data={snapshot} error="" loading={false} refresh={vi.fn().mockResolvedValue(undefined)}/>;
+ const view=render(<TaskDraftProvider>{panel()}</TaskDraftProvider>);fireEvent.change(screen.getByLabelText("Água · lote ABC"),{target:{value:"18"}});
+ view.rerender(<TaskDraftProvider>{null}</TaskDraftProvider>);view.rerender(<TaskDraftProvider>{panel()}</TaskDraftProvider>);expect(screen.getByLabelText("Água · lote ABC")).toHaveValue(18);
+ snapshot.inventories[0].id="new-inv";view.rerender(<TaskDraftProvider>{panel()}</TaskDraftProvider>);expect(screen.getByLabelText("Água · lote ABC")).toHaveValue(null);
 });

@@ -4,6 +4,7 @@ import { businessDay } from "@/lib/utils/business-values"
 import { quoteLodging } from "@/lib/lodging-pricing"
 import { isCPF } from "@/lib/utils/cpf-cnpj-validator"
 import { z } from "zod"
+import { extensionInput, extensionDateError, extensionQuoteSignature } from "@/lib/stay-extension"
 
 // Browser examples only. Shared operation uses PostgreSQL's serializable transaction.
 export async function reconcileDemoStays(store: DataStore) {
@@ -51,7 +52,27 @@ export async function demoStayOperation(store: DataStore,kind: string,payload: u
   if(!['stay-receive','receive-account'].includes(kind)&&s.status!=='active')throw Error('Hospedagem encerrada')
   const demand=(p:string)=>{if(!can(p))throw Error('Você não tem permissão para esta ação')}
   const balances=stayBalance(s)
-  if(kind==='stay-occupants') {
+  if(kind==='stay-extend') {
+    demand('hospitality.extend'); demand('stays.read'); demand('rooms.read'); demand('lodgingTariffs.read')
+    const extension=extensionInput.parse(input), invalidDate=extensionDateError(s.checkOut,extension.checkOut,businessDay())
+    if(invalidDate)throw Error(invalidDate)
+    if(!s.guestCount||!s.nightlyPrices?.length)throw Error('Regularize a ocupação e a composição das diárias antes de prorrogar.')
+    const room=await store.rooms.getById(s.roomId), reservation=await store.reservations.getById(s.reservationId)
+    const allocations=s.allocations.filter(a=>a.roomId===s.roomId&&a.end===s.checkOut&&a.start<a.end)
+    if(!room||room.status!=='ocupado'||reservation?.status!=='checkin'||reservation.roomId!==s.roomId||reservation.checkOut!==s.checkOut||allocations.length!==1||
+      (await store.stays.getAll()).some(stay=>stay.id!==s.id&&stay.roomId===s.roomId&&stay.status==='active'))throw Error('A ocupação do quarto mudou. Revise o atendimento.')
+    if((await store.reservations.getAll()).some(r=>r.id!==s.reservationId&&r.roomId===s.roomId&&['confirmada','checkin'].includes(r.status)&&r.checkIn<extension.checkOut&&r.checkOut>s.checkOut))throw Error('O quarto possui outra reserva no período adicional.')
+    const quote=quoteLodging(room,await store.lodgingTariffs.getAll(),{roomId:s.roomId,guestCount:s.guestCount,checkIn:s.checkOut,checkOut:extension.checkOut})
+    if(extensionQuoteSignature(quote)!==extension.quoteSignature||Math.round(quote.total*100)!==Math.round(extension.quotedTotal*100))throw Error('A tarifa mudou. Recalcule a prévia.')
+    const lodgingValue=(Math.round(s.lodgingValue*100)+Math.round(quote.total*100))/100
+    const previousGross=s.nightlyPrices.reduce((sum,night)=>sum+Math.round(night.total*100),0)/100
+    const originalValue=(Math.round(Math.max(reservation.originalValue??reservation.totalValue,s.lodgingValue,previousGross)*100)+Math.round(quote.total*100))/100
+    if(lodgingValue>999999999)throw Error('Total acima do limite permitido.')
+    s.allocations=s.allocations.map(a=>a.id===allocations[0].id?{...a,end:extension.checkOut}:a)
+    s.checkOut=extension.checkOut;s.lodgingValue=lodgingValue;s.nightlyPrices=[...s.nightlyPrices,...quote.nights]
+    await store.rooms.update(s.roomId,{checkOut:s.checkOut,recordVersion:(room.recordVersion??0)+1})
+    await store.reservations.update(s.reservationId,{checkOut:s.checkOut,totalValue:s.lodgingValue,originalValue,nightlyPrices:s.nightlyPrices,recordVersion:(reservation.recordVersion??0)+1})
+  }else if(kind==='stay-occupants') {
     demand('hospitality.occupants')
     const people=z.array(z.object({name:z.string().trim().min(1).max(200),customerId:z.string().optional()})).min(1).max(100).parse(input.occupants)
     if(people.length!==s.guestCount)throw Error('Informe todos os ocupantes da hospedagem')
@@ -114,5 +135,5 @@ export async function demoStayOperation(store: DataStore,kind: string,payload: u
   }else throw Error('Operação de hospedagem inválida')
   await store.stays.update(s.id,{...s,recordVersion:s.recordVersion+1})
   await store.auditLog.create({date:new Date().toISOString(),user:username,action:kind,reference:s.id})
-  return {success:true}
+  return {success:true,stay:await store.stays.getById(s.id)}
 }

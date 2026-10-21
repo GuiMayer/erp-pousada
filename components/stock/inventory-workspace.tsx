@@ -1,4 +1,5 @@
-"use client";
+"use client"
+import { useTaskState } from "@/contexts/task-drafts-context";
 import { useEffect, useState, type FormEvent } from "react";
 import { useInventory } from "@/lib/hooks/useInventory";
 import { useApp } from "@/lib/app-context";
@@ -71,7 +72,7 @@ export function InventoryPanels({
 }) {
   const { can } = useAuth(),
     { runOperation, posProducts, expenses = [], bankAccounts = [] } = useApp(),
-    [receiptOpen, setReceiptOpen] = useState(false),
+    [receiptOpen, setReceiptOpen] = useTaskState(`inventory.${section}.receiptOpen`, false),
     [lotAction, setLotAction] = useState<{
       kind: "stock-opening" | "lot-review" | "stock-loss" | "purchase-return";
       lot?: LotView;
@@ -79,9 +80,9 @@ export function InventoryPanels({
     [settlement, setSettlement] = useState<ReturnView | null>(null),
     [supplierFilter, setSupplierFilter] = useState(""),
     [lotFilter, setLotFilter] = useState("all"),
-    [counts, setCounts] = useState<Record<string, string>>({}),
-    [inventoryReason, setInventoryReason] = useState(""),
-    [busy, setBusy] = useState(false),
+    [counts, setCounts] = useTaskState<Record<string, string>>(`inventory.${section}.counts`, {}),
+    [inventoryReason, setInventoryReason] = useTaskState(`inventory.${section}.inventoryReason`, ""),
+    [busy, setBusy] = useTaskState(`inventory.${section}.busy`, false),
     [actionError, setActionError] = useState(""),
     [notice, setNotice] = useState("");
   useEffect(()=>{if(targetId)setLotFilter("all")},[targetId]);
@@ -95,6 +96,8 @@ export function InventoryPanels({
     setNotice("");
     try {
       await runOperation(kind, payload);
+      if (kind === "inventory-post" || kind === "inventory-cancel") setCounts({});
+      if (kind === "inventory-start") setInventoryReason("");
       setNotice("Operação confirmada.");
       await refresh();
       return true;

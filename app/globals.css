@@ -296,6 +296,8 @@
 
 @media (max-width: 639px) {
   .mobile-room-card > .flex-1 { display: none; }
+  .room-summary-card.mobile-room-card { gap: 0; padding-block: 12px; }
+  .room-summary-card [data-slot="card-content"] > div:first-child { margin-top: 8px; }
   .mobile-room-card [data-slot="card-header"] { grid-template-rows: auto; gap: 0; }
   [data-mobile-cards] td[data-mobile-primary] { grid-column: 1 / -1; font-weight: 600; font-size: 14px; }
   [data-mobile-cards] td[data-mobile-primary]::before { display: none; }

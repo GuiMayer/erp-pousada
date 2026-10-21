@@ -41,7 +41,7 @@ async function start(company=true, deposit=0) {
   const r = await op('reserve',payload) as {id:string}
   if(deposit) await op('pay-reservation',{reservationId:r.id,value:deposit,paymentMethod:'pix',accountId:'s2-bank'})
   await op('check-in',payload)
-  await op('add-consumption',{roomId:1,item:{id:randomUUID(),productId:'s2-drink',label:'nome adulterado',unitPrice:1,quantity:2}})
+  await op('add-consumption',{roomId:1,expectedStayId:(await prisma.stay.findFirstOrThrow({where:{roomId:1,status:'active'}})).id,item:{id:randomUUID(),productId:'s2-drink',label:'nome adulterado',unitPrice:1,quantity:2}})
   return current()
 }
 async function current() { return (await getCollection('stays'))[0] as Stay }
@@ -68,7 +68,12 @@ describe('Sprint 2 — hospedagem independente e cobrança',()=>{
     await op('check-in',{roomId:1,cpf:'52998224725',guestName:'Pessoa S2',guestCount:1,checkIn:day,checkOut:next(1),totalValue:100})
     const active=(await getCollection('stays') as Stay[]).find(s=>s.status==='active')!
     expect(active.id).not.toBe(s.id); expect(active.charges).toHaveLength(0); expect(stayBalance(active).balance).toBe(100)
-    await op('add-consumption',{roomId:1,item:{id:randomUUID(),productId:'s2-drink',label:'Água',unitPrice:12,quantity:1}})
+    const stockBefore = Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)
+    await expect(op('add-consumption',{roomId:1,expectedStayId:s.id,item:{id:randomUUID(),productId:'s2-drink',label:'Água',unitPrice:12,quantity:1}})).rejects.toMatchObject({status:409})
+    await expect(op('pay-consumption',{roomId:1,expectedStayId:s.id,recordVersion:s.recordVersion,paymentMethod:'pix',accountId:'s2-bank'})).rejects.toMatchObject({status:409})
+    expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)).toBe(stockBefore)
+    expect(await prisma.stayCharge.count({where:{stayId:active.id}})).toBe(0)
+    await op('add-consumption',{roomId:1,expectedStayId:(await prisma.stay.findFirstOrThrow({where:{roomId:1,status:'active'}})).id,item:{id:randomUUID(),productId:'s2-drink',label:'Água',unitPrice:12,quantity:1}})
     const old=(await getCollection('stays') as Stay[]).find(row=>row.id===s.id)!
     await op('stay-receive',{stayId:old.id,recordVersion:old.recordVersion,value:324,paymentMethod:'pix',accountId:'s2-bank'})
     expect((await prisma.roomConsumption.findUniqueOrThrow({where:{roomId:1},include:{items:true}})).items).toHaveLength(1)
@@ -113,7 +118,7 @@ describe('Sprint 2 — hospedagem independente e cobrança',()=>{
     let s=await start()
     await prisma.guestProfile.update({where:{cpf:'52998224725'},data:{creditValue:500}})
     await expect(op('stay-receive',{stayId:s.id,recordVersion:s.recordVersion,value:100,paymentMethod:'credito_hospede'})).rejects.toThrow('Crédito pessoal')
-    await op('pay-consumption',{roomId:1,paymentMethod:'pix',accountId:'s2-bank'})
+    await op('pay-consumption',{roomId:1,expectedStayId:(await current()).id,recordVersion:(await current()).recordVersion,paymentMethod:'pix',accountId:'s2-bank'})
     await op('pay-reservation',{reservationId:s.reservationId,value:400,paymentMethod:'pix',accountId:'s2-bank'})
     s=await current(); expect(s.charges).toHaveLength(1); expect(stayBalance(s).balance).toBe(0)
     await op('check-out',{roomId:1}); expect((await current()).charges).toHaveLength(1)

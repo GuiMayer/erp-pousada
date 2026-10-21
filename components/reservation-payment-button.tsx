@@ -1,24 +1,97 @@
-"use client"
-import { PermissionGate } from "@/components/permission-gate"
-import { useState } from "react"
-import type { Reservation } from "@/lib/store"
-import { useApp } from "@/lib/app-context"
-import { getDataConfig } from "@/lib/data/config"
-import { Button } from "@/components/ui/button"
-import { PaymentDialog } from "./payment-fields"
+"use client";
+import { PermissionGate } from "@/components/permission-gate";
+import { useState } from "react";
+import type { Reservation } from "@/lib/store";
+import { useApp } from "@/lib/app-context";
+import { getDataConfig } from "@/lib/data/config";
+import { Button } from "@/components/ui/button";
+import { PaymentDialog } from "./payment-fields";
 
-export function ReservationPaymentButton({ reservation: latest }: { reservation: Reservation }) {
-  const { runOperation, guests, updateReservation, addTransaction } = useApp()
-  const [open, setOpen] = useState(false)
-  const [snapshot, setSnapshot] = useState<Reservation | null>(null)
-  const reservation = open && snapshot ? snapshot : latest
-  const balance = Math.max(0, reservation.totalValue - (reservation.paidValue ?? 0))
-  if (!['confirmada', 'checkin'].includes(reservation.status) || balance <= 0) return null
-  const credit = guests.find(guest => guest.cpf === reservation.cpf)?.creditValue ?? 0
-  return <><PermissionGate permission="hospitality.receive"><Button variant="outline" size="sm" onClick={() => { setSnapshot(latest); setOpen(true) }}>Receber hospedagem · R$ {balance.toFixed(2)}</Button></PermissionGate>
-    <PaymentDialog mixedEnabled={getDataConfig().adapter==="database"} open={open} onClose={() => setOpen(false)} title={`Hospedagem — ${reservation.guestName}${credit ? ` · crédito R$ ${credit.toFixed(2)}` : ""}`} maximum={balance} allowCredit={credit > 0 && getDataConfig().adapter === "database"} onConfirm={async (paymentMethod, accountId, value, payments) => {
-      if (getDataConfig().adapter === "database") await runOperation("pay-reservation", { reservationId: reservation.id, recordVersion: reservation.recordVersion, value, paymentMethod, accountId,payments })
-      else { await addTransaction({ id: crypto.randomUUID(), date: new Date().toISOString(), description: `Hospedagem ${reservation.id}`, refId: reservation.id, type: "receita", value, paymentMethod }); await updateReservation(reservation.id, { paidValue: (reservation.paidValue ?? 0) + value }) }
-    }} />
-  </>
+export function ReservationPaymentButton({
+  reservation: latest,
+}: {
+  reservation: Reservation;
+}) {
+  const [open, setOpen] = useState(false);
+  const [snapshot, setSnapshot] = useState<Reservation | null>(null);
+  const reservation = open && snapshot ? snapshot : latest;
+  const balance = Math.max(
+    0,
+    reservation.totalValue - (reservation.paidValue ?? 0),
+  );
+  if (!["confirmada", "checkin"].includes(reservation.status) || balance <= 0)
+    return null;
+  return (
+    <>
+      <PermissionGate permission="hospitality.receive">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setSnapshot(latest);
+            setOpen(true);
+          }}
+        >
+          Receber hospedagem · R$ {balance.toFixed(2)}
+        </Button>
+      </PermissionGate>
+      <ReservationPaymentDialog
+        reservation={reservation}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
+    </>
+  );
+}
+export function ReservationPaymentDialog({
+  reservation,
+  open,
+  onClose,
+}: {
+  reservation: Reservation;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { runOperation, guests, updateReservation, addTransaction } = useApp();
+  const balance = Math.max(
+    0,
+    reservation.totalValue - (reservation.paidValue ?? 0),
+  );
+  const credit =
+    guests.find((guest) => guest.cpf === reservation.cpf)?.creditValue ?? 0;
+  return (
+    <PaymentDialog
+      mixedEnabled={getDataConfig().adapter === "database"}
+      open={open}
+      onClose={onClose}
+      title={`Hospedagem — ${reservation.guestName}${credit ? ` · crédito R$ ${credit.toFixed(2)}` : ""}`}
+      maximum={balance}
+      allowCredit={credit > 0 && getDataConfig().adapter === "database"}
+      onConfirm={async (paymentMethod, accountId, value, payments) => {
+        if (getDataConfig().adapter === "database")
+          await runOperation("pay-reservation", {
+            reservationId: reservation.id,
+            recordVersion: reservation.recordVersion,
+            value,
+            paymentMethod,
+            accountId,
+            payments,
+          });
+        else {
+          await addTransaction({
+            id: crypto.randomUUID(),
+            date: new Date().toISOString(),
+            description: `Hospedagem ${reservation.id}`,
+            refId: reservation.id,
+            type: "receita",
+            value,
+            paymentMethod,
+          });
+          await updateReservation(reservation.id, {
+            paidValue: (reservation.paidValue ?? 0) + value,
+          });
+        }
+      }}
+    />
+  );
 }

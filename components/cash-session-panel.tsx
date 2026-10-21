@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
 import { getDataConfig } from "@/lib/data/config"
@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export function CashSessionPanel() {
+export function CashSessionPanel({ onPendingChange }: { onPendingChange?: (pending: boolean) => void } = {}) {
   const { cashCloses, bankAccounts, runOperation } = useApp()
   const { can, user } = useAuth()
   const active = cashCloses.find(session => session.status === "aberto")
   const [opening, setOpening] = useState("0"), [physical, setPhysical] = useState("")
   const [pending, setPending] = useState(false), [error, setError] = useState(""), [closed, setClosed] = useState<CashClose | null>(null)
+  useEffect(() => { onPendingChange?.(pending) }, [pending, onPendingChange])
   const [direction, setDirection] = useState("supply"), [movementValue, setMovementValue] = useState(""), [accountId, setAccountId] = useState(""), [reason, setReason] = useState(""), [message, setMessage] = useState("")
   async function move() {
     if (pending) return

@@ -4,7 +4,7 @@ Este ambiente permite ao cliente experimentar a aplicação real com dados fict�
 
 ## Iniciar
 
-Pelo painel da área de trabalho **ERP Pousada - Servidores**, clique em **Iniciar** na coluna **Demonstração**. Esse botão atualiza a imagem com o código local e restaura os exemplos, usando o cache do Docker quando possível. Aguarde **Pronto** e clique em **Abrir site** ou **Copiar link**. Para carregar uma atualização do próprio painel, feche e abra o atalho novamente.
+Pelo painel da área de trabalho **ERP Pousada - Servidores**, clique em **Iniciar** no cartão **Demonstração**. O início usa a imagem instalada; se a demonstração já estiver ligada, preserva a sessão. A primeira execução constrói a imagem se ela ainda não existir. **Restaurar exemplos** inicia uma sessão limpa e **Atualizar versão** constrói o código local e inicia uma nova sessão. Essas duas ações descartam somente as alterações fictícias. Para carregar uma atualização do próprio painel, feche e abra o atalho novamente.
 
 Na pasta do projeto, com o motor Docker funcionando:
 
@@ -16,15 +16,15 @@ No primeiro início, a imagem é construída e as contas exclusivas são geradas
 
 Há quartos disponíveis, ocupados, em limpeza e manutenção; reservas e hóspedes fictícios; vendas de bebidas e receitas financeiras; produtos, estoque e alertas; despesas e contas a receber. Datas são ajustadas ao dia de início. As operações usam as regras e permissões normais do sistema. O aviso de demonstração aparece no topo da página.
 
-A Sprint 1 acrescenta pessoas/empresas com papéis compartilhados, fornecedor, capacidades, tarifas por pessoa/noite e reservas com empresa pagadora. O [roteiro do protótipo](ENTREGA_SPRINT_1.md) mostra os exemplos. O painel atualiza a imagem automaticamente; se preferir o comando, execute o início **sem `-NoBuild`** ao atualizar o código.
+A Sprint 1 acrescenta pessoas/empresas com papéis compartilhados, fornecedor, capacidades, tarifas por pessoa/noite e reservas com empresa pagadora. O [roteiro do protótipo](ENTREGA_SPRINT_1.md) mostra os exemplos. Depois de alterar o código, use **Atualizar versão**, ou execute `start-demo.ps1 -Update`.
 
-Para repetir a apresentação usando a imagem já construída, sem recompilar:
+Para restaurar os exemplos usando a imagem já construída, sem recompilar:
 
 ```powershell
-.\scripts\start-demo.ps1 -NoBuild
+.\scripts\start-demo.ps1 -Reset -NoBuild
 ```
 
-Cada execução do script encerra a sessão anterior de demonstração e recria os exemplos. Após mudanças no código, execute sem `-NoBuild`.
+Sem `-Reset` ou `-Update`, uma sessão em execução é preservada. Após encerrar, o próximo início restaura os exemplos. `-NoBuild` exige que a imagem exista; não impede a restauração solicitada com `-Reset`. Uma falha de construção em `-Update` preserva a sessão anterior, pois a construção ocorre antes de encerrá-la.
 
 ## Encerrar e descartar alterações
 

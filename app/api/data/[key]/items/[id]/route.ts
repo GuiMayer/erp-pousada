@@ -1,3 +1,4 @@
+import { projectRuntimeSettings } from "@/lib/server/settings"
 import { NextRequest, NextResponse } from "next/server"
 import { getCollection, updateCollectionItem, deleteCollectionItem } from "@/lib/server/db/relational-data-service"
 import { authorizeCollection } from "@/lib/server/data-permissions"
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest, context: Context) {
       return String(key === "guests" ? row.cpf : key === "consumptions" ? row.roomId : row.id) === id
     })
     if (!item) throw new HttpError(404, "Registro removido", { code: "RESOURCE_REMOVED" })
-    return NextResponse.json(item)
+    return NextResponse.json(key === "systemSettings" ? projectRuntimeSettings(item as Record<string,unknown>) : item)
   }, request)
 }
 export async function PATCH(request: NextRequest, context: Context) {

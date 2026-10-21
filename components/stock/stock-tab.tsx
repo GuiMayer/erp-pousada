@@ -1,4 +1,5 @@
 "use client"
+import { useTaskState } from "@/contexts/task-drafts-context"
 import { InventoryWorkspace } from "./inventory-workspace"
 import { getDataConfig } from "@/lib/data/config"
 import { MobileSummary } from "@/components/mobile-summary"
@@ -37,10 +38,10 @@ export function StockTab() {
   const { stockItems, filter, setFilter, stats, getStockStatus } = useStockControl()
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [movementModalOpen, setMovementModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("products")
+  const [activeTab, setActiveTab] = useTaskState("stock.section", "products", false)
 
   const navigation = useStockNavigation()
-  useEffect(() => { if(navigation?.stockDestination) setActiveTab(navigation.stockDestination.section) }, [navigation?.stockDestination])
+  useEffect(() => { if(navigation?.stockDestination) setActiveTab(navigation.stockDestination.section) }, [navigation?.stockDestination, setActiveTab])
 
   const handleAddMovement = (item: StockItem) => {
     setSelectedItem(item)

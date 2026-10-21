@@ -1,4 +1,5 @@
 "use client"
+import { useTaskState } from "@/contexts/task-drafts-context"
 import { PermissionGate } from "@/components/permission-gate"
 
 import { BatchReceiptsPanel } from "./batch-receipts-panel"
@@ -19,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Trash2, DollarSign, Calendar, AlertCircle } from "lucide-react"
 import type { AccountReceivable } from "@/lib/store"
 import { CustomerCombobox } from "@/components/customer-combobox"
+import { businessDay } from "@/lib/utils/business-values"
 
 export function AccountsReceivableManagement() {
   const {
@@ -31,12 +33,13 @@ export function AccountsReceivableManagement() {
     removeAccountReceivable,
     runOperation, addTransaction,
   } = useApp()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingAR, setEditingAR] = useState<AccountReceivable | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useTaskState("receivables.open", false)
+  const [editingAR, setEditingAR] = useTaskState<AccountReceivable | null>("receivables.editing", null)
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [search, setSearch] = useState("")
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useTaskState("receivables.form", {
     customerName: "",
     customerId: "",
     description: "",
@@ -149,7 +152,7 @@ export function AccountsReceivableManagement() {
     }
   }
 
-  const [payingAccount, setPayingAccount] = useState<AccountReceivable | null>(null)
+  const [payingAccount, setPayingAccount] = useTaskState<AccountReceivable | null>("receivables.editing", null)
   const handleMarkAsPaid = async (ar: AccountReceivable) => {
     if (["pago", "cancelado"].includes(ar.status)) return
     if (getDataConfig().adapter === "database" || ar.sourceStayId) { setPayingAccount(ar); return }
@@ -198,10 +201,13 @@ export function AccountsReceivableManagement() {
 
   const isOverdue = (ar: AccountReceivable) => {
     if (ar.status === "pago" || ar.status === "cancelado") return false
-    return new Date(ar.dueDate) < new Date()
+    return ar.dueDate.slice(0, 10) < businessDay()
   }
 
   const filteredAR = accountsReceivable.filter(ar => {
+    const stay = stays.find(s => s.id === ar.sourceStayId)
+    const person = customers.find(c => c.id === ar.customerId)
+    if (!`${ar.customerName} ${ar.description} ${person?.name ?? ''} ${stay?.guestName ?? ''} ${stay?.roomId ?? ''}`.toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR'))) return false
     if (filterStatus === "all") return true
     if (filterStatus === "overdue") return isOverdue(ar)
     return ar.status === filterStatus
@@ -234,7 +240,7 @@ export function AccountsReceivableManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-          {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
+
             <div className="text-2xl font-bold">
               R$ {totalPending.toFixed(2)}
             </div>
@@ -247,7 +253,7 @@ export function AccountsReceivableManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-          {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
+
             <div className="text-2xl font-bold text-red-600">
               R$ {totalOverdue.toFixed(2)}
             </div>
@@ -260,7 +266,7 @@ export function AccountsReceivableManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-          {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
+
             <div className="text-2xl font-bold text-green-600">
               R$ {totalReceived.toFixed(2)}
             </div>
@@ -409,6 +415,7 @@ export function AccountsReceivableManagement() {
         <CardContent>
           {getDataConfig().adapter === "database" && <PermissionGate permission="accountsReceivable.receive"><BatchReceiptsPanel /></PermissionGate>}
           <div className="mb-4">
+            <Input className="mb-3 max-w-md" aria-label="Buscar cobrança" placeholder="Cliente, empresa, hóspede ou descrição" value={search} onChange={event => setSearch(event.target.value)} />
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Filtrar por status" />
@@ -450,7 +457,7 @@ export function AccountsReceivableManagement() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {new Date(ar.dueDate).toLocaleDateString("pt-BR")}
+                          {new Date(ar.dueDate.slice(0, 10) + "T12:00:00").toLocaleDateString("pt-BR")}
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(ar.status)}</TableCell>
