@@ -131,7 +131,7 @@ export async function demoStayOperation(store: DataStore,kind: string,payload: u
     if(consumption){await store.consumptions.clearByRoomId(s.roomId);await store.consumptions.upsertByRoomId({...consumption,roomId})}
     await store.rooms.update(s.roomId,{status:'limpeza',guest:undefined,guestCpf:undefined,checkIn:undefined,checkOut:undefined})
     await store.rooms.update(roomId,{status:'ocupado',guest:old.guest,guestCpf:old.guestCpf,checkIn:date,checkOut:s.checkOut})
-    await store.reservations.update(s.reservationId,{roomId,roomNumber:room.number,checkIn:date,totalValue:s.lodgingValue,nightlyPrices:s.nightlyPrices??undefined})
+    await store.reservations.update(s.reservationId,{roomId,roomNumber:room.number,totalValue:s.lodgingValue,nightlyPrices:s.nightlyPrices??undefined})
     s.roomId=roomId
   }else throw Error('Operação de hospedagem inválida')
   await store.stays.update(s.id,{...s,recordVersion:s.recordVersion+1})

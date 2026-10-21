@@ -168,7 +168,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (input.status !== "confirmada") throw new HttpError(400, "Utilize o fluxo de cancelamento ou no-show")
     await assertRoomPeriod(tx, room, checkIn, checkOut)
     if (input.status === "confirmada") {
-      const overlap = await tx.reservation.count({ where: { ...(kind === "edit-reservation" ? { id: { not: input.id } } : {}), roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: checkOut }, checkOut: { gt: checkIn } } })
+      const overlap = await tx.reservation.count({ where: { ...(kind === "edit-reservation" ? { id: { not: input.id } } : {}), roomId: room.id, status: "confirmada", checkIn: { lt: checkOut }, checkOut: { gt: checkIn } } }) || await tx.stayAllocation.count({where:{roomId:room.id,start:{lt:checkOut},end:{gt:checkIn}}})
       if (overlap) throw new HttpError(409, "Reserva conflita com outra hospedagem")
     }
     const nightlyPrices = await agreedPrice(tx, actor, input, current)
@@ -414,7 +414,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
           demandOperation({ ...actor, grantedPermissions: DELEGATABLE }, kind)
           if (kind === "check-in" || kind === "record-completed-stay") {
             const input = payload as { checkIn?: string; initialPayment?: unknown }
-            if (kind === "record-completed-stay" || input.checkIn && input.checkIn < businessDay()) demand(actor, "hospitality.checkin.backdate")
+            if (kind === "record-completed-stay" || input.checkIn && input.checkIn < businessDay(receipt.createdAt)) demand(actor, "hospitality.checkin.backdate")
             if (kind === "record-completed-stay") demand(actor, "hospitality.checkout")
             if (input.initialPayment) demand(actor, "hospitality.receive")
           }

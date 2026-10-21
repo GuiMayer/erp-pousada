@@ -82,6 +82,11 @@ async function lodging(tx: Tx, q: ReportQuery, now: Date) {
       take: 50001,
     }),
   );
+  const arrivals = new Map<string, Date>();
+  for (let offset = 0; offset < stays.length; offset += 1000) {
+    const bookings = await tx.reservation.findMany({ where: { id: { in: stays.slice(offset, offset + 1000).map(s => s.reservationId) } }, select: { id: true, checkIn: true } });
+    bookings.forEach(r => arrivals.set(r.id, r.checkIn));
+  }
   const rooms = await tx.room.count();
   let agreed = 0,
     provided = 0;
@@ -129,6 +134,10 @@ async function lodging(tx: Tx, q: ReportQuery, now: Date) {
           roomId: allocation?.roomId ?? stay.roomId,
           payerId: stay.payerId ?? "",
           reservationId: stay.reservationId,
+          plannedArrival: arrivals.has(stay.reservationId) ? calendar(arrivals.get(stay.reservationId)!) : "",
+          actualArrival: calendar(stay.checkIn),
+          recordedAt: stay.recordedAt.toISOString(),
+          arrivalReason: stay.arrivalReason ?? "",
         },
       });
       if (providedNight) {

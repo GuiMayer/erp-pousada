@@ -204,7 +204,7 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
     await tx.room.update({ where: { id: stay.roomId }, data: { status: "limpeza", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
     await tx.room.update({ where: { id: room.id }, data: { status: "ocupado", guest: old.guest, guestCpf: old.guestCpf, checkIn: start, checkOut: stay.checkOut } })
     await tx.roomConsumption.updateMany({ where: { roomId: stay.roomId }, data: { roomId: room.id } })
-    await tx.reservation.update({ where: { id: stay.reservationId }, data: { roomId: room.id, roomNumber: room.number, checkIn: start, totalValue: lodgingValue, nightlyPrices: nightlyPrices ?? undefined } })
+    await tx.reservation.update({ where: { id: stay.reservationId }, data: { roomId: room.id, roomNumber: room.number, totalValue: lodgingValue, nightlyPrices: nightlyPrices ?? undefined } })
     await tx.stay.update({ where: { id: stay.id }, data: { roomId: room.id, lodgingValue, nightlyPrices: nightlyPrices ?? undefined } })
     await touched(tx, actor, stay.id, "Quarto trocado", { from: stay.roomId, to: room.id, ...input })
     return { success: true }

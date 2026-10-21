@@ -2,6 +2,8 @@ import { beforeEach, afterAll, describe, expect, it } from "vitest"
 import { randomUUID } from "node:crypto"
 import { prisma } from "@/lib/db/client"
 import { executeOperation } from "@/lib/server/operations"
+import { buildManagementReport } from "@/lib/server/management-reports"
+import { reportCSV } from "@/lib/reports/management"
 import { ALL_PERMISSIONS } from "@/lib/permissions"
 import { businessDay } from "@/lib/utils/business-values"
 import type { Actor } from "@/lib/server/auth"
@@ -107,6 +109,10 @@ describe("Atendimento de reservas, entradas e cancelamentos", () => {
     expect(stay.checkIn.toISOString().slice(0, 10)).toBe(day(0))
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: r.id } })).checkIn.toISOString().slice(0, 10)).toBe(day(-1))
     expect(stay.nightlyPrices).toMatchObject([{ date: day(0), total: 200 }])
+    const report = await buildManagementReport(prisma, actor, {section:"hospedagem",start:day(-1),end:day(1)}, new Date(day(2)+"T15:00:00Z"))
+    expect(report.rows.map(r=>r.date)).toEqual([day(0)])
+    expect(report.rows[0].details).toMatchObject({plannedArrival:day(-1),actualArrival:day(0),recordedAt:stay.recordedAt.toISOString()})
+    expect(reportCSV(report)).toContain("actualArrival")
   })
   it("hospedagem encerrada retroativa não altera ocupante atual e recebe na data real", async () => {
     await prisma.room.update({ where: { id: 1 }, data: { status: "ocupado", guest: "Outro hóspede" } })
@@ -117,6 +123,7 @@ describe("Atendimento de reservas, entradas e cancelamentos", () => {
     expect(businessDay(stay.endedAt!)).toBe(day(-3))
     expect(businessDay((await prisma.transaction.findFirstOrThrow()).date)).toBe(day(0))
     await expect(op("record-completed-stay", { ...payload(-4, -2), reason: "Outro registro conflitante" })).rejects.toMatchObject({ status: 409 })
+    await expect(op("reserve", payload(-4, -2))).rejects.toMatchObject({ status: 409 })
   })
   it("falha no recebimento integrado reverte entrada, reserva e saldo", async () => {
     await expect(op("check-in", { ...payload(), initialPayment: { value: 100, paymentMethod: "pix", accountId: "missing" } })).rejects.toBeDefined()

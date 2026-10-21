@@ -286,6 +286,15 @@ export function StaySheet({
           </SheetHeader>
           {permitted ? (
             <fieldset disabled={pending} className="space-y-5 px-4 pb-4">
+              <details className="rounded-lg border p-3 text-sm">
+                <summary className="cursor-pointer font-medium">Datas e registro da hospedagem</summary>
+                <div className="mt-2 space-y-1">
+                  {reservations.find(r => r.id === stay.reservationId)?.checkIn && <p>Entrada prevista na reserva: {reservations.find(r => r.id === stay.reservationId)!.checkIn.split("-").reverse().join("/")}</p>}
+                  <p>Chegada efetiva: {stay.checkIn.split("-").reverse().join("/")}</p>
+                  {stay.recordedAt && <p>Registrado em: {new Date(stay.recordedAt).toLocaleString("pt-BR")}</p>}
+                  {stay.arrivalReason && <p className="whitespace-pre-wrap break-words">Motivo do lançamento: {stay.arrivalReason}</p>}
+                </div>
+              </details>
               {intent !== "overview" && (
                 <Button
                   variant="outline"

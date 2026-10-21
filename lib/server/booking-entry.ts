@@ -62,7 +62,7 @@ export async function bookingEntry(tx: Prisma.TransactionClient, actor: Actor, k
     if (!existing.totalValue.equals(input.totalValue) || input.guestCount !== existing.guestCount || input.payerId !== existing.payerId) throw new HttpError(409, "Edite a reserva para alterar preço, ocupação ou pagador")
     if (start.getTime() !== existing.checkIn.getTime() && !input.keepAgreedPrice) throw new HttpError(409, "Confirme a manutenção do valor acordado ou edite a reserva para recalcular")
   }
-  if (await tx.reservation.count({ where: { ...(existing ? { id: { not: existing.id } } : {}), roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: end }, checkOut: { gt: start } } }) ||
+  if (await tx.reservation.count({ where: { ...(existing ? { id: { not: existing.id } } : {}), roomId: room.id, status: "confirmada", checkIn: { lt: end }, checkOut: { gt: start } } }) ||
       await tx.stayAllocation.count({ where: { roomId: room.id, start: { lt: end }, end: { gt: start } } })) throw new HttpError(409, "Período conflita com reserva ou hospedagem já registrada")
   if (!input.guestCount || !room.capacity || input.guestCount > room.capacity) throw new HttpError(400, "Informe a ocupação e respeite a capacidade do quarto")
   const guest = await ensureGuest(tx, actor, input.cpf, input.guestName)

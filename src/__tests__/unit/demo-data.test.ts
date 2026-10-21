@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createDemoData, seedDemoIfEmpty } from "../../../lib/demo-data"
 import { createDataStore } from "../../../lib/data/repositories"
 import { LocalStorageAdapter } from "../../../lib/data/storage-adapter"
+import { isCPF } from "@/lib/utils/cpf-cnpj-validator"
 
 describe("demonstration data", () => {
   it("keeps reservations and beverage sale totals consistent", () => {
@@ -10,6 +11,10 @@ describe("demonstration data", () => {
       expect(data.rooms.some((room) => room.id === reservation.roomId && room.number === reservation.roomNumber)).toBe(true)
       expect(data.guests.some((guest) => guest.cpf === reservation.cpf)).toBe(true)
       expect(reservation.checkOut > reservation.checkIn).toBe(true)
+      expect(isCPF(reservation.cpf)).toBe(true)
+      expect(reservation.guestCount).toBeGreaterThan(0)
+      expect(data.customers.some(c => c.id === reservation.payerId)).toBe(true)
+      expect(reservation.nightlyPrices?.reduce((sum, n) => sum + n.total, 0)).toBe(reservation.totalValue)
     }
     expect(data.restaurantTables).toEqual([])
     expect(data.restaurantOrders).toEqual([])

@@ -177,7 +177,7 @@ async function apply(store: DataStore, kind: string, payload: unknown, can: (p: 
   if (!room?.capacity || input.guestCount > room.capacity) throw Error("Respeite a capacidade do quarto")
   if (checkin && !completed && room.status !== "disponivel") throw Error("Quarto indisponível")
   if (!completed && room.status === "bloqueado" && (!room.blockEndDate || input.checkIn <= room.blockEndDate)) throw Error("Quarto bloqueado no período")
-  if ((await store.reservations.getAll()).some(r => r.id !== current?.id && r.roomId === room.id && ["confirmada", "checkin"].includes(r.status) && r.checkIn < input.checkOut && r.checkOut > input.checkIn) || (await store.stays.getAll()).some(s => s.reservationId !== current?.id && s.allocations.some(a => a.roomId === room.id && a.start < input.checkOut && a.end > input.checkIn))) throw Error("Período conflita com reserva ou hospedagem")
+  if ((await store.reservations.getAll()).some(r => r.id !== current?.id && r.roomId === room.id && r.status === "confirmada" && r.checkIn < input.checkOut && r.checkOut > input.checkIn) || (await store.stays.getAll()).some(s => s.reservationId !== current?.id && s.allocations.some(a => a.roomId === room.id && a.start < input.checkOut && a.end > input.checkIn))) throw Error("Período conflita com reserva ou hospedagem")
   const same = current && current.roomId === input.roomId && current.guestCount === input.guestCount && current.checkIn === input.checkIn && current.checkOut === input.checkOut && cents(current.totalValue) === cents(input.totalValue)
   let nights = current?.nightlyPrices
   if (checkin && current) {
