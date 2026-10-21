@@ -53,7 +53,7 @@ export function StockTab() {
 
     if (status === "critical") {
       return (
-        <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-200">
+        <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-destructive border-red-200 dark:border-destructive/30">
           <AlertTriangle className="h-3 w-3 mr-1" />
           Crítico
         </Badge>
@@ -62,7 +62,7 @@ export function StockTab() {
 
     if (status === "low") {
       return (
-        <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-200">
+        <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 dark:text-warning border-yellow-200 dark:border-warning/30">
           <TrendingDown className="h-3 w-3 mr-1" />
           Baixo
         </Badge>
@@ -70,7 +70,7 @@ export function StockTab() {
     }
 
     return (
-      <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+      <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-success border-green-200 dark:border-success/30">
         <TrendingUp className="h-3 w-3 mr-1" />
         OK
       </Badge>
@@ -122,15 +122,15 @@ export function StockTab() {
             </div>
             <div className="rounded-lg border bg-card p-4">
               <div className="text-sm font-medium text-muted-foreground">Estoque Crítico</div>
-              <div className="text-2xl font-bold text-red-600">{stats.critical}</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-destructive">{stats.critical}</div>
             </div>
             <div className="rounded-lg border bg-card p-4">
               <div className="text-sm font-medium text-muted-foreground">Estoque Baixo</div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.low}</div>
+              <div className="text-2xl font-bold text-yellow-600 dark:text-warning">{stats.low}</div>
             </div>
             <div className="rounded-lg border bg-card p-4">
               <div className="text-sm font-medium text-muted-foreground">Estoque OK</div>
-              <div className="text-2xl font-bold text-green-600">{stats.ok}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-success">{stats.ok}</div>
             </div>
           </div>
 
@@ -178,8 +178,8 @@ export function StockTab() {
                   <TableCell>
                     <span className={cn(
                       "font-semibold",
-                      getStockStatus(item) === "critical" && "text-red-600",
-                      getStockStatus(item) === "low" && "text-yellow-600"
+                      getStockStatus(item) === "critical" && "text-red-600 dark:text-destructive",
+                      getStockStatus(item) === "low" && "text-yellow-600 dark:text-warning"
                     )}>
                       {item.currentStock} {item.unit}
                     {item.usableStock !== undefined && <small className="block text-muted-foreground">Utilizável: {item.usableStock} {item.unit}</small>}

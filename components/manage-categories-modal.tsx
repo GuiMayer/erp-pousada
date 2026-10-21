@@ -490,7 +490,7 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
             <AlertDialogDescription>
               Tem certeza que deseja {hardDelete ? "excluir permanentemente" : "desativar"} a categoria &quot;{deleteConfirm?.name}&quot;?
               {deleteConfirmUsageCount > 0 && (
-                <span className="flex items-center gap-2 mt-2 text-orange-600">
+                <span className="flex items-center gap-2 mt-2 text-orange-600 dark:text-warning">
                   <AlertTriangle className="size-4" />
                   Esta categoria esta sendo usada por {deleteConfirmUsageCount} {deleteConfirmUsageCount === 1 ? "produto" : "produtos"}.
                 </span>

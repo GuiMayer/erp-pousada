@@ -142,7 +142,7 @@ export function StockMovementModal({ open, onOpenChange, stockItem }: StockMovem
 
         <div className="space-y-4 py-4">
           {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            <div className="p-3 text-sm text-red-600 dark:text-destructive bg-red-50 dark:bg-destructive/10 border border-red-200 dark:border-destructive/30 rounded-md">
               {error}
             </div>
           )}

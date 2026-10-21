@@ -106,14 +106,14 @@ export function StockThresholdConfig() {
         )
       case "low":
         return (
-          <Badge variant="secondary" className="gap-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-500">
+          <Badge variant="secondary" className="gap-1 bg-yellow-500/10 text-yellow-600 dark:text-warning">
             <AlertTriangle className="h-3 w-3" />
             Baixo
           </Badge>
         )
       case "warning":
         return (
-          <Badge variant="secondary" className="gap-1 bg-orange-500/10 text-orange-600 dark:text-orange-500">
+          <Badge variant="secondary" className="gap-1 bg-orange-500/10 text-orange-600 dark:text-warning">
             <AlertTriangle className="h-3 w-3" />
             Atenção
           </Badge>
@@ -268,7 +268,7 @@ export function StockThresholdConfig() {
                     <span>≤ {minimumStock} {editingItem.unit}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="h-5 bg-yellow-500/10 text-yellow-600">
+                    <Badge variant="secondary" className="h-5 bg-yellow-500/10 text-yellow-600 dark:text-warning">
                       Baixo
                     </Badge>
                     <span>≤ {Math.ceil(Number(minimumStock) * 1.5)} {editingItem.unit}</span>

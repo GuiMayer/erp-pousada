@@ -163,7 +163,7 @@ export function ProductsManagementTab({targetId}:{targetId?:string}={}) {
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Com Estoque</div>
-          <div className="text-2xl font-bold text-green-600">
+          <div className="text-2xl font-bold text-green-600 dark:text-success">
             {pdvProducts.filter(p => hasStockItem(p.id)).length}
           </div>
         </div>
@@ -254,7 +254,7 @@ export function ProductsManagementTab({targetId}:{targetId?:string}={}) {
                   </TableCell>
                   <TableCell>
                     {hasStockItem(product.id) ? (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-success border-green-200 dark:border-success/30">
                         Controlado
                       </Badge>
                     ) : (

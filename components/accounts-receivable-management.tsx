@@ -193,7 +193,7 @@ export function AccountsReceivableManagement() {
     }
 
     return (
-      <Badge variant={variants[status]} className={status === "pago" ? "bg-green-500" : ""}>
+      <Badge variant={variants[status]} className={status === "pago" ? "bg-green-500 dark:bg-success dark:text-success-foreground" : ""}>
         {labels[status]}
       </Badge>
     )
@@ -254,7 +254,7 @@ export function AccountsReceivableManagement() {
           </CardHeader>
           <CardContent>
 
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-red-600 dark:text-destructive">
               R$ {totalOverdue.toFixed(2)}
             </div>
           </CardContent>
@@ -267,7 +267,7 @@ export function AccountsReceivableManagement() {
           </CardHeader>
           <CardContent>
 
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-green-600 dark:text-success">
               R$ {totalReceived.toFixed(2)}
             </div>
           </CardContent>
@@ -318,7 +318,7 @@ export function AccountsReceivableManagement() {
                         error={formErrors.customerId}
                       />
                       {formErrors.customerId && (
-                        <p className="text-sm text-red-500 mt-1">{formErrors.customerId}</p>
+                        <p className="text-sm text-red-500 dark:text-destructive mt-1">{formErrors.customerId}</p>
                       )}
                     </div>
                     <div className="col-span-2">
@@ -330,7 +330,7 @@ export function AccountsReceivableManagement() {
                         className={formErrors.description ? "border-red-500" : ""}
                       />
                       {formErrors.description && (
-                        <p className="text-sm text-red-500">{formErrors.description}</p>
+                        <p className="text-sm text-red-500 dark:text-destructive">{formErrors.description}</p>
                       )}
                     </div>
                     <div>
@@ -344,7 +344,7 @@ export function AccountsReceivableManagement() {
                         className={formErrors.value ? "border-red-500" : ""}
                       />
                       {formErrors.value && (
-                        <p className="text-sm text-red-500">{formErrors.value}</p>
+                        <p className="text-sm text-red-500 dark:text-destructive">{formErrors.value}</p>
                       )}
                     </div>
                     <div>
@@ -357,7 +357,7 @@ export function AccountsReceivableManagement() {
                         className={formErrors.dueDate ? "border-red-500" : ""}
                       />
                       {formErrors.dueDate && (
-                        <p className="text-sm text-red-500">{formErrors.dueDate}</p>
+                        <p className="text-sm text-red-500 dark:text-destructive">{formErrors.dueDate}</p>
                       )}
                     </div>
                     <div>
@@ -397,7 +397,7 @@ export function AccountsReceivableManagement() {
                     </div>
                   </div>
                   {formErrors.submit && (
-                    <p className="text-sm text-red-500">{formErrors.submit}</p>
+                    <p className="text-sm text-red-500 dark:text-destructive">{formErrors.submit}</p>
                   )}
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -445,10 +445,10 @@ export function AccountsReceivableManagement() {
                 </TableHeader>
                 <TableBody>
                   {filteredAR.map((ar) => (
-                    <TableRow key={ar.id} className={isOverdue(ar) ? "bg-red-50" : ""}>
+                    <TableRow key={ar.id} className={isOverdue(ar) ? "bg-red-50 dark:bg-destructive/10" : ""}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          {isOverdue(ar) && <AlertCircle className="h-4 w-4 text-red-600" />}
+                          {isOverdue(ar) && <AlertCircle className="h-4 w-4 text-red-600 dark:text-destructive" />}
                           {ar.customerName}
                         </div>
                       </TableCell>

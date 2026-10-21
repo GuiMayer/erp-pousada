@@ -327,7 +327,7 @@ export function RoomCard({
               </span>
             </div>
             <Badge
-              className={`shrink-0 gap-1 border-transparent text-[11px] ${overdue ? "bg-destructive text-white" : config.badge}`}
+              className={`shrink-0 gap-1 border-transparent text-[11px] ${overdue ? "bg-destructive text-white dark:bg-destructive-solid" : config.badge}`}
             >
               {overdue ? (
                 <AlertTriangle className="size-3" />

@@ -310,7 +310,7 @@ export default function CustomersManagement() {
     }
 
     return (
-      <Badge variant={variants[status]} className={status === "pago" ? "bg-green-500" : ""}>
+      <Badge variant={variants[status]} className={status === "pago" ? "bg-green-500 dark:bg-success dark:text-success-foreground" : ""}>
         {labels[status]}
       </Badge>
     )
@@ -459,7 +459,7 @@ export default function CustomersManagement() {
                 <div className="mb-4 space-y-2"><Label>Usar este cadastro como</Label><div className="flex flex-wrap gap-4">
      {([['guest', 'Hóspede'], ['payer', 'Pagador / cliente'], ['supplier', 'Fornecedor']] as const).map(([role, title]) => <label key={role} className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={formData.roles.includes(role)} disabled={role === 'supplier' && !formData.roles.includes(role) && !can('suppliers.create')} onChange={e => setFormData({ ...formData, roles: e.target.checked ? [...formData.roles, role] : formData.roles.filter(r => r !== role) })} />{title}</label>)}
      </div></div><Label htmlFor="name">
-                  Nome / Razão Social <span className="text-red-500">*</span>
+                  Nome / Razão Social <span className="text-red-500 dark:text-destructive">*</span>
                 </Label>
                 <Input
                   id="name"
@@ -468,13 +468,13 @@ export default function CustomersManagement() {
                   className={errors.name ? "border-red-500" : ""}
                 />
                 {errors.name && (
-                  <p className="text-sm text-red-500">{errors.name}</p>
+                  <p className="text-sm text-red-500 dark:text-destructive">{errors.name}</p>
                 )}
               </div>
 
               <div className="grid gap-2">
                 <CnpjLookup document={formData.cpfCnpj} onApply={company => setFormData({ ...formData, ...company })} /><Label htmlFor="cpfCnpj">
-                  CPF/CNPJ <span className="text-red-500">*</span>
+                  CPF/CNPJ <span className="text-red-500 dark:text-destructive">*</span>
                 </Label>
                 <Input
                   id="cpfCnpj"
@@ -485,7 +485,7 @@ export default function CustomersManagement() {
                   className={errors.cpfCnpj ? "border-red-500" : ""}
                 />
                 {errors.cpfCnpj && (
-                  <p className="text-sm text-red-500">{errors.cpfCnpj}</p>
+                  <p className="text-sm text-red-500 dark:text-destructive">{errors.cpfCnpj}</p>
                 )}
               </div>
 
@@ -617,7 +617,7 @@ export default function CustomersManagement() {
             </div>
 
             {errors.submit && (
-              <p className="text-sm text-red-500">{errors.submit}</p>
+              <p className="text-sm text-red-500 dark:text-destructive">{errors.submit}</p>
             )}
           </div>
 
@@ -688,7 +688,7 @@ export default function CustomersManagement() {
                     <DollarSign className="h-4 w-4" />
                     Total Pago
                   </div>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-green-600 dark:text-success">
                     R$ {getCustomerAccountsReceivable(selectedCustomer.id)
                       .filter(ar => ar.status === "pago")
                       .reduce((sum, ar) => sum + ar.value, 0)
