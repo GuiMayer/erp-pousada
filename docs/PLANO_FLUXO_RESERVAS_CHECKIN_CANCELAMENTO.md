@@ -10,6 +10,7 @@ O aplicativo está em pré-produção. Atualizar exemplos e a modelagem atual se
 - Datas futuras pertencem ao fluxo de reserva.
 - Permitir registrar chegada retroativa esquecida, com autorização, motivo e histórico de quando o registro foi realizado.
 - Cancelar reserva permite devolver ou não devolver dinheiro recebido. A reserva também pode não ter pagamento.
+- O campo **Motivo do cancelamento (opcional)** permite registrar uma observação sem impedir o cancelamento quando ficar vazio.
 - Reduzir cliques e evitar repetir cadastro, escolha de quarto, pagador, preço e datas já conhecidos.
 
 ## 2. Problemas confirmados
@@ -35,8 +36,8 @@ As contagens abaixo são ações de navegação/confirmação, sem contar digita
 | Chegada sem reserva | **Check-in → selecionar/cadastrar pessoa, saída e quantidade → Confirmar entrada**. Não exigir criar reserva antes. |
 | Reserva futura | **Nova reserva → pessoa, datas, quarto e quantidade → Confirmar reserva**. |
 | Entrada com pagamento imediato | No mesmo formulário, marcar **Receber agora**, revisar o pagamento e confirmar tudo uma vez. |
-| Cancelamento sem pagamento | **Cancelar → motivo → Confirmar cancelamento**. |
-| Cancelamento pago | **Cancelar → devolver ou reter → motivo → Confirmar**, sem abrir outra tela financeira. |
+| Cancelamento sem pagamento | **Cancelar → Confirmar cancelamento**, com motivo opcional no mesmo formulário. |
+| Cancelamento pago | **Cancelar → devolver ou reter → Confirmar**, com motivo opcional no mesmo formulário e justificativa financeira quando exigida. |
 
 Receber agora é opcional e recolhido por padrão. Não exigir pagamento para criar reserva ou iniciar hospedagem. Confirmar operação e recebimento juntos deve ser uma transação única; falha no caixa ou conta não pode deixar uma entrada parcialmente concluída.
 
@@ -112,6 +113,10 @@ Após o check-in, transferências, ocupantes, prorrogação e recebimentos conti
 
 Cancelar somente reservas confirmadas; hospedagem iniciada deve usar seu encerramento próprio. A ação não pode alterar o quarto de outro hóspede.
 
+Incluir uma área de texto **Motivo do cancelamento (opcional)**, com limite de 500 caracteres. Não exigir preenchimento, não criar uma etapa adicional e não substituir observações gerais da reserva. Salvar o texto, quando informado, em campo próprio `cancellationReason`, apresentar nos detalhes da reserva cancelada e registrar na auditoria junto ao executor e à data/hora. Campo vazio ou contendo apenas espaços deve ser aceito e armazenado como ausência de motivo.
+
+Esse motivo descreve por que a reserva foi cancelada. A justificativa obrigatória de retenção, devolução parcial ou outra decisão financeira excepcional é um campo separado e não torna obrigatório o motivo geral do cancelamento.
+
 Resumo sempre visível:
 
 - Valor contratado.
@@ -121,7 +126,7 @@ Resumo sempre visível:
 
 ### Nenhum pagamento recebido
 
-Mostrar **Nenhum valor recebido. Não há devolução.** Pedir motivo e confirmar o cancelamento. Não exigir conta, caixa, multa, crédito nem uma seleção “devolver ou não”.
+Mostrar **Nenhum valor recebido. Não há devolução.** Oferecer o motivo opcional e confirmar o cancelamento. Não exigir conta, caixa, multa, crédito nem uma seleção “devolver ou não”.
 
 ### Há pagamento
 
@@ -158,7 +163,7 @@ Regras financeiras:
 - Extrair o formulário compartilhado dos atuais `CheckinModal` e `ReservationsTab`, com intenção e origem explícitas e uma única lógica de pessoa/pagador/período/preço.
 - Modelar separadamente previsão da reserva e ocupação efetiva. A operação de check-in recebe ID/versão da reserva, chegada real e eventuais decisões autorizadas; o servidor recupera o restante.
 - Comandos próprios para criação, edição, entrada, registro retroativo encerrado e cancelamento. Não reutilizar edição genérica para contornar validações.
-- Cancelamento recebe decisão de devolução, valor quando aplicável, motivo e versão. O servidor calcula o valor disponível a partir dos recebimentos e estornos confirmados.
+- Cancelamento recebe decisão de devolução, valor quando aplicável, `cancellationReason` opcional, justificativa financeira quando exigida e versão. O servidor valida os campos separadamente e calcula o valor disponível a partir dos recebimentos e estornos confirmados.
 - Reutilizar transações serializáveis, verificação de versão, cotação, idempotência, auditoria e sincronização. Entrada/recebimento e cancelamento/devolução confirmam integralmente ou revertem integralmente.
 - Refletir o mesmo comportamento na demonstração e atualizar os exemplos para permitir testar os caminhos sem dados incompletos.
 - Atualizar ocupação, receita prestada, histórico do hóspede, notificações, extratos e exportações para distinguir datas contratuais, efetivas e de registro.
@@ -185,6 +190,7 @@ Separar os commits por tarefa. Uma etapa só é concluída quando servidor, inte
 - Troca de quarto/ocupação/datas recalcula capacidade, disponibilidade e preço; alteração de pagador respeita recebimentos e vínculo cadastral.
 - Sinal recebido preservado e não recebido novamente; falha no pagamento integrado reverte a entrada/criação.
 - Cancelamento sem pagamento não pede dados financeiros nem gera movimentação.
+- Cancelamento aceita motivo vazio ou preenchido; texto informado fica nos detalhes e na auditoria, sem sobrescrever observações gerais. Validar espaços em branco e o limite de 500 caracteres. A ausência de motivo geral não dispensa justificativas financeiras obrigatórias.
 - Devolução total, parcial e retenção conciliam recebido = devolvido + retido; reenvios e concorrência não duplicam estornos.
 - Crédito interno não vira dinheiro; caixa fechado/saldo insuficiente/conta inválida não deixam cancelamento financeiro parcialmente aplicado.
 - Cancelar reserva não encerra hospedagem já iniciada nem altera outro ocupante do quarto.
