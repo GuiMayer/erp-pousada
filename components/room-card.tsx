@@ -313,10 +313,10 @@ export function RoomCard({
     <>
       <Card
         ref={card}
-        className={`mobile-room-card room-summary-card relative gap-0 overflow-hidden py-3 transition-shadow motion-reduce:transition-none hover:shadow-md ${config.border}`}
+        className={`mobile-room-card room-summary-card relative gap-0 overflow-hidden py-3 transition-shadow motion-reduce:transition-none hover:shadow-md sm:h-full ${config.border}`}
       >
         <div className={`absolute inset-x-0 top-0 h-1 ${config.accent}`} />
-        <CardHeader className="px-3 pb-0 pt-1">
+        <CardHeader className="px-3 pb-0 pt-1 sm:shrink-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <span className="text-2xl font-bold tabular-nums">
@@ -338,8 +338,8 @@ export function RoomCard({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="px-3 py-0">
-          <div className="mt-2 rounded-lg bg-secondary/60 px-2 py-1.5">
+        <CardContent className="px-3 py-0 sm:flex sm:flex-1 sm:flex-col">
+          <div className={`mt-2 rounded-lg bg-secondary/60 px-2 py-1.5 sm:flex sm:flex-1 sm:flex-col ${occupied ? "" : "sm:justify-center"}`}>
             <div className="flex items-center justify-between gap-1">
               {occupied ? (
                 <div className="flex min-w-0 items-center gap-2">
@@ -406,7 +406,7 @@ export function RoomCard({
               </p>
             )}
             {occupied && !ambiguous && (stay || legacy) && (
-              <div className="mt-1">
+              <div className="mt-1 sm:mt-auto sm:pt-1">
                 {balance > 0 ? (
                   lists.secondary.some((a) => a.id === "receive") ? (
                     <button
@@ -450,8 +450,7 @@ export function RoomCard({
               </p>
             )}
           </div>
-          {lists.primary.length > 0 && (
-            <div className="mt-2 flex gap-2">
+            <div className={`mt-2 gap-2 sm:min-h-11 sm:shrink-0 ${lists.primary.length > 0 ? "flex" : "hidden sm:flex"}`}>
               {lists.primary.map((action) => {
                 const Icon = icons[action.id as keyof typeof icons];
                 return (
@@ -472,9 +471,8 @@ export function RoomCard({
                 );
               })}
             </div>
-          )}
         </CardContent>
-        <CardFooter className="hidden flex-col items-stretch px-3 pb-0 pt-0 sm:flex">
+        <CardFooter className="hidden flex-col items-stretch px-3 pb-0 pt-0 sm:flex sm:shrink-0">
           <Separator className="my-3" />
           <MiniTimeline days={timeline} highlightDate={selectedDate} />
         </CardFooter>
