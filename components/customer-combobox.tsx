@@ -39,6 +39,7 @@ import {
 } from "@/lib/utils/cpf-cnpj-validator"
 
 interface CustomerComboboxProps {
+  ariaLabel?: string
   purpose?: "guest" | "payer" | "supplier"
   value?: string
   onChange: (customerId: string, customerName: string, customer?: Customer) => void
@@ -69,6 +70,7 @@ const emptyQuickForm: QuickCustomerFormData = {
 }
 
 export function CustomerCombobox({
+  ariaLabel,
   purpose = "payer", value,
   onChange,
   allowCreate = true,
@@ -194,6 +196,7 @@ export function CustomerCombobox({
           <Button
             variant="outline"
             role="combobox"
+            aria-label={ariaLabel}
             aria-expanded={open}
             className={cn("justify-between", className, error && "border-red-500")}
           >

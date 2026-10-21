@@ -25,8 +25,14 @@ export function ReservationCancellationDialog({ reservation: r, noShow, onClose 
   let amounts = { refund: 0, retained: 0, credit: 0 }, invalid = false
   try { amounts = cancellationAmounts(received, decision, partial ? Number(refund) : undefined) } catch { invalid = true }
   const needsFinancialReason = amounts.retained > 0 || amounts.credit > 0
-  const receipts = transactions.filter(t => t.refId === `Hospedagem ${r.id}` && t.type === "receita")
-  const cashRefund = amounts.refund > 0 && receipts.some(t => normalizePayment(t.paymentMethod ?? "") === "Dinheiro")
+  let toReturn = Math.round(amounts.refund * 100)
+  const origins = transactions.filter(t => t.refId === `Hospedagem ${r.id}` && ["receita", "credito_utilizado"].includes(t.type)).sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)).filter(t => {
+    const alreadyReturned = transactions.filter(p => p.reversalOfId === t.id).reduce((sum, p) => sum + Math.round(p.value * 100), 0)
+    const value = Math.min(toReturn, Math.max(0, Math.round(t.value * 100) - alreadyReturned))
+    toReturn -= value
+    return value > 0
+  })
+  const cashRefund = origins.some(t => t.type === "receita" && normalizePayment(t.paymentMethod ?? "") === "Dinheiro")
   const needsCash = cashRefund && !cashCloses.some(c => c.status === "aberto")
   const personalCredit = guests.find(g => g.cpf === r.cpf)?.customerId === r.payerId
   const mayCancelPaid = getDataConfig().adapter === "database" && canRequest ? canRequest("reservations.paidCancel") : can("reservations.paidCancel")
@@ -48,7 +54,7 @@ export function ReservationCancellationDialog({ reservation: r, noShow, onClose 
       {received > 0 && <><fieldset className="space-y-1"><legend className="text-sm font-medium">Devolver o valor recebido?</legend><label className="flex min-h-11 items-center gap-2 text-sm"><input type="radio" name="cancellation-decision" checked={decision === "refund"} onChange={() => setDecision("refund")} />Sim, devolver à origem do pagamento</label><label className="flex min-h-11 items-center gap-2 text-sm"><input type="radio" name="cancellation-decision" checked={decision === "retain"} disabled={!can("reservations.feeCredit")} onChange={() => setDecision("retain")} />Não, reter o valor recebido</label></fieldset>
         {can("reservations.feeCredit") && <details className="rounded border p-3 text-sm"><summary className="cursor-pointer">Outras tratativas</summary>{decision === "refund" && <><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={partial} onChange={e => setPartial(e.target.checked)} />Devolver apenas parte do valor</label>{partial && <Label>Valor a devolver<Input aria-label="Valor a devolver" type="number" min={0} max={received} step="0.01" value={refund} onChange={e => setRefund(e.target.value)} /></Label>}</>}<label className="flex min-h-11 items-center gap-2"><input type="radio" name="cancellation-decision" checked={decision === "credit"} disabled={!personalCredit} onChange={() => { setDecision("credit"); setPartial(false) }} />Transformar em crédito para o hóspede</label>{!personalCredit && <p className="text-xs text-muted-foreground">Crédito pessoal exige que o próprio hóspede seja o pagador.</p>}</details>}
         {!invalid && <p className="text-sm">Devolver: {formatCurrency(amounts.refund)} · Reter: {formatCurrency(amounts.retained)}{amounts.credit > 0 && ` · Crédito: ${formatCurrency(amounts.credit)}`}</p>}
-        {amounts.refund > 0 && <div className="text-sm text-muted-foreground"><p>A devolução recompõe os meios originais. Crédito interno volta ao titular original; dinheiro exige caixa aberto com saldo.</p>{[...new Set(receipts.filter(t => t.accountId).map(t => t.accountId))].map(id => <p key={id}>Conta de origem: {bankAccounts.find(a => a.id === id)?.name ?? "Revise a conta"}</p>)}<p>Responsável: {customers.find(c => c.id === r.payerId)?.name ?? r.guestName}</p></div>}
+        {amounts.refund > 0 && <div className="text-sm text-muted-foreground"><p>A devolução recompõe os meios originais. Crédito interno volta ao titular original; dinheiro exige caixa aberto com saldo.</p>{[...new Set(origins.filter(t => t.accountId).map(t => t.accountId))].map(id => <p key={id}>Conta de origem: {bankAccounts.find(a => a.id === id)?.name ?? "Revise a conta"}</p>)}<p>Responsável: {customers.find(c => c.id === r.payerId)?.name ?? r.guestName}</p></div>}
         {needsFinancialReason && <div><Label htmlFor="cancellation-financial">Justificativa financeira (obrigatória)</Label><Textarea id="cancellation-financial" maxLength={500} value={financialReason} onChange={e => setFinancialReason(e.target.value)} /></div>}
       </>}
       <div><Label htmlFor="cancellation-reason">Motivo do cancelamento (opcional)</Label><Textarea id="cancellation-reason" maxLength={500} value={reason} onChange={e => setReason(e.target.value)} /><p className="text-right text-xs text-muted-foreground">{reason.length}/500</p></div>
