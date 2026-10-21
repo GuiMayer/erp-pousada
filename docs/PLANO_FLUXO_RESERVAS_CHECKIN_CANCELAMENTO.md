@@ -1,6 +1,6 @@
 # Simplificação de reservas, check-in e cancelamento
 
-Data: 21/10/2026. Status: plano de implementação; aplicativo ainda não alterado nesta entrega.
+Data: 21/10/2026. Status: implementado e validado em desenvolvimento, incluindo o motivo opcional de cancelamento.
 
 O aplicativo está em pré-produção. Atualizar exemplos e a modelagem atual sem desenvolver conversores de bases legadas. Preservar integridade financeira e histórica das operações que o próprio sistema registrar.
 
@@ -196,3 +196,28 @@ Separar os commits por tarefa. Uma etapa só é concluída quando servidor, inte
 - Cancelar reserva não encerra hospedagem já iniciada nem altera outro ocupante do quarto.
 - No-show respeita a configuração real, exige confirmação e usa a mesma regra no cliente e no servidor.
 - Interface mobile mantém alvos acessíveis, rascunhos protegidos, erros claros e confirmação única por operação.
+
+## 12. Entrega e validação
+
+O atendimento compartilhado é `BookingForm`, utilizado na criação, edição e entrada. A lista e os detalhes da reserva oferecem **Fazer check-in** para chegadas previstas até hoje. O mapa preenche a única reserva elegível ou pede escolha quando há ambiguidade. Alterar as condições dentro da confirmação retorna ao check-in com a nova versão da reserva. Quarto não preparado é informado antes da confirmação.
+
+Os comandos operacionais confirmam no PostgreSQL com transação serializável, versão e recibo idempotente. A entrada de uma reserva exige ID explícito; uma entrada avulsa não escolhe outra reserva silenciosamente. As validações verificam períodos reais de alocação, inclusive hospedagens encerradas. A saída antecipada encerra a alocação na data efetiva, sem apagar o preço acordado; a transferência de quarto conserva a entrada prevista original.
+
+O pagador de um novo atendimento é a pessoa ou a empresa vinculada em seu cadastro, com validação também no servidor. Alterar esse vínculo posteriormente não muda o responsável já confirmado. Recebimentos impedem trocar titular/pagador sem conciliação.
+
+O cancelamento mantém o recebido original, registra devolução/retenção e recompõe as origens bancárias, de caixa ou crédito interno. O motivo opcional é normalizado e limitado a 500 caracteres. Retenção, devolução parcial e crédito continuam exigindo autorização e justificativa financeira própria. O horário configurado determina a elegibilidade de no-show; nenhuma ausência é marcada automaticamente.
+
+As datas previstas, efetivas e de registro ficam distinguíveis no extrato. O relatório de hospedagem usa as noites efetivamente ocupadas e inclui essas informações na composição exportada em CSV. Registrar uma hospedagem já encerrada verifica conflitos e saldo, preservando o ocupante atual do quarto.
+
+A demonstração no navegador executa comandos em uma cópia isolada antes de publicar alterações, sem usar o banco operacional. Os exemplos novos incluem documentos fictícios válidos para teste, ocupação, pagador, tarifas, recebimentos rastreáveis e conta de exemplo. A inicialização preserva uma demonstração já preenchida; não apaga automaticamente os dados existentes do navegador.
+
+Validação executada nesta entrega:
+
+- 426 testes de interface e domínio, incluindo comportamento do formulário e comandos da demonstração.
+- 222 testes de integração no PostgreSQL exclusivo `erp_test`, incluindo devoluções por múltiplos meios, concorrência, permissões, retroativos, disponibilidade e relatórios.
+- Verificação de tipos, análise estática e build de produção em diretório isolado.
+- Navegador em 390 × 844 e desktop: cadastro rápido, criação, edição de quarto sem sair do atendimento, entrada e cancelamento com motivo consultável nos detalhes.
+
+A migração `20261021000000_booking_flow` acrescenta os campos de registro e cancelamento. Foi aplicada e testada somente no banco isolado. A instalação Docker já possui a etapa `prisma migrate deploy`; atualizar a instalação exige reconstruir/iniciar a versão atual pelo painel. Não foram alterados volumes ou dados da instalação operacional durante esta validação.
+
+Juros e multa de pagamento permanecem no plano específico desse recurso; esta entrega trata da decisão financeira de cancelamento.
