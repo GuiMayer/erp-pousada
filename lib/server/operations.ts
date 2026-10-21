@@ -1,3 +1,6 @@
+import { bookingEntry } from "./booking-entry"
+import { businessDay } from "@/lib/utils/business-values"
+import { initialPaymentSchema, receiveBookingDeposit } from "./booking-payments"
 import { settingsOperation, demandSettings } from "./settings"
 import { inventoryOperation } from './inventory-operations'
 import { issueStock,restoreStock } from './inventory-stock'
@@ -35,7 +38,6 @@ const percent = z.number().finite().min(0).max(100)
 const payment = z.enum(["dinheiro", "pix", "debito", "credito", "Dinheiro", "PIX", "Cartao Debito", "Cartao Credito", "Cartão Débito", "Cartão Crédito"])
 const cartItem = z.object({ id, product: z.object({ id }).passthrough(), quantity: integer, discount: percent }).passthrough()
 const saleInput = z.object({ sale: z.object({ id, items: z.array(cartItem).min(1).max(100), total: money, paymentMethod: payment.optional(), payments: paymentLinesSchema.optional(), stayId:id.optional(), stayVersion:z.number().int().nonnegative().optional(), accountId: id.optional(), amountPaid: money, customer: z.string().max(200).optional() }).passthrough(), globalDiscount: percent })
-const checkinInput = z.object({ guestCount: z.number().int().min(1).max(100).optional(), payerId: id.optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date(), totalValue: money }).strict()
 const decimal = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n)
 const round = (n: Prisma.Decimal) => n.toDecimalPlaces(2)
 type Tx = Prisma.TransactionClient
@@ -72,12 +74,13 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   const inventoryResult=await inventoryOperation(tx,actor,kind,payload)
   if(inventoryResult!==undefined)return inventoryResult
   if (kind === "reserve-group") {
-    const input = z.object({ payerId: id.optional(), rooms: z.array(z.object({ guestCount: z.number().int().min(1).max(100).optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, totalValue: money })).min(1).max(50), cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date() }).strict().parse(payload)
+    const input = z.object({ initialPayment: initialPaymentSchema.optional(), payerId: id.optional(), rooms: z.array(z.object({ guestCount: z.number().int().min(1).max(100).optional(), priceExceptionReason: z.string().trim().min(5).max(500).optional(), roomId: integer, totalValue: money })).min(1).max(50), cpf, guestName: text, checkIn: z.string().date(), checkOut: z.string().date() }).strict().parse(payload)
     if (new Set(input.rooms.map(room => room.roomId)).size !== input.rooms.length) throw new HttpError(400, "Quartos repetidos")
     const results = []
     const groupId = randomUUID()
     for (const room of input.rooms) results.push(await applyOperation(tx, actor, "reserve", { ...room, payerId: input.payerId, cpf: input.cpf, guestName: input.guestName, checkIn: input.checkIn, checkOut: input.checkOut }))
     for (const result of results) await tx.reservation.update({ where: { id: (result as { id: string }).id }, data: { groupId } })
+    await receiveBookingDeposit(tx, actor, results.map(result => (result as { id: string }).id), input.initialPayment)
     return results
   }
   if (kind === "sale") {
@@ -171,7 +174,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     const nightlyPrices = await agreedPrice(tx, actor, input, current)
     if (room.capacity && input.guestCount === undefined && !current) throw new HttpError(400, "Informe a quantidade de hóspedes")
     const guest = await ensureGuest(tx, actor, input.cpf, input.guestName)
-    if (current?.paidValue.gt(0) && current.cpf !== guest.cpf) throw new HttpError(409, "Reserva paga não permite trocar o titular")
+    if (current?.paidValue.gt(0) && (current.cpf !== guest.cpf || (input.payerId !== undefined && input.payerId !== current.payerId))) throw new HttpError(409, "Reserva paga não permite trocar titular ou pagador sem conciliação")
     const payerId = input.payerId ?? current?.payerId ?? guest.customerId!
     await assertPayer(tx, payerId)
     const { recordVersion: _version, ...fields } = input
@@ -180,32 +183,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     await audit(tx, actor, kind === "reserve" ? "Reserva criada" : "Reserva alterada", result.id, { entityType: "reservations", entityId: result.id, operation: kind === "reserve" ? "create" : "update" })
     return collectionMapper("reservations").toApp(result)
   }
-  if (kind === "check-in") {
-    const input = checkinInput.parse(payload)
-    const checkIn = new Date(input.checkIn), checkOut = new Date(input.checkOut)
-    if (checkOut <= checkIn) throw new HttpError(400, "Período inválido")
-    const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
-    if (room.status !== "disponivel") throw new HttpError(409, "Quarto indisponível")
-    if (await tx.roomConsumption.count({ where: { roomId: room.id } })) throw new HttpError(409, "Há consumo sem hospedagem vinculada. Revise os lançamentos antes de ocupar o quarto")
-    await assertRoomPeriod(tx, room, checkIn, checkOut)
-    const guest = await ensureGuest(tx, actor, input.cpf, input.guestName)
-    const existing = await tx.reservation.findFirst({ where: { roomId: room.id, cpf: guest.cpf, status: "confirmada", checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
-    if (existing && !existing.totalValue.equals(input.totalValue)) throw new HttpError(409, "Use o valor confirmado da reserva ou edite-a antes do check-in")
-    const overlap = await tx.reservation.count({ where: { ...(existing ? { id: { not: existing.id } } : {}), roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: new Date(input.checkOut) }, checkOut: { gt: new Date(input.checkIn) } } })
-    if (overlap) throw new HttpError(409, "Reserva conflita com outra hospedagem")
-    const nightlyPrices = existing ? existing.nightlyPrices ?? undefined : await agreedPrice(tx, actor, input)
-    if (!existing && room.capacity && input.guestCount === undefined) throw new HttpError(400, "Informe a quantidade de hóspedes")
-    if (existing && input.guestCount !== undefined && input.guestCount !== existing.guestCount) throw new HttpError(409, "Ocupação diferente da reserva; edite-a antes do check-in")
-    if (existing && input.payerId !== undefined && input.payerId !== existing.payerId) throw new HttpError(409, "Pagador diferente da reserva; edite-a antes do check-in")
-    const payerId = existing?.payerId ?? input.payerId ?? guest.customerId!
-    if (!existing) await assertPayer(tx, payerId)
-    await tx.guestProfile.update({ where: { cpf: guest.cpf }, data: { totalStays: { increment: 1 } } })
-    await tx.room.update({ where: { id: room.id }, data: { status: "ocupado", guest: guest.name, guestCpf: guest.cpf, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut) } })
-    const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin" } }) : await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, guestName: guest.name, cpf: guest.cpf, guestCount: input.guestCount, payerId, nightlyPrices, priceExceptionReason: input.priceExceptionReason, checkIn: new Date(input.checkIn), checkOut: new Date(input.checkOut), status: "checkin", totalValue: input.totalValue, originalValue: input.totalValue } })
-    await ensureStay(tx, reservation.id)
-    await audit(tx, actor, "Check-in realizado", `${room.number}: ${reservation.id}`, { entityType: "reservations", entityId: reservation.id, operation: "update" })
-    return collectionMapper("reservations").toApp(reservation)
-  }
+  if (kind === "check-in" || kind === "record-completed-stay") return bookingEntry(tx, actor, kind, payload)
   if (kind === "check-out" || kind === "release-room") {
     const { roomId } = z.object({ roomId: integer }).strict().parse(payload)
     const room = await tx.room.findUniqueOrThrow({ where: { id: roomId } })
@@ -433,6 +411,12 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
           // A completed approval permits only retrieving this receipt; explicit
           // denials and current access to the underlying action still apply.
           demandOperation({ ...actor, grantedPermissions: DELEGATABLE }, kind)
+          if (kind === "check-in" || kind === "record-completed-stay") {
+            const input = payload as { checkIn?: string; initialPayment?: unknown }
+            if (kind === "record-completed-stay" || input.checkIn && input.checkIn < businessDay()) demand(actor, "hospitality.checkin.backdate")
+            if (kind === "record-completed-stay") demand(actor, "hospitality.checkout")
+            if (input.initialPayment) demand(actor, "hospitality.receive")
+          }
           if (kind === "stay-extend") { demand(actor, "stays.read"); demand(actor, "rooms.read"); demand(actor, "lodgingTariffs.read") }
           if (kind === "settings-update" || kind === "settings-restore") demandSettings(actor, String((payload as {section?:unknown})?.section), true, kind === "settings-restore")
           if (kind === "admin-create" || kind === "admin-update") {
@@ -460,7 +444,7 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
         // Avoid scanning unrelated modules while a user's transaction holds locks.
         // The existing worker still performs a full reconciliation every 30 seconds.
         if (["sale", "cancel-sale", "close-order", "stock-movement", "employee-consumption", "production", "add-consumption", "remove-consumption"].includes(kind) || operationIsInventory(kind)) { await evaluateStock(tx); if(operationIsInventory(kind))await evaluateTimed(tx) }
-        if (["settings-update", "settings-restore", "reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer", "stay-extend"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
+        if (["settings-update", "settings-restore", "reserve", "reserve-group", "edit-reservation", "check-in", "check-out", "pay-reservation", "cancel-reservation", "reservation-discount", "open-table", "edit-order", "close-order", "cancel-order", "receive-account", "receive-batch", "stay-checkout", "stay-receive", "stay-transfer", "stay-extend", "record-completed-stay"].includes(kind) || (["admin-create", "admin-update"].includes(kind) && ["accountsReceivable", "systemSettings"].includes((payload as { key?: string }).key ?? ""))) await evaluateTimed(tx)
         for (const grant of valid) {
           await tx.operationApproval.update({ where: { id: grant.id }, data: { usedAt: new Date() } })
           await audit(tx, actor, "Operação aprovada", kind, { entityType: "operationApprovals", entityId: requestId, operation: "action", metadata: { approverId: grant.approverId, executorId: actor.id, permission: grant.permission } })

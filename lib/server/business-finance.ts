@@ -11,6 +11,7 @@ import { HttpError } from "./http"
 import { collectionMapper } from "./db/relational-data-service"
 import { businessDay, normalizePayment } from "../utils/business-values"
 import { cashIncoming, distributePayment, type PaymentLine } from "@/lib/payments"
+import { cancellationAmounts, cancellationReason, noShowEligible } from "@/lib/booking-flow"
 
 type Tx = Prisma.TransactionClient
 const id = z.string().trim().min(1).max(200)
@@ -107,18 +108,32 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     return collectionMapper("reservations").toApp(updated)
   }
   if (kind === "cancel-reservation") {
-    const input = z.object({ reservationId: id, status: z.enum(["cancelada", "noshow"]).default("cancelada"), treatment: z.enum(["estorno", "multa", "credito"]), fee: money.default(0) }).strict().parse(payload)
+    const input = z.object({ reservationId: id, recordVersion: z.number().int().nonnegative().optional(), status: z.enum(["cancelada", "noshow"]).default("cancelada"), decision: z.enum(["refund", "retain", "credit"]).optional(), refundValue: money.optional(), treatment: z.enum(["estorno", "multa", "credito"]).optional(), fee: money.default(0), cancellationReason, financialReason: z.string().trim().min(5).max(500).optional() }).strict().parse(payload)
     const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: input.reservationId } })
+    if (input.recordVersion !== undefined) requireVersion(input.recordVersion, reservation.recordVersion)
     if (reservation.status !== "confirmada") throw new HttpError(409, "Somente reserva confirmada pode ser cancelada")
-    if (input.status === "noshow" && reservation.checkIn.toISOString().slice(0, 10) > businessDay()) throw new HttpError(409, "Não registre no-show antes da chegada prevista")
-    if (input.fee > 0 || input.treatment === "credito") demand(actor, "reservations.feeCredit")
+    const settings = await tx.systemSettings.findFirst()
+    if (input.status === "noshow" && !noShowEligible(reservation.checkIn.toISOString().slice(0, 10), settings?.checkInTime ?? "14:00")) throw new HttpError(409, "Não registre no-show antes da chegada prevista e do horário configurado")
     if (reservation.paidValue.gt(0)) demand(actor, "reservations.paidCancel")
-    if (D(input.fee).gt(reservation.paidValue) || (input.treatment === "estorno" && input.fee !== 0)) throw new HttpError(400, "Multa não pode exceder o recebido; estorno integral não admite multa")
-    const remainder = reservation.paidValue.minus(input.fee)
-    if (input.treatment === "credito") {
+    let treatment = input.treatment ?? "estorno", fee = input.fee
+    if (input.decision) {
+      let amounts: ReturnType<typeof cancellationAmounts>
+      try { amounts = cancellationAmounts(Number(reservation.paidValue), input.decision, input.refundValue) }
+      catch (error) { throw new HttpError(400, (error as Error).message) }
+      fee = amounts.retained; treatment = input.decision === "credit" ? "credito" : fee > 0 ? "multa" : "estorno"
+    }
+    if (fee > 0 || treatment === "credito") {
+      demand(actor, "reservations.feeCredit")
+      if (!input.financialReason) throw new HttpError(400, "Informe a justificativa financeira da retenção ou concessão de crédito")
+    }
+    if (D(fee).gt(reservation.paidValue) || (treatment === "estorno" && fee !== 0)) throw new HttpError(400, "Retenção não pode exceder o recebido; devolução integral não admite retenção")
+    const remainder = reservation.paidValue.minus(fee)
+    if (treatment === "credito" && remainder.gt(0)) {
+      const guest = await tx.guestProfile.findUniqueOrThrow({ where: { cpf: reservation.cpf } })
+      if (reservation.payerId && reservation.payerId !== guest.customerId) throw new HttpError(409, "Crédito da empresa não pode ser transferido para o hóspede")
       await tx.guestProfile.update({ where: { cpf: reservation.cpf }, data: { creditValue: { increment: remainder } } })
       await recordLedger(tx, actor, `Crédito cancelamento ${reservation.id}`, remainder, "credito_concedido")
-    } else {
+    } else if (treatment !== "credito") {
       let remaining = remainder
       const receipts = await tx.transaction.findMany({ where: { refId: `Hospedagem ${reservation.id}`, type: { in: ["receita", "credito_utilizado"] } }, orderBy: [{ date: "desc" }, { id: "asc" }] })
       for (const receipt of receipts) {
@@ -127,14 +142,22 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
         if (receipt.type === "credito_utilizado") {
           await tx.guestProfile.update({ where: { cpf: reservation.cpf }, data: { creditValue: { increment: value } } })
           await recordLedger(tx, actor, `Crédito devolvido ${reservation.id}`, value, "credito_concedido")
-        } else await recordLedger(tx, actor, `Reembolso hospedagem ${reservation.id}`, value, "estorno", receipt.paymentMethod ?? undefined, receipt.accountId ?? undefined)
+        } else {
+          const previous = await tx.transaction.aggregate({ where: { reversalOfId: receipt.id }, _sum: { value: true } })
+          const available = receipt.value.minus(previous._sum.value ?? 0)
+          const refund = Prisma.Decimal.min(available, remaining)
+          if (refund.lte(0)) continue
+          await recordLedger(tx, actor, `Reembolso hospedagem ${reservation.id}`, refund, "estorno", receipt.paymentMethod ?? undefined, receipt.accountId ?? undefined, { originType: "reservation-refund", originId: reservation.id, reversalOfId: receipt.id })
+          remaining = remaining.minus(refund)
+          continue
+        }
         remaining = remaining.minus(value)
       }
       if (remaining.gt(0)) throw new HttpError(409, "Recebimentos não conciliados; revise antes do cancelamento")
     }
-    await tx.reservation.update({ where: { id: reservation.id }, data: { status: input.status, cancelTreatment: input.treatment, cancellationFee: input.fee, paidValue: 0 } })
+    await tx.reservation.update({ where: { id: reservation.id }, data: { status: input.status, cancelTreatment: treatment, cancellationFee: fee, cancellationReason: input.cancellationReason ?? null, cancellationFinancialReason: input.financialReason ?? null, cancellationReceivedValue: reservation.paidValue, refundedValue: treatment === "credito" ? 0 : remainder, retainedValue: fee, cancelledAt: new Date(), cancelledBy: actor.username, recordVersion: { increment: 1 } } })
     if (input.status === "noshow") await tx.guestProfile.update({ where: { cpf: reservation.cpf }, data: { noShows: { increment: 1 } } })
-    await audit(tx, actor, `Reserva ${input.status}: ${input.treatment}, multa ${input.fee}`, reservation.id, { entityType: "reservations", entityId: reservation.id, operation: "update" })
+    await audit(tx, actor, `Reserva ${input.status}: ${treatment}`, reservation.id, { entityType: "reservations", entityId: reservation.id, operation: "update", metadata: { cancellationReason: input.cancellationReason, financialReason: input.financialReason, received: Number(reservation.paidValue), returned: treatment === "credito" ? 0 : Number(remainder), retained: fee, credit: treatment === "credito" ? Number(remainder) : 0 } })
     return { success: true }
   }
   if (kind === "receive-account" || kind === "receive-batch") {

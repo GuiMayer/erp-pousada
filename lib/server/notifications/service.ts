@@ -25,6 +25,7 @@ const catalog: Record<string, { type: NotificationType; title: string; module: s
   "edit-reservation": { type: "reservation", title: "Reserva alterada", module: "reservas", permissions: ["reservations.read"] },
   "cancel-reservation": { type: "reservation", title: "Reserva cancelada", module: "reservas", permissions: ["reservations.read"] },
   "reservation-discount": { type: "reservation", title: "Desconto aplicado à reserva", module: "reservas", permissions: ["reservations.read"] },
+  "record-completed-stay": { type: "check-in", title: "Hospedagem encerrada registrada", module: "reservas", permissions: ["reservations.read"] },
   "check-in": { type: "check-in", title: "Check-in confirmado", module: "mapa", permissions: ["rooms.read", "reservations.read"] },
   "check-out": { type: "check-out", title: "Check-out confirmado", module: "mapa", permissions: ["rooms.read", "reservations.read"] },
   "stay-checkout": { type: "check-out", title: "Saída de hospedagem confirmada", module: "reservas", permissions: ["stays.read"] },

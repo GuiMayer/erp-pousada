@@ -87,7 +87,7 @@ export async function receiveStay(tx: Tx, actor: Actor, stay: Loaded, value: num
   }
   await touched(tx, actor, stay.id, "Hospedagem recebida", { value,method,transactionIds:posted.map(p=>p.transactionId) })
 }
-export async function finishStay(tx: Tx, actor: Actor, stay: Loaded, dueDate?: string, confirmed?: boolean) {
+export async function finishStay(tx: Tx, actor: Actor, stay: Loaded, dueDate?: string, confirmed?: boolean, options?: { historicalEnd: string }) {
   if (stay.status !== "active") throw new HttpError(409, "Hospedagem já encerrada")
   const balance = stayBalance(mapStay(stay)).balance
   if (balance < 0) throw new HttpError(409, "Concilie o crédito antes da saída")
@@ -98,10 +98,12 @@ export async function finishStay(tx: Tx, actor: Actor, stay: Loaded, dueDate?: s
     if (!confirmed || !dueDate || dueDate < businessDay()) throw new HttpError(400, "Confirme a cobrança empresarial e informe vencimento a partir de hoje")
     await tx.accountReceivable.create({ data: { id: randomUUID(), sourceStayId: stay.id, customerId: payer.id, customerName: payer.name, description: `Hospedagem ${stay.reservationId} · ${stay.guestName}`, value: balance, issueDate: new Date(), dueDate: new Date(dueDate), status: "pendente", category: "Hospedagem" } })
   }
-  await tx.stay.update({ where: { id: stay.id }, data: { status: "closed", endedAt: new Date() } })
+  await tx.stay.update({ where: { id: stay.id }, data: { status: "closed", endedAt: options ? new Date(options.historicalEnd + "T12:00:00Z") : new Date() } })
   await tx.reservation.update({ where: { id: stay.reservationId }, data: { status: "checkout" } })
+  if (!options) {
   await tx.roomConsumption.deleteMany({ where: { roomId: stay.roomId } })
   await tx.room.update({ where: { id: stay.roomId }, data: { status: "limpeza", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
+  }
   await touched(tx, actor, stay.id, "Check-out realizado", { balance, dueDate, corporate: balance > 0 })
 }
 export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload: unknown) {

@@ -37,6 +37,10 @@ export async function approvalReview(tx: Prisma.TransactionClient, actor: Actor,
   if (input.fee !== undefined) summary.push({ label: "Multa", value: money(input.fee) })
   if (input.treatment !== undefined) summary.push({ label: "Tratativa", value: ({ estorno: "Reembolso", multa: "Retenção de multa", credito: "Crédito para próxima estadia" } as Record<string, string>)[String(input.treatment)] ?? String(input.treatment) })
   if (input.reason) summary.push({ label: "Motivo", value: String(input.reason) })
+  if (input.cancellationReason) summary.push({ label: "Motivo do cancelamento", value: String(input.cancellationReason) })
+  if (input.financialReason) summary.push({ label: "Justificativa financeira", value: String(input.financialReason) })
+  if (input.decision) summary.push({ label: "Devolução", value: ({ refund: "Devolver recebido", retain: "Reter recebido", credit: "Converter em crédito" } as Record<string, string>)[String(input.decision)] ?? String(input.decision) })
+  if (input.refundValue !== undefined) summary.push({ label: "Valor a devolver", value: money(input.refundValue) })
   if (input.returnToStock !== undefined) summary.push({ label: "Devolução física ao estoque", value: input.returnToStock ? "Sim" : "Não" })
   return { resourceHash: await approvalResourceHash(tx, kind, payload), summary }
 }
