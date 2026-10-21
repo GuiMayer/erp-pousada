@@ -177,7 +177,7 @@ async function lodging(tx: Tx, q: ReportQuery, now: Date) {
     "Entrada inclusiva, saída exclusiva. Noite prestada somente após a virada do dia em America/Sao_Paulo; saída efetiva limita as noites prestadas.",
     "Ocupação usa quartos do catálogo atual × dias encerrados do período; bloqueios históricos não têm série completa e não são deduzidos.",
     "Reservas futuras, sinais e recebimentos de dívidas não elevam diárias prestadas. Valores acordados não são receitas recebidas.",
-    "Uma transferência de quarto conserva a diária e usa a alocação da noite. Rateio legado reconcilia centavos e é identificado como estimativa.",
+    "Uma transferência de quarto conserva a diária e usa a alocação da noite.",
   ];
   return out;
 }
@@ -252,7 +252,7 @@ async function beverages(tx: Tx, q: ReportQuery, now: Date) {
     });
   if (charges.some((c) => !c.productId))
     out.warnings.push(
-      "Há consumos legados sem produto: não é possível confirmar se todos são bebidas ou rastrear seu custo.",
+      "Há consumos sem produto vinculado; revise os lançamentos para identificar a bebida e seu custo.",
     );
   out.metrics = [
     metric(
@@ -426,7 +426,7 @@ async function inventory(tx: Tx, q: ReportQuery, now: Date) {
           source: { collection: "stockMovements", id: movement.id },
         });
         out.warnings.push(
-          `Movimento ${movement.id}: custo/origem legados fora do resultado por falta de rastreabilidade.`,
+          `Movimento ${movement.id}: custo fora do resultado porque sua origem não está identificada.`,
         );
       }
       continue;
@@ -555,7 +555,7 @@ async function finance(tx: Tx, q: ReportQuery, now: Date) {
       source: { collection: "transactions", id: t.id },
       details: {
         type: t.type,
-        originType: t.originType ?? "Legado/manual",
+        originType: t.originType ?? "Origem não informada",
         originId: t.originId ?? "",
         accountId: t.accountId ?? "Caixa/sem conta",
         paymentMethod: t.paymentMethod ?? "Sem meio",

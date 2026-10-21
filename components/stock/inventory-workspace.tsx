@@ -409,7 +409,7 @@ export function InventoryPanels({
                   {l.origin === "purchase"
                     ? "Recebimento de fornecedor"
                     : l.origin === "legacy"
-                      ? "Saldo legado"
+                      ? "Saldo sem lote"
                       : "Abertura"}{" "}
                   · {l.receivedAt.slice(0, 10)}
                   {l.reason && " · " + l.reason}

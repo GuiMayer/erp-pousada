@@ -170,10 +170,10 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
   if (kind === "stay-transfer") {
     const input = z.object({ ...target, roomId: z.number().int().positive(), effectiveDate: z.string().date(), reason, reprice: z.boolean().default(false) }).strict().parse(payload)
     const stay = await load(tx, input)
-    if (!stay.guestCount) throw new HttpError(409, "Ocupação legada desconhecida; regularize antes da troca")
+    if (!stay.guestCount) throw new HttpError(409, "Informe a quantidade de hóspedes antes da troca")
     if (input.effectiveDate !== businessDay() || input.effectiveDate < stay.checkIn.toISOString().slice(0,10) || input.effectiveDate >= stay.checkOut.toISOString().slice(0,10)) throw new HttpError(400, "Troca deve começar hoje, dentro da hospedagem")
     const room = await tx.room.findUniqueOrThrow({ where: { id: input.roomId } })
-    if (await tx.roomConsumption.count({ where: { roomId: room.id } })) throw new HttpError(409, "Destino possui consumo legado; regularize antes da troca")
+    if (await tx.roomConsumption.count({ where: { roomId: room.id } })) throw new HttpError(409, "O quarto de destino possui consumo sem hospedagem vinculada. Revise antes da troca")
     if (room.id === stay.roomId || room.status !== "disponivel" || !room.capacity || room.capacity < stay.guestCount) throw new HttpError(409, "Destino indisponível ou com capacidade insuficiente")
     const start = new Date(input.effectiveDate)
     if (await tx.reservation.count({ where: { id: { not: stay.reservationId }, roomId: room.id, status: { in: ["confirmada", "checkin"] }, checkIn: { lt: stay.checkOut }, checkOut: { gt: start } } })) throw new HttpError(409, "Destino possui reserva no período")
@@ -181,7 +181,7 @@ export async function stayOperation(tx: Tx, actor: Actor, kind: string, payload:
     if (input.reprice) {
       const quote = await serverQuote(tx, { roomId: room.id, guestCount: stay.guestCount, checkIn: input.effectiveDate, checkOut: stay.checkOut.toISOString().slice(0,10) })
       const previous = stay.nightlyPrices as Stay["nightlyPrices"]
-      if (!previous?.length) throw new HttpError(409, "Preço legado sem composição; preserve o valor acordado")
+      if (!previous?.length) throw new HttpError(409, "Composição das diárias não informada; preserve o valor acordado")
       const nights = [...previous.filter(n => n.date < input.effectiveDate), ...quote.nights]
       const agreedAdjustment = stay.lodgingValue.minus(new Prisma.Decimal(previous.reduce((s,n) => s + Math.round(n.total * 100), 0)).div(100))
       lodgingValue = new Prisma.Decimal(nights.reduce((s,n) => s + Math.round(n.total * 100), 0)).div(100).plus(agreedAdjustment)

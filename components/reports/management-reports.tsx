@@ -56,7 +56,7 @@ const labels: Record<string, string> = {
   perda: "Perda",
   "ajuste-inventario": "Diferença de inventário",
   "devolucao-fornecedor": "Devolução ao fornecedor",
-  "custo-legado": "Custo legado",
+  "custo-legado": "Custo sem origem identificada",
   "despesa-gerencial": "Despesa por vencimento",
   "entrada-realizada": "Entrada realizada",
   "saida-realizada": "Saída realizada",

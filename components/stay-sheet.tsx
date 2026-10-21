@@ -304,7 +304,7 @@ export function StaySheet({
                     <strong>
                       {payer?.name ??
                         stay.payerId ??
-                        "Cadastro legado sem pagador definido"}
+                        "Pagador não informado"}
                     </strong>
                   </p>
                   <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -422,7 +422,7 @@ export function StaySheet({
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Preço legado preservado; composição por noite não
+                      Composição das diárias não
                       registrada.
                     </p>
                   )}
@@ -575,8 +575,7 @@ export function StaySheet({
                     )}
                   {!stay.guestCount && (
                     <p className="text-sm text-muted-foreground">
-                      Quantidade legada desconhecida. Não foi inventada uma
-                      ocupação.
+                      Quantidade de hóspedes não informada.
                     </p>
                   )}
                 </section>
@@ -939,7 +938,7 @@ export function StaysList() {
             <p className="font-medium">{s.guestName}</p>
             <p className="text-sm">
               {customers.find((c) => c.id === s.payerId)?.name ??
-                "Pagador legado"}{" "}
+                "Pagador não informado"}{" "}
               · {s.status === "active" ? "Em andamento" : "Encerrada"}
             </p>
             <p className="text-sm">

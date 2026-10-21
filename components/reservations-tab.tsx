@@ -473,7 +473,7 @@ export function ReservationsTab() {
                   <DetailRow icon={<CalendarDays className="size-4" />} label="Check-out" value={formatDateBR(detailSheet.checkOut)} />
                   <Separator />
                   <DetailRow icon={<DollarSign className="size-4" />} label="Valor Total" value={formatCurrency(detailSheet.totalValue)} />
-                  <p className="text-sm">Pagador: {customers.find(c => c.id === detailSheet.payerId)?.name ?? 'Titular legado'} · Pessoas: {detailSheet.guestCount ?? 'não informadas no registro antigo'}</p>
+                  <p className="text-sm">Pagador: {customers.find(c => c.id === detailSheet.payerId)?.name ?? 'Pagador não informado'} · Pessoas: {detailSheet.guestCount ?? 'não informada'}</p>
                   {detailSheet.nightlyPrices && <LodgingQuotePreview result={{ quote: { nights: detailSheet.nightlyPrices, total: detailSheet.nightlyPrices.reduce((sum, n) => sum + n.total, 0) } }} />}
                   {detailSheet.priceExceptionReason && <p className="text-sm">Preço autorizado: {detailSheet.priceExceptionReason}</p>}
                   {detailSheet.cancelTreatment && (
