@@ -6,7 +6,7 @@ import { inventoryOperation } from './inventory-operations'
 import { issueStock,restoreStock } from './inventory-stock'
 import { ensureStay, roomStay, expectedRoomStay, stayOperation, finishStay, receiveStay, mapStay } from "./stays"
 import { stayBalance } from "@/lib/stays"
-import { ensureGuest } from "./contacts"
+import { ensureGuest, assertLodgingPayer } from "./contacts"
 import { agreedPrice } from "./lodging-pricing"
 import { requireVersion, retryDelay } from "./concurrency"
 import { logEvent, setLogOperation } from "./logging"
@@ -81,7 +81,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     for (const room of input.rooms) results.push(await applyOperation(tx, actor, "reserve", { ...room, payerId: input.payerId, cpf: input.cpf, guestName: input.guestName, checkIn: input.checkIn, checkOut: input.checkOut }))
     for (const result of results) await tx.reservation.update({ where: { id: (result as { id: string }).id }, data: { groupId } })
     await receiveBookingDeposit(tx, actor, results.map(result => (result as { id: string }).id), input.initialPayment)
-    return results
+    return Promise.all(results.map(async result => collectionMapper("reservations").toApp(await tx.reservation.findUniqueOrThrow({where:{id:(result as {id:string}).id}}))))
   }
   if (kind === "sale") {
     const { sale, globalDiscount } = saleInput.parse(payload)
@@ -177,6 +177,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (current?.paidValue.gt(0) && (current.cpf !== guest.cpf || (input.payerId !== undefined && input.payerId !== current.payerId))) throw new HttpError(409, "Reserva paga não permite trocar titular ou pagador sem conciliação")
     const payerId = input.payerId ?? current?.payerId ?? guest.customerId!
     await assertPayer(tx, payerId)
+    await assertLodgingPayer(tx, guest, payerId, current)
     const { recordVersion: _version, ...fields } = input
     const data = { ...fields, guestName: guest.name, cpf: guest.cpf, payerId, nightlyPrices, id: input.id || randomUUID(), checkIn, checkOut, roomNumber: room.number, originalValue }
     const result = kind === "reserve" ? await tx.reservation.create({ data }) : await tx.reservation.update({ where: { id: input.id }, data: { ...data, recordVersion: { increment: 1 } } })
@@ -416,6 +417,13 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
             if (kind === "record-completed-stay" || input.checkIn && input.checkIn < businessDay()) demand(actor, "hospitality.checkin.backdate")
             if (kind === "record-completed-stay") demand(actor, "hospitality.checkout")
             if (input.initialPayment) demand(actor, "hospitality.receive")
+          }
+          if (kind === "reserve-group" && (payload as {initialPayment?:unknown}).initialPayment) demand(actor, "hospitality.receive")
+          if (kind === "cancel-reservation") {
+            const input = payload as {reservationId:string;decision?:string;refundValue?:number;treatment?:string;fee?:number}
+            const reservation = await tx.reservation.findUniqueOrThrow({where:{id:input.reservationId}})
+            if (reservation.paidValue.gt(0)) demand({ ...actor, grantedPermissions: DELEGATABLE }, "reservations.paidCancel")
+            if (input.decision === "retain" || input.decision === "credit" || input.refundValue !== undefined && reservation.paidValue.gt(input.refundValue) || (input.fee ?? 0) > 0 || input.treatment === "credito") demand(actor,"reservations.feeCredit")
           }
           if (kind === "stay-extend") { demand(actor, "stays.read"); demand(actor, "rooms.read"); demand(actor, "lodgingTariffs.read") }
           if (kind === "settings-update" || kind === "settings-restore") demandSettings(actor, String((payload as {section?:unknown})?.section), true, kind === "settings-restore")

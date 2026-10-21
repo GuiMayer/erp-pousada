@@ -53,12 +53,14 @@ export async function seedDemo() {
     const guests = [["52998224725", "Hóspede Exemplo 1"], ["11144477735", "Hóspede Exemplo 2"], ["39053344705", "Hóspede Exemplo 3"]]
     for (let index = 0; index < guests.length; index++) {
       const [cpf, guestName] = guests[index]
-      const input = { roomId: index + 1, cpf, guestName, guestCount: 2, checkIn: day(-2), checkOut: day(index === 0 ? 0 : 2), totalValue: 0 }
+      const input = { roomId: index + 1, cpf, guestName, guestCount: 2, checkIn: day(-2), checkOut: day(index === 0 ? 1 : 2), totalValue: 0 }
       input.totalValue = (await serverQuote(tx, { roomId: input.roomId, guestCount: 2, checkIn: input.checkIn, checkOut: input.checkOut })).total
-      const reservation = await applyOperation(tx, actor, "reserve", input) as { id: string }
-      await applyOperation(tx, actor, "check-in", input)
+      const reservation = await applyOperation(tx, actor, "reserve", input) as { id: string; recordVersion: number; payerId: string }
+      await applyOperation(tx, actor, "check-in", { ...input, reservationId: reservation.id, recordVersion: reservation.recordVersion, payerId: reservation.payerId, reason: "Chegada anterior registrada nos exemplos" })
       await applyOperation(tx, actor, "pay-reservation", { reservationId: reservation.id, value: index === 0 ? 200 : input.totalValue, paymentMethod: "pix", accountId: "demo-bank" })
     }
+    const corporateGuest = await tx.guestProfile.findUniqueOrThrow({where:{cpf:guests[0][0]}})
+    await tx.customer.update({where:{id:corporateGuest.customerId!},data:{companyId:"demo-company"}})
     await applyOperation(tx, actor, "reserve", { roomId: 5, cpf: guests[0][0], guestName: guests[0][1], checkIn: day(0), checkOut: day(3), guestCount: 2, payerId: "demo-company", totalValue: 600 })
     await applyOperation(tx, actor, "reserve", { roomId: 6, cpf: guests[1][0], guestName: guests[1][1], checkIn: day(2), checkOut: day(5), guestCount: 2, totalValue: 600 })
     await applyOperation(tx, actor, "add-consumption", { roomId: 1, expectedStayId: (await tx.stay.findFirstOrThrow({ where: { roomId: 1, status: "active" } })).id, item: { id: "demo-consumption-item", label: "Água mineral", quantity: 2, unitPrice: 5 } })

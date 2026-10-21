@@ -101,6 +101,9 @@ export async function finishStay(tx: Tx, actor: Actor, stay: Loaded, dueDate?: s
   await tx.stay.update({ where: { id: stay.id }, data: { status: "closed", endedAt: options ? new Date(options.historicalEnd + "T12:00:00Z") : new Date() } })
   await tx.reservation.update({ where: { id: stay.reservationId }, data: { status: "checkout" } })
   if (!options) {
+    // A released room is available after the actual departure, not the old forecast.
+    const actualEnd = new Date(businessDay())
+    for (const allocation of stay.allocations) if (allocation.end > actualEnd) await tx.stayAllocation.update({ where: { id: allocation.id }, data: { end: allocation.start > actualEnd ? allocation.start : actualEnd } })
   await tx.roomConsumption.deleteMany({ where: { roomId: stay.roomId } })
   await tx.room.update({ where: { id: stay.roomId }, data: { status: "limpeza", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
   }

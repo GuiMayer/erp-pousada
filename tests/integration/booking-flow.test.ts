@@ -33,6 +33,58 @@ async function reservePaid(value = 100) {
 }
 
 describe("Atendimento de reservas, entradas e cancelamentos", () => {
+  it("entrada sem ID não escolhe nem duplica uma reserva existente", async () => {
+    await op("reserve", payload())
+    await expect(op("check-in", payload())).rejects.toMatchObject({ status: 409 })
+    expect(await prisma.reservation.count()).toBe(1)
+    expect(await prisma.stay.count()).toBe(0)
+  })
+  it("registro retroativo exige permissão efetiva, além do motivo", async () => {
+    await prisma.user.update({where:{id:actor.id},data:{permissionOverrides:{"hospitality.checkin.backdate":"deny"}}})
+    await expect(op("check-in", {...payload(-1,1),reason:"Registro esquecido"})).rejects.toMatchObject({status:403})
+    expect(await prisma.stay.count()).toBe(0)
+  })
+  it("cadastro permite somente pagador próprio ou empresa vinculada", async () => {
+    await expect(op("reserve", {...payload(),payerId:"company"})).rejects.toMatchObject({status:409})
+    await prisma.customer.update({where:{id:"person"},data:{companyId:"company"}})
+    await op("reserve", {...payload(),payerId:"company"})
+    expect((await prisma.reservation.findFirstOrThrow()).payerId).toBe("company")
+  })
+  it("correção do documento preserva a identidade da reserva no check-in", async () => {
+    const r = await reservePaid(0)
+    await prisma.customer.update({where:{id:"person"},data:{cpfCnpj:"11144477735"}})
+    await op("check-in", {...payload(),cpf:"11144477735",reservationId:r.id,recordVersion:r.recordVersion})
+    expect((await prisma.stay.findFirstOrThrow()).reservationId).toBe(r.id)
+  })
+  it("sinal misto de grupo é distribuído uma vez e devolvido nas origens", async () => {
+    await prisma.room.create({data:{id:2,number:"102",type:"Standard",capacity:2,status:"disponivel"}})
+    await op("cash-open", {openingValue:100})
+    const {roomId,guestCount,totalValue,...identity} = payload()
+    const result = await op("reserve-group", {...identity,rooms:[{roomId,guestCount,totalValue},{roomId:2,guestCount,totalValue}],initialPayment:{value:300,payments:[{method:"pix",value:120,accountId:"bank"},{method:"dinheiro",value:180}]}}) as {id:string;paidValue:number;recordVersion:number}[]
+    expect(result.map(r=>r.paidValue)).toEqual([200,100])
+    for(const r of result) await op("cancel-reservation",{reservationId:r.id,recordVersion:r.recordVersion,decision:"refund"})
+    expect(Number((await prisma.bankAccount.findUniqueOrThrow({where:{id:"bank"}})).currentBalance)).toBe(1000)
+    const movements=await prisma.transaction.findMany({where:{type:"estorno"}})
+    expect(movements.reduce((sum,t)=>sum+Number(t.value),0)).toBe(300)
+    expect(movements.every(t=>!!t.reversalOfId)).toBe(true)
+  })
+  it("crédito pessoal retorna ao titular sem virar dinheiro", async () => {
+    const r = await reservePaid(0)
+    await prisma.guestProfile.update({where:{cpf:r.cpf},data:{creditValue:100}})
+    await op("pay-reservation", {reservationId:r.id,value:100,paymentMethod:"credito_hospede"})
+    const current=await prisma.reservation.findUniqueOrThrow({where:{id:r.id}})
+    await op("cancel-reservation",{reservationId:r.id,recordVersion:current.recordVersion,decision:"refund"})
+    expect(Number((await prisma.guestProfile.findUniqueOrThrow({where:{cpf:r.cpf}})).creditValue)).toBe(100)
+    expect(await prisma.transaction.count({where:{type:"estorno"}})).toBe(0)
+    expect((await prisma.transaction.findFirstOrThrow({where:{type:"credito_concedido"}})).reversalOfId).toBeTruthy()
+  })
+  it("erro na conta de devolução preserva reserva e pagamentos", async () => {
+    const r=await reservePaid()
+    await prisma.bankAccount.update({where:{id:"bank"},data:{active:false}})
+    await expect(op("cancel-reservation",{reservationId:r.id,recordVersion:r.recordVersion,decision:"refund"})).rejects.toMatchObject({status:409})
+    expect((await prisma.reservation.findUniqueOrThrow({where:{id:r.id}})).status).toBe("confirmada")
+    expect(await prisma.transaction.count({where:{type:"estorno"}})).toBe(0)
+  })
   it("recusa entrada futura antes de qualquer escrita", async () => {
     await expect(op("check-in", payload(1, 3))).rejects.toMatchObject({ status: 400 })
     expect(await prisma.reservation.count()).toBe(0)

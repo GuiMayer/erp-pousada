@@ -10,6 +10,11 @@ import type { Customer } from "@/lib/store"
 
 type Tx = Prisma.TransactionClient
 type Row = Record<string, unknown>
+export async function assertLodgingPayer(tx: Tx, guest: { cpf: string; customerId: string | null }, payerId: string, current?: { cpf: string; payerId: string | null } | null) {
+  if (current?.cpf === guest.cpf && current.payerId === payerId) return
+  const person = guest.customerId ? await tx.customer.findUnique({ where: { id: guest.customerId } }) : null
+  if (!person || payerId !== person.id && payerId !== person.companyId) throw new HttpError(409, "O pagador deve ser o hóspede ou sua empresa vinculada no cadastro")
+}
 export const contactRoles = z.array(z.enum(["guest", "payer", "supplier"])).min(1).max(3)
 const rolesOf = (value: unknown) => contactRoles.parse(value ?? ["payer"])
 

@@ -133,7 +133,8 @@ async function start() {
     paymentMethod: "pix",
     accountId: "ext-bank",
   });
-  await op("check-in", payload);
+  const booking = await prisma.reservation.findUniqueOrThrow({where:{id:r.id}});
+  await op("check-in", {...payload,reservationId:r.id,recordVersion:booking.recordVersion,payerId:booking.payerId});
   return current();
 }
 async function extension(stay: Stay, out = date(4)) {

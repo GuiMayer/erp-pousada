@@ -1,3 +1,4 @@
+import { businessDay } from "@/lib/utils/business-values"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
 import { randomUUID } from "node:crypto"
 import { prisma } from "@/lib/db/client"
@@ -47,7 +48,8 @@ describe("Sprint 1 no PostgreSQL", () => {
     await createCollectionItem("lodgingTariffs", { ...base, id: `${prefix}-two`, name: "Duas pessoas", minGuests: 2, maxGuests: 3, pricePerPerson: 100 }, actor)
   })
   it("calcula no servidor, guarda pagador e preço por noite e bloqueia valor adulterado", async () => {
-    const payload = { roomId, cpf: guestCpf, guestName: "Hóspede Exemplo", payerId: companyId, guestCount: 2, checkIn: "2026-10-09", checkOut: "2026-10-11", totalValue: 400 }
+    await prisma.customer.update({where:{id:guestId},data:{companyId}})
+    const payload = { roomId, cpf: guestCpf, guestName: "Hóspede Exemplo", payerId: companyId, guestCount: 2, checkIn: businessDay(), checkOut: new Date(Date.parse(businessDay())+172800000).toISOString().slice(0,10), totalValue: 400 }
     await expect(executeOperation(actor, randomUUID(), "reserve", { ...payload, totalValue: 1 })).rejects.toThrow("Tarifa alterada")
     await expect(executeOperation(actor, randomUUID(), "reserve", { ...payload, guestCount: 4 })).rejects.toThrow("lotação")
     const reservation = await executeOperation(actor, randomUUID(), "reserve", payload) as { id: string; totalValue: number; nightlyPrices: unknown[] }
@@ -60,7 +62,7 @@ describe("Sprint 1 no PostgreSQL", () => {
     await updateCollectionItem("lodgingTariffs", t.id, { recordVersion: t.recordVersion, pricePerPerson: 150 }, actor)
     const stay = await prisma.reservation.findUniqueOrThrow({ where: { id: reservationId } })
     expect(Number(stay.totalValue)).toBe(400)
-    await executeOperation(actor, randomUUID(), "check-in", { roomId, cpf: guestCpf, guestName: "Hóspede Exemplo", guestCount: 2, payerId: companyId, checkIn: "2026-10-09", checkOut: "2026-10-11", totalValue: 400 })
+    await executeOperation(actor, randomUUID(), "check-in", { reservationId, recordVersion: stay.recordVersion, roomId, cpf: guestCpf, guestName: "Hóspede Exemplo", guestCount: 2, payerId: companyId, checkIn: businessDay(), checkOut: new Date(Date.parse(businessDay())+172800000).toISOString().slice(0,10), totalValue: 400 })
     expect(Number((await prisma.reservation.findUniqueOrThrow({ where: { id: reservationId } })).totalValue)).toBe(400)
   })
   it("corrigir documento conserva ID, créditos e reservas do hóspede", async () => {

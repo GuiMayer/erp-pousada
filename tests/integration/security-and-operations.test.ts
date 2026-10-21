@@ -1,3 +1,5 @@
+import { businessDay } from "@/lib/utils/business-values"
+const bookingDay = (offset = 0) => new Date(Date.parse(businessDay()) + offset * 86400000).toISOString().slice(0,10)
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest"
 import { randomUUID } from "node:crypto"
 import bcrypt from "bcryptjs"
@@ -31,7 +33,7 @@ beforeAll(async () => {
   await prisma.productCategory.create({ data: { id: "category", name: "Bebidas", color: "blue", icon: "Cup", active: true } })
   await prisma.pOSProduct.create({ data: { id: "product", name: "Água", categoryId: "category", price: 10, trackStock: true } })
   await prisma.stockItem.create({ data: { id: "stock", productId: "product", productName: "Água", currentStock: 10, minimumStock: 1, maximumStock: 100, lastPurchasePrice: 2, unit: "un", averageCost: 2 } })
-  await prisma.room.create({ data: { id: 1, number: "101", type: "casal", status: "disponivel",  } })
+  await prisma.room.create({ data: { id: 1, number: "101", type: "casal", status: "disponivel", capacity: 2 } })
 })
 afterAll(async () => { await prisma.$disconnect() })
 beforeEach(async () => {
@@ -121,11 +123,11 @@ describe("Proteção das APIs e integridade de operações", () => {
   it("hospedagem impede saída com consumo e grava pagamento antes do check-out", async () => {
     await prisma.room.update({ where: { id: 1 }, data: { status: "disponivel", guest: null, guestCpf: null, checkIn: null, checkOut: null } })
     const operator = { ...actor, role: "operador" as const }
-    const legacyStay = { roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2026-10-07", checkOut: "2026-10-09", totalValue: 300 }
-    await executeOperation(actor, randomUUID(), "reserve", legacyStay)
-    await executeOperation(operator, randomUUID(), "check-in", legacyStay)
+    const currentStay = { roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: bookingDay(), checkOut: bookingDay(2), totalValue: 300, guestCount: 1, priceExceptionReason: "Valor acordado no teste" }
+    const booking = await executeOperation(actor, randomUUID(), "reserve", currentStay) as {id:string;recordVersion:number;payerId:string}
+    await executeOperation(operator, randomUUID(), "check-in", {...currentStay,reservationId:booking.id,recordVersion:booking.recordVersion,payerId:booking.payerId})
     const rooms = await getCollection("rooms")
-    expect(rooms[0]).toHaveProperty("checkOut", "2026-10-09")
+    expect(rooms[0]).toHaveProperty("checkOut", bookingDay(2))
     await executeOperation(operator, randomUUID(), "add-consumption", { roomId: 1, expectedStayId: (await prisma.stay.findFirstOrThrow({ where: { roomId: 1, status: "active" } })).id, item: { id: randomUUID(), label: "Água", unitPrice: 1, quantity: 1 } })
     await expect(executeOperation(operator, randomUUID(), "check-out", { roomId: 1 })).rejects.toMatchObject({ status: 409 })
     await executeOperation(operator, randomUUID(), "pay-consumption", { roomId: 1, expectedStayId: (await prisma.stay.findFirstOrThrow({ where: { roomId: 1, status: "active" } })).id, recordVersion: (await prisma.stay.findFirstOrThrow({ where: { roomId: 1, status: "active" } })).recordVersion, paymentMethod: "pix" })
@@ -179,7 +181,7 @@ describe("Proteção das APIs e integridade de operações", () => {
   })
   it("desconto recalcula reserva e exige aprovação acima do teto", async () => {
     const reservationId = randomUUID()
-    await executeOperation(actor, randomUUID(), "reserve", { id: reservationId, roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2026-10-20", checkOut: "2026-10-22", totalValue: 100 })
+    await executeOperation(actor, randomUUID(), "reserve", { id: reservationId, roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2026-10-20", checkOut: "2026-10-22", totalValue: 100, guestCount: 1, priceExceptionReason: "Valor acordado no teste" })
     const payload = { reservationId, type: "percent", value: 10 }
     await expect(executeOperation({ ...actor, role: "operador" }, randomUUID(), "reservation-discount", payload)).rejects.toMatchObject({ status: 403 })
     const key = randomUUID()
@@ -222,10 +224,10 @@ const operator = () => ({ ...actor, role: "operador" as const, approvedUntil: nu
 const operate = (kind: string, payload: unknown, as = actor) => executeOperation(as, randomUUID(), kind, payload)
 async function newRoom() {
   const id = ++nextRoom
-  return prisma.room.create({ data: { id, number: `T${id}`, type: "casal", status: "disponivel" } })
+  return prisma.room.create({ data: { id, number: `T${id}`, type: "casal", status: "disponivel", capacity: 2 } })
 }
 async function reserve(roomId: number, totalValue = 100) {
-  const payload = { id: randomUUID(), roomId, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2030-10-20", checkOut: "2030-10-22", totalValue }
+  const payload = { id: randomUUID(), roomId, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: "2030-10-20", checkOut: "2030-10-22", totalValue, guestCount: 1, priceExceptionReason: "Valor acordado no teste" }
   await operate("reserve", payload)
   return payload
 }
@@ -251,7 +253,7 @@ describe("Regressões das regras de negócio", () => {
   })
   it("dois recebimentos parciais com a mesma versão têm apenas um efeito", async () => {
     const room = await newRoom()
-    await operate("check-in", { roomId: room.id, cpf: "52998224725", guestName: "Concorrência", checkIn: "2031-01-01", checkOut: "2031-01-03", totalValue: 300 })
+    await operate("check-in", { roomId: room.id, cpf: "52998224725", guestName: "Concorrência", checkIn: bookingDay(), checkOut: bookingDay(2), totalValue: 300, guestCount: 1, priceExceptionReason: "Valor acordado no teste" })
     const stay = await prisma.reservation.findFirstOrThrow({ where: { roomId: room.id } })
     const payload = { reservationId: stay.id, recordVersion: stay.recordVersion, value: 100, paymentMethod: "pix" }
     const results = await Promise.allSettled([operate("pay-reservation", payload), operate("pay-reservation", payload)])
@@ -265,7 +267,7 @@ describe("Regressões das regras de negócio", () => {
 
   it("exige quitação da hospedagem mesmo sem consumo e aceita pagamentos parciais", async () => {
     const room = await newRoom()
-    await operate("check-in", { roomId: room.id, cpf: "52998224725", guestName: "Teste", checkIn: "2030-01-01", checkOut: "2030-01-03", totalValue: 300 })
+    await operate("check-in", { roomId: room.id, cpf: "52998224725", guestName: "Teste", checkIn: bookingDay(), checkOut: bookingDay(2), totalValue: 300, guestCount: 1, priceExceptionReason: "Valor acordado no teste" })
     const stay = await prisma.reservation.findFirstOrThrow({ where: { roomId: room.id } })
     await operate("pay-reservation", { reservationId: stay.id, value: 100, paymentMethod: "pix" }, operator())
     await expect(operate("check-out", { roomId: room.id })).rejects.toMatchObject({ status: 409 })
@@ -287,7 +289,7 @@ describe("Regressões das regras de negócio", () => {
     await prisma.guestProfile.update({ where: { cpf: "52998224725" }, data: { creditValue: 0 } })
     const first = await reserve((await newRoom()).id)
     await operate("pay-reservation", { reservationId: first.id, value: 100, paymentMethod: "pix" })
-    const cancellation = { reservationId: first.id, treatment: "credito", fee: 20 }
+    const cancellation = { reservationId: first.id, treatment: "credito", fee: 20, financialReason: "Retencao acordada com o cliente" }
     await expect(operate("cancel-reservation", cancellation, operator())).rejects.toMatchObject({ status: 403 })
     await operate("cancel-reservation", cancellation)
     expect(Number((await prisma.guestProfile.findUniqueOrThrow({ where: { cpf: first.cpf } })).creditValue)).toBe(80)
@@ -304,7 +306,7 @@ describe("Regressões das regras de negócio", () => {
     await operate("pay-reservation", { reservationId: reservation.id, value: 100, paymentMethod: "pix" })
     const receipt = await prisma.transaction.findFirstOrThrow({ where: { type: "receita" } })
     await expect(operate("refund-transaction", { transactionId: receipt.id })).rejects.toMatchObject({ status: 409 })
-    await operate("cancel-reservation", { reservationId: reservation.id, treatment: "multa", fee: 20 })
+    await operate("cancel-reservation", { reservationId: reservation.id, treatment: "multa", fee: 20, financialReason: "Retencao acordada com o cliente" })
     expect(Number((await prisma.bankAccount.findUniqueOrThrow({ where: { id: "test-bank" } })).currentBalance)).toBe(1020)
     expect(Number((await prisma.transaction.findFirstOrThrow({ where: { type: "estorno" } })).value)).toBe(80)
   })
@@ -322,7 +324,7 @@ describe("Regressões das regras de negócio", () => {
   it("grupo é atômico e recusa datas bloqueadas sem impedir disponibilidade futura", async () => {
     const first = await newRoom(), blocked = await newRoom()
     await prisma.room.update({ where: { id: blocked.id }, data: { status: "bloqueado", blockEndDate: new Date("2030-10-21") } })
-    const payload = { rooms: [{ roomId: first.id, totalValue: 100 }, { roomId: blocked.id, totalValue: 100 }], cpf: "52998224725", guestName: "Teste", checkIn: "2030-10-20", checkOut: "2030-10-22" }
+    const payload = { rooms: [{ roomId: first.id, totalValue: 100, guestCount: 1, priceExceptionReason: "Valor acordado no teste" }, { roomId: blocked.id, totalValue: 100, guestCount: 1, priceExceptionReason: "Valor acordado no teste" }], cpf: "52998224725", guestName: "Teste", checkIn: "2030-10-20", checkOut: "2030-10-22" }
     await expect(operate("reserve-group", payload)).rejects.toMatchObject({ status: 409 })
     expect(await prisma.reservation.count({ where: { roomId: first.id } })).toBe(0)
     await operate("reserve-group", { ...payload, checkIn: "2030-10-22", checkOut: "2030-10-24" })

@@ -26,7 +26,7 @@ beforeEach(async () => {
   await prisma.bankAccount.deleteMany()
   await prisma.room.createMany({ data: [1,2,3].map(id => ({ id, number: 'S2-'+id, type: 'casal', status: 'disponivel', capacity: id === 3 ? 1 : 2 })) })
   await createCollectionItem('customers',{ id: 's2-company', name:'Empresa S2', cpfCnpj:'11222333000181', active:true, roles:['payer'] },actor)
-  await createCollectionItem('customers',{ id: 's2-person', name:'Pessoa S2', cpfCnpj:'52998224725', active:true, roles:['guest','payer'] },actor)
+  await createCollectionItem('customers',{ id: 's2-person', companyId: 's2-company', name:'Pessoa S2', cpfCnpj:'52998224725', active:true, roles:['guest','payer'] },actor)
   await prisma.lodgingTariff.create({ data:{id:'s2-tariff',name:'Duas pessoas',roomType:'casal',minGuests:1,maxGuests:2,pricePerPerson:100,validFrom:new Date(next(-30))} })
   await prisma.productCategory.create({data:{id:'s2-beverages',name:'Bebidas',icon:'Cup',color:'blue'}})
   await prisma.pOSProduct.create({data:{id:'s2-drink',name:'Água S2',price:12,categoryId:'s2-beverages',trackStock:true}})
@@ -40,7 +40,8 @@ async function start(company=true, deposit=0) {
   const payload={roomId:1,cpf:'52998224725',guestName:'Pessoa S2',guestCount:2,payerId:company?'s2-company':'s2-person',checkIn:day,checkOut:next(2),totalValue:400}
   const r = await op('reserve',payload) as {id:string}
   if(deposit) await op('pay-reservation',{reservationId:r.id,value:deposit,paymentMethod:'pix',accountId:'s2-bank'})
-  await op('check-in',payload)
+  const booking = await prisma.reservation.findUniqueOrThrow({where:{id:r.id}})
+  await op('check-in',{...payload,reservationId:r.id,recordVersion:booking.recordVersion,payerId:booking.payerId})
   await op('add-consumption',{roomId:1,expectedStayId:(await prisma.stay.findFirstOrThrow({where:{roomId:1,status:'active'}})).id,item:{id:randomUUID(),productId:'s2-drink',label:'nome adulterado',unitPrice:1,quantity:2}})
   return current()
 }

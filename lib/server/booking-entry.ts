@@ -5,7 +5,7 @@ import { isCPF, normalizeDocument } from "@/lib/utils/cpf-cnpj-validator"
 import { businessDay } from "@/lib/utils/business-values"
 import { checkinDateError } from "@/lib/booking-flow"
 import type { NightlyPrice } from "@/lib/lodging-pricing"
-import { ensureGuest } from "./contacts"
+import { ensureGuest, assertLodgingPayer } from "./contacts"
 import { ensureStay, finishStay, stayInclude } from "./stays"
 import { recordAudit } from "./audit"
 import { demand } from "./permissions"
@@ -51,13 +51,12 @@ export async function bookingEntry(tx: Prisma.TransactionClient, actor: Actor, k
   if (!completed && await tx.roomConsumption.count({ where: { roomId: room.id } })) throw new HttpError(409, "Revise os consumos sem hospedagem antes de ocupar o quarto")
   const start = new Date(input.checkIn), end = new Date(input.checkOut)
   if (!completed && room.status === "bloqueado") throw new HttpError(409, "Quarto bloqueado")
-  const exact = input.reservationId ? [] : await tx.reservation.findMany({ where: { roomId: room.id, cpf: input.cpf, status: "confirmada", checkIn: start, checkOut: end }, take: 2 })
-  if (exact.length > 1) throw new HttpError(409, "Escolha a reserva que será atendida")
-  const existing = input.reservationId ? await tx.reservation.findUniqueOrThrow({ where: { id: input.reservationId } }) : exact[0]
-  if (input.reservationId) requireVersion(input.recordVersion, existing.recordVersion)
+  const existing = input.reservationId ? await tx.reservation.findUniqueOrThrow({ where: { id: input.reservationId } }) : undefined
+  if (input.reservationId) requireVersion(input.recordVersion, existing!.recordVersion)
   if (existing) {
     demand(actor, "reservations.read")
-    if (existing.status !== "confirmada" || existing.roomId !== room.id || existing.cpf !== input.cpf || existing.checkOut.getTime() !== end.getTime()) throw new HttpError(409, "A reserva mudou. Revise os dados antes da entrada")
+    const identity = await tx.guestProfile.findUnique({where:{cpf:existing.cpf},include:{customer:true}})
+    if (existing.status !== "confirmada" || existing.roomId !== room.id || existing.cpf !== input.cpf && identity?.customer?.cpfCnpj !== input.cpf || existing.checkOut.getTime() !== end.getTime()) throw new HttpError(409, "A reserva mudou. Revise os dados antes da entrada")
     if (existing.checkIn.toISOString().slice(0, 10) > today) throw new HttpError(409, "A reserva prevê entrada futura. Edite o período antes de antecipar a chegada")
     if (input.checkIn < existing.checkIn.toISOString().slice(0, 10)) throw new HttpError(409, "Edite a reserva antes de antecipar a chegada prevista")
     if (!existing.totalValue.equals(input.totalValue) || input.guestCount !== existing.guestCount || input.payerId !== existing.payerId) throw new HttpError(409, "Edite a reserva para alterar preço, ocupação ou pagador")
@@ -70,6 +69,7 @@ export async function bookingEntry(tx: Prisma.TransactionClient, actor: Actor, k
   const payerId = existing?.payerId ?? input.payerId ?? guest.customerId!
   const payer = await tx.customer.findUnique({ where: { id: payerId } })
   if (!payer?.active || !(payer.roles as string[]).includes("payer")) throw new HttpError(409, "Selecione um pagador ativo")
+  await assertLodgingPayer(tx, guest, payerId, existing)
   const prices = existing ? existing.nightlyPrices ?? undefined : await agreedPrice(tx, actor, input)
   const reservation = existing ? await tx.reservation.update({ where: { id: existing.id }, data: { status: "checkin", recordVersion: { increment: 1 } } }) :
     await tx.reservation.create({ data: { id: randomUUID(), roomId: room.id, roomNumber: room.number, cpf: guest.cpf, guestName: guest.name, guestCount: input.guestCount, payerId, checkIn: start, checkOut: end, status: "checkin", totalValue: input.totalValue, originalValue: input.totalValue, nightlyPrices: prices, priceExceptionReason: input.priceExceptionReason } })

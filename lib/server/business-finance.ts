@@ -141,7 +141,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
         const value = Prisma.Decimal.min(receipt.value, remaining)
         if (receipt.type === "credito_utilizado") {
           await tx.guestProfile.update({ where: { cpf: reservation.cpf }, data: { creditValue: { increment: value } } })
-          await recordLedger(tx, actor, `Crédito devolvido ${reservation.id}`, value, "credito_concedido")
+          await recordLedger(tx, actor, `Crédito devolvido ${reservation.id}`, value, "credito_concedido", undefined, undefined, { originType: "reservation-credit-refund", originId: reservation.id, reversalOfId: receipt.id })
         } else {
           const previous = await tx.transaction.aggregate({ where: { reversalOfId: receipt.id }, _sum: { value: true } })
           const available = receipt.value.minus(previous._sum.value ?? 0)
