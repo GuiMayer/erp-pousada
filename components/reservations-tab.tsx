@@ -18,6 +18,8 @@ import { Card, CardContent } from "./ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "./ui/dropdown-menu"
+import { MoreHorizontal, Pencil, XCircle, UserX } from "lucide-react"
 const labels = { confirmada: "Confirmada", checkin: "Hospedado", checkout: "Encerrada", cancelada: "Cancelada", noshow: "Ausência" }
 const date = (value: string) => value.split("-").reverse().join("/")
 
@@ -34,12 +36,21 @@ export function ReservationsTab() {
   const cancelEligible = (r: Reservation) => r.status === "confirmada" && can("reservations.cancel")
   const entryRoom = rooms.find(r => r.id === entry?.roomId)
   function actions(r: Reservation) {
-    return <div className="flex flex-wrap justify-end gap-1">
+    const mayEdit = r.status === "confirmada" && can("reservations.edit")
+    const mayCancel = cancelEligible(r)
+    const mayMarkAbsent = mayCancel && noShowEligible(r.checkIn, systemSettings.checkInTime)
+    return <div className="flex flex-wrap items-center justify-end gap-2" onClick={event => event.stopPropagation()}>
       {entryEligible(r) && <Button size="sm" onClick={() => { setEntry(r); setDetailId(null) }}>Fazer check-in</Button>}
       <ReservationPaymentButton reservation={r} />
-      {r.status === "confirmada" && can("reservations.edit") && <Button size="sm" variant="outline" onClick={() => { setForm(r); setDetailId(null) }}>Editar</Button>}
-      {cancelEligible(r) && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { setCancel({ reservation: r, noShow: false }); setDetailId(null) }}>Cancelar</Button>}
-      {cancelEligible(r) && noShowEligible(r.checkIn, systemSettings.checkInTime) && <Button size="sm" variant="ghost" onClick={() => { setCancel({ reservation: r, noShow: true }); setDetailId(null) }}>No-show</Button>}
+      {(mayEdit || mayCancel) && <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-11 shrink-0 sm:size-9" aria-label={`Mais ações da reserva ${r.id}`} title="Mais ações"><MoreHorizontal className="size-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Quarto {r.roomNumber} · Reserva</DropdownMenuLabel>
+          {mayEdit && <DropdownMenuItem onSelect={() => { setForm(r); setDetailId(null) }}><Pencil className="size-4" />Editar reserva</DropdownMenuItem>}
+          {mayMarkAbsent && <DropdownMenuItem onSelect={() => { setCancel({reservation:r,noShow:true}); setDetailId(null) }}><UserX className="size-4" />Registrar ausência</DropdownMenuItem>}
+          {mayCancel && <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onSelect={() => { setCancel({reservation:r,noShow:false}); setDetailId(null) }}><XCircle className="size-4" />Cancelar reserva</DropdownMenuItem></>}
+        </DropdownMenuContent>
+      </DropdownMenu>}
     </div>
   }
   return <div className="space-y-6 animate-fade-in">

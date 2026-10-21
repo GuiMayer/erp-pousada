@@ -204,6 +204,8 @@ Separar os commits por tarefa. Uma etapa só é concluída quando servidor, inte
 
 O atendimento compartilhado é `BookingForm`, utilizado na criação, edição e entrada. A lista e os detalhes da reserva oferecem **Fazer check-in** para chegadas previstas até hoje. O mapa preenche a única reserva elegível ou pede escolha quando há ambiguidade. Alterar as condições dentro da confirmação retorna ao check-in com a nova versão da reserva. Quarto não preparado é informado antes da confirmação.
 
+Na lista e nos detalhes, somente **Fazer check-in** e **Receber hospedagem** permanecem como ações diretas. **Editar reserva**, **Registrar ausência** e **Cancelar reserva** ficam no menu **Mais ações**, com identificação acessível da reserva e alvos de toque de 44 px no celular. O menu respeita as permissões do usuário, só oferece ausência quando o dia/horário permitem e não aparece quando não há ações secundárias disponíveis. Abrir o menu não abre os detalhes da linha por propagação do clique.
+
 Os comandos operacionais confirmam no PostgreSQL com transação serializável, versão e recibo idempotente. A entrada de uma reserva exige ID explícito; uma entrada avulsa não escolhe outra reserva silenciosamente. As validações verificam períodos reais de alocação, inclusive hospedagens encerradas. A saída antecipada encerra a alocação na data efetiva, sem apagar o preço acordado; a transferência de quarto conserva a entrada prevista original.
 
 O pagador de um novo atendimento é a pessoa ou a empresa vinculada em seu cadastro, com validação também no servidor. Alterar esse vínculo posteriormente não muda o responsável já confirmado. Recebimentos impedem trocar titular/pagador sem conciliação.
@@ -216,8 +218,8 @@ A demonstração no navegador executa comandos em uma cópia isolada antes de pu
 
 Validação executada nesta entrega:
 
-- 426 testes de interface e domínio, incluindo comportamento do formulário e comandos da demonstração.
-- 222 testes de integração no PostgreSQL exclusivo `erp_test`, incluindo devoluções por múltiplos meios, concorrência, permissões, retroativos, disponibilidade e relatórios.
+- 434 testes de interface e domínio, incluindo reagendamento sem duplicação, saída efetiva separada, permissões do menu e comandos da demonstração.
+- 227 testes de integração no PostgreSQL exclusivo `erp_test`, incluindo devoluções por múltiplos meios, concorrência, permissões, retroativos, disponibilidade e relatórios.
 - Verificação de tipos, análise estática e build de produção em diretório isolado.
 - Navegador em 390 × 844 e desktop: cadastro rápido, criação, edição de quarto sem sair do atendimento, entrada e cancelamento com motivo consultável nos detalhes.
 

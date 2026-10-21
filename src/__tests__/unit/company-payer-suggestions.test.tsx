@@ -15,19 +15,20 @@ const people: Customer[] = [
 ]
 const room: Room = { id: 1, number: "101", type: "casal", status: "disponivel", capacity: 2, timeline: [] }
 const runOperation = vi.fn()
+const denied = new Set<string>()
 const app = {
   customers: people, rooms: [room], guests: [{ cpf: "52998224725", customerId: "person", name: "Pessoa A", totalStays: 1, avgTicket: 120, noShows: 0 }],
   reservations: [] as Reservation[], lodgingTariffs: [{ id: "tariff", name: "Padrão", roomType: "casal", minGuests: 1, maxGuests: 2, pricePerPerson: 120, validFrom: "2020-01-01", active: true }],
   transactions: [] as Transaction[], stays: [], bankAccounts: [], cashCloses: [], systemSettings: {checkInTime: "14:00"}, runOperation, findGuest: (cpf: string) => app.guests.find(g => g.cpf === cpf),
 }
 vi.mock("@/lib/app-context", () => ({ useApp: () => app }))
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ can: () => true, username: "Teste" }) }))
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ can: (permission: string) => !denied.has(permission), username: "Teste" }) }))
 vi.mock("@/lib/notification-context", () => ({ useNotifications: () => ({ sendNotification: vi.fn() }) }))
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }))
 vi.mock("@/lib/data/config", () => ({ getDataConfig: () => ({ adapter: "database" }) }))
 vi.mock("@/components/reservation-payment-button", () => ({ ReservationPaymentButton: () => null }))
 vi.mock("@/components/customer-combobox", () => ({ CustomerCombobox: ({ purpose = "payer", value, onChange }: { purpose?: string; value: string; onChange: (id: string, name: string, person: Customer) => void }) => <select aria-label={purpose === "guest" ? "Selecionar hóspede" : "Selecionar pagador"} value={value ?? ""} onChange={e => { const person = people.find(p => p.id === e.target.value)!; onChange(person.id, person.name, person) }}><option value="">Selecione</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> }))
-beforeEach(() => { runOperation.mockReset(); app.reservations = []; app.rooms = [room]; app.transactions = [] })
+beforeEach(() => { runOperation.mockReset(); denied.clear(); app.reservations = []; app.rooms = [room]; app.transactions = [] })
 describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
   it("oferece pagamento particular somente para pessoa vinculada e redefine ao trocar o CPF", () => {
     render(<ReservationsTab />)
@@ -83,6 +84,37 @@ describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
 
 const booking = (patch: Partial<Reservation> = {}): Reservation => ({ id: "reservation", recordVersion: 3, roomId: 1, roomNumber: "101", cpf: "52998224725", guestName: "Pessoa A", payerId: "company", guestCount: 1, totalValue: 120, status: "confirmada", checkIn: businessDay(), checkOut: new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10), ...patch })
 describe("Atendimento compartilhado", () => {
+  it("mantém entrada direta e recolhe editar, cancelar e ausência em um menu", async () => {
+    const past = new Date(Date.parse(businessDay()) - 86400000).toISOString().slice(0,10)
+    app.reservations = [booking({checkIn:past})]
+    render(<ReservationsTab />)
+    expect(screen.getByRole("button", {name:"Fazer check-in"})).toBeVisible()
+    expect(screen.queryByRole("button", {name:"Editar"})).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", {name:"Cancelar"})).not.toBeInTheDocument()
+    fireEvent.pointerDown(screen.getByRole("button", {name:"Mais ações da reserva reservation"}), {button:0,ctrlKey:false,pointerType:"mouse"})
+    await waitFor(() => expect(screen.getByRole("menuitem", {name:"Editar reserva"})).toBeVisible())
+    expect(screen.getByRole("menuitem", {name:"Registrar ausência"})).toBeVisible()
+    fireEvent.click(screen.getByRole("menuitem", {name:"Cancelar reserva"}))
+    await waitFor(() => expect(screen.getByRole("dialog", {name:"Cancelar reserva"})).toBeVisible())
+    expect(screen.queryByRole("dialog", {name:/Reserva ·/})).not.toBeInTheDocument()
+  })
+  it("o menu respeita permissões e não oferece ausência para reserva futura", async () => {
+    denied.add("reservations.edit")
+    const future = new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0,10)
+    app.reservations = [booking({checkIn:future})]
+    render(<ReservationsTab />)
+    fireEvent.pointerDown(screen.getByRole("button", {name:"Mais ações da reserva reservation"}), {button:0,ctrlKey:false,pointerType:"mouse"})
+    await waitFor(() => expect(screen.getByRole("menuitem", {name:"Cancelar reserva"})).toBeVisible())
+    expect(screen.queryByRole("menuitem", {name:"Editar reserva"})).not.toBeInTheDocument()
+    expect(screen.queryByRole("menuitem", {name:"Registrar ausência"})).not.toBeInTheDocument()
+  })
+  it("não exibe um menu vazio quando as ações secundárias não são permitidas", () => {
+    denied.add("reservations.edit"); denied.add("reservations.cancel")
+    app.reservations = [booking()]
+    render(<ReservationsTab />)
+    expect(screen.queryByRole("button", {name:/Mais ações da reserva/})).not.toBeInTheDocument()
+    expect(screen.getByRole("button", {name:"Fazer check-in"})).toBeVisible()
+  })
   it.each([-3, 0])("registra saída efetiva %s sem editar o contrato da reserva", async endOffset => {
     const day = (n: number) => new Date(Date.parse(businessDay()) + n * 86400000).toISOString().slice(0,10)
     const r = booking({checkIn:day(-5),checkOut:day(-1),paidValue:120})
