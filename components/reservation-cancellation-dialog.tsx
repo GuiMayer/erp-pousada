@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import type { Reservation } from "@/lib/store"
+import type { Reservation, Transaction } from "@/lib/store"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { cancellationAmounts, type CancellationDecision } from "@/lib/booking-flow"
@@ -25,13 +25,11 @@ export function ReservationCancellationDialog({ reservation: r, noShow, onClose 
   let amounts = { refund: 0, retained: 0, credit: 0 }, invalid = false
   try { amounts = cancellationAmounts(received, decision, partial ? Number(refund) : undefined) } catch { invalid = true }
   const needsFinancialReason = amounts.retained > 0 || amounts.credit > 0
-  let toReturn = Math.round(amounts.refund * 100)
-  const origins = transactions.filter(t => t.refId === `Hospedagem ${r.id}` && ["receita", "credito_utilizado"].includes(t.type)).sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)).filter(t => {
+  const { origins } = transactions.filter(t => t.refId === `Hospedagem ${r.id}` && ["receita", "credito_utilizado"].includes(t.type)).sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)).reduce((state, t) => {
     const alreadyReturned = transactions.filter(p => p.reversalOfId === t.id).reduce((sum, p) => sum + Math.round(p.value * 100), 0)
-    const value = Math.min(toReturn, Math.max(0, Math.round(t.value * 100) - alreadyReturned))
-    toReturn -= value
-    return value > 0
-  })
+    const value = Math.min(state.remaining, Math.max(0, Math.round(t.value * 100) - alreadyReturned))
+    return { remaining: state.remaining - value, origins: value > 0 ? [...state.origins, t] : state.origins }
+  }, { remaining: Math.round(amounts.refund * 100), origins: [] as Transaction[] })
   const cashRefund = origins.some(t => t.type === "receita" && normalizePayment(t.paymentMethod ?? "") === "Dinheiro")
   const needsCash = cashRefund && !cashCloses.some(c => c.status === "aberto")
   const personalCredit = guests.find(g => g.cpf === r.cpf)?.customerId === r.payerId
