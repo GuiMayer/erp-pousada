@@ -153,6 +153,7 @@ const reservationMapper: CollectionMapper<Reservation> = {
   prismaModel: "reservation",
   orderBy: { checkIn: "asc" },
   toApp: row => ({
+    cancellationReason: optional(row.cancellationReason), cancellationFinancialReason: optional(row.cancellationFinancialReason), cancelledAt: row.cancelledAt ? new Date(row.cancelledAt).toISOString() : undefined, cancelledBy: optional(row.cancelledBy), cancellationReceivedValue: numberValue(row.cancellationReceivedValue ?? 0), refundedValue: numberValue(row.refundedValue ?? 0), retainedValue: numberValue(row.retainedValue ?? 0),
     guestCount: optional(row.guestCount), payerId: optional(row.payerId), nightlyPrices: optional(row.nightlyPrices), priceExceptionReason: optional(row.priceExceptionReason),
     groupId: optional(row.groupId),
     recordVersion: row.recordVersion,
@@ -171,6 +172,7 @@ const reservationMapper: CollectionMapper<Reservation> = {
     cancelTreatment: optional(row.cancelTreatment),
   }),
   toCreate: item => stripUndefined({
+    cancellationReason: item.cancellationReason, cancellationFinancialReason: item.cancellationFinancialReason, cancelledAt: item.cancelledAt ? new Date(item.cancelledAt) : undefined, cancelledBy: item.cancelledBy, cancellationReceivedValue: item.cancellationReceivedValue, refundedValue: item.refundedValue, retainedValue: item.retainedValue,
     guestCount: item.guestCount, payerId: item.payerId, nightlyPrices: item.nightlyPrices, priceExceptionReason: item.priceExceptionReason,
     groupId: item.groupId,
     id: item.id,
@@ -601,7 +603,7 @@ export const collectionMappers = {
   stays: {
     prismaModel: "stay", include: { occupants: true, allocations: true, charges: true, payments: true, adjustments: true }, orderBy: { checkIn: "desc" },
     toApp: row => mapStay(row as Parameters<typeof mapStay>[0]),
-    toCreate: (item: Stay) => stripUndefined({ ...item, checkIn: dateValue(item.checkIn), checkOut: dateValue(item.checkOut), endedAt: dateValue(item.endedAt),
+    toCreate: (item: Stay) => stripUndefined({ ...item, recordedAt: dateValue(item.recordedAt), checkIn: dateValue(item.checkIn), checkOut: dateValue(item.checkOut), endedAt: dateValue(item.endedAt),
       occupants: nestedCreate(item.occupants, o => ({ id: o.id, customerId: o.customerId, name: o.name })),
       allocations: nestedCreate(item.allocations, a => ({ id: a.id, roomId: a.roomId, start: dateValue(a.start), end: dateValue(a.end), reason: a.reason })),
       charges: nestedCreate(item.charges, c => ({ id: c.id, productId: c.productId,sourceSaleId:c.sourceSaleId,lineTotal:c.lineTotal, label: c.label, unitPrice: c.unitPrice, quantity: c.quantity, status: c.status, reason: c.reason, createdAt: dateValue(c.createdAt) })),

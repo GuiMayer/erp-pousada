@@ -179,6 +179,13 @@ model GuestProfile {
 }
 
 model Reservation {
+  cancellationReason String?
+  cancellationFinancialReason String?
+  cancelledAt DateTime?
+  cancelledBy String?
+  cancellationReceivedValue Decimal @default(0) @db.Decimal(12, 2)
+  refundedValue Decimal @default(0) @db.Decimal(12, 2)
+  retainedValue Decimal @default(0) @db.Decimal(12, 2)
   groupId String?
   guestCount Int?
   payerId String?
@@ -460,6 +467,8 @@ model AccountReceivable {
 }
 
 model Stay {
+  recordedAt DateTime @default(now())
+  arrivalReason String?
   id String @id
   reservationId String @unique
   payerId String?

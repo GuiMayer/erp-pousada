@@ -1,6 +1,7 @@
 import type { NightlyPrice } from "./lodging-pricing"
 
 export type Stay = {
+  recordedAt?: string; arrivalReason?: string | null
   id: string; reservationId: string; payerId?: string | null; guestName: string
   guestCount?: number | null; roomId: number; checkIn: string; checkOut: string
   status: string; lodgingValue: number; nightlyPrices?: NightlyPrice[] | null

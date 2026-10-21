@@ -196,6 +196,13 @@ export interface Room {
 }
 
 export interface Reservation {
+  cancellationReason?: string
+  cancellationFinancialReason?: string
+  cancelledAt?: string
+  cancelledBy?: string
+  cancellationReceivedValue?: number
+  refundedValue?: number
+  retainedValue?: number
   groupId?: string | null
   guestCount?: number | null
   payerId?: string | null
