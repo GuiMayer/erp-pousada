@@ -472,7 +472,7 @@ export function RoomCard({
               })}
             </div>
         </CardContent>
-        <CardFooter className="hidden flex-col items-stretch px-3 pb-0 pt-0 sm:flex sm:shrink-0">
+        <CardFooter className="flex flex-col items-stretch px-3 pb-0 pt-0 sm:shrink-0">
           <Separator className="my-3" />
           <MiniTimeline days={timeline} highlightDate={selectedDate} />
         </CardFooter>

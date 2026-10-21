@@ -50,10 +50,15 @@ export function RoomGrid() {
   const [selectedDate, setSelectedDate] = useTaskState<string>("map.selectedDate", businessDay(), false)
   const [manageRoomsOpen, setManageRoomsOpen] = useState(false)
   const [search, setSearch] = useTaskState("map.search", "", false)
-  const [agenda, setAgenda] = useTaskState("map.agenda", false, false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const weekDates = getWeekDates(weekOffset)
   const calendarDate = parseISO(selectedDate)
+
+  function moveWeek(step: number) {
+    const nextOffset = weekOffset + step
+    setWeekOffset(nextOffset)
+    setSelectedDate(getWeekDates(nextOffset)[0].date)
+  }
 
   function selectCalendarDate(date: Date | undefined) {
     if (!date) return
@@ -69,16 +74,17 @@ export function RoomGrid() {
     <div className="room-map flex flex-col gap-6 animate-fade-in">
       <div className="flex flex-wrap items-center gap-2"><CashTurnShortcut /></div>
       <div className="sm:hidden space-y-2">
-        <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">Agora · {rooms.filter(r => r.status === "disponivel").length} quartos livres</span><Button variant="outline" size="sm" onClick={() => setAgenda(v => !v)} aria-expanded={agenda}>Agenda</Button><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
+        <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">Agora · {rooms.filter(r => r.status === "disponivel").length} quartos livres</span><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
       </div>
       {/* Interactive date selector */}
-      <div className={`${agenda ? "flex" : "hidden"} w-full flex-col items-center gap-3 sm:flex xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]`}>
-        <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto pb-1 xl:col-start-2" role="group" aria-label="Navegar pelos dias">
-          <Button variant="outline" size="icon" aria-label="Semana anterior" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p - 1)}>
+      <div className="flex w-full flex-col items-center gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div className="room-date-strip grid w-full min-w-0 max-w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 pb-1 sm:flex sm:w-auto xl:col-start-2" role="group" aria-label="Navegar pelos dias">
+          <Button variant="outline" size="icon" aria-label="Semana anterior" className="col-start-1 row-start-1 size-9 shrink-0" onClick={() => moveWeek(-1)}>
             <ChevronLeft className="size-4" />
           </Button>
-          <div className="flex gap-1.5">
+          <p className="col-start-2 row-start-1 text-center text-xs font-medium sm:hidden">{format(parseISO(weekDates[0].date), "d MMM", { locale: ptBR })} – {format(parseISO(weekDates[6].date), "d MMM yyyy", { locale: ptBR })}</p>
+          <div className="col-span-3 row-start-2 grid grid-cols-7 gap-1 sm:flex sm:gap-1.5">
             {weekDates.map((d) => (
               <button
                 key={d.date}
@@ -86,7 +92,7 @@ export function RoomGrid() {
                 aria-label={format(parseISO(d.date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 aria-pressed={d.date === selectedDate}
                 onClick={() => setSelectedDate(d.date)}
-                className={`flex flex-col items-center rounded-xl px-3 py-2 transition-all cursor-pointer min-w-[56px] ${
+                className={`room-day-choice flex min-w-0 flex-col items-center rounded-xl px-0 py-2 transition-all cursor-pointer sm:min-w-[56px] sm:px-3 ${
                   d.date === selectedDate
                     ? "bg-primary text-primary-foreground shadow-sm scale-105"
                     : d.isToday
@@ -96,11 +102,11 @@ export function RoomGrid() {
               >
                 <span className="text-[10px] uppercase font-medium opacity-80">{d.weekday}</span>
                 <span className="text-lg font-bold tabular-nums leading-tight">{d.day}</span>
-                <span className="text-[9px] uppercase opacity-60">{d.month}</span>
+                <span className="hidden text-[9px] uppercase opacity-60 sm:inline">{d.month}</span>
               </button>
             ))}
           </div>
-          <Button variant="outline" size="icon" aria-label="Próxima semana" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p + 1)}>
+          <Button variant="outline" size="icon" aria-label="Próxima semana" className="col-start-3 row-start-1 size-9 shrink-0" onClick={() => moveWeek(1)}>
             <ChevronRight className="size-4" />
           </Button>
         </div>
@@ -109,7 +115,7 @@ export function RoomGrid() {
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2" aria-label="Escolher data no calendário">
                 <CalendarDays className="size-4" />
-                Calendário <span className="tabular-nums text-muted-foreground">{format(calendarDate, "dd/MM/yyyy")}</span>
+                <span className="hidden sm:inline">Calendário</span> <span className="tabular-nums text-muted-foreground">{format(calendarDate, "dd/MM/yyyy")}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto max-w-[calc(100vw-1.5rem)] p-0" align="center" collisionPadding={12} aria-label="Calendário do mapa de quartos">
