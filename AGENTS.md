@@ -11,3 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Versionamento
 
 Ao concluir cada mudança, valide o trabalho e faça commit. Prefira commits separados por tarefa, com mensagens que descrevam o resultado; mantenha juntos os arquivos e testes necessários para cada mudança funcionar.
+
+## Estágio do produto
+
+O aplicativo ainda não entrou em produção; os dados atuais são exemplos de desenvolvimento. Não introduza requisitos de retrocompatibilidade, conversão de dados históricos ou avisos de dados legados por hipótese. Exemplos podem ser atualizados para a modelagem atual. Preserve validações de integridade, autorização e consistência financeira: dados incompletos devem gerar mensagens objetivas sobre o que falta. Migrações de esquema e versionamento continuam necessários e não significam compatibilidade com uma instalação em produção. Não reescreva migrações já aplicadas apenas para remover referências internas.

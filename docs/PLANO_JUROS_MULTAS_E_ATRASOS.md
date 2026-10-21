@@ -2,6 +2,8 @@
 
 Data: 21/10/2026. Status: plano para implementação; não altera cobranças existentes.
 
+Contexto: o aplicativo está em pré-produção e contém exemplos. A implementação deve partir da modelagem atual e atualizar os exemplos, sem desenvolver conversores de bases legadas ou avisos de retrocompatibilidade. As regras de preservação abaixo dizem respeito a pagamentos e operações válidas dentro do novo fluxo, não a uma implantação anterior do sistema.
+
 ## 1. Objetivo e decisões
 
 Permitir configurar encargos, revisar a composição antes de cobrar e aplicar ou dispensar valores com autorização e histórico. A operação deve continuar simples para a recepção.
@@ -58,7 +60,7 @@ Uma apresentação mensal poderá converter a taxa para o equivalente diário po
 - Taxa de saída tardia em valor fixo ou percentual da diária de referência, com referência exibida. Se não houver diária conhecida, exigir valor autorizado e motivo.
 - Os valores de diárias adicionais continuam vindo das tarifas de hospedagem existentes.
 
-As políticas terão versão e vigência. Cada obrigação nova guarda a política combinada. Mudanças não reprecificam dívidas antigas; adotar uma política em obrigação legada exige ação explícita, prévia e autorização de alteração.
+As políticas terão versão e vigência. Cada obrigação nova guarda a política combinada. Uma alteração futura de configuração não reprecifica automaticamente cobranças já confirmadas.
 
 ## 4. Cálculo e recebimento financeiro
 
@@ -169,7 +171,7 @@ Revalidar todos os poderes no servidor, inclusive ao recuperar recibos idempoten
 
 ## 10. Ordem de implementação e commits
 
-1. **Domínio e migração:** política tipada, encargos/eventos, intervalos, alocação, invariantes e cálculo Decimal. Migrar com política desativada, sem recalcular históricos.
+1. **Domínio e esquema:** política tipada, encargos/eventos, intervalos, alocação, invariantes e cálculo Decimal. Inicializar com política desativada e atualizar a carga de exemplos para a modelagem atual, sem rotinas de conversão de dados históricos.
 2. **Servidor financeiro:** prévia e comandos, permissões, pagamentos parciais/parcelas/lotes, idempotência, estornos e ponte hospedagem/título. Validar em PostgreSQL isolado.
 3. **Saída atrasada:** atendimento único e distinção entre prorrogar e faturar permanência já utilizada; diárias, taxa e dispensa sem afetar futuras reservas indevidamente.
 4. **Configurações e recebimento:** campos, revisão de encargos, motivos e mensagens de acesso; espelhar regras no ambiente demonstrativo.
