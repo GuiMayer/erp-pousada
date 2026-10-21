@@ -2,6 +2,7 @@
 import { useTaskState } from "@/contexts/task-drafts-context"
 import { StaysList } from "./stay-sheet"
 import { CustomerCombobox } from "./customer-combobox"
+import { LodgingPayerChoice } from "./lodging-payer-choice"
 import { suggestPayerId } from "@/lib/customer-company"
 import type { Customer } from "@/lib/store"
 import { normalizeDocument } from "@/lib/utils/cpf-cnpj-validator"
@@ -132,8 +133,9 @@ export function ReservationsTab() {
 
   // New reservation form state
   const [guestId, setGuestId] = useTaskState("reservation.guestId", "")
-  const [payerId, setPayerId] = useTaskState("reservation.payerId", "")
-  const [payerTouched, setPayerTouched] = useTaskState("reservation.payerTouched", false)
+  const [selectedPayerId, setPayerId] = useTaskState("reservation.payerId", "")
+  const selectedPerson = customers.find(person => person.id === guestId)
+  const payerId = selectedPerson && selectedPayerId === selectedPerson.id ? selectedPerson.id : suggestPayerId(selectedPerson, customers)
   const [occupancies, setOccupancies] = useTaskState<Record<string, number>>("reservation.occupancies", {})
   const [exception, setException] = useTaskState("reservation.exception", false)
   const [exceptionReason, setExceptionReason] = useTaskState("reservation.exceptionReason", "")
@@ -164,7 +166,7 @@ export function ReservationsTab() {
     const document = normalizeDocument(cpf)
     const person = selected ?? (document ? customers.find(c => normalizeDocument(c.cpfCnpj) === document || c.id === guest?.customerId) : undefined)
     setGuestId(person?.id ?? "")
-    if (!payerTouched) setPayerId(suggestPayerId(person, customers))
+    setPayerId(suggestPayerId(person, customers))
     if (cpf.length >= 11) {
       setFoundGuest(guest)
       if (person || guest) setNewGuestName(person?.name ?? guest!.name)
@@ -193,7 +195,7 @@ export function ReservationsTab() {
         const room = rooms.find(item => item.id === roomId)!
         await addReservation({ id: crypto.randomUUID(), roomId, roomNumber: room.number, cpf: newCpf, guestName: newGuestName, checkIn: newCheckIn, checkOut: newCheckOut, ...pricing, payerId: payerId || guestId, status: "confirmada" })
       }
-      setGuestId(""); setPayerId(""); setPayerTouched(false); setException(false); setExceptionReason(""); setOccupancies({}); setNewCpf(""); setFoundGuest(undefined); setNewGuestName(""); setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal(""); setShowNewForm(false)
+      setGuestId(""); setPayerId(""); setException(false); setExceptionReason(""); setOccupancies({}); setNewCpf(""); setFoundGuest(undefined); setNewGuestName(""); setSelectedRooms([""]); setNewCheckIn(""); setNewCheckOut(""); setNewTotal(""); setShowNewForm(false)
     } catch (error) { setOperationError(error instanceof Error ? error.message : "Reserva não concluída") }
     finally { setPending(false) }
   }
@@ -308,7 +310,7 @@ export function ReservationsTab() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div><Label>Buscar ou cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={(id, _name, selected) => { const person = selected ?? customers.find(c => c.id === id); if (person) handleCpfSearch(person.cpfCnpj, person) }} /></div>
-              <div><Label>Quem paga a hospedagem?</Label><CustomerCombobox value={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} /><p className="mt-1 text-xs text-muted-foreground">A empresa vinculada é sugerida; você pode escolher outro pagador. A saída empresarial autorizada mantém a cobrança em aberto.</p></div>
+              <LodgingPayerChoice person={customers.find(person => person.id === guestId)} people={customers} payerId={payerId} onChange={setPayerId} />
             </div>
             {/* Room selection with group support */}
             <div className="flex flex-col gap-3">

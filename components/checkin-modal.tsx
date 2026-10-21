@@ -1,5 +1,6 @@
 "use client"
 import { CustomerCombobox } from "./customer-combobox"
+import { LodgingPayerChoice } from "./lodging-payer-choice"
 import { suggestPayerId } from "@/lib/customer-company"
 import { normalizeDocument } from "@/lib/utils/cpf-cnpj-validator"
 import { LodgingQuotePreview, previewLodging } from "./lodging-quote-preview"
@@ -76,8 +77,9 @@ export function CheckinModal({ room, open, onClose }: Props) {
     const document = normalizeDocument(cpf)
     const person = document ? customers.find(c => normalizeDocument(c.cpfCnpj) === document || c.id === guest?.customerId) : undefined
     setGuestId(person?.id ?? "")
-    if (!payerTouched) setPayerId(suggestPayerId(person, customers))
-  }, [open, expectedId, cpf, customers, findGuest, payerTouched])
+    if (person?.id !== guestId) setPayerTouched(false)
+    if (!payerTouched || person?.id !== guestId || (payerId !== person?.id && payerId !== suggestPayerId(person, customers))) setPayerId(suggestPayerId(person, customers))
+  }, [open, expectedId, cpf, customers, findGuest, payerTouched, guestId, payerId])
   const { toast } = useToast()
   const [pending, setPending] = useState(false)
   async function handleConfirm() {
@@ -171,8 +173,8 @@ export function CheckinModal({ room, open, onClose }: Props) {
 
         <fieldset disabled={pending} className="flex flex-col gap-4 py-2">
           {!expectedId && <div className="grid gap-3 sm:grid-cols-2">
-            <div><Label>Buscar / cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={(id, _name, selected) => { const person = selected ?? customers.find(c => c.id === id); if(person) { setGuestId(id); setCpf(person.cpfCnpj); setGuestName(person.name); if (!payerTouched) setPayerId(suggestPayerId(person, customers)) } }} /></div>
-            <div><Label>Pagador</Label><CustomerCombobox value={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} /><p className="mt-1 text-xs text-muted-foreground">Empresa vinculada sugerida; você pode alterar quem paga.</p></div>
+            <div><Label>Buscar / cadastrar hóspede</Label><CustomerCombobox purpose="guest" value={guestId} onChange={(id, _name, selected) => { const person = selected ?? customers.find(c => c.id === id); if(person) { setGuestId(id); setCpf(person.cpfCnpj); setGuestName(person.name); setPayerTouched(false); setPayerId(suggestPayerId(person, customers)) } }} /></div>
+            <LodgingPayerChoice person={customers.find(person => person.id === guestId)} people={customers} payerId={payerId} onChange={id => { setPayerTouched(true); setPayerId(id) }} />
           </div>}
           <div><Label htmlFor="checkin-count">Quantidade de pessoas</Label><Input id="checkin-count" type="number" min={1} max={room.capacity ?? 100} disabled={!!expectedId} value={guestCount} onChange={e => setGuestCount(Number(e.target.value))} /></div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

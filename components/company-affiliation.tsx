@@ -12,7 +12,7 @@ export function CompanyAffiliationField({ people, document, value, onChange, id 
       <option value="">Sem vínculo com empresa</option>
       {companies.map(c => <option key={c.id} value={c.id} disabled={!c.active || !isCompanyPayer(c)}>{c.name}{!c.active ? " · Inativa" : ""}</option>)}
     </select>
-    <p className="text-xs text-muted-foreground">{isCPF(document) ? "Empresa sugerida como pagadora nas novas hospedagens. O pagador pode ser alterado na reserva." : "Informe o CPF da pessoa para vincular uma empresa."}</p>
+    <p className="text-xs text-muted-foreground">{isCPF(document) ? "Nas novas hospedagens, a empresa será a pagadora por padrão. Na reserva ou no check-in, você poderá marcar pagamento por conta própria, sem remover este vínculo." : "Informe o CPF da pessoa para vincular uma empresa."}</p>
   </div>
 }
 
