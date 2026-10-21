@@ -123,7 +123,7 @@ const specialLabels: Record<string, string> = {
   "lodgingTariffs.override": "Autorizar preço excepcional de hospedagem",
   "discount.override": "Desconto acima do teto",
   "cash.closeAny": "Fechar caixa de outro responsável",
-  "reservations.feeCredit": "Definir multa e crédito",
+  "reservations.feeCredit": "Autorizar retenção, devolução parcial e crédito de reserva",
   "consumptions.custom": "Lançar consumo personalizado",
   "hospitality.checkin": "Realizar check-in",
   "hospitality.checkin.backdate": "Registrar chegada ou hospedagem retroativa",
