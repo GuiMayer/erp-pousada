@@ -35,6 +35,48 @@ async function reservePaid(value = 100) {
 }
 
 describe("Atendimento de reservas, entradas e cancelamentos", () => {
+  it.each([[-1,-3],[-1,0],[2,-1]])("saída prevista %s e efetiva %s conservam contrato e consumo do ocupante atual", async (planned, offset) => {
+    const value = (planned+5)*100
+    const r = await op("reserve", payload(-5,planned)) as {id:string}
+    await op("pay-reservation",{reservationId:r.id,value,paymentMethod:"pix",accountId:"bank"})
+    const current = await prisma.reservation.findUniqueOrThrow({where:{id:r.id}})
+    await prisma.room.update({where:{id:1},data:{status:"ocupado",guest:"Outro hóspede"}})
+    await prisma.roomConsumption.create({data:{id:"current-consumption",roomId:1,items:{create:[{id:"current-drink",label:"Bebida atual",unitPrice:15,quantity:1}]}}})
+    const entry = {...payload(-5,planned),reservationId:r.id,recordVersion:current.recordVersion,actualCheckOut:day(offset),reason:"Registro esquecido pela recepção"}
+    await expect(op("record-completed-stay",entry)).rejects.toMatchObject({status:409})
+    await op("record-completed-stay",{...entry,keepAgreedPrice:true})
+    const stay = await prisma.stay.findUniqueOrThrow({where:{reservationId:r.id},include:{allocations:true,charges:true}})
+    expect(stay.status).toBe("closed")
+    expect(stay.checkOut.toISOString().slice(0,10)).toBe(day(offset))
+    expect(stay.allocations[0].end.toISOString().slice(0,10)).toBe(day(offset))
+    expect(stay.charges).toHaveLength(0)
+    expect(businessDay(stay.endedAt!)).toBe(day(offset))
+    const contract = await prisma.reservation.findUniqueOrThrow({where:{id:r.id}})
+    expect(contract.checkOut.toISOString().slice(0,10)).toBe(day(planned))
+    expect(Number(contract.paidValue)).toBe(value)
+    expect((contract.nightlyPrices as unknown[])).toHaveLength(planned+5)
+    expect((stay.nightlyPrices as unknown[])).toHaveLength(offset+5)
+    expect((await prisma.room.findUniqueOrThrow({where:{id:1}})).guest).toBe("Outro hóspede")
+    expect(await prisma.roomConsumptionItem.count({where:{id:"current-drink"}})).toBe(1)
+    expect(await prisma.transaction.count({where:{type:"receita"}})).toBe(1)
+    const report = await buildManagementReport(prisma,actor,{section:"hospedagem",start:day(-5),end:day(2)},new Date(day(3)+"T15:00:00Z"))
+    expect(report.rows).toHaveLength(offset+5)
+    expect(report.rows[0].details).toMatchObject({plannedDeparture:day(planned),actualDeparture:day(offset)})
+  })
+  it("saída efetiva futura, invertida ou informada em entrada ativa não altera a reserva", async () => {
+    const r = await op("reserve", payload(-5,-1)) as {id:string;recordVersion:number}
+    const input = {...payload(-5,-1),reservationId:r.id,recordVersion:r.recordVersion,keepAgreedPrice:true,reason:"Registro esquecido pela recepção"}
+    for(const actualCheckOut of [day(1),day(-6)]) await expect(op("record-completed-stay",{...input,actualCheckOut})).rejects.toMatchObject({status:400})
+    await expect(op("check-in",{...input,actualCheckOut:day(-3)})).rejects.toMatchObject({status:400})
+    expect((await prisma.reservation.findUniqueOrThrow({where:{id:r.id}})).status).toBe("confirmada")
+    expect(await prisma.stay.count()).toBe(0)
+  })
+  it("a disponibilidade considera a saída efetiva estendida", async () => {
+    const r = await op("reserve",payload(-5,-3)) as {id:string;recordVersion:number}
+    await op("reserve",payload(-2,0))
+    await expect(op("record-completed-stay",{...payload(-5,-3),reservationId:r.id,recordVersion:r.recordVersion,actualCheckOut:day(-1),keepAgreedPrice:true,reason:"Registro esquecido pela recepção"})).rejects.toMatchObject({status:409})
+    expect(await prisma.stay.count()).toBe(0)
+  })
   it("entrada sem ID não escolhe nem duplica uma reserva existente", async () => {
     await op("reserve", payload())
     await expect(op("check-in", payload())).rejects.toMatchObject({ status: 409 })

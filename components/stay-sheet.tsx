@@ -291,6 +291,8 @@ export function StaySheet({
                 <div className="mt-2 space-y-1">
                   {reservations.find(r => r.id === stay.reservationId)?.checkIn && <p>Entrada prevista na reserva: {reservations.find(r => r.id === stay.reservationId)!.checkIn.split("-").reverse().join("/")}</p>}
                   <p>Chegada efetiva: {stay.checkIn.split("-").reverse().join("/")}</p>
+                  {reservations.find(r => r.id === stay.reservationId)?.checkOut && <p>Saída prevista na reserva: {reservations.find(r => r.id === stay.reservationId)!.checkOut.split("-").reverse().join("/")}</p>}
+                  {stay.endedAt && <p>Saída efetiva: {businessDay(new Date(stay.endedAt)).split("-").reverse().join("/")}</p>}
                   {stay.recordedAt && <p>Registrado em: {new Date(stay.recordedAt).toLocaleString("pt-BR")}</p>}
                   {stay.arrivalReason && <p className="whitespace-pre-wrap break-words">Motivo do lançamento: {stay.arrivalReason}</p>}
                 </div>

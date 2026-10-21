@@ -24,13 +24,13 @@ type Loaded = Prisma.StayGetPayload<{ include: typeof stayInclude }>
 export function mapStay(row: Loaded): Stay {
   return { ...row, recordedAt: row.recordedAt.toISOString(), adjustments: row.adjustments.map(a => ({...a, value: Number(a.value), createdAt: a.createdAt.toISOString()})), lodgingValue: Number(row.lodgingValue), checkIn: row.checkIn.toISOString().slice(0,10), checkOut: row.checkOut.toISOString().slice(0,10), endedAt: row.endedAt?.toISOString(), nightlyPrices: row.nightlyPrices as Stay["nightlyPrices"], allocations: row.allocations.map(a => ({ ...a, start: a.start.toISOString().slice(0,10), end: a.end.toISOString().slice(0,10) })), charges: row.charges.map(c => ({ ...c, unitPrice: Number(c.unitPrice),lineTotal:c.lineTotal==null?null:Number(c.lineTotal), createdAt: c.createdAt.toISOString() })), payments: row.payments.map(p => ({ ...p, value: Number(p.value), createdAt: p.createdAt.toISOString() })) }
 }
-export async function ensureStay(tx: Tx, reservationId: string, restoringLegacy = false) {
+export async function ensureStay(tx: Tx, reservationId: string, restoringLegacy = false, options: { captureRoomConsumption?: boolean } = {}) {
   const current = await tx.stay.findUnique({ where: { reservationId }, include: stayInclude })
   if (current) return current
   const r = await tx.reservation.findUniqueOrThrow({ where: { id: reservationId } })
   if (r.status !== "checkin" && !(restoringLegacy && r.status === "checkout")) throw new HttpError(409, "Hospedagem não iniciada")
   const guest = await tx.guestProfile.findUnique({ where: { cpf: r.cpf } })
-  const legacyConsumption = r.status === "checkin" ? await tx.roomConsumption.findUnique({ where: { roomId: r.roomId }, include: { items: true } }) : null
+  const legacyConsumption = r.status === "checkin" && options.captureRoomConsumption !== false ? await tx.roomConsumption.findUnique({ where: { roomId: r.roomId }, include: { items: true } }) : null
   return tx.stay.create({ data: { id: randomUUID(), reservationId, status: r.status === "checkout" ? "closed" : "active", payerId: r.payerId ?? guest?.customerId, guestName: r.guestName, guestCount: r.guestCount, roomId: r.roomId, checkIn: r.checkIn, checkOut: r.checkOut, lodgingValue: r.totalValue, groupId: r.groupId, nightlyPrices: r.nightlyPrices ?? undefined, occupants: { create: [{ id: randomUUID(), name: r.guestName, customerId: guest?.customerId }] }, allocations: { create: [{ id: randomUUID(), roomId: r.roomId, start: r.checkIn, end: r.checkOut }] }, charges: legacyConsumption?.items.length ? { create: legacyConsumption.items.map(c => ({ id: c.id, label: c.label, unitPrice: c.unitPrice, quantity: c.quantity })) } : undefined, payments: r.paidValue.gt(0) ? { create: [{ id: randomUUID(), value: r.paidValue, bucket: "lodging", method: "sinal anterior" }] } : undefined }, include: stayInclude })
 }
 export async function roomStay(tx: Tx, roomId: number) {

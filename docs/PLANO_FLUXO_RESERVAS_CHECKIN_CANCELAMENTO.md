@@ -92,6 +92,8 @@ Retroativo exige `hospitality.checkin.backdate`, além da permissão normal, e m
 
 - **Ainda está hospedado:** registrar a entrada anterior, exigir quarto atualmente apto e livre para a hospedagem, respeitar capacidade e períodos já registrados. Se a saída prevista já passou, revisar a previsão sem afirmar que a pessoa já saiu.
 - **Já saiu:** oferecer **Registrar hospedagem já encerrada** dentro do atendimento retroativo, com entrada e saída reais. Criar a hospedagem encerrada, verificar conflitos históricos e não alterar o estado atual do quarto nem expulsar seu ocupante atual. Exigir autorização retroativa e de encerramento.
+- Na hospedagem encerrada vinculada a uma reserva, manter **Saída prevista** em resumo protegido e oferecer **Saída efetiva** editável. Enviar `actualCheckOut` separadamente, preservando o período contratado e os recebimentos. Usar a saída efetiva na alocação, no encerramento, na verificação de conflitos e nos relatórios. Quando o período real difere do contratado, exigir confirmação explícita de manutenção do valor; eventual renegociação continua na edição autorizada.
+- O registro retroativo encerrado não importa consumos do quarto atualmente ocupado por outra pessoa. Os consumos e o estado do ocupante atual permanecem intactos.
 - Verificar conflitos também contra alocações de hospedagens encerradas, não apenas reservas abertas. Não assumir que quarto livre hoje esteve livre em todo o passado.
 - Registrar entrada retroativa não registra dinheiro automaticamente. Recebimentos usam caixa e conta atuais, com data de registro real. Se um valor já estiver conciliado nos saldos, exigir tratamento supervisionado para não duplicar receita; não reabrir ou reescrever um caixa fechado.
 

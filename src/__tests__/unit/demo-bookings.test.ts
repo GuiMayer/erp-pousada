@@ -33,6 +33,21 @@ async function reserve() {
   return (await store.reservations.getAll())[0]
 }
 describe("Reservas e entradas na demonstração isolada", () => {
+  it.each([-4,-1])("saída efetiva %s preserva a previsão e o pagamento na demonstração", async offset => {
+    const input = {...base(),checkIn:day(-5),checkOut:day(-3)}
+    const {roomId,guestCount,totalValue,...identity} = input
+    await command("reserve-group",{...identity,rooms:[{roomId,guestCount,totalValue}],initialPayment:{value:200,payments:[{method:"pix",value:200,accountId:"bank"}]}})
+    const r = (await store.reservations.getAll())[0]
+    await store.rooms.update(1,{status:"ocupado",guest:"Outro hóspede"})
+    await command("record-completed-stay",{...input,reservationId:r.id,recordVersion:r.recordVersion,actualCheckOut:day(offset),keepAgreedPrice:true,reason:"Registro esquecido pela recepção"})
+    expect(await store.reservations.getById(r.id)).toMatchObject({status:"checkout",checkOut:day(-3),paidValue:200})
+    const stay = (await store.stays.getAll())[0]
+    expect(stay).toMatchObject({status:"closed",checkOut:day(offset),endedAt:day(offset)+"T12:00:00Z"})
+    expect(stay.allocations[0].end).toBe(day(offset))
+    expect(stay.nightlyPrices).toHaveLength(offset+5)
+    expect((await store.rooms.getById(1))?.guest).toBe("Outro hóspede")
+    expect(await store.transactions.count()).toBe(1)
+  })
   it("sinal e reserva confirmam juntos e a devolução conserva o recebido", async () => {
     const r = await reserve()
     expect(r.paidValue).toBe(100)

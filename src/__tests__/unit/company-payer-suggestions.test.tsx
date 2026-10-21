@@ -83,6 +83,20 @@ describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
 
 const booking = (patch: Partial<Reservation> = {}): Reservation => ({ id: "reservation", recordVersion: 3, roomId: 1, roomNumber: "101", cpf: "52998224725", guestName: "Pessoa A", payerId: "company", guestCount: 1, totalValue: 120, status: "confirmada", checkIn: businessDay(), checkOut: new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10), ...patch })
 describe("Atendimento compartilhado", () => {
+  it.each([-3, 0])("registra saída efetiva %s sem editar o contrato da reserva", async endOffset => {
+    const day = (n: number) => new Date(Date.parse(businessDay()) + n * 86400000).toISOString().slice(0,10)
+    const r = booking({checkIn:day(-5),checkOut:day(-1),paidValue:120})
+    render(<BookingForm intent="checkin" reservation={r} onDone={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText("Chegada efetiva"), {target:{value:r.checkIn}})
+    fireEvent.click(screen.getByText("Opções de data e lançamento retroativo"))
+    fireEvent.change(screen.getByLabelText("Motivo do lançamento retroativo"), {target:{value:"Registro esquecido pela recepção"}})
+    fireEvent.click(screen.getByLabelText("Registrar hospedagem já encerrada"))
+    expect(screen.getByLabelText("Saída prevista")).toHaveAttribute("readonly")
+    fireEvent.change(screen.getByLabelText("Saída efetiva"), {target:{value:day(endOffset)}})
+    fireEvent.click(screen.getByRole("checkbox", {name:/Manter o valor contratado/}))
+    fireEvent.click(screen.getByRole("button", {name:"Registrar hospedagem encerrada"}))
+    await waitFor(() => expect(runOperation).toHaveBeenCalledWith("record-completed-stay", expect.objectContaining({reservationId:r.id,checkIn:r.checkIn,checkOut:r.checkOut,actualCheckOut:day(endOffset),keepAgreedPrice:true,totalValue:120})))
+  })
   it("reagenda a própria reserva para o futuro sem duplicar nem iniciar hospedagem", async () => {
     const r = booking({paidValue:100})
     const start = new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10)

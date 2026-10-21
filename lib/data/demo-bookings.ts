@@ -156,13 +156,15 @@ async function apply(store: DataStore, kind: string, payload: unknown, can: (p: 
   }
   const input = entry.parse(raw)
   const completed = kind === "record-completed-stay", checkin = kind === "check-in" || completed
+  if (!completed && raw.actualCheckOut !== undefined) throw Error("Saida efetiva exige hospedagem ja encerrada")
+  const departure = completed && raw.actualCheckOut !== undefined ? z.string().date().parse(raw.actualCheckOut) : input.checkOut
   if (checkin) {
-    const error = checkinDateError(input.checkIn, input.checkOut, completed)
+    const error = checkinDateError(input.checkIn, departure, completed)
     if (error) throw Error(error)
     if (input.checkIn < today || completed) { demand("hospitality.checkin.backdate"); z.string().trim().min(5).max(500).parse(raw.reason) }
     if (completed) demand("hospitality.checkout")
   }
-  if (input.checkOut <= input.checkIn) throw Error("Período inválido")
+  if (departure <= input.checkIn) throw Error("Período inválido")
   const current = raw.reservationId || raw.id ? await store.reservations.getById(String(raw.reservationId ?? raw.id)) : null
   if (current) { version(current, raw.recordVersion ?? 0); if (current.status !== "confirmada") throw Error("Reserva já atendida ou cancelada") }
   if (kind === "edit-reservation" && !current) throw Error("Reserva não encontrada")
@@ -177,27 +179,27 @@ async function apply(store: DataStore, kind: string, payload: unknown, can: (p: 
   if (!room?.capacity || input.guestCount > room.capacity) throw Error("Respeite a capacidade do quarto")
   if (checkin && !completed && room.status !== "disponivel") throw Error("Quarto indisponível")
   if (!completed && room.status === "bloqueado" && (!room.blockEndDate || input.checkIn <= room.blockEndDate)) throw Error("Quarto bloqueado no período")
-  if ((await store.reservations.getAll()).some(r => r.id !== current?.id && r.roomId === room.id && r.status === "confirmada" && r.checkIn < input.checkOut && r.checkOut > input.checkIn) || (await store.stays.getAll()).some(s => s.reservationId !== current?.id && s.allocations.some(a => a.roomId === room.id && a.start < input.checkOut && a.end > input.checkIn))) throw Error("Período conflita com reserva ou hospedagem")
+  if ((await store.reservations.getAll()).some(r => r.id !== current?.id && r.roomId === room.id && r.status === "confirmada" && r.checkIn < departure && r.checkOut > input.checkIn) || (await store.stays.getAll()).some(s => s.reservationId !== current?.id && s.allocations.some(a => a.roomId === room.id && a.start < departure && a.end > input.checkIn))) throw Error("Período conflita com reserva ou hospedagem")
   const same = current && current.roomId === input.roomId && current.guestCount === input.guestCount && current.checkIn === input.checkIn && current.checkOut === input.checkOut && cents(current.totalValue) === cents(input.totalValue)
   let nights = current?.nightlyPrices
   if (checkin && current) {
     demand("reservations.read")
     if (current.checkIn > today || input.checkIn < current.checkIn || current.roomId !== input.roomId || current.cpf !== input.cpf || current.checkOut !== input.checkOut || current.payerId !== input.payerId || current.guestCount !== input.guestCount || cents(current.totalValue) !== cents(input.totalValue)) throw Error("Edite as condições da reserva antes da entrada")
-    if (input.checkIn !== current.checkIn && raw.keepAgreedPrice !== true) throw Error("Confirme o valor acordado")
+    if ((input.checkIn !== current.checkIn || departure !== current.checkOut) && raw.keepAgreedPrice !== true) throw Error("Confirme o valor acordado")
   } else if (!same) {
-    if (input.priceExceptionReason) { demand("lodgingTariffs.override"); nights = spreadNights(input.checkIn, input.checkOut, input.totalValue, input.guestCount) }
-    else { const quote = quoteLodging(room, await store.lodgingTariffs.getAll(), {roomId:input.roomId, guestCount:input.guestCount, checkIn:input.checkIn, checkOut:input.checkOut}); if (cents(quote.total) !== cents(input.totalValue)) throw Error("Tarifa alterada; recalcule"); nights = quote.nights }
+    if (input.priceExceptionReason) { demand("lodgingTariffs.override"); nights = spreadNights(input.checkIn, departure, input.totalValue, input.guestCount) }
+    else { const quote = quoteLodging(room, await store.lodgingTariffs.getAll(), {roomId:input.roomId, guestCount:input.guestCount, checkIn:input.checkIn, checkOut:departure}); if (cents(quote.total) !== cents(input.totalValue)) throw Error("Tarifa alterada; recalcule"); nights = quote.nights }
   }
   if (current && input.totalValue < current.totalValue) {
     const settings = (await store.systemSettings.getAll())[0]
     const original = current.originalValue ?? current.totalValue
     if (original > 0 && (1 - input.totalValue / original) * 100 > (settings?.discountCeiling ?? 0)) demand("discount.override")
   }
-  const data = { ...input, guestName: person.name, roomNumber: room.number, nightlyPrices: nights, status: checkin ? "checkin" as const : "confirmada" as const, originalValue: Math.max(current?.originalValue ?? 0, input.totalValue), recordVersion: (current?.recordVersion ?? 0) + 1 }
+  const data = { ...input, checkOut: current ? input.checkOut : departure, guestName: person.name, roomNumber: room.number, nightlyPrices: nights, status: checkin ? "checkin" as const : "confirmada" as const, originalValue: Math.max(current?.originalValue ?? 0, input.totalValue), recordVersion: (current?.recordVersion ?? 0) + 1 }
   const reservation = current ? await store.reservations.update(current.id, checkin ? { status: "checkin", recordVersion: (current.recordVersion ?? 0) + 1 } : data) : await store.reservations.create(data)
   if (checkin) {
-    const actualNights = current && current.checkIn !== input.checkIn ? spreadNights(input.checkIn, input.checkOut, input.totalValue, input.guestCount) : nights
-    const stay = await store.stays.create({ reservationId: reservation.id, roomId: room.id, guestName: person.name, payerId: input.payerId, guestCount: input.guestCount, checkIn: input.checkIn, checkOut: input.checkOut, recordedAt: now, arrivalReason: typeof raw.reason === "string" ? raw.reason.trim() : undefined, status: "active", lodgingValue: input.totalValue, nightlyPrices: actualNights, recordVersion: 0, groupId: reservation.groupId, occupants: [{ id: crypto.randomUUID(), name: person.name, customerId: person.id }], allocations: [{ id: crypto.randomUUID(), roomId: room.id, start: input.checkIn, end: input.checkOut }], charges: [], payments: [] })
+    const actualNights = current && (current.checkIn !== input.checkIn || current.checkOut !== departure) ? spreadNights(input.checkIn, departure, input.totalValue, input.guestCount) : nights
+    const stay = await store.stays.create({ reservationId: reservation.id, roomId: room.id, guestName: person.name, payerId: input.payerId, guestCount: input.guestCount, checkIn: input.checkIn, checkOut: departure, recordedAt: now, arrivalReason: typeof raw.reason === "string" ? raw.reason.trim() : undefined, status: "active", lodgingValue: input.totalValue, nightlyPrices: actualNights, recordVersion: 0, groupId: reservation.groupId, occupants: [{ id: crypto.randomUUID(), name: person.name, customerId: person.id }], allocations: [{ id: crypto.randomUUID(), roomId: room.id, start: input.checkIn, end: departure }], charges: [], payments: [] })
     let guest = await store.guests.getById(input.cpf)
     if (!guest) guest = await store.guests.create({ cpf: input.cpf, customerId: person.id, name: person.name, totalStays: 0, avgTicket: 0, noShows: 0 })
     await store.guests.update(input.cpf, { totalStays: guest.totalStays + 1 })
@@ -211,11 +213,11 @@ async function apply(store: DataStore, kind: string, payload: unknown, can: (p: 
       if (isCPF(payer.cpfCnpj) || raw.companyCreditConfirmed !== true || dueDate < today) throw Error("Confirme a cobrança a prazo da empresa e o vencimento")
       await store.accountsReceivable.create({ sourceStayId: stay.id, customerId: payer.id, customerName: payer.name, description: `Hospedagem ${reservation.id}`, value: decimal(cents(reservation.totalValue) - cents(received)), paidValue: 0, issueDate: today, dueDate, status: "pendente" })
     }
-    await store.stays.update(stay.id, { payments, status: completed ? "closed" : "active", endedAt: completed ? input.checkOut + "T12:00:00Z" : undefined })
+    await store.stays.update(stay.id, { payments, status: completed ? "closed" : "active", endedAt: completed ? departure + "T12:00:00Z" : undefined })
     if (completed) await store.reservations.update(reservation.id, { status: "checkout" })
     else await store.rooms.update(room.id, { status: "ocupado", guest: person.name, guestCpf: input.cpf, checkIn: input.checkIn, checkOut: input.checkOut, checkOutTime: (await store.systemSettings.getAll())[0]?.checkOutTime ?? "12:00", recordVersion: (room.recordVersion ?? 0) + 1 })
   }
-  await audit(reservation.id, { actualArrival: input.checkIn, expectedArrival: current?.checkIn, reason: raw.reason, recordedAt: now, completed })
+  await audit(reservation.id, { actualArrival: input.checkIn, expectedArrival: current?.checkIn, actualDeparture: completed ? departure : undefined, expectedDeparture: current?.checkOut, reason: raw.reason, recordedAt: now, completed })
   return store.reservations.getById(reservation.id)
 }
 
