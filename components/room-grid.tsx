@@ -11,7 +11,11 @@ import { RoomFilters, type Filter } from "./room-filters"
 import { ManageRoomsModal } from "./manage-rooms-modal"
 import { Input } from "./ui/input"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Settings2 } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { differenceInCalendarDays, format, parseISO } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import { CalendarDays, ChevronLeft, ChevronRight, Settings2 } from "lucide-react"
 import type { RoomStatus } from "@/lib/store"
 
 function getWeekDates(offset: number) {
@@ -47,7 +51,16 @@ export function RoomGrid() {
   const [manageRoomsOpen, setManageRoomsOpen] = useState(false)
   const [search, setSearch] = useTaskState("map.search", "", false)
   const [agenda, setAgenda] = useTaskState("map.agenda", false, false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const weekDates = getWeekDates(weekOffset)
+  const calendarDate = parseISO(selectedDate)
+
+  function selectCalendarDate(date: Date | undefined) {
+    if (!date) return
+    setSelectedDate(format(date, "yyyy-MM-dd"))
+    setWeekOffset(Math.floor(differenceInCalendarDays(date, parseISO(businessDay())) / 7))
+    setCalendarOpen(false)
+  }
 
   const filtered =
     rooms.filter(r => (filter === "todos" || r.status === filter) && `${r.number} ${r.guest ?? ""}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))
@@ -60,15 +73,18 @@ export function RoomGrid() {
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
       </div>
       {/* Interactive date selector */}
-      <div className={`${agenda ? "flex" : "hidden"} sm:flex items-center gap-3 flex-wrap`}>
-        <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto pb-1">
-          <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p - 1)}>
+      <div className={`${agenda ? "flex" : "hidden"} w-full flex-col items-center gap-3 sm:flex xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]`}>
+        <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto pb-1 xl:col-start-2" role="group" aria-label="Navegar pelos dias">
+          <Button variant="outline" size="icon" aria-label="Semana anterior" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p - 1)}>
             <ChevronLeft className="size-4" />
           </Button>
           <div className="flex gap-1.5">
             {weekDates.map((d) => (
               <button
                 key={d.date}
+                type="button"
+                aria-label={format(parseISO(d.date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                aria-pressed={d.date === selectedDate}
                 onClick={() => setSelectedDate(d.date)}
                 className={`flex flex-col items-center rounded-xl px-3 py-2 transition-all cursor-pointer min-w-[56px] ${
                   d.date === selectedDate
@@ -84,15 +100,40 @@ export function RoomGrid() {
               </button>
             ))}
           </div>
-          <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p + 1)}>
+          <Button variant="outline" size="icon" aria-label="Próxima semana" className="size-9 shrink-0" onClick={() => setWeekOffset(p => p + 1)}>
             <ChevronRight className="size-4" />
           </Button>
         </div>
-        {weekOffset !== 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 xl:col-start-3 xl:justify-self-end">
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2" aria-label="Escolher data no calendário">
+                <CalendarDays className="size-4" />
+                Calendário <span className="tabular-nums text-muted-foreground">{format(calendarDate, "dd/MM/yyyy")}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto max-w-[calc(100vw-1.5rem)] p-0" align="center" collisionPadding={12} aria-label="Calendário do mapa de quartos">
+              <Calendar
+                className="room-map-calendar [--cell-size:2rem] sm:[--cell-size:2.25rem]"
+                mode="single"
+                required
+                locale={ptBR}
+                selected={calendarDate}
+                defaultMonth={calendarDate}
+                onSelect={selectCalendarDate}
+                labels={{
+                  labelPrevious: () => "Mês anterior",
+                  labelNext: () => "Próximo mês",
+                  labelDayButton: (date, modifiers) => `${format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}${modifiers.today ? ", hoje" : ""}${modifiers.selected ? ", selecionado" : ""}`,
+                }}
+                autoFocus
+              />
+            </PopoverContent>
+          </Popover>
           <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => { setWeekOffset(0); setSelectedDate(businessDay()) }}>
             Hoje
           </Button>
-        )}
+        </div>
       </div>
 
       <div className="room-filter-bar flex items-center justify-between gap-4 flex-wrap">

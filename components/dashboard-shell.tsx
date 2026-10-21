@@ -42,7 +42,7 @@ export function DashboardShell() {
       {!permittedTab && <p role="status">Nenhum módulo foi liberado para seu usuário. Procure o administrador.</p>}
 
       <Tabs value={visible(activeTab) ? activeTab : permittedTab ?? ""} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col gap-6">
-          <TabsList className="hidden sm:flex">
+          <TabsList className="hidden w-full sm:flex">
           {visible("mapa") && (<TabsTrigger value="mapa" className="gap-1.5">
             <Map className="size-3.5" />
             Mapa
