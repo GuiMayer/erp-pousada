@@ -15,10 +15,10 @@ import { Input } from "./ui/input"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { differenceInCalendarDays, format, parseISO } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { CalendarDays, Settings2 } from "lucide-react"
-import { RoomDateStrip, getWeekDates } from "./room-date-strip"
+import { RoomDateStrip, getWeekDates, getWeekOffset } from "./room-date-strip"
 
 export function RoomGrid() {
   const { rooms, reservations = [], stays = [] } = useApp()
@@ -40,7 +40,7 @@ export function RoomGrid() {
   function selectCalendarDate(date: Date | undefined) {
     if (!date) return
     setSelectedDate(format(date, "yyyy-MM-dd"))
-    setWeekOffset(Math.floor(differenceInCalendarDays(date, parseISO(businessDay())) / 7))
+    setWeekOffset(getWeekOffset(date))
     setCalendarOpen(false)
   }
 
@@ -79,6 +79,7 @@ export function RoomGrid() {
                 mode="single"
                 required
                 locale={ptBR}
+                weekStartsOn={0}
                 selected={calendarDate}
                 defaultMonth={calendarDate}
                 onSelect={selectCalendarDate}

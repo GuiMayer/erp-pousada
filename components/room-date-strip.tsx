@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { addDays, format, parseISO } from "date-fns"
+import { addDays, differenceInCalendarWeeks, format, parseISO, startOfWeek } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { businessDay } from "@/lib/utils/business-values"
@@ -9,11 +9,16 @@ import { Button } from "./ui/button"
 
 export function getWeekDates(offset: number) {
   const today = businessDay()
+  const sunday = startOfWeek(parseISO(today), { weekStartsOn: 0 })
   return Array.from({ length: 7 }, (_, index) => {
-    const date = addDays(parseISO(today), offset * 7 + index)
+    const date = addDays(sunday, offset * 7 + index)
     return { date: format(date, "yyyy-MM-dd"), weekday: format(date, "EEE", { locale: ptBR }).slice(0, 3),
       day: format(date, "d"), month: format(date, "MMM", { locale: ptBR }), isToday: format(date, "yyyy-MM-dd") === today }
   })
+}
+
+export function getWeekOffset(date: Date) {
+  return differenceInCalendarWeeks(date, parseISO(businessDay()), { weekStartsOn: 0 })
 }
 
 export function RoomDateStrip({ offset, selectedDate, onNavigate, onSelect }: {
