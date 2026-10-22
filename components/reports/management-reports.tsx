@@ -1,4 +1,5 @@
 "use client"
+import { DateField } from "@/components/ui/date-field"
 import { SectionTabs } from "../section-tabs"
 import { OriginValues, documentFields as fields } from "../document-values"
 import { FinancialForecast } from "../financial-forecast";
@@ -15,7 +16,6 @@ import {
   type ReportQuery,
 } from "@/lib/reports/management";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -453,27 +453,25 @@ export function ManagementReports() {
       >
         <div>
           <Label htmlFor="report-start">Início</Label>
-          <Input
+          <DateField
             id="report-start"
-            type="date"
+            
             required
             min="2020-01-01"
             value={start}
-            onInput={(e) => setStart(e.currentTarget.value)}
-            onChange={(e) => setStart(e.target.value)}
+            onValueChange={value => setStart(value)}
             className="mt-1 min-h-11"
           />
         </div>
         <div>
           <Label htmlFor="report-end">Fim (inclusive)</Label>
-          <Input
+          <DateField
             id="report-end"
-            type="date"
+            
             required
             min={start}
             value={end}
-            onInput={(e) => setEnd(e.currentTarget.value)}
-            onChange={(e) => setEnd(e.target.value)}
+            onValueChange={value => setEnd(value)}
             className="mt-1 min-h-11"
           />
         </div>

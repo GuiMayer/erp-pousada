@@ -1,4 +1,5 @@
 "use client"
+import { DateField } from "@/components/ui/date-field"
 import { OriginValues } from "./document-values"
 import { sanitizeForAudit } from "@/lib/utils/audit-helpers"
 import { PageHeader } from "./page-header"
@@ -210,8 +211,8 @@ export function AuditLogTab() {
 
             <MobileFilters active={[filterUser !== "all", filterOperation !== "all", filterEntityType !== "all", !!from, !!to].filter(Boolean).length}>
             <div className="grid w-full min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <label className="min-w-0 text-sm">De<Input aria-label="Data inicial" type="date" value={from} onChange={e => { setPage(1); setFrom(e.target.value) }} /></label>
-              <label className="min-w-0 text-sm">Até<Input aria-label="Data final" type="date" value={to} onChange={e => { setPage(1); setTo(e.target.value) }} /></label>
+              <div className="min-w-0 space-y-2"><label htmlFor="audit-from" className="min-w-0 text-sm">De</label><DateField id="audit-from" aria-label="Data inicial"  value={from} onValueChange={value => { setPage(1); setFrom(value) }} /></div>
+              <div className="min-w-0 space-y-2"><label htmlFor="audit-to" className="min-w-0 text-sm">Até</label><DateField id="audit-to" aria-label="Data final"  value={to} onValueChange={value => { setPage(1); setTo(value) }} /></div>
               <Select value={filterUser} onValueChange={value => { setPage(1); setFilterUser(value) }}>
                 <SelectTrigger aria-label="Filtrar auditoria" className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
                   <Filter className="size-3 mr-2" />

@@ -1,4 +1,5 @@
 "use client"
+import { DateField } from "@/components/ui/date-field"
 import { SectionTabs } from "../section-tabs"
 import { useState, type ReactNode } from "react"
 import { useApp } from "@/lib/app-context"
@@ -8,7 +9,6 @@ import { reportAccess, reportQuery, reportCSV } from "@/lib/reports/management"
 import { businessDay } from "@/lib/utils/business-values"
 import { formatCurrency } from "@/lib/utils/formatters"
 import { Button } from "../ui/button"
-import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { MetricCard } from "./metric-card"
 
@@ -36,7 +36,7 @@ export function DemoManagementReports({ beverages }: { beverages: ReactNode }) {
     <SectionTabs label="Indicadores da pousada" sections={sections} value={current} onValueChange={setSection}>
     {!current && <p>Nenhum indicador foi liberado para seu usuário.</p>}
     {current === "bebidas" ? beverages : current && <>
-      <div className="flex flex-wrap items-end gap-3"><Label>Início<Input type="date" value={start} onChange={e => setStart(e.target.value)} /></Label><Label>Fim<Input type="date" value={end} onChange={e => setEnd(e.target.value)} /></Label>{current === "hospedagem" && can("reports.export") && <Button variant="outline" disabled={!report} onClick={exportReport}>Exportar hospedagem</Button>}</div>
+      <div className="flex flex-wrap items-end gap-3"><div className="min-w-0 space-y-2"><Label htmlFor="demo-report-start">Início</Label><DateField id="demo-report-start"  value={start} onValueChange={value => setStart(value)} /></div><div className="min-w-0 space-y-2"><Label htmlFor="demo-report-end">Fim</Label><DateField id="demo-report-end"  value={end} onValueChange={value => setEnd(value)} /></div>{current === "hospedagem" && can("reports.export") && <Button variant="outline" disabled={!report} onClick={exportReport}>Exportar hospedagem</Button>}</div>
       {!report ? <p role="alert">Informe um período válido de até 366 dias.</p> : current === "hospedagem" ? <>
         <h2 className="text-xl font-semibold">Hospedagem</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{report.metrics.map(metric => <MetricCard key={metric.key} title={metric.label} value={metric.value} format={metric.unit === "money" ? "currency" : metric.unit === "percent" ? "percentage" : "number"} />)}</div>

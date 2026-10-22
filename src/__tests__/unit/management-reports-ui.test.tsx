@@ -60,11 +60,11 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mocks.fetch);
 });
 async function consult() {
-  fireEvent.input(screen.getByLabelText("Início"), {
-    target: { value: "2026-01-01" },
+  fireEvent.change(screen.getByLabelText("Início"), {
+    target: { value: "01/01/2026" },
   });
-  fireEvent.input(screen.getByLabelText("Fim (inclusive)"), {
-    target: { value: "2026-01-01" },
+  fireEvent.change(screen.getByLabelText("Fim (inclusive)"), {
+    target: { value: "01/01/2026" },
   });
   fireEvent.submit(screen.getByText("Consultar").closest("form")!);
 }
@@ -92,7 +92,7 @@ describe("Sprint 5 — relatórios utilizáveis", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("Sessão expirada"),
     );
-    expect(screen.getByLabelText("Início")).toHaveValue("2026-01-01");
+    expect(screen.getByLabelText("Início")).toHaveValue("01/01/2026");
     expect(screen.queryByText("Hospedagem prestada")).not.toBeInTheDocument();
   });
   it("origem abre com documento atual; acesso à exportação é independente", async () => {

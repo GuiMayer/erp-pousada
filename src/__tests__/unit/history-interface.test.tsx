@@ -37,7 +37,7 @@ describe("Histórico separado da operação", () => {
     render(<HistoryTab />)
     fireEvent.change(screen.getByLabelText("Buscar no histórico"), { target: { value: "agua azul" } })
     expect(screen.getAllByRole("button", { name: /Ver detalhes de/ })).toHaveLength(3)
-    fireEvent.change(screen.getByLabelText("Entrada a partir de"), { target: { value: "2026-10-10" } })
+    fireEvent.change(screen.getByLabelText("Entrada a partir de"), { target: { value: "10/10/2026" } })
     expect(screen.getAllByRole("button", { name: /Ver detalhes de/ })).toHaveLength(1)
     fireEvent.change(screen.getByLabelText("Situação"), { target: { value: "cancelada" } })
     expect(screen.getByText("Nenhum registro encontrado no histórico.")).toBeInTheDocument()
@@ -46,9 +46,9 @@ describe("Histórico separado da operação", () => {
   })
   it("valida período invertido e inclui o último dia selecionado", () => {
     render(<HistoryTab />)
-    fireEvent.change(screen.getByLabelText("Entrada até"), { target: { value: "2026-10-01" } })
+    fireEvent.change(screen.getByLabelText("Entrada até"), { target: { value: "01/10/2026" } })
     expect(screen.getAllByRole("button", { name: /Ver detalhes de/ })).toHaveLength(2)
-    fireEvent.change(screen.getByLabelText("Entrada a partir de"), { target: { value: "2026-10-02" } })
+    fireEvent.change(screen.getByLabelText("Entrada a partir de"), { target: { value: "02/10/2026" } })
     expect(screen.getByRole("alert")).toHaveTextContent("data final")
   })
   it("abre extrato completo da encerrada sem oferecer recebimento ou alteração", () => {

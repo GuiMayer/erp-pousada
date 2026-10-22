@@ -1,4 +1,5 @@
 "use client"
+import { DateField } from "@/components/ui/date-field"
 import { PageHeader } from "./page-header"
 import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useTaskState } from "@/contexts/task-drafts-context"
@@ -467,16 +468,16 @@ export function FinancialTab() {
               <div className="flex flex-col gap-1">
                 <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Período</Label>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    aria-label="Movimentações a partir de" type="date" value={dateFrom}
-                    onChange={e => setDateFrom(e.target.value)}
+                  <DateField
+                    aria-label="Movimentações a partir de"  value={dateFrom}
+                    onValueChange={value => setDateFrom(value)}
                     className="h-9 w-36 text-xs"
                     placeholder="De"
                   />
                   <span className="text-xs text-muted-foreground">ate</span>
-                  <Input
-                    aria-label="Movimentações até" type="date" value={dateTo}
-                    onChange={e => setDateTo(e.target.value)}
+                  <DateField
+                    aria-label="Movimentações até"  value={dateTo}
+                    onValueChange={value => setDateTo(value)}
                     className="h-9 w-36 text-xs"
                     placeholder="Ate"
                   />
@@ -655,7 +656,7 @@ export function FinancialTab() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Primeiro Vencimento</Label>
-                <Input type="date" value={expDueDate} onChange={e => setExpDueDate(e.target.value)} />
+                <DateField  value={expDueDate} onValueChange={value => setExpDueDate(value)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

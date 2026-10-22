@@ -1,4 +1,5 @@
 "use client"
+import { DateField } from "@/components/ui/date-field"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -41,8 +42,8 @@ export function HistoryTab() {
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Label className="flex-col items-stretch gap-2">Buscar no histórico<Input placeholder="Hóspede, empresa, quarto ou reserva" value={query} onChange={e => setQuery(e.target.value)} /></Label>
       <Label className="flex-col items-stretch gap-2">Situação<select className="min-h-11 w-full rounded-md border bg-background px-3 text-sm" value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todas</option><option value="checkout">Encerradas</option><option value="cancelada">Canceladas</option><option value="noshow">Ausências</option></select></Label>
-      <Label className="flex-col items-stretch gap-2">Entrada a partir de<Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></Label>
-      <Label className="flex-col items-stretch gap-2">Entrada até<Input type="date" value={until} onChange={e => setUntil(e.target.value)} /></Label>
+      <div className="min-w-0 space-y-2"><Label htmlFor="history-from" className="flex-col items-stretch gap-2">Entrada a partir de</Label><DateField id="history-from"  value={from} onValueChange={value => setFrom(value)} /></div>
+      <div className="min-w-0 space-y-2"><Label htmlFor="history-until" className="flex-col items-stretch gap-2">Entrada até</Label><DateField id="history-until"  value={until} onValueChange={value => setUntil(value)} /></div>
     </div>
     {invalidPeriod && <p role="alert" className="text-sm text-destructive">A data final deve ser igual ou posterior à data inicial.</p>}
     {(query || status !== "all" || from || until) && <Button variant="ghost" size="sm" onClick={() => { setQuery(""); setStatus("all"); setFrom(""); setUntil("") }}>Limpar filtros</Button>}

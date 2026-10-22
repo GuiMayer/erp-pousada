@@ -1,7 +1,7 @@
 "use client"
 
+import { DateField } from "@/components/ui/date-field"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -68,18 +68,18 @@ export function CompactPeriodSelector({
 
       {selectedPeriod === 'custom' && (
         <div className="flex items-center gap-2">
-          <Input
-            type="date"
+          <DateField
+            
             value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
+            onValueChange={value => onStartDateChange(value)}
             className="w-[140px]"
             aria-label="Data inicial"
           />
           <span className="text-sm text-muted-foreground">até</span>
-          <Input
-            type="date"
+          <DateField
+            
             value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
+            onValueChange={value => onEndDateChange(value)}
             className="w-[140px]"
             aria-label="Data final"
           />
