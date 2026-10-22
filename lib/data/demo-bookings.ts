@@ -1,6 +1,6 @@
 import { z } from "zod"
-import type { DataStore, IStorageAdapter } from "./types"
-import { createDataStore } from "./repositories"
+import { withDemoTransaction } from "./demo-transaction"
+import type { DataStore } from "./types"
 import { cancellationAmounts, cancellationReason, checkinDateError, noShowEligible } from "@/lib/booking-flow"
 import { businessDay, normalizePayment } from "@/lib/utils/business-values"
 import { isCPF, normalizeDocument } from "@/lib/utils/cpf-cnpj-validator"
@@ -15,31 +15,8 @@ const base = z.object({ roomId: z.number().int().positive(), guestCount: z.numbe
 const entry = base.extend({ cpf: z.string().transform(normalizeDocument).refine(isCPF), guestName: z.string().trim().min(1), payerId: z.string().min(1), checkIn: z.string().date(), checkOut: z.string().date() })
 const cents = (n: number) => Math.round(n * 100)
 const decimal = (n: number) => Math.round(n) / 100
-let queue: Promise<unknown> = Promise.resolve()
-
-/** Staging keeps failed demo commands from leaving half an entry or a receipt behind. */
 export function demoBookingOperation(store: DataStore, kind: string, payload: unknown, can: (p: string) => boolean, username: string) {
-  const execute = async () => {
-    const snapshot = await store.exportAll()
-    let state: Record<string, unknown> = JSON.parse(snapshot)
-    const adapter: IStorageAdapter = {
-      get: async <T,>(key: string) => structuredClone(state[key] ?? null) as T | null,
-      set: async (key, value) => { state[key] = structuredClone(value) },
-      remove: async key => { delete state[key] }, clear: async () => { state = {} }, keys: async () => Object.keys(state),
-      export: async () => JSON.stringify(state), import: async json => { state = JSON.parse(json) }, getUsage: async () => 0,
-    }
-    const staged = createDataStore({ adapter })
-    const result = await apply(staged, kind, payload, can, username)
-    try { await store.importAll(await staged.exportAll()) }
-    catch (error) { await store.importAll(snapshot); throw error }
-    for (const repository of Object.values(store)) {
-      if (repository && typeof repository === "object" && "invalidateCache" in repository && typeof repository.invalidateCache === "function") repository.invalidateCache()
-    }
-    return result
-  }
-  const next = queue.then(() => typeof navigator !== "undefined" && navigator.locks ? navigator.locks.request("erp-demo-booking", execute) : execute())
-  queue = next.catch(() => {})
-  return next
+  return withDemoTransaction(store, staged => apply(staged, kind, payload, can, username))
 }
 
 async function apply(store: DataStore, kind: string, payload: unknown, can: (p: string) => boolean, username: string): Promise<unknown> {
