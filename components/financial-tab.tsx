@@ -616,7 +616,7 @@ export function FinancialTab() {
         </TabsContent>)}
 
         {visible("cadastros") && (<TabsContent value="cadastros">
-          <FinancialCadastrosManagement />
+          <FinancialCadastrosManagement sections={["bankAccount", "bankTransfer", "costCenter", "budget", "recurringTransaction"]} />
         </TabsContent>)}
 
         {/* Cash close */}

@@ -15,7 +15,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react"
 import type { BankAccount, BankTransfer, Budget, BudgetCategory, CostCenter, RecurringTransaction } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils/formatters"
 
-type DialogType = "bankAccount" | "bankTransfer" | "costCenter" | "budget" | "recurringTransaction"
+export type FinancialResource = "bankAccount" | "bankTransfer" | "costCenter" | "budget" | "recurringTransaction"
 
 const emptyBankAccount: Omit<BankAccount, "id"> = {
   name: "",
@@ -72,7 +72,7 @@ const emptyRecurringTransaction: Omit<RecurringTransaction, "id"> = {
   active: true,
 }
 
-export function FinancialCadastrosManagement() {
+export function FinancialCadastrosManagement({ sections, balancesOnly = false }: { sections: FinancialResource[]; balancesOnly?: boolean }) {
   const {
     bankAccounts, bankTransfers, costCenters, budgets, recurringTransactions,
     addBankAccount, updateBankAccount, removeBankAccount,
@@ -82,9 +82,12 @@ export function FinancialCadastrosManagement() {
     addRecurringTransaction, updateRecurringTransaction, removeRecurringTransaction,
     addAuditEntry,
   } = useApp()
-  const { username } = useAuth()
+  const { username, can } = useAuth()
+  const collections: Record<FinancialResource, string> = { bankAccount: "bankAccounts", bankTransfer: "bankTransfers", costCenter: "costCenters", budget: "budgets", recurringTransaction: "recurringTransactions" }
+  const allowed = (type: FinancialResource, action = "read") => type === "bankTransfer" && action === "create" ? can("bankAccounts.transfer") : can(`${collections[type]}.${action}`)
+  const visible = (type: FinancialResource) => sections.includes(type) && (allowed(type) || type === "bankTransfer" && allowed(type, "create"))
 
-  const [dialogType, setDialogType] = useState<DialogType | null>(null)
+  const [dialogType, setFinancialResource] = useState<FinancialResource | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [bankForm, setBankForm] = useState(emptyBankAccount)
   const [transferForm, setTransferForm] = useState(emptyBankTransfer)
@@ -97,28 +100,28 @@ export function FinancialCadastrosManagement() {
   const auditUser = username || "sistema"
 
   function openBankAccount(account?: BankAccount) {
-    setDialogType("bankAccount")
+    setFinancialResource("bankAccount")
     setEditingId(account?.id ?? null)
     setBankForm(account ? { ...account } : emptyBankAccount)
     setError("")
   }
 
   function openCostCenter(costCenter?: CostCenter) {
-    setDialogType("costCenter")
+    setFinancialResource("costCenter")
     setEditingId(costCenter?.id ?? null)
     setCostCenterForm(costCenter ? { ...costCenter } : emptyCostCenter)
     setError("")
   }
 
   function openBankTransfer(transfer?: BankTransfer) {
-    setDialogType("bankTransfer")
+    setFinancialResource("bankTransfer")
     setEditingId(transfer?.id ?? null)
     setTransferForm(transfer ? { ...transfer } : { ...emptyBankTransfer, responsible: auditUser })
     setError("")
   }
 
   function openBudget(budget?: Budget) {
-    setDialogType("budget")
+    setFinancialResource("budget")
     setEditingId(budget?.id ?? null)
     setBudgetForm(budget ? { ...budget, categories: budget.categories.map(category => ({ ...category })) } : emptyBudget)
     setBudgetCategoryForm(emptyBudgetCategory)
@@ -126,19 +129,20 @@ export function FinancialCadastrosManagement() {
   }
 
   function openRecurringTransaction(transaction?: RecurringTransaction) {
-    setDialogType("recurringTransaction")
+    setFinancialResource("recurringTransaction")
     setEditingId(transaction?.id ?? null)
     setRecurringForm(transaction ? { ...transaction } : emptyRecurringTransaction)
     setError("")
   }
 
   function closeDialog() {
-    setDialogType(null)
+    setFinancialResource(null)
     setEditingId(null)
     setError("")
   }
 
   async function saveBankAccount() {
+    if (!allowed("bankAccount", editingId ? "edit" : "create")) return
     try {
     if (!bankForm.name.trim()) {
       setError("Informe o nome da conta.")
@@ -158,6 +162,7 @@ export function FinancialCadastrosManagement() {
   }
 
   async function saveCostCenter() {
+    if (!allowed("costCenter", editingId ? "edit" : "create")) return
     try {
     if (!costCenterForm.name.trim()) {
       setError("Informe o nome do centro de custo.")
@@ -177,6 +182,7 @@ export function FinancialCadastrosManagement() {
   }
 
   async function saveBankTransfer() {
+    if (!allowed("bankTransfer", editingId ? "edit" : "create")) return
     try {
     if (!transferForm.fromAccountId || !transferForm.toAccountId || transferForm.fromAccountId === transferForm.toAccountId || transferForm.value <= 0) {
       setError("Informe contas diferentes e valor maior que zero.")
@@ -193,6 +199,7 @@ export function FinancialCadastrosManagement() {
   }
 
   async function saveBudget() {
+    if (!allowed("budget", editingId ? "edit" : "create")) return
     try {
     if (!budgetForm.name.trim() || budgetForm.year < 2000) {
       setError("Informe nome e ano validos para o orcamento.")
@@ -236,6 +243,7 @@ export function FinancialCadastrosManagement() {
   }
 
   async function saveRecurringTransaction() {
+    if (!allowed("recurringTransaction", editingId ? "edit" : "create")) return
     try {
     if (!recurringForm.description.trim() || !recurringForm.category.trim() || recurringForm.value <= 0) {
       setError("Informe descricao, categoria e valor maior que zero.")
@@ -254,8 +262,8 @@ export function FinancialCadastrosManagement() {
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
   }
 
-  async function removeCadastro(type: DialogType, id: string, reference: string, expectedVersion?: number) {
-    if (!confirm(`Excluir "${reference}"?`)) return
+  async function removeCadastro(type: FinancialResource, id: string, reference: string, expectedVersion?: number) {
+    if (!allowed(type, "delete") || !confirm(`Excluir "${reference}"?`)) return
 
     if (type === "bankAccount") {
       await removeBankAccount(id, expectedVersion)
@@ -277,10 +285,11 @@ export function FinancialCadastrosManagement() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      {visible("bankAccount") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm">Contas Bancarias</CardTitle>
-          <Button size="sm" variant="outline" onClick={() => openBankAccount()}><Plus className="size-4" /></Button>
+          <CardTitle className="text-sm">{balancesOnly ? "Saldos das contas" : "Contas bancárias"}</CardTitle>
+          {allowed("bankAccount", "create") && !balancesOnly && <Button size="sm" variant="outline" onClick={() => openBankAccount()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {bankAccounts.map(account => (
@@ -289,20 +298,22 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{account.name}</div>
                 <div className="text-xs text-muted-foreground">{formatCurrency(account.currentBalance)}</div>
               </div>
-              <RowActions active={account.active} onEdit={() => openBankAccount(account)} onDelete={() => removeCadastro("bankAccount", account.id, account.name, account.recordVersion)} />
+              {!balancesOnly && <RowActions collection="bankAccounts" active={account.active} onEdit={() => openBankAccount(account)} onDelete={() => removeCadastro("bankAccount", account.id, account.name, account.recordVersion)} />}
             </div>
           ))}
           {bankAccounts.length === 0 && <EmptyState label="Nenhuma conta cadastrada." />}
         </CardContent>
       </Card>
+      </>}
 
+      {visible("bankTransfer") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Transferencias</CardTitle>
-          <Button size="sm" variant="outline" onClick={() => openBankTransfer()}><Plus className="size-4" /></Button>
+          {allowed("bankTransfer", "create") && <Button size="sm" variant="outline" onClick={() => openBankTransfer()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
-          {bankTransfers.map(transfer => (
+          {(allowed("bankTransfer") ? bankTransfers : []).map(transfer => (
             <div key={transfer.id} className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <div className="font-medium">{transfer.description || "Transferencia"}</div>
@@ -314,11 +325,13 @@ export function FinancialCadastrosManagement() {
           {bankTransfers.length === 0 && <EmptyState label="Nenhuma transferencia cadastrada." />}
         </CardContent>
       </Card>
+      </>}
 
+      {visible("costCenter") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Centros de Custo</CardTitle>
-          <Button size="sm" variant="outline" onClick={() => openCostCenter()}><Plus className="size-4" /></Button>
+          {allowed("costCenter", "create") && <Button size="sm" variant="outline" onClick={() => openCostCenter()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {costCenters.map(costCenter => (
@@ -327,17 +340,19 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{costCenter.name}</div>
                 <div className="text-xs text-muted-foreground">{costCenter.description || "Sem descricao"}</div>
               </div>
-              <RowActions active={costCenter.active} onEdit={() => openCostCenter(costCenter)} onDelete={() => removeCadastro("costCenter", costCenter.id, costCenter.name, costCenter.recordVersion)} />
+              <RowActions collection="costCenters" active={costCenter.active} onEdit={() => openCostCenter(costCenter)} onDelete={() => removeCadastro("costCenter", costCenter.id, costCenter.name, costCenter.recordVersion)} />
             </div>
           ))}
           {costCenters.length === 0 && <EmptyState label="Nenhum centro de custo cadastrado." />}
         </CardContent>
       </Card>
+      </>}
 
+      {visible("budget") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Orcamentos</CardTitle>
-          <Button size="sm" variant="outline" onClick={() => openBudget()}><Plus className="size-4" /></Button>
+          {allowed("budget", "create") && <Button size="sm" variant="outline" onClick={() => openBudget()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {budgets.map(budget => (
@@ -346,17 +361,19 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{budget.name}</div>
                 <div className="text-xs text-muted-foreground">{budget.month ? `${budget.month}/` : ""}{budget.year} - {budget.categories.length} categoria(s)</div>
               </div>
-              <RowActions active={budget.status === "ativo"} onEdit={() => openBudget(budget)} onDelete={() => removeCadastro("budget", budget.id, budget.name, budget.recordVersion)} />
+              <RowActions collection="budgets" active={budget.status === "ativo"} onEdit={() => openBudget(budget)} onDelete={() => removeCadastro("budget", budget.id, budget.name, budget.recordVersion)} />
             </div>
           ))}
           {budgets.length === 0 && <EmptyState label="Nenhum orcamento cadastrado." />}
         </CardContent>
       </Card>
+      </>}
 
+      {visible("recurringTransaction") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Recorrencias</CardTitle>
-          <Button size="sm" variant="outline" onClick={() => openRecurringTransaction()}><Plus className="size-4" /></Button>
+          {allowed("recurringTransaction", "create") && <Button size="sm" variant="outline" onClick={() => openRecurringTransaction()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {recurringTransactions.map(transaction => (
@@ -365,14 +382,15 @@ export function FinancialCadastrosManagement() {
                 <div className="font-medium">{transaction.description}</div>
                 <div className="text-xs text-muted-foreground">{transaction.frequency} - {formatCurrency(transaction.value)}</div>
               </div>
-              <RowActions active={transaction.active} onEdit={() => openRecurringTransaction(transaction)} onDelete={() => removeCadastro("recurringTransaction", transaction.id, transaction.description, transaction.recordVersion)} />
+              <RowActions collection="recurringTransactions" active={transaction.active} onEdit={() => openRecurringTransaction(transaction)} onDelete={() => removeCadastro("recurringTransaction", transaction.id, transaction.description, transaction.recordVersion)} />
             </div>
           ))}
           {recurringTransactions.length === 0 && <EmptyState label="Nenhuma recorrencia cadastrada." />}
         </CardContent>
       </Card>
+      </>}
 
-      <Dialog open={dialogType === "bankAccount"} onOpenChange={(open) => { if (!open) closeDialog() }}>
+      <Dialog open={dialogType === "bankAccount" && visible("bankAccount") && allowed("bankAccount", editingId ? "edit" : "create")} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingId ? "Editar Conta" : "Nova Conta"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -397,7 +415,7 @@ export function FinancialCadastrosManagement() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogType === "bankTransfer"} onOpenChange={(open) => { if (!open) closeDialog() }}>
+      <Dialog open={dialogType === "bankTransfer" && visible("bankTransfer") && allowed("bankTransfer", editingId ? "edit" : "create")} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingId ? "Editar Transferencia" : "Nova Transferencia"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -422,7 +440,7 @@ export function FinancialCadastrosManagement() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogType === "costCenter"} onOpenChange={(open) => { if (!open) closeDialog() }}>
+      <Dialog open={dialogType === "costCenter" && visible("costCenter") && allowed("costCenter", editingId ? "edit" : "create")} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingId ? "Editar Centro" : "Novo Centro"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -435,7 +453,7 @@ export function FinancialCadastrosManagement() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogType === "budget"} onOpenChange={(open) => { if (!open) closeDialog() }}>
+      <Dialog open={dialogType === "budget" && visible("budget") && allowed("budget", editingId ? "edit" : "create")} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editingId ? "Editar Orcamento" : "Novo Orcamento"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -474,7 +492,7 @@ export function FinancialCadastrosManagement() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogType === "recurringTransaction"} onOpenChange={(open) => { if (!open) closeDialog() }}>
+      <Dialog open={dialogType === "recurringTransaction" && visible("recurringTransaction") && allowed("recurringTransaction", editingId ? "edit" : "create")} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingId ? "Editar Recorrencia" : "Nova Recorrencia"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -507,12 +525,13 @@ function EmptyState({ label }: { label: string }) {
   return <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{label}</div>
 }
 
-function RowActions({ active, onEdit, onDelete }: { active: boolean; onEdit: () => void; onDelete: () => void }) {
+function RowActions({ collection, active, onEdit, onDelete }: { collection: string; active: boolean; onEdit: () => void; onDelete: () => void }) {
+  const { can } = useAuth()
   return (
     <div className="flex items-center gap-1">
       <Badge variant={active ? "default" : "secondary"}>{active ? "Ativo" : "Inativo"}</Badge>
-      <Button size="sm" variant="ghost" onClick={onEdit}><Pencil className="size-4" /></Button>
-      <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="size-4" /></Button>
+      <Button aria-label="Editar cadastro" disabled={!can(`${collection}.edit`)} size="sm" variant="ghost" onClick={onEdit}><Pencil className="size-4" /></Button>
+      <Button aria-label="Excluir cadastro" disabled={!can(`${collection}.delete`)} size="sm" variant="ghost" onClick={onDelete}><Trash2 className="size-4" /></Button>
     </div>
   )
 }
