@@ -33,11 +33,6 @@ export function AppearanceSection() {
             "Animações dos gráficos",
             "Ativar animações ao carregar visualizações.",
           ],
-          [
-            "showRoomMetrics",
-            "Métricas do mapa",
-            "Mostrar o resumo de quartos no mapa.",
-          ],
         ] as const
       ).map(([key, label, description]) => (
         <div

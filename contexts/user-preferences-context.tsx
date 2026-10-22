@@ -10,12 +10,10 @@ import { useTheme } from "next-themes";
 import { useAuth } from "@/lib/auth-context";
 export interface UserPreferences {
   enableChartAnimations: boolean;
-  showRoomMetrics: boolean;
   theme: "light" | "dark" | "system";
 }
 const defaults: UserPreferences = {
   enableChartAnimations: true,
-  showRoomMetrics: true,
   theme: "system",
 };
 type Context = {
@@ -38,8 +36,6 @@ function parse(value: unknown): UserPreferences {
       typeof row.enableChartAnimations === "boolean"
         ? row.enableChartAnimations
         : true,
-    showRoomMetrics:
-      typeof row.showRoomMetrics === "boolean" ? row.showRoomMetrics : true,
     theme: ["light", "dark", "system"].includes(String(row.theme))
       ? (row.theme as UserPreferences["theme"])
       : "system",

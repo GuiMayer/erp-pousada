@@ -9,6 +9,7 @@ import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { useActiveTab } from "@/contexts/active-tab-context"
 import { DashboardHeader } from "./dashboard-header"
+import { RoomSummary } from "./room-summary"
 import { RoomGrid } from "./room-grid"
 import { ReservationsTab } from "./reservations-tab"
 import { HistoryTab } from "./history-tab"
@@ -39,7 +40,7 @@ export function DashboardShell() {
     <div className="dashboard-shell mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
       {dataError && <div role="alert" className="rounded-lg border border-destructive p-4 text-destructive">Não foi possível atualizar os dados: {dataError}. Recarregue a página para tentar novamente.</div>}
       {phone && <MobileNavigation />}
-      <div className="hidden sm:block"><DashboardHeader rooms={rooms} /></div>
+      <div className="hidden sm:block"><DashboardHeader /></div>
       {!permittedTab && <p role="status">Nenhum módulo foi liberado para seu usuário. Procure o administrador.</p>}
 
       <Tabs value={visible(activeTab) ? activeTab : permittedTab ?? ""} onValueChange={(value) => setActiveTab(value as any)} className={`flex flex-col ${activeTab === "mapa" ? "gap-3" : "gap-6"}`}>
@@ -80,7 +81,8 @@ export function DashboardShell() {
           </TabsTrigger>)}
         </TabsList>
 
-        {visible("mapa") && (<TabsContent value="mapa">
+        {visible("mapa") && (<TabsContent value="mapa" className="space-y-3">
+          <RoomSummary rooms={rooms} />
           <RoomGrid />
         </TabsContent>)}
         {visible("reservas") && (<TabsContent value="reservas">

@@ -28,7 +28,6 @@ describe("Preferências pessoais no navegador", () => {
       key,
       JSON.stringify({
         enableChartAnimations: false,
-        showRoomMetrics: false,
         theme: "dark",
       }),
     );
@@ -38,34 +37,34 @@ describe("Preferências pessoais no navegador", () => {
     await waitFor(() => expect(first.result.current.loaded).toBe(true));
     expect(first.result.current.preferences.theme).toBe("dark");
     expect(auth.setTheme).toHaveBeenCalledWith("dark");
-    expect(first.result.current.preferences.showRoomMetrics).toBe(false);
+    expect(first.result.current.preferences.enableChartAnimations).toBe(false);
     first.unmount();
     auth.user = { id: "b" };
     const second = renderHook(useUserPreferences, {
       wrapper: UserPreferencesProvider,
     });
     expect(second.result.current.preferences.theme).toBe("system");
-    expect(second.result.current.preferences.showRoomMetrics).toBe(true);
-    expect(JSON.parse(localStorage.getItem(key)!).showRoomMetrics).toBe(false);
+    expect(second.result.current.preferences.enableChartAnimations).toBe(true);
+    expect(JSON.parse(localStorage.getItem(key)!).enableChartAnimations).toBe(false);
   });
   it("migra preferências legadas somente para a primeira conta e respeita revogação", async () => {
     localStorage.setItem(
       "userPreferences",
-      JSON.stringify({ showRoomMetrics: false }),
+      JSON.stringify({ enableChartAnimations: false }),
     );
     const first = renderHook(useUserPreferences, {
       wrapper: UserPreferencesProvider,
     });
     await waitFor(() => expect(first.result.current.loaded).toBe(true));
-    expect(first.result.current.preferences.showRoomMetrics).toBe(false);
+    expect(first.result.current.preferences.enableChartAnimations).toBe(false);
     first.unmount();
     auth.user = { id: "b" };
     auth.allowed = false;
     const second = renderHook(useUserPreferences, {
       wrapper: UserPreferencesProvider,
     });
-    act(() => second.result.current.updatePreference("showRoomMetrics", false));
-    expect(second.result.current.preferences.showRoomMetrics).toBe(true);
+    act(() => second.result.current.updatePreference("enableChartAnimations", false));
+    expect(second.result.current.preferences.enableChartAnimations).toBe(true);
     expect(second.result.current.status).toContain("Sem permissão");
   });
 });
