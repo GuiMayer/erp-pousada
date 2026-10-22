@@ -2,6 +2,8 @@
 
 Revisão em 22/10/2026, sobre o checkout local após `a020b75`. Nenhum arquivo funcional, variável de ambiente ou credencial foi alterado nesta revisão.
 
+**Atualização:** a limpeza foi executada posteriormente. Consulte o [registro de execução e validação](LIMPEZA_REPOSITORIO.md). As listas abaixo preservam o diagnóstico anterior à limpeza.
+
 ## Resultado resumido
 
 - Supabase não participa da aplicação atual: não há cliente, adaptador ou dependência do Supabase no código versionado atual.
