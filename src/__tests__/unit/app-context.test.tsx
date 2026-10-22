@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useApp } from '../../../lib/app-context'
 import { TestWrapper } from '../utils/test-helpers'
 import type { Room, Reservation, GuestProfile, POSProduct } from '../../../lib/store'
 
 describe('AppContext', () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ startedAt: "2026-10-22T15:00:00Z" }) }))
+  })
+  afterEach(() => vi.unstubAllGlobals())
   it('should initialize with default data', async () => {
     const { result } = renderHook(() => useApp(), {
       wrapper: TestWrapper,

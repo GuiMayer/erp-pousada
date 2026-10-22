@@ -10,6 +10,8 @@ import {
   type Transaction, type Expense, type Customer, type AccountReceivable,
 } from "./store"
 import type { DataStore } from "./data/types"
+import type { Stay } from "./stays"
+import { getDataConfig } from "./data/config"
 
 /** Fictitious examples for the explicit browser demo; never a production seed. */
 export function createDemoData(now = new Date()) {
@@ -44,6 +46,28 @@ export function createDemoData(now = new Date()) {
     { id: "DEMO-R008", roomId: 9, roomNumber: "301", guestName: "Marina Oliveira", cpf: "000.000.000-01", checkIn: date(0), checkOut: date(3), status: "confirmada", totalValue: 1860 },
     { id: "DEMO-R009", roomId: 12, roomNumber: "304", guestName: "Felipe Rocha", cpf: "000.000.000-02", checkIn: date(1), checkOut: date(4), status: "confirmada", totalValue: 1350 },
     { id: "DEMO-R010", roomId: 2, roomNumber: "102", guestName: "Lucia Martins", cpf: guests[6].cpf, checkIn: date(-7), checkOut: date(-4), status: "checkout", totalValue: 960 },
+  )
+  // One late departure to exercise extension/check-out, without inventing a future stay.
+  rooms.find(r => r.id === 1)!.checkOut = date(-1)
+  reservations.find(r => r.id === "R001")!.checkOut = date(-1)
+  // A company group arriving tomorrow, plus arrivals throughout the next two weeks.
+  const laterReservation = reservations.find(r => r.id === "R007")!
+  laterReservation.checkIn = date(5); laterReservation.checkOut = date(8)
+  reservations.push(
+    ...[2, 5].map((roomId): Reservation => ({
+      id: `DEMO-GROUP-${roomId}`, groupId: "DEMO-GROUP-TOMORROW", roomId,
+      roomNumber: rooms.find(r => r.id === roomId)!.number, guestName: guests[0].name, cpf: guests[0].cpf,
+      checkIn: date(1), checkOut: date(3), status: "confirmada", totalValue: 0,
+    })),
+    ...[6, 9, 12].map((offset, index): Reservation => ({
+      id: `DEMO-FUTURE-${offset}`, roomId: 12, roomNumber: "304", guestName: guests[5].name, cpf: guests[5].cpf,
+      checkIn: date(offset), checkOut: date(offset + 2), status: "confirmada", totalValue: 0,
+    })),
+    { id: "DEMO-CANCELLED", roomId: 5, roomNumber: "201", guestName: guests[5].name, cpf: guests[5].cpf,
+      checkIn: date(-5), checkOut: date(-3), status: "cancelada", totalValue: 0,
+      cancellationReason: "Hóspede mudou os planos da viagem — exemplo", cancelledAt: timestamp(-6), cancelledBy: "supervisor" },
+    { id: "DEMO-NOSHOW", roomId: 12, roomNumber: "304", guestName: guests[6].name, cpf: guests[6].cpf,
+      checkIn: date(-3), checkOut: date(-1), status: "noshow", totalValue: 0 },
   )
   guests.push(
     { cpf: "000.000.000-01", name: "Marina Oliveira", totalStays: 2, avgTicket: 1860, noShows: 0 },
@@ -141,9 +165,20 @@ export function createDemoData(now = new Date()) {
     r.guestCount = 2; r.payerId = person.companyId ?? person.id; r.recordVersion = 0
     const quote = quoteLodging(rooms.find(room => room.id === r.roomId)!, lodgingTariffs, { roomId: r.roomId, guestCount: 2, checkIn: r.checkIn, checkOut: r.checkOut })
     r.totalValue = quote.total; r.originalValue = quote.total; r.nightlyPrices = quote.nights
-    r.paidValue = r.status === "checkout" ? r.totalValue : r.status === "checkin" || r.id === "DEMO-R008" ? Math.min(100, r.totalValue) : 0
+    r.paidValue = r.status === "checkout" ? r.totalValue : r.status === "checkin" || (r.id === "DEMO-R008" || r.id === "DEMO-R009") ? Math.min(100, r.totalValue) : 0
     if (r.paidValue > 0) transactions.push({ id: `DEMO-T-BOOKING-${index}`, date: timestamp(0), description: `Hospedagem ${r.id}`, refId: `Hospedagem ${r.id}`, value: r.paidValue, type: "receita", paymentMethod: "PIX", accountId: "DEMO-BANK", responsible: "supervisor", originType: "reservation", originId: r.id })
   }
+  const stays: Stay[] = reservations.filter(r => ["checkin", "checkout"].includes(r.status)).map(r => ({
+    id: `demo-stay-${r.id}`, reservationId: r.id, payerId: r.payerId, guestName: r.guestName,
+    guestCount: r.guestCount, roomId: r.roomId, checkIn: r.checkIn, checkOut: r.checkOut,
+    status: r.status === "checkin" ? "active" : "closed", lodgingValue: r.totalValue,
+    nightlyPrices: r.nightlyPrices, recordVersion: 0, recordedAt: `${r.checkIn}T15:00:00.000Z`,
+    endedAt: r.status === "checkout" ? `${r.checkOut}T15:00:00.000Z` : undefined,
+    occupants: [{ id: `DEMO-OCC-${r.id}`, name: r.guestName, customerId: customers.find(c => c.cpfCnpj === r.cpf)!.id }],
+    allocations: [{ id: `DEMO-ALLOC-${r.id}`, roomId: r.roomId, start: r.checkIn, end: r.checkOut }],
+    charges: r.status === "checkin" ? [{ id: `DEMO-C${r.roomId}`, label: "Água mineral 500 ml", unitPrice: 5, quantity: 2, status: "active", createdAt: timestamp(0) }] : [],
+    payments: r.paidValue ? [{ id: `DEMO-PAY-${r.id}`, value: r.paidValue, bucket: "lodging", method: "PIX", createdAt: timestamp(0), transactionId: `DEMO-T-BOOKING-${reservations.indexOf(r)}` }] : [],
+  }))
   const accountsReceivable: AccountReceivable[] = [0, 2, 5].map((index) => ({
     id: `DEMO-AR${index}`, customerId: customers[index].id, customerName: customers[index].name,
     description: "Saldo de hospedagem — exemplo", value: [320, 480, 650][index % 3],
@@ -151,7 +186,7 @@ export function createDemoData(now = new Date()) {
     status: index === 0 ? "vencido" : "pendente", category: "Hospedagem",
   }))
   return {
-    lodgingTariffs, rooms, reservations, guests, expenses, transactions, posProducts, posSales,
+    lodgingTariffs, rooms, reservations, stays, guests, expenses, transactions, posProducts, posSales,
     restaurantTables, restaurantOrders, stockItems, stockMovements, customers, accountsReceivable,
     categories: structuredClone(initialCategories), productCategories: structuredClone(initialProductCategories.filter(category => !category.isRestaurant)),
     employees: [], users: structuredClone(initialUsers), userSessions: [],
@@ -167,11 +202,23 @@ export function createDemoData(now = new Date()) {
   }
 }
 
-/** Seed only a completely empty demo store, preserving existing browser data. */
-export async function seedDemoIfEmpty(store: Pick<DataStore, "exportAll" | "importAll">) {
-  const existing = JSON.parse(await store.exportAll()) as Record<string, unknown>
-  if (Object.keys(existing).length > 0) return false
-  // One snapshot avoids concurrent read/modify/write operations losing seed records.
-  await store.importAll(JSON.stringify(createDemoData()))
+/** Replace only the explicitly selected browser demo, once per server start/scenario. */
+export async function seedDemoSession(store: Pick<DataStore, "exportAll" | "importAll">, startedAt: string) {
+  if (getDataConfig().adapter !== "demo-localStorage") throw new Error("Exemplos disponíveis apenas na demonstração do navegador")
+  const anchor = new Date(startedAt)
+  if (!Number.isFinite(anchor.getTime())) throw new Error("Data de início da demonstração inválida")
+  const id = `room-scenarios-1:${anchor.toISOString()}`
+  const existing = JSON.parse(await store.exportAll()) as { demoScenario?: { id: string } }
+  if (existing.demoScenario?.id === id) return false
+  await store.importAll(JSON.stringify({ ...createDemoData(anchor), demoScenario: { id, startedAt: anchor.toISOString() } }))
   return true
+}
+
+export async function initializeBrowserDemo(store: Pick<DataStore, "exportAll" | "importAll">) {
+  if (getDataConfig().adapter !== "demo-localStorage") throw new Error("Exemplos disponíveis apenas na demonstração do navegador")
+  const response = await fetch("/api/demo/session", { cache: "no-store" })
+  if (!response.ok) throw new Error("Não foi possível iniciar os exemplos de demonstração. Recarregue a página.")
+  const { startedAt } = await response.json() as { startedAt: string }
+  const seed = () => seedDemoSession(store, startedAt)
+  return typeof navigator !== "undefined" && navigator.locks ? navigator.locks.request("erp-demo-booking", seed) : seed()
 }

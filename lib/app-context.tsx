@@ -41,7 +41,7 @@ import { useDataStore } from "./hooks/useDataStore"
 import { useAuth } from "./auth-context"
 import { getDataConfig } from "./data/config"
 import { submitOperation } from "./data/operations-client"
-import { seedDemoIfEmpty } from "./demo-data"
+import { initializeBrowserDemo } from "./demo-data"
 
 const RESERVATION_BLOCKING_STATUSES = new Set<Reservation["status"]>(["confirmada", "checkin"])
 
@@ -426,13 +426,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { events?.close(); clearTimeout(debounce); clearInterval(timer); window.removeEventListener("focus", focused) }
   }, [isLoggedIn, loadAllData])
 
-  // Initial data load and seed if empty
+  // Initialize the explicit browser demo once per server session, then load its data.
   useEffect(() => {
     if (isInitialized || !isLoggedIn) return // Wait for an authenticated user
 
     const initializeData = async () => {
       if (getDataConfig().adapter === "demo-localStorage") {
-        await seedDemoIfEmpty(dataStore)
+        await initializeBrowserDemo(dataStore)
       }
 
       // Load all data into state
