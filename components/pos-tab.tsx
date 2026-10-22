@@ -1,7 +1,7 @@
 "use client"
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 import { useTaskState, useTaskRef } from "@/contexts/task-drafts-context"
-import { CashTurnShortcut } from "./cash-turn-shortcut"
+import { CashWorkspace } from "./cash-workspace"
 import { PermissionGate } from "@/components/permission-gate"
 
 
@@ -278,6 +278,8 @@ export function POSTab() {
     } catch (error) { toast({ title: "Estorno não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
   }
 
+  if (!can("pos.sell")) return <div className="space-y-4"><h2 className="text-xl font-semibold">Frente de Caixa</h2><CashWorkspace /></div>
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header with stats */}
@@ -299,12 +301,12 @@ export function POSTab() {
             onClick={() => setHistoryOpen(true)}
           >
             <History className="size-3.5" />
-            Historico
+            Histórico de vendas
           </Button>
         </div>
       </div>
 
-      <CashTurnShortcut />
+      <CashWorkspace />
       <Button className={`mobile-cart-bar sm:hidden ${mobileCartOpen ? "mobile-cart-bar-review" : ""}`} onClick={() => { setMobileCartOpen(true); requestAnimationFrame(() => cartRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })) }}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Ver carrinho</Button>
       {/* Main POS Layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">

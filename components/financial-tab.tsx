@@ -6,7 +6,6 @@ import { PermissionGate } from "@/components/permission-gate"
 import { getDataConfig } from "@/lib/data/config"
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
-import { CashSessionPanel } from "./cash-session-panel"
 import { PaymentDialog } from "./payment-fields"
 import { businessDay } from "@/lib/utils/business-values"
 import { useState, useMemo } from "react"
@@ -57,12 +56,12 @@ type DueFilter = "todos" | "pendentes" | "pagos" | "vencidos"
 
 export function FinancialTab() {
   const {
-    expenses, transactions, categories, cashCloses,
+    expenses, transactions, categories,
     runOperation, addExpense, updateExpense, markInstallmentAsPaid, addTransaction,
     addAuditEntry, addCategory,
   } = useApp()
   const { username, can } = useAuth()
-  const financialTabs: Record<string, string[]> = { "contas-receber": ["accountsReceivable.read", "recurringTransactions.read"], vencimentos: ["expenses.read", "recurringTransactions.read"], transacoes: ["transactions.read"], contas: ["bankAccounts.read", "bankTransfers.read", "bankAccounts.transfer", "cash.open", "cash.close"] }
+  const financialTabs: Record<string, string[]> = { "contas-receber": ["accountsReceivable.read", "recurringTransactions.read"], vencimentos: ["expenses.read", "recurringTransactions.read"], transacoes: ["transactions.read"], contas: ["bankAccounts.read", "bankTransfers.read", "bankAccounts.transfer"] }
   const visible = (tab: string) => financialTabs[tab]?.some(can)
   const [section, setSection] = useTaskState("finance.section", Object.keys(financialTabs).find(visible), false)
   const currentSection = section && visible(section) ? section : Object.keys(financialTabs).find(visible)
@@ -563,7 +562,6 @@ export function FinancialTab() {
           {can("recurringTransactions.read") && <details className="mt-4 rounded-lg border p-4"><summary className="min-h-11 cursor-pointer font-medium">Receitas recorrentes</summary><FinancialCadastrosManagement sections={["recurringTransaction"]} recurringType="receita" /></details>}
         </TabsContent>}
         {visible("contas") && <TabsContent value="contas" className="space-y-4">
-          {(can("cash.open") || can("cash.close")) && <CashSessionPanel />}
           <FinancialCadastrosManagement sections={["bankAccount", "bankTransfer"]} balancesOnly />
         </TabsContent>}
       </Tabs>

@@ -98,7 +98,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     }
     const closed = await tx.cashClose.update({ where: { id: session.id }, data: { status: "fechado", date: new Date(), closedAt: new Date(), physicalValue, expectedValue, divergence, retainedValue, withdrawnValue, withdrawalAccountId: input.withdrawalAccountId, closingReason: input.closingReason, closedBy: actor.username } })
     await audit(tx, actor, "Caixa fechado", session.id, { entityType: "cashCloses", entityId: session.id, operation: "update", metadata: { physicalValue, expectedValue: Number(expectedValue), divergence: Number(divergence), retainedValue: Number(retainedValue), withdrawnValue: Number(withdrawnValue), withdrawalAccountId: input.withdrawalAccountId, closingReason: input.closingReason } })
-    return collectionMapper("cashCloses").toApp(closed)
+    return { ...collectionMapper("cashCloses").toApp(closed) as object, incomingValue: Number(entries.filter(e => cashIncoming(e.type)).reduce((sum, e) => sum.plus(e.value), D(0))), outgoingValue: Number(entries.filter(e => !cashIncoming(e.type)).reduce((sum, e) => sum.plus(e.value), D(0))) }
   }
   if (kind === "cash-review") {
     const input = z.object({ sessionId: id, note: z.string().trim().min(5).max(500) }).strict().parse(payload)

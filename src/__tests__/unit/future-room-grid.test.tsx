@@ -30,7 +30,7 @@ describe("Filtros do Mapa futuro", () => {
     render(<RoomGrid />)
     fireEvent.click(screen.getByRole("button", { name: "Voltar para hoje" }))
     expect(screen.getByRole("button", { name: "Limpeza" })).toBeInTheDocument()
-    expect(screen.getByText("Operação de caixa")).toBeInTheDocument()
+    expect(screen.queryByText("Operação de caixa")).not.toBeInTheDocument()
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
   })
 })
