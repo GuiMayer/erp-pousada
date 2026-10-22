@@ -350,3 +350,18 @@
 }
 
 @media (max-width: 639px) { .mobile-cart-bar.mobile-cart-bar-review { display: none; } }
+
+/* Browse the week without moving the consulted date. Only the date track slides. */
+@keyframes room-date-enter-next { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes room-date-exit-next { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes room-date-enter-previous { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes room-date-exit-previous { from { transform: translateX(0); } to { transform: translateX(100%); } }
+.room-date-in, .room-date-out { animation-duration: 240ms; animation-timing-function: cubic-bezier(.22,.61,.36,1); animation-fill-mode: both; }
+.room-date-viewport[data-direction="next"] .room-date-in { animation-name: room-date-enter-next; }
+.room-date-viewport[data-direction="next"] .room-date-out { animation-name: room-date-exit-next; }
+.room-date-viewport[data-direction="previous"] .room-date-in { animation-name: room-date-enter-previous; }
+.room-date-viewport[data-direction="previous"] .room-date-out { animation-name: room-date-exit-previous; }
+@media (prefers-reduced-motion: reduce) {
+  .room-date-in { animation: none !important; }
+  .room-date-out { display: none; }
+}

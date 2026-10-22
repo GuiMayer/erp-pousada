@@ -17,33 +17,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { differenceInCalendarDays, format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { CalendarDays, ChevronLeft, ChevronRight, Settings2 } from "lucide-react"
-import type { RoomStatus } from "@/lib/store"
-
-function getWeekDates(offset: number) {
-  const dates: { date: string; weekday: string; day: string; month: string; isToday: boolean }[] = []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const startDate = new Date(today)
-  startDate.setDate(startDate.getDate() + offset * 7)
-
-  const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
-  const weekdays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"]
-
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(startDate)
-    d.setDate(d.getDate() + i)
-    const iso = businessDay(d)
-    dates.push({
-      date: iso,
-      weekday: weekdays[d.getDay()],
-      day: String(d.getDate()),
-      month: months[d.getMonth()],
-      isToday: iso === businessDay(today),
-    })
-  }
-  return dates
-}
+import { CalendarDays, Settings2 } from "lucide-react"
+import { RoomDateStrip, getWeekDates } from "./room-date-strip"
 
 export function RoomGrid() {
   const { rooms, reservations = [], stays = [] } = useApp()
@@ -60,7 +35,6 @@ export function RoomGrid() {
   function moveWeek(step: number) {
     const nextOffset = weekOffset + step
     setWeekOffset(nextOffset)
-    setSelectedDate(getWeekDates(nextOffset)[0].date)
   }
 
   function selectCalendarDate(date: Date | undefined) {
@@ -81,44 +55,15 @@ export function RoomGrid() {
   }).map(({ room }) => room)
 
   return (
-    <div className="room-map flex flex-col gap-6 animate-fade-in">
-      <div className="flex flex-wrap items-center gap-2">{!future && <CashTurnShortcut />}</div>
+    <div className="room-map flex flex-col gap-4 animate-fade-in">
+      <div className="flex flex-wrap items-center gap-2 empty:hidden">{!future && <CashTurnShortcut />}</div>
       <div className="sm:hidden space-y-2">
         <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{future ? format(calendarDate, "dd/MM") : "Agora"} · {availableCount} quartos {future ? "previstos livres" : "livres"}</span><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
       </div>
       {/* Interactive date selector */}
-      <div className="grid w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 sm:flex sm:flex-col sm:gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-        <div className="room-date-strip contents sm:flex sm:min-w-0 sm:max-w-full sm:items-center sm:gap-2 sm:pb-1 xl:col-start-2" role="group" aria-label="Navegar pelos dias">
-          <Button variant="outline" size="icon" aria-label="Semana anterior" className="col-start-1 row-start-1 size-9 shrink-0" onClick={() => moveWeek(-1)}>
-            <ChevronLeft className="size-4" />
-          </Button>
-          <div className="col-span-3 row-start-2 grid grid-cols-7 gap-1 sm:flex sm:gap-1.5">
-            {weekDates.map((d) => (
-              <button
-                key={d.date}
-                type="button"
-                aria-label={format(parseISO(d.date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                aria-pressed={d.date === selectedDate}
-                onClick={() => setSelectedDate(d.date)}
-                className={`room-day-choice flex min-w-0 flex-col items-center rounded-xl px-0 py-2 transition-all cursor-pointer sm:min-w-[56px] sm:px-3 ${
-                  d.date === selectedDate
-                    ? "bg-primary text-primary-foreground shadow-sm scale-105"
-                    : d.isToday
-                      ? "bg-primary/10 text-primary hover:bg-primary/15"
-                      : "bg-secondary text-secondary-foreground hover:bg-accent"
-                }`}
-              >
-                <span className="text-[10px] uppercase font-medium opacity-80">{d.weekday}</span>
-                <span className="text-lg font-bold tabular-nums leading-tight">{d.day}</span>
-                <span className="hidden text-[9px] uppercase opacity-60 sm:inline">{d.month}</span>
-              </button>
-            ))}
-          </div>
-          <Button variant="outline" size="icon" aria-label="Próxima semana" className="col-start-3 row-start-1 size-9 shrink-0" onClick={() => moveWeek(1)}>
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+      <div className="grid w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 sm:flex sm:flex-col sm:gap-2 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <RoomDateStrip offset={weekOffset} selectedDate={selectedDate} onNavigate={moveWeek} onSelect={setSelectedDate} />
         <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-center gap-1 sm:gap-2 xl:col-start-3 xl:justify-self-end">
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
