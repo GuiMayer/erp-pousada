@@ -83,7 +83,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
       status: "disponivel",
       timeline: generateTimeline("disponivel"),
     })
-    addAuditEntry({ user: username || "sistema", action: "Quarto adicionado", reference: `Quarto ${roomNumber} (${roomType})` })
+    addAuditEntry({ entityType: "rooms", operation: "create", user: username || "sistema", action: "Quarto adicionado", reference: `Quarto ${roomNumber} (${roomType})` })
     resetForm()
     setMode("list")
 
@@ -100,7 +100,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
     }
     await updateRoom(editingRoom.id, {
       recordVersion: editingRoom.recordVersion, number: roomNumber, type: roomType, capacity })
-    addAuditEntry({ user: username || "sistema", action: "Quarto editado", reference: `Quarto ${roomNumber}` })
+    addAuditEntry({ entityType: "rooms", operation: "update", user: username || "sistema", action: "Quarto editado", reference: `Quarto ${roomNumber}` })
     resetForm()
     setMode("list")
 
@@ -110,7 +110,7 @@ export function ManageRoomsModal({ open, onClose }: Props) {
   async function handleDelete(room: Room) {
     try {
     await removeRoom(room.id, room.recordVersion)
-    addAuditEntry({ user: username || "sistema", action: "Quarto removido", reference: `Quarto ${room.number}` })
+    addAuditEntry({ entityType: "rooms", operation: "delete", user: username || "sistema", action: "Quarto removido", reference: `Quarto ${room.number}` })
     setDeleteConfirm(null)
 
     } catch (failure) { setFormError(failure instanceof Error ? failure.message : "Alteração não salva") }

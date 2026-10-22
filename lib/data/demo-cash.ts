@@ -20,7 +20,7 @@ export function demoCashOperation(store: DataStore, kind: string, payload: unkno
       const outgoingValue = list.filter(e => !cashIncoming(e.type)).reduce((v, e) => v + cents(Math.abs(e.value)), 0) / 100
       return { incomingValue, outgoingValue, expectedValue: (cents(turn.openingValue ?? 0) + cents(incomingValue) - cents(outgoingValue)) / 100 }
     }
-    const audit = (action: string, reference: string) => staged.auditLog.create({ date: now, user: actor.username, action, reference })
+    const audit = (action: string, reference: string) => staged.auditLog.create({ date: now, user: actor.username, action, reference, entityType: "cashCloses", entityId: reference, operation: kind === "cash-open" ? "create" : kind === "cash-movement" ? "action" : "update" })
     if (kind === "cash-open") {
       demand("cash.open")
       const input = z.object({ openingValue: money, openingReason: reason.optional() }).strict().parse(payload)

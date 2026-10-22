@@ -256,7 +256,7 @@ function CurrentRoomCard({
           recordVersion: room.recordVersion,
           status: "disponivel",
         });
-        addAuditEntry({
+        addAuditEntry({ entityType: "rooms", operation: "update",
           user: username || "sistema",
           action: "Quarto liberado (limpeza concluída)",
           reference: "Quarto " + room.number,
@@ -285,7 +285,7 @@ function CurrentRoomCard({
             checkOut: undefined,
           });
           await clearConsumption(room.id);
-          addAuditEntry({
+          addAuditEntry({ entityType: "stays", operation: "update",
             user: username || "sistema",
             action: "Check-out realizado",
             reference: "Quarto " + room.number,
@@ -520,7 +520,7 @@ function CurrentRoomCard({
                 blockResponsible: responsible,
                 blockReason: reason,
               });
-              addAuditEntry({
+              addAuditEntry({ entityType: "rooms", operation: "update",
                 user: username || "sistema",
                 action: "Quarto bloqueado",
                 reference: "Quarto " + room.number + " · " + reason,
@@ -539,7 +539,7 @@ function CurrentRoomCard({
                 blockResponsible: undefined,
                 blockReason: undefined,
               });
-              addAuditEntry({
+              addAuditEntry({ entityType: "rooms", operation: "update",
                 user: username || "sistema",
                 action: "Quarto desbloqueado",
                 reference: "Quarto " + room.number,

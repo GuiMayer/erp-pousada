@@ -76,10 +76,10 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
 
     if (editingCpf) {
       await updateGuest(editingCpf, guestData)
-      await addAuditEntry({ user: auditUser, action: "Hospede editado", reference: `${guestData.name} (${guestData.cpf})` })
+      await addAuditEntry({ entityType: "guests", operation: "update", user: auditUser, action: "Hospede editado", reference: `${guestData.name} (${guestData.cpf})` })
     } else {
       await addGuest(guestData)
-      await addAuditEntry({ user: auditUser, action: "Hospede criado", reference: `${guestData.name} (${guestData.cpf})` })
+      await addAuditEntry({ entityType: "guests", operation: "create", user: auditUser, action: "Hospede criado", reference: `${guestData.name} (${guestData.cpf})` })
     }
     closeDialog()
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
@@ -88,7 +88,7 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
   async function handleDelete(guest: GuestProfile) {
     if (!can("guests.delete") || !confirm(`Excluir hospede "${guest.name}"?`)) return
     await removeGuest(guest.cpf, guest.recordVersion)
-    await addAuditEntry({
+    await addAuditEntry({ entityType: "guests", operation: "delete",
       user: username || "sistema",
       action: "Hospede removido",
       reference: `${guest.name} (${guest.cpf})`,

@@ -202,7 +202,7 @@ export default function CustomersManagement() {
         // Log specific audit entry based on what changed
         if (statusChanged) {
           const action = formData.active ? "Cliente ativado" : "Cliente desativado"
-          await addAuditEntry({
+          await addAuditEntry({ entityType: "customers", operation: "update",
             user: auditUser,
             action,
             reference: formData.name
@@ -210,7 +210,7 @@ export default function CustomersManagement() {
         } else {
           // Log generic edit if no status change
           const docType = getDocumentType(formData.cpfCnpj)
-          await addAuditEntry({
+          await addAuditEntry({ entityType: "customers", operation: "update",
             user: auditUser,
             action: "Cliente editado",
             reference: `${formData.name} (${docType})`
@@ -222,7 +222,7 @@ export default function CustomersManagement() {
         // Log audit entry for customer creation
         const docType = getDocumentType(formData.cpfCnpj)
         const formattedDoc = formatCpfCnpj(formData.cpfCnpj)
-        await addAuditEntry({
+        await addAuditEntry({ entityType: "customers", operation: "create",
           user: auditUser,
           action: "Cliente adicionado",
           reference: `${formData.name} (${formattedDoc}) - ${docType}`
@@ -275,7 +275,7 @@ export default function CustomersManagement() {
       }
 
       await updateCustomer(customer.id, { recordVersion: customer.recordVersion, active: false })
-      await addAuditEntry({
+      await addAuditEntry({ entityType: "customers", operation: "update",
         user: auditUser,
         action: "Cliente desativado",
         reference: `${customer.name} (${linkedAccounts.length} conta(s) vinculada(s))`,
@@ -288,7 +288,7 @@ export default function CustomersManagement() {
     }
 
     await removeCustomer(customer.id, customer.recordVersion)
-    await addAuditEntry({
+    await addAuditEntry({ entityType: "customers", operation: "delete",
       user: auditUser,
       action: "Cliente removido",
       reference: customer.name,

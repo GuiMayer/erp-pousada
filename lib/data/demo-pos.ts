@@ -93,7 +93,7 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
         else await staged.consumptions.create({ roomId: stay.roomId, items: added })
       } else await ledger(sale.id, payment!.lines)
       await staged.posSales.create(sale)
-      await staged.auditLog.create({ date: now, user: username, action: stay ? "Entrega lançada na ficha" : "Venda recebida", reference: sale.id })
+      await staged.auditLog.create({ date: now, user: username, action: stay ? "Entrega lançada na ficha" : "Venda recebida", reference: sale.id, entityType: "posSales", entityId: sale.id, operation: "create" })
       return sale
     }
     demand("pos.refund")
@@ -111,7 +111,7 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
     } else await ledger(sale.id, sale.payments ?? [{ method: sale.paymentMethod, value: sale.total }], true)
     if (input.returnToStock) await stock(sale, true)
     await staged.posSales.update(sale.id, { status: "cancelada", cancelReason: input.reason })
-    await staged.auditLog.create({ date: now, user: username, action: "Venda estornada", reference: `${sale.id} · ${input.reason}` })
+    await staged.auditLog.create({ date: now, user: username, action: "Venda estornada", reference: `${sale.id} · ${input.reason}`, entityType: "posSales", entityId: sale.id, operation: "update", metadata: { reason: input.reason } })
     return { success: true }
   })
 }

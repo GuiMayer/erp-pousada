@@ -151,10 +151,10 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
 
     if (editingId) {
       await updateBankAccount(editingId, bankForm)
-      await addAuditEntry({ user: auditUser, action: bankForm.active ? "Conta bancaria editada" : "Conta bancaria desativada", reference: bankForm.name })
+      await addAuditEntry({ entityType: "bankAccounts", operation: "update", user: auditUser, action: bankForm.active ? "Conta bancaria editada" : "Conta bancaria desativada", reference: bankForm.name })
     } else {
       await addBankAccount({ id: `BA${Date.now()}`, ...bankForm })
-      await addAuditEntry({ user: auditUser, action: "Conta bancaria criada", reference: bankForm.name })
+      await addAuditEntry({ entityType: "bankAccounts", operation: "create", user: auditUser, action: "Conta bancaria criada", reference: bankForm.name })
     }
     closeDialog()
 
@@ -171,10 +171,10 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
 
     if (editingId) {
       await updateCostCenter(editingId, costCenterForm)
-      await addAuditEntry({ user: auditUser, action: costCenterForm.active ? "Centro de custo editado" : "Centro de custo desativado", reference: costCenterForm.name })
+      await addAuditEntry({ entityType: "costCenters", operation: "update", user: auditUser, action: costCenterForm.active ? "Centro de custo editado" : "Centro de custo desativado", reference: costCenterForm.name })
     } else {
       await addCostCenter({ id: `CC${Date.now()}`, ...costCenterForm })
-      await addAuditEntry({ user: auditUser, action: "Centro de custo criado", reference: costCenterForm.name })
+      await addAuditEntry({ entityType: "costCenters", operation: "create", user: auditUser, action: "Centro de custo criado", reference: costCenterForm.name })
     }
     closeDialog()
 
@@ -208,10 +208,10 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
 
     if (editingId) {
       await updateBudget(editingId, budgetForm)
-      await addAuditEntry({ user: auditUser, action: budgetForm.status === "ativo" ? "Orcamento editado" : "Orcamento arquivado", reference: budgetForm.name })
+      await addAuditEntry({ entityType: "budgets", operation: "update", user: auditUser, action: budgetForm.status === "ativo" ? "Orcamento editado" : "Orcamento arquivado", reference: budgetForm.name })
     } else {
       await addBudget({ id: `BUD${Date.now()}`, ...budgetForm })
-      await addAuditEntry({ user: auditUser, action: "Orcamento criado", reference: budgetForm.name })
+      await addAuditEntry({ entityType: "budgets", operation: "create", user: auditUser, action: "Orcamento criado", reference: budgetForm.name })
     }
     closeDialog()
 
@@ -252,10 +252,10 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
 
     if (editingId) {
       await updateRecurringTransaction(editingId, recurringForm)
-      await addAuditEntry({ user: auditUser, action: recurringForm.active ? "Recorrencia editada" : "Recorrencia desativada", reference: recurringForm.description })
+      await addAuditEntry({ entityType: "recurringTransactions", operation: "update", user: auditUser, action: recurringForm.active ? "Recorrencia editada" : "Recorrencia desativada", reference: recurringForm.description })
     } else {
       await addRecurringTransaction({ id: `RT${Date.now()}`, ...recurringForm })
-      await addAuditEntry({ user: auditUser, action: "Recorrencia criada", reference: recurringForm.description })
+      await addAuditEntry({ entityType: "recurringTransactions", operation: "create", user: auditUser, action: "Recorrencia criada", reference: recurringForm.description })
     }
     closeDialog()
 
@@ -267,19 +267,19 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
 
     if (type === "bankAccount") {
       await removeBankAccount(id, expectedVersion)
-      await addAuditEntry({ user: auditUser, action: "Conta bancaria removida", reference })
+      await addAuditEntry({ entityType: "bankAccounts", operation: "delete", user: auditUser, action: "Conta bancaria removida", reference })
     } else if (type === "bankTransfer") {
       await removeBankTransfer(id)
-      await addAuditEntry({ user: auditUser, action: "Transferencia removida", reference })
+      await addAuditEntry({ entityType: "bankTransfers", operation: "delete", user: auditUser, action: "Transferencia removida", reference })
     } else if (type === "costCenter") {
       await removeCostCenter(id, expectedVersion)
-      await addAuditEntry({ user: auditUser, action: "Centro de custo removido", reference })
+      await addAuditEntry({ entityType: "costCenters", operation: "delete", user: auditUser, action: "Centro de custo removido", reference })
     } else if (type === "budget") {
       await removeBudget(id, expectedVersion)
-      await addAuditEntry({ user: auditUser, action: "Orcamento removido", reference })
+      await addAuditEntry({ entityType: "budgets", operation: "delete", user: auditUser, action: "Orcamento removido", reference })
     } else {
       await removeRecurringTransaction(id, expectedVersion)
-      await addAuditEntry({ user: auditUser, action: "Recorrencia removida", reference })
+      await addAuditEntry({ entityType: "recurringTransactions", operation: "delete", user: auditUser, action: "Recorrencia removida", reference })
     }
   }
 

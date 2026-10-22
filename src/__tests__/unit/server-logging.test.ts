@@ -46,7 +46,7 @@ describe("Auditoria e logs do servidor", () => {
 describe("Proteção e consulta do histórico", () => {
   it("sanitiza metadados inclusive senhas aninhadas e CPF", async () => {
     const tx = { auditEntry: { create: vi.fn() } }
-    await recordAudit(tx as unknown as Prisma.TransactionClient, { id: "stable-id", username: "novo-nome" } as never, "Teste", "exemplo", { metadata: { before: { password: "segredo", cpf: "12345678900", nested: { tokenHash: "segredo" } }, approverId: "responsavel" } })
+    await recordAudit(tx as unknown as Prisma.TransactionClient, { id: "stable-id", username: "novo-nome" } as never, "Teste", "exemplo", { entityType: "users", operation: "action", metadata: { before: { password: "segredo", cpf: "12345678900", nested: { tokenHash: "segredo" } }, approverId: "responsavel" } })
     const data = tx.auditEntry.create.mock.calls[0][0].data
     expect(data.metadata.executorId).toBe("stable-id")
     expect(data.metadata.approverId).toBe("responsavel")

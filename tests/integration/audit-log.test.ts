@@ -24,7 +24,7 @@ describe("Histórico persistido", () => {
     await expect(listAudit({ ...actor, permissions: [] }, new URLSearchParams())).rejects.toMatchObject({ status: 403 })
   })
   it("reverte o registro se a transação da operação falhar", async () => {
-    await expect(prisma.$transaction(async tx => { await recordAudit(tx, actor, "Rollback", "rollback-example"); throw new Error("Rollback") })).rejects.toThrow("Rollback")
+    await expect(prisma.$transaction(async tx => { await recordAudit(tx, actor, "Rollback", "rollback-example", { entityType: "database", operation: "action" }); throw new Error("Rollback") })).rejects.toThrow("Rollback")
     expect(await prisma.auditEntry.count({ where: { reference: "rollback-example" } })).toBe(0)
   })
 })

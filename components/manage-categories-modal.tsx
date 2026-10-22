@@ -172,7 +172,7 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
     }
 
     await addProductCategory(newCategory)
-    addAuditEntry({
+    addAuditEntry({ entityType: "productCategories", operation: "create",
       user: username || "sistema",
       action: "Categoria adicionada",
       reference: `${categoryName} (Pousada)`
@@ -201,7 +201,7 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
       color: categoryColor,
       icon: categoryIcon
     })
-    addAuditEntry({
+    addAuditEntry({ entityType: "productCategories", operation: "update",
       user: username || "sistema",
       action: "Categoria editada",
       reference: categoryName
@@ -219,14 +219,14 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
         return
       }
       await removeProductCategory(category.id, category.recordVersion)
-      addAuditEntry({
+      addAuditEntry({ entityType: "productCategories", operation: "delete",
         user: username || "sistema",
         action: "Categoria removida",
         reference: category.name
       })
     } else {
       await updateProductCategory(category.id, { recordVersion: category.recordVersion, active: false })
-      addAuditEntry({
+      addAuditEntry({ entityType: "productCategories", operation: "update",
         user: username || "sistema",
         action: "Categoria desativada",
         reference: category.name
@@ -359,7 +359,7 @@ export function ManageCategoriesModal({ open, onClose }: Props) {
                                 className="size-8 p-0"
                                 onClick={async () => {
                                   await updateProductCategory(category.id, { recordVersion: category.recordVersion, active: true })
-                                  addAuditEntry({
+                                  addAuditEntry({ entityType: "productCategories", operation: "update",
                                     user: username || "sistema",
                                     action: "Categoria reativada",
                                     reference: category.name

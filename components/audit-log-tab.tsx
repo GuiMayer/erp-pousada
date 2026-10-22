@@ -47,6 +47,7 @@ const operationLabels: Record<string, string> = {
 }
 
 const entityTypeLabels: Record<string, string> = {
+  customers: "Pessoas e empresas", suppliers: "Fornecedores", costCenters: "Centros de custo", budgets: "Orçamentos", recurringTransactions: "Recorrências", stays: "Hospedagens", productCategories: "Categorias de bebidas", posProducts: "Bebidas",
   rooms: "Quartos", reservations: "Reservas", consumptions: "Consumos", posSales: "Vendas", restaurantOrders: "Comandas", restaurantTables: "Mesas", stockItems: "Estoque", stockMovements: "Movimentos de estoque", productions: "Produções", employeeConsumptions: "Consumos de funcionários", expenses: "Despesas", transactions: "Transações", accountsReceivable: "Contas a receber", cashCloses: "Caixa", bankTransfers: "Transferências", bankAccounts: "Contas bancárias", users: "Usuários", guests: "Hóspedes", categories: "Categorias", systemSettings: "Configurações", notificationEvents: "Alertas", operationApprovals: "Aprovações", database: "Base de dados",
   Transaction: "Transação",
   Expense: "Despesa",

@@ -95,7 +95,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     sendingRef.current = true; setSending(true)
     try { await addCatalogItem(name, unitPrice, productId, quantity) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
     finally { sendingRef.current = false; setSending(false) }
-    addAuditEntry({
+    addAuditEntry({ entityType: "consumptions", operation: "create",
       user: username || "sistema",
       action: `Consumo lancado: ${name}`,
       reference: `Quarto ${room.number} - ${room.guest}`,
@@ -114,7 +114,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     sendingRef.current = true; setSending(true)
     try { await addCustomItem(customLabel, Number(customPrice), Number(customQty) || 1) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
     finally { sendingRef.current = false; setSending(false) }
-    addAuditEntry({
+    addAuditEntry({ entityType: "consumptions", operation: "create",
       user: username || "sistema",
       action: `Consumo lancado: ${customLabel}`,
       reference: `Quarto ${room.number} - ${room.guest}`,

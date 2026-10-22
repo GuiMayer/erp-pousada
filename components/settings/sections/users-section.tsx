@@ -177,7 +177,7 @@ export function UsersSection() {
             ? { ...userData, password: userForm.password }
             : userData,
         );
-        await addAuditEntry({
+        await addAuditEntry({ entityType: "users", operation: "update",
           user: auditUser,
           action: userForm.active ? "Usuário editado" : "Usuário desativado",
           reference: userData.username,
@@ -190,7 +190,7 @@ export function UsersSection() {
           createdAt: new Date().toISOString(),
           createdBy: auditUser,
         });
-        await addAuditEntry({
+        await addAuditEntry({ entityType: "users", operation: "create",
           user: auditUser,
           action: "Usuário criado",
           reference: userData.username,
@@ -222,7 +222,7 @@ export function UsersSection() {
         active: false,
         recordVersion: targetUser.recordVersion,
       });
-      await addAuditEntry({
+      await addAuditEntry({ entityType: "users", operation: "update",
         user: auditUser,
         action: "Usuário desativado",
         reference: targetUser.username,

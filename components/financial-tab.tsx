@@ -255,7 +255,7 @@ export function FinancialTab() {
       responsible: username || "operador",
     })
 
-    addAuditEntry({
+    addAuditEntry({ entityType: "transactions", operation: "create",
       user: username || "sistema",
       action: "Pagamento registrado",
       reference: expenseRow.installmentNumber
@@ -284,7 +284,7 @@ export function FinancialTab() {
       refId: refundModal.id,
       responsible: username || "supervisor",
     })
-    addAuditEntry({
+    addAuditEntry({ entityType: "transactions", operation: "create",
       user: username || "sistema",
       action: "Estorno realizado",
       reference: `${refundModal.id} - ${refundModal.description}`,
