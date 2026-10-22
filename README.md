@@ -71,6 +71,8 @@ CSV e JSON preservam período, totais, critérios e origem, com autorização no
 
 Consulte o [guia de Configurações e acessos](docs/CONFIGURACOES_E_ACESSOS.md) para a organização das seções, permissões, salvamento e atualização da instalação.
 
+Reservas feitas para vários quartos aparecem em uma única linha, com os números separados por vírgula, por exemplo **101, 102**. **Abrir grupo** mostra os dados e as ações individuais: check-in, recebimento, edição, cancelamento e ausência seguem vinculados ao quarto escolhido. A linha soma apenas os quartos aguardando chegada; os que já entraram ou foram cancelados continuam identificados nos detalhes do grupo. Se as datas dos quartos forem alteradas separadamente, a linha informa **Datas variadas**.
+
 Após o check-in, a reserva sai da lista de chegadas e o atendimento continua pelo **Mapa**. Após o check-out, a estadia fica no **Histórico**, com extrato de diárias, consumos e pagamentos. Dívidas empresariais continuam em **Financeiro → Contas a receber**, vinculadas à hospedagem. O acesso ao Histórico exige a permissão **Histórico · Acessar hospedagens encerradas e reservas concluídas** e a leitura das respectivas reservas ou hospedagens; a consulta não oferece recebimentos nem alterações.
 
 No mapa de quartos, o nome do hóspede abre o extrato e o saldo abre o recebimento. **Mais ações** reúne troca de quarto, ocupantes e **prorrogação da estadia**, com revisão das novas diárias e da disponibilidade. Veja a [entrega das ações dos quartos](docs/ENTREGA_ACOES_DOS_QUARTOS.md).

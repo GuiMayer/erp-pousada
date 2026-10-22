@@ -226,3 +226,15 @@ Validação executada nesta entrega:
 A migração `20261021000000_booking_flow` acrescenta os campos de registro e cancelamento. Foi aplicada e testada somente no banco isolado. A instalação Docker já possui a etapa `prisma migrate deploy`; atualizar a instalação exige reconstruir/iniciar a versão atual pelo painel. Não foram alterados volumes ou dados da instalação operacional durante esta validação.
 
 Juros e multa de pagamento permanecem no plano específico desse recurso; esta entrega trata da decisão financeira de cancelamento.
+
+
+## Agrupamento de reservas de vários quartos — 22/10/2026
+
+- A lista de chegadas agrupa exclusivamente pelo `groupId`, sem unir reservas independentes do mesmo hóspede.
+- Os números dos quartos pendentes aparecem em ordem numérica e separados por vírgula. A linha informa quantos quartos ainda aguardam e soma seus valores contratados em centavos.
+- **Abrir grupo** apresenta cada reserva com quarto, hóspede, período, situação, contratado, recebido e detalhes. Check-in, recebimento, edição, cancelamento e ausência continuam individuais e sujeitos às permissões existentes; nenhuma ação é executada em lote.
+- Quartos que iniciaram ou concluíram o atendimento permanecem como contexto nos detalhes, sem ações de reserva. Quando o último quarto pendente é resolvido, o grupo sai da lista e seu painel é fechado na sincronização.
+- Datas divergentes após edição individual são apresentadas como **Datas variadas** no resumo. Uma reserva de apenas um quarto mantém os atalhos diretos.
+- A alteração é de apresentação: os registros, versões, comandos transacionais e vínculos financeiros de cada quarto são preservados.
+
+Validação desta alteração: 457 testes de interface e domínio, incluindo grupo com entrada parcial, atualização do painel, datas diferentes e comandos de check-in/cancelamento com ID e versão do quarto selecionado; tipos, análise estática e build de produção aprovados. Conferência no navegador em desktop e 390 × 844 com exemplo fictício dos quartos 102 e 304. Nenhuma migração de banco foi necessária.
