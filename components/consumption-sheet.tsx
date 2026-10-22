@@ -150,7 +150,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={v => { if (!v && !sendingRef.current && !paying) onClose() }}>
-      <SheetContent onEscapeKeyDown={event => { if (sending || paying) event.preventDefault() }} onInteractOutside={event => { if (sending || paying) event.preventDefault() }} className="flex flex-col overflow-hidden p-4 sm:max-w-lg sm:p-5">
+      <SheetContent onEscapeKeyDown={event => { if (sending || paying) event.preventDefault() }} onInteractOutside={event => { if (sending || paying) event.preventDefault() }} className="consumption-sheet flex flex-col overflow-hidden p-4 sm:max-w-lg sm:p-5">
         <SheetHeader className="shrink-0 p-0 pr-6">
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="size-5 text-primary" />
@@ -165,7 +165,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           <p>Caixa fechado. Você pode lançar o consumo na hospedagem; para receber em dinheiro, abra o caixa.</p>
           <div><CashTurnShortcut /></div>
         </div>}
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain py-4 pr-1">
+        <div className="consumption-sheet-body flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain py-4 pr-1">
           {/* Search and Category Filter */}
           <div className="flex flex-col gap-3">
             <div className="relative">
@@ -303,10 +303,10 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
         </div>
 
         <SheetFooter className="shrink-0 border-t border-border px-0 pb-0 pt-4 flex-col gap-3">
-          {total > 0 && <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2">
-            <select aria-label="Forma de pagamento" className="min-h-11 min-w-0 rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+          {total > 0 && <div className="grid w-full min-w-0 items-start gap-3 sm:grid-cols-2">
+            <Label className="flex min-w-0 flex-col items-stretch gap-1">Forma de pagamento<select aria-label="Forma de pagamento" className="mt-1 min-h-11 min-w-0 rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
-            </select>
+            </select></Label>
             <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button className="w-full sm:col-span-2" disabled={changedContext || paying || sending || needsCash} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
           </div>}
           <div className="flex w-full items-center justify-between">

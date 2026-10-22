@@ -1,13 +1,13 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { ConsumptionSheet } from '@/components/consumption-sheet'
-const app=vi.hoisted(()=>({addConsumptionItem:vi.fn(),removeConsumptionItem:vi.fn(),addAuditEntry:vi.fn(),runOperation:vi.fn(),getConsumption:vi.fn(),getCategoryName:()=> 'Bebidas',posProducts:[{id:'water',name:'Água',price:5,active:true,categoryId:'drinks'}],productCategories:[{id:'drinks',name:'Bebidas',isRestaurant:false}],stays:[{id:'first',status:'active',roomId:1,recordVersion:3}],bankAccounts:[],cashCloses:[] as {id:string;status:string}[],denied:[] as string[]}))
+const app=vi.hoisted(()=>({addConsumptionItem:vi.fn(),removeConsumptionItem:vi.fn(),addAuditEntry:vi.fn(),runOperation:vi.fn(),getConsumption:vi.fn(),getCategoryName:()=> 'Bebidas',posProducts:[{id:'water',name:'Água',price:5,active:true,categoryId:'drinks'}],productCategories:[{id:'drinks',name:'Bebidas',isRestaurant:false}],stays:[{id:'first',status:'active',roomId:1,recordVersion:3}],bankAccounts:[] as {id:string;name:string;active:boolean}[],cashCloses:[] as {id:string;status:string}[],denied:[] as string[]}))
 vi.mock('@/lib/app-context',()=>({useApp:()=>app}))
 vi.mock('@/lib/auth-context',()=>({useAuth:()=>({can:(p:string)=>!app.denied.includes(p),canRequest:()=>true,username:'Operador'})}))
 vi.mock('@/lib/notification-context',()=>({useNotifications:()=>({sendNotification:vi.fn()})}))
 vi.mock('@/hooks/use-toast',()=>({useToast:()=>({toast:vi.fn()})}))
 const room={id:1,number:'101',type:'casal',status:'ocupado' as const,guest:'Primeiro hóspede',timeline:[]}
-beforeEach(()=>{vi.stubEnv('NEXT_PUBLIC_DATA_ADAPTER','database');app.addConsumptionItem.mockReset();app.runOperation.mockReset();app.getConsumption.mockReturnValue(undefined);app.cashCloses=[];app.denied=[];app.stays=[{id:'first',status:'active',roomId:1,recordVersion:3}]})
+beforeEach(()=>{vi.stubEnv('NEXT_PUBLIC_DATA_ADAPTER','database');app.addConsumptionItem.mockReset();app.runOperation.mockReset();app.getConsumption.mockReturnValue(undefined);app.cashCloses=[];app.bankAccounts=[];app.denied=[];app.stays=[{id:'first',status:'active',roomId:1,recordVersion:3}]})
 describe('Entrega de bebida no atendimento',()=>{
  it('envia três unidades numa entrega e bloqueia toque repetido até a resposta',async()=>{
   let finish!:()=>void;app.addConsumptionItem.mockReturnValue(new Promise<void>(resolve=>{finish=resolve}))
@@ -62,4 +62,19 @@ describe('Consumo com caixa fechado',()=>{
   expect(screen.getByText(/Peça a um usuário autorizado/)).toBeInTheDocument();
   expect(screen.getByText('Água').closest('button')).toBeEnabled();
  });
+})
+
+
+it('mantém conta longa identificada e a mesma seleção ao procurar uma bebida', () => {
+ const name='Banco de testes — conta exclusiva para recebimentos eletrônicos da Pousada Sol & Mar'
+ app.bankAccounts=[{id:'bank',name,active:true}]
+ app.getConsumption.mockReturnValue({roomId:1,items:[{id:'item',label:'Água',unitPrice:5,quantity:1}]})
+ render(<ConsumptionSheet room={room} open onClose={()=>{}}/>)
+ const bank=screen.getByRole('combobox',{name:'Conta bancária'})
+ expect(bank).toHaveValue('bank')
+ expect(screen.getByText(`Conta selecionada: ${name}`)).toBeInTheDocument()
+ fireEvent.change(screen.getByPlaceholderText('Buscar produto...'),{target:{value:'inexistente'}})
+ expect(bank).toHaveValue('bank')
+ expect(screen.getByRole('button',{name:'Quitar consumo'})).toBeEnabled()
+ expect(app.runOperation).not.toHaveBeenCalled()
 })

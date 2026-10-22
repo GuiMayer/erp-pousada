@@ -379,3 +379,9 @@
   flex: 0 0 auto;
   padding-inline: 1rem;
 }
+
+/* Short windows and enlarged text must still reach both catalogue and payment. */
+@media (max-height: 600px) {
+  .consumption-sheet { overflow-y: auto; overscroll-behavior: contain; }
+  .consumption-sheet-body { flex: none; overflow: visible; }
+}
