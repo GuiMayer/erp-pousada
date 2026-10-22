@@ -13,16 +13,16 @@ describe("Pousada sem o módulo de restaurante", () => {
     { id: "legado", categoryId: "categoria-desconhecida", barcode: "333" },
   ]
 
-  it("mantém a bebida e o legado, mas impede busca e código de barras do cardápio", () => {
+  it("exige categoria ativa para bebidas e impede busca e código de barras do arquivo", () => {
     const catalog = pousadaProducts(products, categories)
-    expect(catalog.map(product => product.id)).toEqual(["agua", "legado"])
+    expect(catalog.map(product => product.id)).toEqual(["agua"])
     expect(catalog.find(product => product.barcode === "222")).toBeUndefined()
     expect(products).toHaveLength(3) // Preservation of stored records.
   })
 
   it("retira ingredientes dos saldos ativos sem excluir o estoque armazenado", () => {
     const stock = [{ productId: "agua" }, { productId: "prato" }, { productId: "legado" }]
-    expect(pousadaStock(stock, products, categories)).toEqual([stock[0], stock[2]])
+    expect(pousadaStock(stock, products, categories)).toEqual([stock[0]])
     expect(stock).toHaveLength(3)
   })
 

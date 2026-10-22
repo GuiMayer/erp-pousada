@@ -972,11 +972,11 @@ export const CANCEL_TREATMENTS = seedData.cancelTreatments as CancelTreatment[]
 export const initialProductCategories: ProductCategory[] = [
   // PDV Categories
   { id: "pcat-bebidas", name: "Bebidas", color: "#3b82f6", icon: "Coffee", active: true, isRestaurant: false },
-  { id: "pcat-lanches", name: "Lanches", color: "#f59e0b", icon: "Sandwich", active: true, isRestaurant: false },
-  { id: "pcat-doces", name: "Doces", color: "#ec4899", icon: "Cake", active: true, isRestaurant: false },
-  { id: "pcat-servicos", name: "Servicos", color: "#8b5cf6", icon: "Wrench", active: true, isRestaurant: false },
-  { id: "pcat-frigobar", name: "Frigobar", color: "#06b6d4", icon: "Refrigerator", active: true, isRestaurant: false },
-  { id: "pcat-outros", name: "Outros", color: "#6b7280", icon: "Package", active: true, isRestaurant: false },
+  { id: "pcat-lanches", name: "Lanches", color: "#f59e0b", icon: "Sandwich", active: true, isRestaurant: true },
+  { id: "pcat-doces", name: "Doces", color: "#ec4899", icon: "Cake", active: true, isRestaurant: true },
+  { id: "pcat-servicos", name: "Servicos", color: "#8b5cf6", icon: "Wrench", active: true, isRestaurant: true },
+  { id: "pcat-frigobar", name: "Frigobar", color: "#06b6d4", icon: "Refrigerator", active: true, isRestaurant: true },
+  { id: "pcat-outros", name: "Outros", color: "#6b7280", icon: "Package", active: true, isRestaurant: true },
   // Restaurant Categories
   { id: "pcat-entradas", name: "Entradas", color: "#10b981", icon: "Salad", active: true, isRestaurant: true },
   { id: "pcat-pratos", name: "Pratos Principais", color: "#ef4444", icon: "UtensilsCrossed", active: true, isRestaurant: true },
@@ -984,7 +984,7 @@ export const initialProductCategories: ProductCategory[] = [
   { id: "pcat-bebidas-rest", name: "Bebidas", color: "#3b82f6", icon: "GlassWater", active: true, isRestaurant: true },
   { id: "pcat-acompanhamentos", name: "Acompanhamentos", color: "#84cc16", icon: "Soup", active: true, isRestaurant: true },
   // Fallback category
-  { id: "pcat-sem-categoria", name: "Sem Categoria", color: "#9ca3af", icon: "HelpCircle", active: true, isRestaurant: false },
+  { id: "pcat-sem-categoria", name: "Sem Categoria", color: "#9ca3af", icon: "HelpCircle", active: true, isRestaurant: true },
 ]
 
 // ─── Restaurant Initial Data ───────────────────────────────────────────

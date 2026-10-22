@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/select"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StockMovementModal } from "./stock-movement-modal"
-import { ProductsManagementTab } from "./products-management-tab"
 import { StockThresholdConfig } from "./stock-threshold-config"
 import { useStockControl } from "@/lib/hooks/useStockControl"
 import type { StockItem } from "@/lib/store"
@@ -38,10 +37,17 @@ export function StockTab() {
   const { stockItems, filter, setFilter, stats, getStockStatus } = useStockControl()
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [movementModalOpen, setMovementModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useTaskState("stock.section", "products", false)
+  const [activeTab, setActiveTab] = useTaskState("stock.section", "movements", false)
 
   const navigation = useStockNavigation()
   useEffect(() => { if(navigation?.stockDestination) setActiveTab(navigation.stockDestination.section) }, [navigation?.stockDestination, setActiveTab])
+
+  useEffect(() => {
+    if (activeTab !== "movements" || navigation?.stockDestination?.section !== "movements") return
+    const target = navigation.stockDestination.id
+    const frame = requestAnimationFrame(() => { const row = document.getElementById(`stock-balance-${target}`); row?.scrollIntoView({ block: "center" }); row?.focus({ preventScroll: true }) })
+    return () => cancelAnimationFrame(frame)
+  }, [activeTab, navigation?.stockDestination, stockItems])
 
   const handleAddMovement = (item: StockItem) => {
     setSelectedItem(item)
@@ -87,7 +93,7 @@ export function StockTab() {
             Estoque
           </h2>
           <p className="text-muted-foreground">
-            Gerencie produtos e controle de estoque
+            Controle saldos, compras, lotes e validade das bebidas
           </p>
         </div>
       </div>
@@ -98,7 +104,6 @@ export function StockTab() {
           <TabsTrigger value="purchases">Compras</TabsTrigger>
           <TabsTrigger value="lots">Lotes e validade</TabsTrigger>
           <TabsTrigger value="inventory">Inventário</TabsTrigger>
-          <TabsTrigger value="products">Catálogo de Produtos</TabsTrigger>
           <TabsTrigger value="movements">Movimentações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
@@ -106,11 +111,6 @@ export function StockTab() {
         <TabsContent value="purchases"><InventoryWorkspace section="purchases"/></TabsContent>
         <TabsContent value="lots"><InventoryWorkspace section="lots" targetId={navigation?.stockDestination?.section === "lots" ? navigation.stockDestination.id : undefined}/></TabsContent>
         <TabsContent value="inventory"><InventoryWorkspace section="inventory"/></TabsContent>
-        {/* Products Tab */}
-        <TabsContent value="products" className="space-y-6">
-          <ProductsManagementTab targetId={navigation?.stockDestination?.section === "products" ? navigation.stockDestination.id : undefined}/>
-        </TabsContent>
-
         {/* Movements Tab */}
         <TabsContent value="movements" className="space-y-6">
           <MobileSummary label="Resumo do estoque">
@@ -173,7 +173,7 @@ export function StockTab() {
             </TableHeader>
             <TableBody>
               {stockItems.map(item => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} id={`stock-balance-${item.productId}`} tabIndex={-1}>
                   <TableCell className="font-medium">{item.productName}</TableCell>
                   <TableCell>
                     <span className={cn(

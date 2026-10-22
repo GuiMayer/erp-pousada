@@ -1,6 +1,6 @@
 export type StockDestination = {
   module: "estoque";
-  section: "lots" | "products";
+  section: "lots" | "movements";
   id: string;
 };
 export function notificationDestination(event: {
@@ -12,6 +12,6 @@ export function notificationDestination(event: {
   if (event.conditionKey?.startsWith("expiry:"))
     return { module: "estoque", section: "lots", id: event.reference };
   if (event.conditionKey?.startsWith("stock:"))
-    return { module: "estoque", section: "products", id: event.reference };
+    return { module: "estoque", section: "movements", id: event.reference };
   return undefined;
 }

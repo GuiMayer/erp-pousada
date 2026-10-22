@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ProductFormModal } from "./product-form-modal"
+import { pousadaProducts } from "@/lib/pousada-scope"
 import { ManageCategoriesModal } from "../manage-categories-modal"
 import { useApp } from "@/lib/app-context"
 import type { POSProduct } from "@/lib/store"
@@ -53,10 +54,7 @@ export function ProductsManagementTab({targetId}:{targetId?:string}={}) {
   useEffect(()=>{if(!targetId)return;const timer=requestAnimationFrame(()=>{const node=document.getElementById(`stock-product-${targetId}`);node?.scrollIntoView({block:"center"});node?.focus({preventScroll:true})});return()=>cancelAnimationFrame(timer)},[targetId,posProducts,searchQuery,categoryFilter,stockFilter])
   // Filter only PDV products (not restaurant)
   const pdvProducts = useMemo(() => {
-    return posProducts.filter(product => {
-      const category = productCategories.find(c => c.id === product.categoryId)
-      return category?.isRestaurant !== true
-    })
+    return pousadaProducts(posProducts, productCategories)
   }, [posProducts, productCategories])
 
   // Get unique PDV categories
@@ -136,7 +134,7 @@ export function ProductsManagementTab({targetId}:{targetId?:string}={}) {
         <div>
           <h3 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Package className="h-6 w-6" />
-            Catálogo de Produtos
+            Catálogo de bebidas
           </h3>
           <p className="text-muted-foreground">
             Gerencie o catálogo central de produtos usado em a pousada

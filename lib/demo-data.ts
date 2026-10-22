@@ -1,3 +1,4 @@
+import { pousadaProducts } from "./pousada-scope"
 import { quoteLodging, type LodgingTariff } from "./lodging-pricing"
 import { normalizeDocument } from "./utils/cpf-cnpj-validator"
 import { businessDay } from "./utils/business-values"
@@ -90,7 +91,7 @@ export function createDemoData(now = new Date()) {
   rooms.forEach(r => { if (r.guestCpf) r.guestCpf = documents.get(normalizeDocument(r.guestCpf)) })
 
   const posProducts: POSProduct[] = [
-    ...initialPOSProducts.map((product, index) => ({ ...product, trackStock: index < 12 })),
+    ...pousadaProducts(initialPOSProducts, initialProductCategories).map(product => ({ ...product, trackStock: true })),
   ]
   const posSales: POSSale[] = []
   const transactions: Transaction[] = []
@@ -98,7 +99,7 @@ export function createDemoData(now = new Date()) {
   for (let day = -13; day <= 0; day++) {
     for (let saleIndex = 0; saleIndex < 8; saleIndex++) {
       const number = (day + 13) * 8 + saleIndex + 1
-      const products = [posProducts[(number * 3) % 19], posProducts[(number + 9) % 19]]
+      const products = [posProducts[(number * 3) % posProducts.length], posProducts[(number + 9) % posProducts.length]]
       const items = products.map((product, index) => ({
         id: `DEMO-CI-${number}-${index}`, product: { ...product }, quantity: 1 + (number + index) % 3, discount: 0,
       }))
