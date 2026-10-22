@@ -20,11 +20,11 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 
-type Props = { intent: "reservation" | "edit" | "checkin"; room?: Room; reservation?: Reservation; onDone: () => void; onBusy?: (value: boolean) => void }
+type Props = { intent: "reservation" | "edit" | "checkin"; room?: Room; reservation?: Reservation; onDone: () => void; onBusy?: (value: boolean) => void; initialArrival?: string }
 const tomorrow = () => new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10)
 
 /** One form owns identity, payer, occupancy, quote and optional receipt in every entry point. */
-export function BookingForm({ intent, room, reservation: initialReservation, onDone, onBusy }: Props) {
+export function BookingForm({ intent, room, reservation: initialReservation, onDone, onBusy, initialArrival }: Props) {
   const { customers, guests, rooms, stays = [], reservations, lodgingTariffs, bankAccounts = [], cashCloses = [], runOperation } = useApp()
   const { can } = useAuth()
   const [reservation, setReservation] = useState(initialReservation)
@@ -33,8 +33,8 @@ export function BookingForm({ intent, room, reservation: initialReservation, onD
   const [personId, setPersonId] = useState(originalPerson?.id ?? "")
   const [payerId, setPayerId] = useState(reservation?.payerId ?? suggestPayerId(originalPerson, customers))
   const [slots, setSlots] = useState([{ roomId: reservation?.roomId ?? room?.id ?? 0, guestCount: reservation?.guestCount ?? 1 }])
-  const [arrival, setArrival] = useState(intent === "checkin" ? businessDay() : reservation?.checkIn ?? businessDay())
-  const [departure, setDeparture] = useState(reservation?.checkOut ?? tomorrow())
+  const [arrival, setArrival] = useState(intent === "checkin" ? businessDay() : reservation?.checkIn ?? initialArrival ?? businessDay())
+  const [departure, setDeparture] = useState(reservation?.checkOut ?? (initialArrival && intent === "reservation" ? new Date(Date.parse(initialArrival) + 86400000).toISOString().slice(0, 10) : tomorrow()))
   const [actualDeparture, setActualDeparture] = useState(businessDay())
   const [exception, setException] = useState(false), [exceptionValue, setExceptionValue] = useState(String(reservation?.totalValue ?? ""))
   const [priceReason, setPriceReason] = useState("")

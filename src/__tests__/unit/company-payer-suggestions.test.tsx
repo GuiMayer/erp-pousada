@@ -85,6 +85,14 @@ describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
 const booking = (patch: Partial<Reservation> = {}): Reservation => ({ id: "reservation", recordVersion: 3, roomId: 1, roomNumber: "101", cpf: "52998224725", guestName: "Pessoa A", payerId: "company", guestCount: 1, totalValue: 120, status: "confirmada", checkIn: businessDay(), checkOut: new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10), ...patch })
 describe("Atendimento compartilhado", () => {
 
+  it("preenche reserva a partir da data futura selecionada no mapa", () => {
+    const future = new Date(Date.parse(businessDay()) + 3 * 86400000).toISOString().slice(0, 10)
+    const next = new Date(Date.parse(future) + 86400000).toISOString().slice(0, 10)
+    render(<BookingForm intent="reservation" room={room} initialArrival={future} onDone={vi.fn()} />)
+    expect(screen.getByLabelText("Entrada prevista")).toHaveValue(future)
+    expect(screen.getByLabelText("Saída")).toHaveValue(next)
+    expect(screen.queryByRole("button", {name:"Confirmar entrada"})).not.toBeInTheDocument()
+  })
   it("faz check-in somente do quarto escolhido dentro do grupo com seu ID e versão", async () => {
     app.rooms = [room, { ...room, id: 2, number: "102" }]
     app.reservations = [booking({groupId:"g"}), booking({id:"second",roomId:2,roomNumber:"102",recordVersion:7,groupId:"g"})]

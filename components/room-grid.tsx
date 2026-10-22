@@ -1,4 +1,6 @@
 "use client"
+import { useAuth } from "@/lib/auth-context"
+import { roomPlan } from "@/lib/room-planning"
 import { useTaskState } from "@/contexts/task-drafts-context"
 import { PermissionGate } from "@/components/permission-gate"
 
@@ -44,7 +46,8 @@ function getWeekDates(offset: number) {
 }
 
 export function RoomGrid() {
-  const { rooms } = useApp()
+  const { rooms, reservations = [], stays = [] } = useApp()
+  const { can } = useAuth()
   const [filter, setFilter] = useTaskState<Filter>("map.filter", "todos", false)
   const [weekOffset, setWeekOffset] = useTaskState("map.weekOffset", 0, false)
   const [selectedDate, setSelectedDate] = useTaskState<string>("map.selectedDate", businessDay(), false)
@@ -67,14 +70,21 @@ export function RoomGrid() {
     setCalendarOpen(false)
   }
 
-  const filtered =
-    rooms.filter(r => (filter === "todos" || r.status === filter) && `${r.number} ${r.guest ?? ""}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))
+  const future = selectedDate > businessDay()
+  const effectiveFilter = future && filter === "limpeza" ? "todos" : filter
+  const forecasts = rooms.map(room => ({ room, plan: future ? roomPlan(room, can("reservations.read") ? reservations : [], can("stays.read") ? stays : [], selectedDate) : undefined }))
+  const availableCount = forecasts.filter(({ room, plan }) => (plan?.status ?? room.status) === "disponivel").length
+  const filtered = forecasts.filter(({ room, plan }) => {
+    const status = plan?.status ?? room.status
+    const guests = plan ? [...plan.reservations.map(r => r.guestName), ...plan.stays.map(s => s.guestName)].join(" ") : room.guest ?? ""
+    return (effectiveFilter === "todos" || status === effectiveFilter) && `${room.number} ${guests}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR"))
+  }).map(({ room }) => room)
 
   return (
     <div className="room-map flex flex-col gap-6 animate-fade-in">
-      <div className="flex flex-wrap items-center gap-2"><CashTurnShortcut /></div>
+      <div className="flex flex-wrap items-center gap-2">{!future && <CashTurnShortcut />}</div>
       <div className="sm:hidden space-y-2">
-        <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">Agora · {rooms.filter(r => r.status === "disponivel").length} quartos livres</span><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
+        <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{future ? format(calendarDate, "dd/MM") : "Agora"} · {availableCount} quartos {future ? "previstos livres" : "livres"}</span><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
       </div>
       {/* Interactive date selector */}
@@ -145,9 +155,10 @@ export function RoomGrid() {
         </div>
       </div>
 
+      {future && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-secondary/50 p-3"><p role="status" className="text-sm">Planejamento para {format(calendarDate, "dd/MM/yyyy")}. Disponibilidade prevista; confirme a saída e a limpeza no dia. As ações operacionais ficam no atendimento atual.</p><Button size="sm" variant="outline" onClick={() => { setWeekOffset(0); setSelectedDate(businessDay()) }}>Voltar para hoje</Button></div>}
       <div className="room-filter-bar flex items-center justify-between gap-4 flex-wrap">
         <Input className="hidden sm:block sm:max-w-xs" aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
-        <RoomFilters active={filter} onChange={setFilter} />
+        <RoomFilters active={effectiveFilter} onChange={setFilter} future={future} />
         <div className="hidden sm:flex items-center gap-3">
           <p className="text-sm text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "quarto" : "quartos"}

@@ -1,4 +1,6 @@
 "use client"
+import { businessDay } from "./utils/business-values"
+import { roomPlan } from "./room-planning"
 
 import { createContext, useContext, useState, useRef, useCallback, useMemo, useEffect, type ReactNode } from "react"
 import {
@@ -488,7 +490,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return []
     }
     const allocated = stays.flatMap(stay => stay.allocations.filter(a => a.roomId === roomId && a.end > a.start).map(a => ({ ...reservations.find(r => r.id === stay.reservationId)!, id: a.id, roomId, checkIn: a.start, checkOut: a.end, status: stay.status === "active" ? "checkin" as const : "checkout" as const })))
-    return calculateRoomTimeline(room, [...reservations.filter(r => !stays.some(s => s.reservationId === r.id)), ...allocated], startDate, days)
+    return calculateRoomTimeline(room, [...reservations.filter(r => !stays.some(s => s.reservationId === r.id)), ...allocated], startDate, days).map(day => day.date > businessDay() ? { ...day, status: roomPlan(room, reservations, stays, day.date).status } : day)
   }, [rooms, reservations, stays])
 
   // Reservation methods

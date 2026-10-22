@@ -17,13 +17,15 @@ const filters: { value: Filter; label: string; icon: React.ReactNode }[] = [
 export function RoomFilters({
   active,
   onChange,
+  future = false,
 }: {
   active: Filter
+  future?: boolean
   onChange: (f: Filter) => void
 }) {
   return (
     <div className="room-status-filters flex items-center gap-2 flex-wrap">
-      {filters.map((f) => (
+      {filters.filter(f => !future || f.value !== "limpeza").map((f) => (
         <Button
           key={f.value}
           variant={active === f.value ? "default" : "outline"}
@@ -32,7 +34,7 @@ export function RoomFilters({
           className="gap-1.5 text-xs"
         >
           {f.icon}
-          {f.label}
+          {future && f.value === "ocupado" ? "Ocupação prevista" : f.label}
         </Button>
       ))}
     </div>

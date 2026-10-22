@@ -1,4 +1,6 @@
 "use client";
+import { businessDay } from "@/lib/utils/business-values";
+import { PlannedRoomCard } from "./planned-room-card";
 import { useMemo, useRef, useState } from "react";
 import {
   User,
@@ -109,7 +111,10 @@ function daysUntil(day: string) {
         ? Math.abs(days) + "d atrasado"
         : days + " dias";
 }
-export function RoomCard({
+export function RoomCard(props: { room: Room; selectedDate: string }) {
+  return props.selectedDate > businessDay() ? <PlannedRoomCard key={props.selectedDate} {...props} /> : <CurrentRoomCard {...props} />
+}
+function CurrentRoomCard({
   room,
   selectedDate,
 }: {
