@@ -1,5 +1,7 @@
 "use client"
-import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
+import { OriginValues } from "./document-values"
+import { sanitizeForAudit } from "@/lib/utils/audit-helpers"
+import { PageHeader } from "./page-header"
 
 import { MobileFilters } from "@/components/mobile-filters"
 import { useState, useMemo, useEffect, Fragment } from "react"
@@ -20,21 +22,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { Shield, Search, Filter, ChevronDown, ChevronUp } from "lucide-react"
+import { Search, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import type { AuditEntry } from "@/lib/store"
 
 const actionColors: Record<string, string> = {
-  Estorno: "bg-warning/15 text-warning-foreground",
+  Estorno: "bg-warning/15 text-amber-900 dark:text-warning",
   Desconto: "bg-info/15 text-info",
   Cancelamento: "bg-destructive/15 text-destructive",
   "No-show": "bg-destructive/15 text-destructive",
   Desbloqueio: "bg-success/15 text-success",
-  Diferenca: "bg-warning/15 text-warning-foreground",
+  Diferenca: "bg-warning/15 text-amber-900 dark:text-warning",
   create: "bg-success/15 text-success",
   update: "bg-info/15 text-info",
   delete: "bg-destructive/15 text-destructive",
@@ -71,49 +68,8 @@ function getActionColor(action: string, operation?: string) {
 }
 
 function MetadataDisplay({ metadata }: { metadata?: AuditEntry["metadata"] }) {
-  if (!metadata) return null
-
-  const renderValue = (value: any): string => {
-    if (value === null || value === undefined) return "—"
-    if (typeof value === "object") return JSON.stringify(value, null, 2)
-    return String(value)
-  }
-
-  return (
-    <div className="text-xs space-y-2 p-3 bg-muted/50 rounded-md">
-      {Object.entries(metadata).filter(([key]) => !["before", "after", "reason", "amount"].includes(key)).map(([key, value]) => (
-        <div key={key} className="break-all"><span className="font-semibold">{({ executorId: "Executor (ID)", approverId: "Responsável pela aprovação (ID)", permission: "Permissão", requestId: "Requisição", businessOperation: "Operação" } as Record<string, string>)[key] ?? key}:</span> {renderValue(value)}</div>
-      ))}
-      {metadata.before && (
-        <div>
-          <div className="font-semibold text-muted-foreground mb-1">Antes:</div>
-          <pre className="text-[10px] overflow-x-auto">
-            {JSON.stringify(metadata.before, null, 2)}
-          </pre>
-        </div>
-      )}
-      {metadata.after && (
-        <div>
-          <div className="font-semibold text-muted-foreground mb-1">Depois:</div>
-          <pre className="text-[10px] overflow-x-auto">
-            {JSON.stringify(metadata.after, null, 2)}
-          </pre>
-        </div>
-      )}
-      {metadata.reason && (
-        <div>
-          <span className="font-semibold text-muted-foreground">Motivo:</span>{" "}
-          {metadata.reason}
-        </div>
-      )}
-      {metadata.amount !== undefined && (
-        <div>
-          <span className="font-semibold text-muted-foreground">Valor:</span>{" "}
-          R$ {localizedNumber(metadata.amount, 2)}
-        </div>
-      )}
-    </div>
-  )
+  if (!metadata || !Object.keys(metadata).length) return <p className="text-sm text-muted-foreground">Nenhum detalhe adicional registrado.</p>
+  return <div className="rounded-md bg-muted/50 p-3"><OriginValues value={sanitizeForAudit(metadata)} /></div>
 }
 
 export function AuditLogTab() {
@@ -222,13 +178,7 @@ export function AuditLogTab() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <div className="flex items-center gap-2">
-        <Shield className="size-5 text-muted-foreground" />
-        <h2 className="text-lg font-semibold text-foreground">Log de Auditoria</h2>
-        <Badge variant="secondary" className="ml-auto">
-          {filteredLog.length} de {database ? remote.total : auditLog.length} registros
-        </Badge>
-      </div>
+      <PageHeader title="Auditoria" actions={<Badge variant="secondary">{filteredLog.length} de {database ? remote.total : auditLog.length} registros</Badge>} />
 
       <Card>
         <CardHeader className="pb-3">
@@ -259,11 +209,11 @@ export function AuditLogTab() {
             </div>
 
             <MobileFilters active={[filterUser !== "all", filterOperation !== "all", filterEntityType !== "all", !!from, !!to].filter(Boolean).length}>
-            <div className="flex gap-2 flex-wrap">
-              <label className="text-sm w-[calc(50%-4px)] sm:w-auto">De<Input aria-label="Data inicial" type="date" value={from} onChange={e => { setPage(1); setFrom(e.target.value) }} /></label>
-              <label className="text-sm w-[calc(50%-4px)] sm:w-auto">Até<Input aria-label="Data final" type="date" value={to} onChange={e => { setPage(1); setTo(e.target.value) }} /></label>
+            <div className="grid w-full min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <label className="min-w-0 text-sm">De<Input aria-label="Data inicial" type="date" value={from} onChange={e => { setPage(1); setFrom(e.target.value) }} /></label>
+              <label className="min-w-0 text-sm">Até<Input aria-label="Data final" type="date" value={to} onChange={e => { setPage(1); setTo(e.target.value) }} /></label>
               <Select value={filterUser} onValueChange={value => { setPage(1); setFilterUser(value) }}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger aria-label="Filtrar auditoria" className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
                   <Filter className="size-3 mr-2" />
                   <SelectValue placeholder="Usuário" />
                 </SelectTrigger>
@@ -276,7 +226,7 @@ export function AuditLogTab() {
               </Select>
 
               <Select value={filterOperation} onValueChange={value => { setPage(1); setFilterOperation(value) }}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
                   <Filter className="size-3 mr-2" />
                   <SelectValue placeholder="Operação" />
                 </SelectTrigger>
@@ -291,7 +241,7 @@ export function AuditLogTab() {
               </Select>
 
               <Select value={filterEntityType} onValueChange={value => { setPage(1); setFilterEntityType(value) }}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
                   <Filter className="size-3 mr-2" />
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
@@ -317,7 +267,7 @@ export function AuditLogTab() {
               <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p>
               <p className="font-semibold">{entry.action}</p>
               <p className="text-sm">{entry.user} · {entry.reference}</p>
-              {entry.metadata && Object.keys(entry.metadata).length > 0 && <details><summary className="min-h-11 flex items-center cursor-pointer text-sm">Ver detalhes</summary><MetadataDisplay metadata={entry.metadata} /></details>}
+              <details><summary className="min-h-11 flex items-center cursor-pointer text-sm">Ver detalhes</summary><MetadataDisplay metadata={entry.metadata} /></details>
             </article>)}
             {!loading && !error && filteredLog.length === 0 && <p className="p-4 text-muted-foreground">Nenhum evento encontrado</p>}
           </div>
@@ -326,11 +276,11 @@ export function AuditLogTab() {
               <TableRow>
                 <TableHead className="w-[40px]"></TableHead>
                 <TableHead>Data / Hora</TableHead>
-                <TableHead>Usuario</TableHead>
+                <TableHead>Usuário</TableHead>
                 <TableHead>Operação</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead>Acao</TableHead>
-                <TableHead>Referencia</TableHead>
+                <TableHead>Ação</TableHead>
+                <TableHead>Referência</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -342,15 +292,16 @@ export function AuditLogTab() {
                   <Fragment key={entry.id}>
                     <TableRow className={hasMetadata ? "cursor-pointer hover:bg-muted/50" : ""}>
                       <TableCell>
-                        {hasMetadata && (
+                        {(
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-11 w-11 p-0"
+                            className="min-h-11 gap-1 px-2"
                             aria-label={isExpanded ? "Ocultar detalhes" : "Mostrar detalhes"}
                             aria-expanded={isExpanded}
                             onClick={() => toggleRow(entry.id)}
                           >
+                            {isExpanded ? "Ocultar" : "Ver detalhes"}
                             {isExpanded ? (
                               <ChevronUp className="size-3" />
                             ) : (
@@ -363,7 +314,7 @@ export function AuditLogTab() {
                         {new Date(entry.date).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`text-[10px] border-transparent ${
+                        <Badge className={`text-xs border-transparent ${
                           entry.user === "supervisor"
                             ? "bg-primary/15 text-primary"
                             : "bg-secondary text-secondary-foreground"
@@ -373,20 +324,20 @@ export function AuditLogTab() {
                       </TableCell>
                       <TableCell>
                         {entry.operation && (
-                          <Badge className={`text-[10px] border-transparent ${getActionColor("", entry.operation)}`}>
+                          <Badge className={`text-xs border-transparent ${getActionColor("", entry.operation)}`}>
                             {operationLabels[entry.operation] || entry.operation}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         {entry.entityType && (
-                          <Badge variant="outline" className="text-[10px]">
+                          <Badge variant="outline" className="text-xs">
                             {entityTypeLabels[entry.entityType] || entry.entityType}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`text-[11px] border-transparent ${getActionColor(entry.action, entry.operation)}`}>
+                        <Badge className={`text-xs border-transparent ${getActionColor(entry.action, entry.operation)}`}>
                           {entry.action}
                         </Badge>
                       </TableCell>
@@ -394,7 +345,7 @@ export function AuditLogTab() {
                         {entry.reference}
                       </TableCell>
                     </TableRow>
-                    {isExpanded && hasMetadata && (
+                    {isExpanded && (
                       <TableRow>
                         <TableCell colSpan={7} className="bg-muted/30">
                           <MetadataDisplay metadata={entry.metadata} />

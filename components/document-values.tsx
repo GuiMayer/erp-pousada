@@ -1,5 +1,6 @@
 "use client"
 export const documentFields: Record<string, string> = {
+  before: "Antes", after: "Depois", executorId: "Executor (ID)", approverId: "Responsável pela aprovação (ID)", permission: "Permissão", requestId: "Requisição", businessOperation: "Operação", amount: "Valor",
   id: "Identificador",
   date: "Data",
   value: "Valor",
