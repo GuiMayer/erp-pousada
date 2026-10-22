@@ -125,17 +125,17 @@ Use o perfil supervisor para explorar também o módulo de administração. Essa
 
 ### Dados de exemplo
 
-Na primeira abertura de um armazenamento de demonstração vazio, o sistema carrega:
+Ao abrir a demonstração, o sistema usa a data de inicialização do servidor, no horário de São Paulo, para montar o cenário:
 
 - **12 quartos** com situações de ocupação, disponibilidade, limpeza e manutenção.
-- **10 reservas e 9 hóspedes**, incluindo estadias em andamento e reservas futuras.
+- **17 reservas e 9 hóspedes**, incluindo cinco estadias em andamento, saída atrasada, chegada hoje, três quartos com chegada amanhã (dois no mesmo grupo), reservas nas próximas duas semanas e histórico de saída, cancelamento e ausência.
 - **28 produtos** do catálogo da pousada.
 - **112 vendas distribuídas em 14 dias**, com lançamentos financeiros correspondentes.
 - **12 itens de estoque**, movimentações, alertas de reposição, despesas e contas a receber.
 
-Os exemplos ficam no navegador, sob o prefixo `erp-pousada-demo`. A carga inicial preserva um armazenamento já preenchido e mantém as antigas chaves `pousada:*` intactas. As alterações na demonstração continuam disponíveis após recarregar a página, no mesmo navegador e endereço.
+Os exemplos ficam no navegador, sob o prefixo `erp-pousada-demo`, isolados do PostgreSQL. Recarregar a página preserva as alterações enquanto o servidor permanecer na mesma execução. Ao reiniciar o servidor e reabrir ou atualizar a página, o cenário é restaurado com datas relativas ao novo início. A referência não muda automaticamente à meia-noite durante um teste.
 
-Para uma nova demonstração, use um perfil de navegador sem dados anteriores. A implementação dos exemplos está em [`lib/demo-data.ts`](lib/demo-data.ts).
+Para começar novamente, reinicie `pnpm dev` (ou `npm run dev`) e atualize a página. Cada navegador mantém suas próprias alterações; este modo não compartilha dados entre dispositivos. O modo `database`, incluindo a demonstração Docker, continua com seu próprio banco e ciclo de inicialização. A implementação dos exemplos está em [`lib/demo-data.ts`](lib/demo-data.ts).
 
 ## Desenvolvimento com PostgreSQL
 
