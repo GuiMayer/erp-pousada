@@ -1,4 +1,5 @@
 "use client"
+import { GuestsManagement } from "./guests-management"
 import { PersonDossier } from "./person-dossier"
 import { getDataConfig } from "@/lib/data/config"
 import { matchesPerson } from "@/lib/utils/person-search"
@@ -320,7 +321,7 @@ export default function CustomersManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Clientes</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Pessoas e empresas</h2>
           <p className="text-muted-foreground">
             Gerencie seus clientes (pessoas físicas e jurídicas)
           </p>
@@ -660,6 +661,7 @@ export default function CustomersManagement() {
             <div className="space-y-4">
               {getDocumentType(selectedCustomer.cpfCnpj) === "CNPJ" && <CompanyMembers companyId={selectedCustomer.id} people={customers} />}
               {selectedCustomer.companyId && <p className="text-sm">Empresa vinculada: {customers.find(c => c.id === selectedCustomer.companyId)?.name ?? "Cadastro indisponível"}</p>}
+              {getDocumentType(selectedCustomer.cpfCnpj) === "CPF" && can("guests.read") && <GuestsManagement person={selectedCustomer} />}
               {getDataConfig().adapter === "database" ? <PersonDossier id={selectedCustomer.id}/> : <>
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-lg border p-4">

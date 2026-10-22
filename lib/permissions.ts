@@ -185,17 +185,13 @@ export function effectivePermissions(user: { role?: string; accessProfile?: stri
 }
 export const tabPermissions: Record<string, string[]> = {
   mapa: ["rooms.read"],
-  cadastros: ["customers.read", "suppliers.read", "lodgingTariffs.read", "posProducts.read"],
+  cadastros: ["customers.read", "guests.read", "suppliers.read", "lodgingTariffs.read", "posProducts.read", "bankAccounts.read", "costCenters.read", "categories.read"],
   reservas: ["reservations.read"],
   historico: ["stays.read", "reservations.read"],
   pdv: ["pos.sell"],
   estoque: ["stockItems.read"],
-  financeiro: ["transactions.read",
-  "expenses.read",
-  "accountsReceivable.read",
-  "cash.open",
-  "cash.close", "bankAccounts.read"],
-  relatorios: ["reports.read"],
+  financeiro: ["transactions.read", "expenses.read", "accountsReceivable.read", "cash.open", "cash.close", "bankAccounts.read", "bankTransfers.read", "bankAccounts.transfer", "recurringTransactions.read"],
+  relatorios: ["reports.read", "budgets.read"],
   configuracoes: ["settings.access"],
   auditoria: ["auditLog.read"]
 }

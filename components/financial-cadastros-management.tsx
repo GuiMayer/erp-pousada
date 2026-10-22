@@ -72,7 +72,7 @@ const emptyRecurringTransaction: Omit<RecurringTransaction, "id"> = {
   active: true,
 }
 
-export function FinancialCadastrosManagement({ sections, balancesOnly = false }: { sections: FinancialResource[]; balancesOnly?: boolean }) {
+export function FinancialCadastrosManagement({ sections, balancesOnly = false, recurringType }: { sections: FinancialResource[]; balancesOnly?: boolean; recurringType?: RecurringTransaction["type"] }) {
   const {
     bankAccounts, bankTransfers, costCenters, budgets, recurringTransactions,
     addBankAccount, updateBankAccount, removeBankAccount,
@@ -131,7 +131,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false }:
   function openRecurringTransaction(transaction?: RecurringTransaction) {
     setFinancialResource("recurringTransaction")
     setEditingId(transaction?.id ?? null)
-    setRecurringForm(transaction ? { ...transaction } : emptyRecurringTransaction)
+    setRecurringForm(transaction ? { ...transaction } : { ...emptyRecurringTransaction, type: recurringType ?? emptyRecurringTransaction.type })
     setError("")
   }
 
@@ -376,7 +376,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false }:
           {allowed("recurringTransaction", "create") && <Button size="sm" variant="outline" onClick={() => openRecurringTransaction()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
-          {recurringTransactions.map(transaction => (
+          {recurringTransactions.filter(t => !recurringType || t.type === recurringType).map(transaction => (
             <div key={transaction.id} className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <div className="font-medium">{transaction.description}</div>
@@ -385,7 +385,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false }:
               <RowActions collection="recurringTransactions" active={transaction.active} onEdit={() => openRecurringTransaction(transaction)} onDelete={() => removeCadastro("recurringTransaction", transaction.id, transaction.description, transaction.recordVersion)} />
             </div>
           ))}
-          {recurringTransactions.length === 0 && <EmptyState label="Nenhuma recorrencia cadastrada." />}
+          {!recurringTransactions.some(t => !recurringType || t.type === recurringType) && <EmptyState label="Nenhuma recorrencia cadastrada." />}
         </CardContent>
       </Card>
       </>}

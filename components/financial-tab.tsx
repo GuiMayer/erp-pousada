@@ -41,11 +41,8 @@ import {
 import type { Transaction, Expense } from "@/lib/store"
 import { formatCurrency, daysUntilDue } from "@/lib/utils/formatters"
 import { generateInstallments } from "@/lib/utils/installment-generator"
-import { SuppliersManagement } from "@/components/suppliers-management"
 import { AccountsReceivableManagement } from "@/components/accounts-receivable-management"
-import CustomersManagement from "@/components/customers-management"
 import { FinancialCadastrosManagement } from "@/components/financial-cadastros-management"
-import { GuestsManagement } from "@/components/guests-management"
 
 function formatDateBR(iso: string) {
   const d = new Date(iso.includes("T") ? iso : iso + "T12:00:00")
@@ -65,9 +62,10 @@ export function FinancialTab() {
     addAuditEntry, addCategory, addCashClose, setDiscountCeiling,
   } = useApp()
   const { isSupervisor, username, can } = useAuth()
-  const financialTabs: Record<string, string[]> = { vencimentos: ["expenses.read"], transacoes: ["transactions.read"], fornecedores: ["suppliers.read"], clientes: ["customers.read"], hospedes: ["guests.read"], "contas-receber": ["accountsReceivable.read"], cadastros: ["bankAccounts.read", "categories.read", "costCenters.read"], "fechar-turno": ["cash.open", "cash.close"] }
+  const financialTabs: Record<string, string[]> = { "contas-receber": ["accountsReceivable.read", "recurringTransactions.read"], vencimentos: ["expenses.read", "recurringTransactions.read"], transacoes: ["transactions.read"], contas: ["bankAccounts.read", "bankTransfers.read", "bankAccounts.transfer", "cash.open", "cash.close"] }
   const visible = (tab: string) => financialTabs[tab]?.some(can)
   const [section, setSection] = useTaskState("finance.section", Object.keys(financialTabs).find(visible), false)
+  const currentSection = section && visible(section) ? section : Object.keys(financialTabs).find(visible)
 
   // New expense modal
   const [showNewExpense, setShowNewExpense] = useTaskState("expense.showNewExpense", false)
@@ -108,11 +106,6 @@ export function FinancialTab() {
 
   // Transaction type filter
   const [txTypeFilter, setTxTypeFilter] = useState<string>("todos")
-
-  const totalReceitas = transactions.filter(t => t.type === "receita").reduce((a, t) => a + t.value, 0)
-  const totalDespesas = transactions.filter(t => t.type === "despesa").reduce((a, t) => a + t.value, 0)
-  const totalEstornos = transactions.filter(t => t.type === "estorno").reduce((a, t) => a + Math.abs(t.value), 0)
-  const netResult = totalReceitas - totalDespesas - totalEstornos
 
   const todayISO = businessDay()
 
@@ -199,6 +192,11 @@ export function FinancialTab() {
     }
     return result.sort((a, b) => b.date.localeCompare(a.date))
   }, [transactions, dateFrom, dateTo, txTypeFilter])
+
+  const totalReceitas = filteredTransactions.filter(t => t.type === "receita").reduce((sum, t) => sum + Math.round(t.value * 100), 0) / 100
+  const totalDespesas = filteredTransactions.filter(t => t.type === "despesa").reduce((sum, t) => sum + Math.round(t.value * 100), 0) / 100
+  const totalEstornos = filteredTransactions.filter(t => t.type === "estorno").reduce((sum, t) => sum + Math.round(Math.abs(t.value) * 100), 0) / 100
+  const netResult = totalReceitas - totalDespesas - totalEstornos
 
   async function handleCreateExpense() {
     if (savingExpense || !expDesc || !expCategory || !expValue || !expDueDate) return
@@ -337,34 +335,19 @@ export function FinancialTab() {
       <h2 className="hidden sm:block text-lg font-semibold text-foreground">Financeiro</h2>
       <p className="text-xs text-muted-foreground">Saldos internos. Confira os movimentos com seu extrato bancário. Cartões usam registro simplificado; taxas e repasses não são conciliados automaticamente.</p>
 
-      {can("transactions.read") && <details className="mobile-summary-toggle sm:hidden"><summary>Resumo financeiro</summary><p className="py-2 text-sm">Receitas: {formatCurrency(totalReceitas)} · Despesas: {formatCurrency(totalDespesas)} · Líquido: {formatCurrency(netResult)}</p></details>}
-      {/* Summary cards */}
-      {can("transactions.read") && <div className="financial-summary grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryCard label="Receitas" value={totalReceitas} icon={<TrendingUp className="size-4" />} variant="success" />
-        <SummaryCard label="Despesas" value={totalDespesas} icon={<TrendingDown className="size-4" />} variant="destructive" />
-        <SummaryCard label="Estornos" value={totalEstornos} icon={<Undo2 className="size-4" />} variant="warning" />
-        {can("transactions.read") && (
-          <SummaryCard label="Liquido" value={netResult} icon={<DollarSign className="size-4" />} variant="primary" />
-        )}
-      </div>}
-
-      <Tabs value={section && visible(section) ? section : Object.keys(financialTabs).find(visible)} onValueChange={setSection}>
-        <TabsList mobilePriority={["vencimentos", "contas-receber", "transacoes"]}>
-          {visible("vencimentos") && (<TabsTrigger value="vencimentos">Vencimentos</TabsTrigger>)}
-          {visible("transacoes") && (<TabsTrigger value="transacoes">Transacoes</TabsTrigger>)}
-          {visible("fornecedores") && (<TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>)}
-          {visible("clientes") && (<TabsTrigger value="clientes">Clientes</TabsTrigger>)}
-          {visible("hospedes") && (<TabsTrigger value="hospedes">Hospedes</TabsTrigger>)}
-          {visible("contas-receber") && (<TabsTrigger value="contas-receber">Contas a Receber</TabsTrigger>)}
-          {visible("cadastros") && (<TabsTrigger value="cadastros">Cadastros</TabsTrigger>)}
-          {visible("fechar-turno") && (<TabsTrigger value="fechar-turno">Turno de caixa</TabsTrigger>)}
+      <Tabs value={currentSection} onValueChange={setSection}>
+        <TabsList aria-label="Seções do financeiro" mobilePriority={["contas-receber", "vencimentos", "transacoes", "contas"]}>
+          {visible("contas-receber") && <TabsTrigger value="contas-receber">A receber</TabsTrigger>}
+          {visible("vencimentos") && <TabsTrigger value="vencimentos">A pagar</TabsTrigger>}
+          {visible("transacoes") && <TabsTrigger value="transacoes">Movimentações</TabsTrigger>}
+          {visible("contas") && <TabsTrigger value="contas">Caixa e contas</TabsTrigger>}
         </TabsList>
 
         {/* Upcoming payments */}
         {visible("vencimentos") && (<TabsContent value="vencimentos">
-          <div className="flex flex-col gap-4">
+          {can("expenses.read") && <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <h3 className="text-sm font-semibold text-foreground">Vencimentos</h3>
+              <h3 className="text-sm font-semibold text-foreground">Contas a pagar</h3>
               <PermissionGate permission="expenses.create"><Button size="sm" className="gap-1.5" onClick={() => setShowNewExpense(true)}>
                 <Plus className="size-4" /> Nova Despesa
               </Button></PermissionGate>
@@ -454,6 +437,7 @@ export function FinancialTab() {
                               <Button
                                 variant="ghost" size="sm"
                                 className="text-xs text-success hover:text-success gap-1"
+                                disabled={!can("expenses.pay")}
                                 onClick={() => handleMarkPaid(e)}
                               >
                                 Pagar
@@ -466,7 +450,7 @@ export function FinancialTab() {
                     {filteredExpenses.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                          Nenhum vencimento encontrado para este filtro
+                          Nenhuma conta a pagar encontrada para este filtro
                         </TableCell>
                       </TableRow>
                     )}
@@ -474,14 +458,22 @@ export function FinancialTab() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
+          </div>}
+          {can("recurringTransactions.read") && <details className="mt-4 rounded-lg border p-4"><summary className="min-h-11 cursor-pointer font-medium">Despesas recorrentes</summary><FinancialCadastrosManagement sections={["recurringTransaction"]} recurringType="despesa" /></details>}
         </TabsContent>)}
 
         {/* Transactions */}
         {visible("transacoes") && (<TabsContent value="transacoes">
           <div className="flex flex-col gap-4">
+            <p className="text-xs text-muted-foreground">Resumo dos filtros selecionados · {dateFrom ? formatDateBR(dateFrom) : "Desde o primeiro lançamento"} até {dateTo ? formatDateBR(dateTo) : "o último lançamento"}. Transferências e créditos internos não compõem o movimento líquido abaixo.</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <SummaryCard label="Receitas" value={totalReceitas} icon={<TrendingUp className="size-4" />} variant="success" />
+              <SummaryCard label="Despesas" value={totalDespesas} icon={<TrendingDown className="size-4" />} variant="destructive" />
+              <SummaryCard label="Estornos" value={totalEstornos} icon={<Undo2 className="size-4" />} variant="warning" />
+              <SummaryCard label="Movimento líquido" value={netResult} icon={<DollarSign className="size-4" />} variant="primary" />
+            </div>
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <h3 className="text-sm font-semibold text-foreground">Historico de Transacoes</h3>
+              <h3 className="text-sm font-semibold text-foreground">Movimentações registradas</h3>
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowDiscountModal(true)}>
                 Aplicar Desconto
               </Button>
@@ -502,17 +494,17 @@ export function FinancialTab() {
                 </ToggleGroup>
               </div>
               <div className="flex flex-col gap-1">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Periodo</Label>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Período</Label>
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
-                    type="date" value={dateFrom}
+                    aria-label="Movimentações a partir de" type="date" value={dateFrom}
                     onChange={e => setDateFrom(e.target.value)}
                     className="h-9 w-36 text-xs"
                     placeholder="De"
                   />
                   <span className="text-xs text-muted-foreground">ate</span>
                   <Input
-                    type="date" value={dateTo}
+                    aria-label="Movimentações até" type="date" value={dateTo}
                     onChange={e => setDateTo(e.target.value)}
                     className="h-9 w-36 text-xs"
                     placeholder="Ate"
@@ -596,31 +588,14 @@ export function FinancialTab() {
           </div>
         </TabsContent>)}
 
-        {/* Suppliers */}
-        {visible("fornecedores") && (<TabsContent value="fornecedores">
-          <SuppliersManagement />
-        </TabsContent>)}
-
-        {/* Customers */}
-        {visible("clientes") && (<TabsContent value="clientes">
-          <CustomersManagement />
-        </TabsContent>)}
-
-        {visible("hospedes") && (<TabsContent value="hospedes">
-          <GuestsManagement />
-        </TabsContent>)}
-
-        {/* Accounts Receivable */}
-        {visible("contas-receber") && (<TabsContent value="contas-receber">
-          <AccountsReceivableManagement />
-        </TabsContent>)}
-
-        {visible("cadastros") && (<TabsContent value="cadastros">
-          <FinancialCadastrosManagement sections={["bankAccount", "bankTransfer", "costCenter", "budget", "recurringTransaction"]} />
-        </TabsContent>)}
-
-        {/* Cash close */}
-        {visible("fechar-turno") && (<TabsContent value="fechar-turno"><CashSessionPanel /></TabsContent>)}
+        {visible("contas-receber") && <TabsContent value="contas-receber">
+          {can("accountsReceivable.read") && <AccountsReceivableManagement />}
+          {can("recurringTransactions.read") && <details className="mt-4 rounded-lg border p-4"><summary className="min-h-11 cursor-pointer font-medium">Receitas recorrentes</summary><FinancialCadastrosManagement sections={["recurringTransaction"]} recurringType="receita" /></details>}
+        </TabsContent>}
+        {visible("contas") && <TabsContent value="contas" className="space-y-4">
+          {(can("cash.open") || can("cash.close")) && <CashSessionPanel />}
+          <FinancialCadastrosManagement sections={["bankAccount", "bankTransfer"]} balancesOnly />
+        </TabsContent>}
       </Tabs>
 
       {/* Transaction detail sheet */}

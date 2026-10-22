@@ -5,12 +5,12 @@ import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Pencil, Search, Trash2 } from "lucide-react"
-import type { GuestProfile } from "@/lib/store"
+import type { GuestProfile, Customer } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils/formatters"
 
 const emptyGuest: GuestProfile = {
@@ -21,9 +21,9 @@ const emptyGuest: GuestProfile = {
   noShows: 0,
 }
 
-export function GuestsManagement() {
+export function GuestsManagement({ person }: { person?: Customer } = {}) {
   const { guests, addGuest, updateGuest, removeGuest, addAuditEntry } = useApp()
-  const { username } = useAuth()
+  const { username, can } = useAuth()
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCpf, setEditingCpf] = useState<string | null>(null)
@@ -31,16 +31,17 @@ export function GuestsManagement() {
   const [error, setError] = useState("")
 
   const filteredGuests = useMemo(() => {
+    if (person) return guests.filter(guest => guest.cpf === person.cpfCnpj.replace(/\D/g, ""))
     const term = search.toLowerCase().trim()
     if (!term) return guests
     return guests.filter(guest =>
       guest.name.toLowerCase().includes(term) || guest.cpf.includes(term)
     )
-  }, [guests, search])
+  }, [guests, search, person])
 
   function openDialog(guest?: GuestProfile) {
     setEditingCpf(guest?.cpf ?? null)
-    setForm(guest ? { ...guest } : emptyGuest)
+    setForm(guest ? { ...guest } : { ...emptyGuest, name: person?.name ?? "", cpf: person?.cpfCnpj.replace(/\D/g, "") ?? "", ...(person ? { customerId: person.id } : {}) })
     setError("")
     setDialogOpen(true)
   }
@@ -53,6 +54,7 @@ export function GuestsManagement() {
   }
 
   async function handleSave() {
+    if (!can(editingCpf ? "guests.edit" : "guests.create")) return
     try {
     const auditUser = username || "sistema"
     const cpf = form.cpf.replace(/\D/g, "")
@@ -84,7 +86,7 @@ export function GuestsManagement() {
   }
 
   async function handleDelete(guest: GuestProfile) {
-    if (!confirm(`Excluir hospede "${guest.name}"?`)) return
+    if (!can("guests.delete") || !confirm(`Excluir hospede "${guest.name}"?`)) return
     await removeGuest(guest.cpf, guest.recordVersion)
     await addAuditEntry({
       user: username || "sistema",
@@ -93,14 +95,16 @@ export function GuestsManagement() {
     })
   }
 
+  if (!can("guests.read")) return null
   return (
     <div className="space-y-4">
+      {person && <h3 className="font-semibold">Perfil de hospedagem</h3>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
+        {!person && <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" placeholder="Buscar por nome ou CPF" value={search} onChange={event => setSearch(event.target.value)} />
-        </div>
-        <Button onClick={() => openDialog()} className="gap-2"><Plus className="size-4" /> Novo Hospede</Button>
+        </div>}
+        {can("guests.create") && (!person || !filteredGuests.length) && <Button onClick={() => openDialog()} className="gap-2"><Plus className="size-4" />{person ? "Adicionar perfil de hospedagem" : "Novo Hospede"}</Button>}
       </div>
 
       <Card>
@@ -119,14 +123,14 @@ export function GuestsManagement() {
             <TableBody>
               {filteredGuests.map(guest => (
                 <TableRow key={guest.cpf}>
-                  <TableCell className="font-medium">{guest.name}</TableCell>
+                  <TableCell className="font-medium">{guest.name}{guest.creditValue != null && <p className="text-xs text-muted-foreground">Crédito disponível: {formatCurrency(guest.creditValue)}</p>}</TableCell>
                   <TableCell>{guest.cpf}</TableCell>
                   <TableCell>{guest.totalStays}</TableCell>
                   <TableCell>{formatCurrency(guest.avgTicket)}</TableCell>
                   <TableCell>{guest.noShows}</TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => openDialog(guest)}><Pencil className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete(guest)}><Trash2 className="size-4" /></Button>
+                    <Button aria-label="Editar perfil de hospedagem" disabled={!can("guests.edit")} size="sm" variant="ghost" onClick={() => openDialog(guest)}><Pencil className="size-4" /></Button>
+                    <Button aria-label="Excluir perfil de hospedagem" disabled={!can("guests.delete")} size="sm" variant="ghost" onClick={() => handleDelete(guest)}><Trash2 className="size-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -142,11 +146,11 @@ export function GuestsManagement() {
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editingCpf ? "Editar Hospede" : "Novo Hospede"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingCpf ? "Editar Hospede" : "Novo Hospede"}</DialogTitle><DialogDescription>Estatísticas e identificação do perfil de hospedagem.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-            <Field label="Nome"><Input value={form.name} onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))} /></Field>
-            <Field label="CPF"><Input value={form.cpf} disabled={!!editingCpf} onChange={event => setForm(prev => ({ ...prev, cpf: event.target.value }))} /></Field>
+            <Field label="Nome"><Input disabled={!!person} value={form.name} onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))} /></Field>
+            <Field label="CPF"><Input value={form.cpf} disabled={!!editingCpf || !!person} onChange={event => setForm(prev => ({ ...prev, cpf: event.target.value }))} /></Field>
             <div className="grid grid-cols-3 gap-3">
               <Field label="Estadias"><Input type="number" value={form.totalStays} onChange={event => setForm(prev => ({ ...prev, totalStays: Number(event.target.value) }))} /></Field>
               <Field label="Ticket Medio"><Input type="number" value={form.avgTicket} onChange={event => setForm(prev => ({ ...prev, avgTicket: Number(event.target.value) }))} /></Field>

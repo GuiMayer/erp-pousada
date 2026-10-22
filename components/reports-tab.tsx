@@ -11,6 +11,9 @@
 
 "use client"
 
+import { useAuth } from "@/lib/auth-context"
+import { FinancialCadastrosManagement } from "./financial-cadastros-management"
+import { Button } from "./ui/button"
 import { useState } from "react"
 import { ManagementReports } from "./reports/management-reports"
 import { getDataConfig } from "@/lib/data/config"
@@ -464,4 +467,16 @@ function LegacyReportsTab() {
   )
 }
 
-export function ReportsTab() { return getDataConfig().adapter === "database" ? <ManagementReports /> : <LegacyReportsTab /> }
+export function ReportsTab() {
+  const { can } = useAuth()
+  const [view, setView] = useState("reports")
+  const current = view === "planning" && can("budgets.read") || !can("reports.read") ? "planning" : "reports"
+  if (!can("reports.read") && !can("budgets.read")) return null
+  return <div className="space-y-4">
+    {can("budgets.read") && <nav aria-label="Áreas de relatórios" className="flex flex-wrap gap-2">
+      {can("reports.read") && <Button variant={current === "reports" ? "default" : "outline"} onClick={() => setView("reports")}>Indicadores</Button>}
+      <Button variant={current === "planning" ? "default" : "outline"} onClick={() => setView("planning")}>Planejamento</Button>
+    </nav>}
+    {current === "planning" ? <FinancialCadastrosManagement sections={["budget"]} /> : getDataConfig().adapter === "database" ? <ManagementReports /> : <LegacyReportsTab />}
+  </div>
+}
