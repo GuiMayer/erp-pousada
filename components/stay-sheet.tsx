@@ -1,4 +1,5 @@
 "use client";
+import { ReservationDiscountButton } from "./reservation-discount-dialog"
 import { getDataConfig } from "@/lib/data/config";
 import { useState, useRef, useEffect } from "react";
 import type { StayIntent } from "@/lib/room-actions";
@@ -421,6 +422,7 @@ export function StaySheet({
               {intent === "overview" && (
                 <section className="space-y-2">
                   <h3 className="font-semibold">Diárias acordadas</h3>
+                  {!readOnly && active && reservations.find(r => r.id === stay.reservationId) && <ReservationDiscountButton reservation={reservations.find(r => r.id === stay.reservationId)!} disabled={pending || dirty} onApplied={onClose} />}
                   {stay.nightlyPrices?.length ? (
                     <ul className="space-y-1 text-sm">
                       {stay.nightlyPrices.map((n) => (

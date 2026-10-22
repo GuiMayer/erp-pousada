@@ -11,6 +11,7 @@ import type { Reservation } from "@/lib/store"
 import { BookingForm } from "./booking-form"
 import { CheckinModal } from "./checkin-modal"
 import { ReservationCancellationDialog } from "./reservation-cancellation-dialog"
+import { ReservationDiscountDialog } from "./reservation-discount-dialog"
 import { ReservationPaymentButton } from "./reservation-payment-button"
 import { ReservationDetailsSheet, reservationLabels as labels } from "./reservation-details-sheet"
 import { Button } from "./ui/button"
@@ -29,6 +30,7 @@ export function ReservationsTab() {
   const [busy, setBusy] = useState(false)
   const [entry, setEntry] = useState<Reservation | null>(null)
   const [cancel, setCancel] = useState<{ reservation: Reservation; noShow: boolean } | null>(null)
+  const [discount, setDiscount] = useState<Reservation | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [groupKey, setGroupKey] = useState<string | null>(null)
   const groups = pendingReservationGroups(reservations)
@@ -45,17 +47,19 @@ export function ReservationsTab() {
   const cancelEligible = (r: Reservation) => r.status === "confirmada" && can("reservations.cancel")
   const entryRoom = rooms.find(r => r.id === entry?.roomId)
   function actions(r: Reservation) {
+    const mayDiscount = r.status === "confirmada" && can("reservations.discount")
     const mayEdit = r.status === "confirmada" && can("reservations.edit")
     const mayCancel = cancelEligible(r)
     const mayMarkAbsent = mayCancel && noShowEligible(r.checkIn, systemSettings.checkInTime)
     return <div className="flex flex-wrap items-center justify-end gap-2" onClick={event => event.stopPropagation()}>
       {entryEligible(r) && <Button size="sm" onClick={() => { setEntry(r); closeDetails() }}>Fazer check-in</Button>}
       <ReservationPaymentButton reservation={r} />
-      {(mayEdit || mayCancel) && <DropdownMenu>
+      {(mayEdit || mayCancel || mayDiscount) && <DropdownMenu>
         <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-11 shrink-0 sm:size-9" aria-label={`Mais ações da reserva ${r.id}`} title="Mais ações"><MoreHorizontal className="size-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Quarto {r.roomNumber} · Reserva</DropdownMenuLabel>
           {mayEdit && <DropdownMenuItem onSelect={() => { setForm(r); closeDetails() }}><Pencil className="size-4" />Editar reserva</DropdownMenuItem>}
+          {mayDiscount && <DropdownMenuItem onSelect={() => { setDiscount(r); closeDetails() }}>Aplicar desconto</DropdownMenuItem>}
           {mayMarkAbsent && <DropdownMenuItem onSelect={() => { setCancel({reservation:r,noShow:true}); closeDetails() }}><UserX className="size-4" />Registrar ausência</DropdownMenuItem>}
           {mayCancel && <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onSelect={() => { setCancel({reservation:r,noShow:false}); closeDetails() }}><XCircle className="size-4" />Cancelar reserva</DropdownMenuItem></>}
         </DropdownMenuContent>
@@ -80,6 +84,7 @@ export function ReservationsTab() {
     </TableBody></Table></CardContent></Card>
     <Dialog open={!!form} onOpenChange={v => { if (!v && !busy) setForm(null) }}><DialogContent mobileTask protectDraft busy={busy} className="sm:max-w-xl"><DialogHeader><DialogTitle>{form === "new" ? "Nova reserva" : "Editar reserva"}</DialogTitle><DialogDescription>Escolha o hóspede e revise período, quarto, ocupação e preço.</DialogDescription></DialogHeader>{form && <BookingForm key={form === "new" ? "new" : form.id} intent={form === "new" ? "reservation" : "edit"} reservation={form === "new" ? undefined : form} onBusy={setBusy} onDone={() => setForm(null)} />}</DialogContent></Dialog>
     {entry && entryRoom && <CheckinModal room={entryRoom} reservation={entry} open onClose={() => setEntry(null)} />}
+    {discount && <ReservationDiscountDialog reservation={discount} onClose={() => setDiscount(null)} />}
     {cancel && <ReservationCancellationDialog reservation={cancel.reservation} noShow={cancel.noShow} onClose={() => setCancel(null)} />}
     {group && <ReservationGroupSheet group={group} onClose={closeDetails} actions={actions} />}
     {detail && <ReservationDetailsSheet reservation={detail} onClose={() => setDetailId(null)}>{actions(detail)}</ReservationDetailsSheet>}

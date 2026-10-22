@@ -132,7 +132,7 @@ describe("Atendimento compartilhado", () => {
     expect(screen.queryByRole("menuitem", {name:"Registrar ausência"})).not.toBeInTheDocument()
   })
   it("não exibe um menu vazio quando as ações secundárias não são permitidas", () => {
-    denied.add("reservations.edit"); denied.add("reservations.cancel")
+    denied.add("reservations.edit"); denied.add("reservations.cancel"); denied.add("reservations.discount")
     app.reservations = [booking()]
     render(<ReservationsTab />)
     expect(screen.queryByRole("button", {name:/Mais ações da reserva/})).not.toBeInTheDocument()

@@ -57,11 +57,11 @@ type DueFilter = "todos" | "pendentes" | "pagos" | "vencidos"
 
 export function FinancialTab() {
   const {
-    expenses, transactions, categories, cashCloses, reservations, updateReservation,
-    runOperation, discountCeiling, addExpense, updateExpense, markInstallmentAsPaid, addTransaction,
-    addAuditEntry, addCategory, addCashClose, setDiscountCeiling,
+    expenses, transactions, categories, cashCloses,
+    runOperation, addExpense, updateExpense, markInstallmentAsPaid, addTransaction,
+    addAuditEntry, addCategory,
   } = useApp()
-  const { isSupervisor, username, can } = useAuth()
+  const { username, can } = useAuth()
   const financialTabs: Record<string, string[]> = { "contas-receber": ["accountsReceivable.read", "recurringTransactions.read"], vencimentos: ["expenses.read", "recurringTransactions.read"], transacoes: ["transactions.read"], contas: ["bankAccounts.read", "bankTransfers.read", "bankAccounts.transfer", "cash.open", "cash.close"] }
   const visible = (tab: string) => financialTabs[tab]?.some(can)
   const [section, setSection] = useTaskState("finance.section", Object.keys(financialTabs).find(visible), false)
@@ -83,15 +83,6 @@ export function FinancialTab() {
   const [refundModal, setRefundModal] = useState<Transaction | null>(null)
   const [supervisorPass, setSupervisorPass] = useState("")
   const [refundError, setRefundError] = useState("")
-
-  // Discount modal
-  const [showDiscountModal, setShowDiscountModal] = useState(false)
-  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent")
-  const [discountValue, setDiscountValue] = useState("")
-  const [discountUnlockPass, setDiscountUnlockPass] = useState("")
-  const [discountUnlocked, setDiscountUnlocked] = useState(false)
-  const [discountReservationId, setDiscountReservationId] = useState("")
-  const [discountError, setDiscountError] = useState("")
 
   const [payingExpense, setPayingExpense] = useState<(ExpenseRow & { recordVersion?: number }) | null>(null)
   // Due filter (toggle group)
@@ -311,25 +302,6 @@ export function FinancialTab() {
     setShowNewCategory(false)
   }
 
-  async function handleDiscountCheck() {
-    const reservation = reservations.find(r => r.id === discountReservationId)
-    if (!reservation) return
-    try {
-      const value = Number(discountValue)
-      if (!Number.isFinite(value) || value <= 0 || discountType === "percent" && value > 100) throw new Error("Desconto inválido")
-      if (getDataConfig().adapter === "database") await runOperation("reservation-discount", { reservationId: reservation.id, type: discountType, value })
-      else {
-        const amount = discountType === "percent" ? reservation.totalValue * value / 100 : value
-        if (amount > reservation.totalValue) throw new Error("Desconto excede o valor da reserva")
-        await updateReservation(reservation.id, { totalValue: reservation.totalValue - amount })
-      }
-      setShowDiscountModal(false); setDiscountValue(""); setDiscountUnlockPass(""); setDiscountUnlocked(false); setDiscountError("")
-    } catch (error) { setDiscountError(error instanceof Error ? error.message : "Desconto não aplicado") }
-  }
-
-  const discountNeedsSupervisor =
-    getDataConfig().adapter === "demo-localStorage" && !isSupervisor && (discountType === "percent" ? Number(discountValue) : Number(discountValue) / (reservations.find(r => r.id === discountReservationId)?.totalValue || 1) * 100) > discountCeiling
-
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <h2 className="hidden sm:block text-lg font-semibold text-foreground">Financeiro</h2>
@@ -474,9 +446,7 @@ export function FinancialTab() {
             </div>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <h3 className="text-sm font-semibold text-foreground">Movimentações registradas</h3>
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowDiscountModal(true)}>
-                Aplicar Desconto
-              </Button>
+
             </div>
 
             {/* Filters row */}
@@ -773,59 +743,7 @@ export function FinancialTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Discount modal */}
-      <Dialog open={showDiscountModal} onOpenChange={setShowDiscountModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Aplicar Desconto</DialogTitle>
-            <DialogDescription>Selecione a reserva. Teto do operador: {discountCeiling}%.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            <Label>Reserva</Label>
-            <select className="rounded-md border bg-background p-2" value={discountReservationId} onChange={e => { setDiscountReservationId(e.target.value); setDiscountUnlocked(false) }}>
-              <option value="">Selecione uma reserva</option>
-              {reservations.filter(r => r.status === "confirmada" || r.status === "checkin").map(r => <option key={r.id} value={r.id}>{r.guestName} — Quarto {r.roomNumber} — {formatCurrency(r.totalValue)}</option>)}
-            </select>
-            {discountError && <p role="alert" className="text-sm text-destructive">{discountError}</p>}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label>Tipo</Label>
-                <Select value={discountType} onValueChange={v => setDiscountType(v as "percent" | "fixed")}>
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percent">Percentual (%)</SelectItem>
-                    <SelectItem value="fixed">Valor Fixo (R$)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Valor</Label>
-                <Input
-                  type="number" value={discountValue}
-                  onChange={e => { setDiscountValue(e.target.value); setDiscountUnlocked(false); setDiscountUnlockPass("") }}
-                  placeholder={discountType === "percent" ? "0%" : "R$ 0,00"}
-                />
-              </div>
-            </div>
-            {discountNeedsSupervisor && !discountUnlocked && (
-              <div className="flex flex-col gap-2 rounded-lg bg-warning/10 p-3">
-                <div className="flex items-center gap-2">
-                  <Lock className="size-4 text-warning-foreground" />
-                  <span className="text-sm text-warning-foreground">Desconto acima do teto. Necessaria senha de liberacao.</span>
-                </div>
-                <div className="flex gap-2">
-                  <Input type="password" value={discountUnlockPass} onChange={e => setDiscountUnlockPass(e.target.value)} placeholder="Senha do supervisor" />
-                  <Button size="sm" onClick={async () => { if (await validateSupervisorPasswordAsync(discountUnlockPass)) setDiscountUnlocked(true) }}>Liberar</Button>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDiscountModal(false)}>Cancelar</Button>
-            <Button disabled={!discountReservationId || !discountValue || (discountNeedsSupervisor && !discountUnlocked)} onClick={handleDiscountCheck}>Aplicar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </div>
   )
 }
