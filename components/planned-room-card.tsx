@@ -38,7 +38,7 @@ export function PlannedRoomCard({ room, selectedDate }: { room: Room; selectedDa
     <Card className="mobile-room-card room-summary-card relative gap-0 overflow-hidden py-3 sm:h-full">
       <div className={`absolute inset-x-0 top-0 h-1 ${plan.blocked ? "bg-info" : plan.status === "ocupado" ? "bg-warning" : "bg-success"}`} />
       <CardHeader className="px-3 pb-0 pt-1"><div className="flex flex-wrap items-center justify-between gap-2"><div><span className="text-2xl font-bold">{room.number}</span><span className="ml-2 text-[10px] uppercase text-muted-foreground">{room.type}</span></div><Badge className={colors}>{label}</Badge></div></CardHeader>
-      <CardContent className="flex flex-1 flex-col px-3 py-0">
+      <CardContent className="flex flex-col px-3 py-0 sm:flex-1">
         <div className="my-2 flex-1 space-y-2 rounded-lg bg-secondary/60 p-2 text-sm"><p className="text-xs text-muted-foreground">Previsão para {date(selectedDate)}</p><p className="break-words">{plan.blocked ? room.blockReason || "Bloqueio vigente na data" : knownOccupant || (complete ? "Disponível para reserva nesta data" : "A disponibilidade será validada ao confirmar a reserva")}</p>{plan.ambiguous && <p className="text-xs text-destructive">Há sobreposição no planejamento. Revise antes de reservar.</p>}{plan.blocked && <p className="text-xs text-muted-foreground">{room.blockEndDate ? `Previsão de liberação: ${date(room.blockEndDate)}` : "Sem previsão de liberação"}</p>}</div>
         <div className="flex min-h-11 gap-2">
           {plan.status === "disponivel" && can("reservations.create") && <Button variant="outline" className="min-h-11 flex-1" onClick={() => setTask({ kind: "reserve" })}>Reservar</Button>}
