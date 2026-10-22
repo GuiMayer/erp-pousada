@@ -189,6 +189,20 @@ describe("Proteção das APIs e integridade de operações", () => {
     await executeOperation(actor, key, "reservation-discount", payload)
     expect(Number((await prisma.reservation.findUniqueOrThrow({ where: { id: reservationId } })).totalValue)).toBe(90)
   })
+  it("desconto fixo por diária recalcula no servidor, respeita recebido e exige autorização", async () => {
+    const reservationId = randomUUID()
+    await executeOperation(actor, randomUUID(), "reserve", { id: reservationId, roomId: 1, cpf: "52998224725", guestName: "Hóspede fictício", checkIn: bookingDay(), checkOut: bookingDay(3), totalValue: 600, guestCount: 2, priceExceptionReason: "Valor acordado no teste" })
+    const payload = { reservationId, type: "fixed", value: 20, scope: "night" }
+    await expect(executeOperation({ ...actor, role: "operador" }, randomUUID(), "reservation-discount", payload)).rejects.toMatchObject({ status: 403 })
+    await prisma.reservation.update({ where: { id: reservationId }, data: { paidValue: 580 } })
+    await expect(executeOperation(actor, randomUUID(), "reservation-discount", payload)).rejects.toMatchObject({ status: 409 })
+    expect(Number((await prisma.reservation.findUniqueOrThrow({ where: { id: reservationId } })).totalValue)).toBe(600)
+    await prisma.reservation.update({ where: { id: reservationId }, data: { paidValue: 0 } })
+    const key = randomUUID()
+    await executeOperation(actor, key, "reservation-discount", payload)
+    await executeOperation(actor, key, "reservation-discount", payload)
+    expect(Number((await prisma.reservation.findUniqueOrThrow({ where: { id: reservationId } })).totalValue)).toBe(540)
+  })
   it("fechamento soma fundo e dinheiro sem contar PIX", async () => {
     const cash = salePayload(2); cash.sale.paymentMethod = "dinheiro"
     await executeOperation(actor, randomUUID(), "sale", cash)

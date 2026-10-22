@@ -1,3 +1,4 @@
+import { lodgingDiscount } from "@/lib/lodging-summary"
 import { bookingEntry } from "./booking-entry"
 import { businessDay } from "@/lib/utils/business-values"
 import { initialPaymentSchema, receiveBookingDeposit } from "./booking-payments"
@@ -307,10 +308,13 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   }
   if(kind==='stock-movement')throw new HttpError(409,'Use recebimento de compra, perda por lote, abertura ou inventário. O saldo não pode ser sobrescrito.')
   if (kind === "reservation-discount") {
-    const input = z.object({ reservationId: id, type: z.enum(["percent", "fixed"]), value: money }).strict().parse(payload)
+    const input = z.object({ reservationId: id, type: z.enum(["percent", "fixed"]), value: money, scope: z.enum(["total", "night"]).default("total") }).strict().parse(payload)
     const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: input.reservationId } })
     if (!["confirmada", "checkin"].includes(reservation.status) || reservation.totalValue.lte(0)) throw new HttpError(409, "Reserva não permite desconto")
-    const amount = input.type === "percent" ? round(reservation.totalValue.mul(input.value).div(100)) : decimal(input.value)
+    let discount
+    try { discount = lodgingDiscount(Number(reservation.totalValue), reservation.checkIn.toISOString().slice(0, 10), reservation.checkOut.toISOString().slice(0, 10), input.type, input.value, input.scope) }
+    catch (error) { throw new HttpError(400, error instanceof Error ? error.message : "Desconto inválido") }
+    const amount = decimal(discount.amount)
     if (amount.gt(reservation.totalValue)) throw new HttpError(400, "Desconto excede o valor da reserva")
     if (reservation.paidValue.gt(reservation.totalValue.minus(amount))) throw new HttpError(409, "Desconto deixaria recebimento excedente")
     const original = reservation.originalValue ?? reservation.totalValue
@@ -321,7 +325,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
       await tx.stayAdjustment.create({ data: { id: randomUUID(), stayId: stay.id, value: amount.negated(), reason: `Desconto autorizado por ${actor.username}` } })
       await tx.stay.update({ where: { id: stay.id }, data: { lodgingValue: reservation.totalValue.minus(amount), recordVersion: { increment: 1 } } })
     }
-    await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`, { entityType: "reservations", entityId: reservation.id, operation: "update", metadata: { amount: Number(amount) } })
+    await audit(tx, actor, "Desconto em reserva", `${reservation.id}: ${amount}`, { entityType: "reservations", entityId: reservation.id, operation: "update", metadata: { amount: Number(amount), type: input.type, value: input.value, scope: input.scope, nights: discount.nights } })
     return { success: true }
   }
   if (kind === "refund-transaction") {

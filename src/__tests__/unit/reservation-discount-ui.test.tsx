@@ -21,7 +21,7 @@ describe("Desconto no contexto da reserva e hospedagem", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aplicar desconto" }))
     await waitFor(() => expect(close).toHaveBeenCalledOnce())
     expect(runOperation).toHaveBeenCalledOnce()
-    expect(runOperation).toHaveBeenCalledWith("reservation-discount", { reservationId: "specific", type: "percent", value: 10 })
+    expect(runOperation).toHaveBeenCalledWith("reservation-discount", { reservationId: "specific", type: "percent", value: 10, scope: "total" })
   })
   it("preserva valores digitados se o servidor negar a operação", async () => {
     runOperation.mockRejectedValue(new Error("Operação não autorizada"))
@@ -47,6 +47,24 @@ describe("Desconto no contexto da reserva e hospedagem", () => {
     expect(screen.getByLabelText("Senha do supervisor")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Aplicar desconto" })).toBeDisabled()
     expect(updateReservation).not.toHaveBeenCalled()
+  })
+  it("multiplica o valor fixo por diária e envia o escopo ao servidor", async () => {
+    render(<ReservationDiscountDialog reservation={{ ...reservation, checkOut: "2026-10-25", totalValue: 600, originalValue: 600 }} onClose={() => {}} />)
+    fireEvent.change(screen.getByLabelText("Aplicar em"), { target: { value: "night" } })
+    fireEvent.click(screen.getByRole("radio", { name: "Valor fixo (R$)" }))
+    fireEvent.change(screen.getByLabelText("Valor do desconto"), { target: { value: "20" } })
+    expect(screen.getByRole("status")).toHaveTextContent(/60,00.*3 diária/)
+    expect(screen.getByRole("status")).toHaveTextContent(/540,00/)
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar desconto" }))
+    await waitFor(() => expect(runOperation).toHaveBeenCalledWith("reservation-discount", { reservationId: "specific", type: "fixed", value: 20, scope: "night" }))
+  })
+  it("alterna entre fixo e percentual preservando o campo e recalculando a prévia", () => {
+    render(<ReservationDiscountDialog reservation={reservation} onClose={() => {}} />)
+    fireEvent.change(screen.getByLabelText("Valor do desconto"), { target: { value: "10" } })
+    expect(screen.getByRole("status")).toHaveTextContent(/162,00/)
+    fireEvent.click(screen.getByRole("radio", { name: "Valor fixo (R$)" }))
+    expect(screen.getByLabelText("Valor do desconto")).toHaveValue(10)
+    expect(screen.getByRole("status")).toHaveTextContent(/170,00/)
   })
   it("esconde o atalho sem permissão ou com hospedagem já encerrada", () => {
     state.denied = ["reservations.discount"]
