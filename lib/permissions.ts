@@ -85,6 +85,7 @@ export const operationPermissions: Record<string, string> = {
   "cash-open": "cash.open",
   "cash-close": "cash.close",
   "cash-movement": "cash.move",
+  "cash-review": "cash.review",
   "check-transaction": "transactions.check",
   "receive-batch": "accountsReceivable.receive"
 }
@@ -124,6 +125,7 @@ const specialLabels: Record<string, string> = {
   "lodgingTariffs.override": "Autorizar preço excepcional de hospedagem",
   "discount.override": "Desconto acima do teto",
   "cash.closeAny": "Fechar caixa de outro responsável",
+  "cash.review": "Conferir divergências de caixa",
   "reservations.feeCredit": "Autorizar retenção, devolução parcial e crédito de reserva",
   "consumptions.custom": "Lançar consumo personalizado",
   "hospitality.checkin": "Realizar check-in",
@@ -188,9 +190,9 @@ export const tabPermissions: Record<string, string[]> = {
   cadastros: ["customers.read", "guests.read", "suppliers.read", "lodgingTariffs.read", "posProducts.read", "bankAccounts.read", "costCenters.read", "categories.read"],
   reservas: ["reservations.read"],
   historico: ["stays.read", "reservations.read"],
-  pdv: ["pos.sell"],
+  pdv: ["pos.sell", "cash.open", "cash.close", "cash.move", "cashCloses.read", "cash.review"],
   estoque: ["stockItems.read"],
-  financeiro: ["transactions.read", "expenses.read", "accountsReceivable.read", "cash.open", "cash.close", "bankAccounts.read", "bankTransfers.read", "bankAccounts.transfer", "recurringTransactions.read"],
+  financeiro: ["transactions.read", "expenses.read", "accountsReceivable.read", "bankAccounts.read", "bankTransfers.read", "bankAccounts.transfer", "recurringTransactions.read"],
   relatorios: ["reports.read", "budgets.read"],
   configuracoes: ["settings.access"],
   auditoria: ["auditLog.read"]

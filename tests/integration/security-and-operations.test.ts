@@ -394,7 +394,7 @@ describe("Regressões das regras de negócio", () => {
     const cashSale = salePayload(); cashSale.sale.paymentMethod = "dinheiro"
     await expect(operate("sale", cashSale)).rejects.toMatchObject({ status: 409 })
     expect(await prisma.pOSSale.count()).toBe(0)
-    const second = await operate("cash-open", { openingValue: 40 }) as { id: string }
+    const second = await operate("cash-open", { openingValue: 40, openingReason: "Reforço do fundo para o turno" }) as { id: string }
     await operate("sale", cashSale)
     expect(await operate("cash-close", { sessionId: second.id, physicalValue: 50 })).toHaveProperty("expectedValue", 50)
   })

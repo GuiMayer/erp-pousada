@@ -425,6 +425,16 @@ model PaymentAllocation {
 }
 
 model CashClose {
+  previousSessionId String?
+  openingReason String?
+  retainedValue Decimal @default(0) @db.Decimal(12, 2)
+  withdrawnValue Decimal @default(0) @db.Decimal(12, 2)
+  withdrawalAccountId String?
+  closingReason String?
+  closedBy String?
+  reviewedAt DateTime?
+  reviewedBy String?
+  reviewNote String?
   responsibleUserId String?
   status        String @default("fechado")
   openedAt      DateTime?

@@ -1,4 +1,5 @@
 "use client"
+import { canReadCashStatus } from "@/lib/cash-access"
 import { demoPOSOperation } from "./data/demo-pos"
 import { businessDay } from "./utils/business-values"
 import { roomPlan } from "./room-planning"
@@ -289,7 +290,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         keys && !keys.has("transactions") ? Promise.resolve(null) : (can("transactions.read")) ? dataStore.transactions.getAll() : Promise.resolve([]),
         keys && !keys.has("auditLog") ? Promise.resolve(null) : (can("auditLog.read") && getDataConfig().adapter !== "database") ? dataStore.auditLog.getAll() : Promise.resolve([]),
         keys && !keys.has("categories") ? Promise.resolve(null) : (can("categories.read")) ? dataStore.categories.getAll() : Promise.resolve([]),
-        keys && !keys.has("cashCloses") ? Promise.resolve(null) : (can("cashCloses.read")) ? dataStore.cashCloses.getAll() : Promise.resolve([]),
+        keys && !keys.has("cashCloses") ? Promise.resolve(null) : can("cashCloses.read") ? dataStore.cashCloses.getAll() : getDataConfig().adapter === "database" && canReadCashStatus(can) ? fetch("/api/cash/status", { cache: "no-store" }).then(async response => { if (!response.ok) throw new Error("Não foi possível consultar o estado do caixa"); return response.json() as Promise<CashClose[]> }) : Promise.resolve([]),
         keys && !keys.has("consumptions") ? Promise.resolve(null) : (can("consumptions.read")) ? dataStore.consumptions.getAll() : Promise.resolve([]),
         keys && !keys.has("posProducts") ? Promise.resolve(null) : (can("posProducts.read")) ? dataStore.posProducts.getAll() : Promise.resolve([]),
         keys && !keys.has("posSales") ? Promise.resolve(null) : (can("posSales.read")) ? dataStore.posSales.getAll() : Promise.resolve([]),

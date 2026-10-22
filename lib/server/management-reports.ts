@@ -687,7 +687,7 @@ async function finance(tx: Tx, q: ReportQuery, now: Date) {
       date: businessDay(s.closedAt ?? s.openedAt ?? s.date),
       kind: "turno-caixa",
       label: s.operator,
-      value: money(expected),
+      value: s.status === "fechado" ? Number(s.expectedValue) : money(expected),
       source: { collection: "cashCloses", id: s.id },
       details: {
         status: s.status,

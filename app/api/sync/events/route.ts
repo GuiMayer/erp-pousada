@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { requireSession } from "@/lib/server/auth"
 import { handleRoute } from "@/lib/server/http"
 import { subscribeSync } from "@/lib/server/sync"
+import { canReadCashStatus } from "@/lib/cash-access"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
         cleanup = close
         const send = (module: string) => {
           if (closed) return
-          if (module !== "reconnected" && module !== "notifications" && !actor.permissions?.includes(`${module}.read`)) return
+          if (module !== "reconnected" && module !== "notifications" && !actor.permissions?.includes(`${module}.read`) && !(module === "cashCloses" && canReadCashStatus(permission => !!actor.permissions?.includes(permission)))) return
           try { controller.enqueue(encoder.encode(`event: invalidate\ndata: ${JSON.stringify({ module })}\n\n`)) } catch { close() }
         }
         unsubscribe = subscribeSync(send)

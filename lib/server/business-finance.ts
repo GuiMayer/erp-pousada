@@ -67,23 +67,47 @@ export async function postPayments(tx: Tx, actor: Actor, reference: string, valu
 
 export async function financeOperation(tx: Tx, actor: Actor, kind: string, payload: unknown): Promise<unknown | undefined> {
   if (kind === "cash-open") {
-    const { openingValue } = z.object({ openingValue: money }).strict().parse(payload)
+    const { openingValue, openingReason } = z.object({ openingValue: money, openingReason: z.string().trim().min(5).max(500).optional() }).strict().parse(payload)
+    const previous = await tx.cashClose.findFirst({ where: { status: "fechado" }, orderBy: [{ closedAt: "desc" }, { id: "desc" }] })
+    if (previous && !previous.retainedValue.equals(openingValue) && !openingReason) throw new HttpError(409, "O fundo difere do último fechamento. Informe o motivo da alteração.", { code: "CASH_OPENING_DIFFERENCE" })
     if (await tx.cashClose.count({ where: { status: "aberto" } })) throw new HttpError(409, "Já existe um caixa aberto")
     const now = new Date()
-    const session = await tx.cashClose.create({ data: { id: randomUUID(), status: "aberto", date: now, openedAt: now, operator: actor.username, responsibleUserId: actor.id, openingValue, physicalValue: 0, expectedValue: openingValue, divergence: 0 } })
-    await audit(tx, actor, "Caixa aberto", session.id, { entityType: "cashCloses", entityId: session.id, operation: "create" })
+    const session = await tx.cashClose.create({ data: { id: randomUUID(), status: "aberto", date: now, openedAt: now, operator: actor.username, responsibleUserId: actor.id, openingValue, openingReason, previousSessionId: previous?.id, physicalValue: 0, expectedValue: openingValue, divergence: 0 } })
+    await audit(tx, actor, "Caixa aberto", session.id, { entityType: "cashCloses", entityId: session.id, operation: "create", metadata: { openingValue, previousSessionId: previous?.id, openingReason, previousRetainedValue: previous ? Number(previous.retainedValue) : undefined } })
     return collectionMapper("cashCloses").toApp(session)
   }
   if (kind === "cash-close") {
-    const { sessionId, physicalValue } = z.object({ sessionId: id, physicalValue: money }).strict().parse(payload)
+    const input = z.object({ sessionId: id, physicalValue: money, retainedValue: money.optional(), withdrawalAccountId: id.optional(), closingReason: z.string().trim().min(5).max(500).optional() }).strict().parse(payload)
+    const { sessionId, physicalValue } = input
     const session = await tx.cashClose.findUniqueOrThrow({ where: { id: sessionId } })
     if (session.status !== "aberto") throw new HttpError(409, "Caixa já fechado")
     if (session.responsibleUserId !== actor.id && !can(actor, "cash.closeAny")) throw new HttpError(403, "Somente o responsável ou supervisor pode fechar este caixa")
     const entries = await tx.transaction.findMany({ where: { cashSessionId: session.id } })
     const expectedValue = entries.reduce((sum, entry) => cashIncoming(entry.type) ? sum.plus(entry.value) : sum.minus(entry.value), session.openingValue)
-    const closed = await tx.cashClose.update({ where: { id: session.id }, data: { status: "fechado", date: new Date(), closedAt: new Date(), physicalValue, expectedValue, divergence: D(physicalValue).minus(expectedValue) } })
-    await audit(tx, actor, "Caixa fechado", session.id, { entityType: "cashCloses", entityId: session.id, operation: "update" })
+    const divergence = D(physicalValue).minus(expectedValue)
+    if (!divergence.isZero() && !input.closingReason) throw new HttpError(409, `Há diferença no caixa. Esperado: R$ ${expectedValue.toFixed(2)}. Contado: R$ ${physicalValue.toFixed(2)}. Diferença: R$ ${divergence.toFixed(2)}. Reconte ou informe uma justificativa.`, { code: "CASH_DIFFERENCE" })
+    const retainedValue = D(input.retainedValue ?? physicalValue)
+    if (retainedValue.gt(physicalValue)) throw new HttpError(400, "O fundo não pode exceder o dinheiro contado")
+    const withdrawnValue = D(physicalValue).minus(retainedValue)
+    if (input.withdrawalAccountId) {
+      demand(actor, "cash.move")
+      if (withdrawnValue.lte(0)) throw new HttpError(400, "Informe um valor retirado para depositar")
+      // The counted withdrawal is recorded on the closing; only a confirmed bank
+      // deposit moves the bank balance. Neither custody nor deposit is revenue.
+      await recordLedger(tx, actor, `Depósito do fechamento ${session.id}`, withdrawnValue, "transferencia_entrada", "pix", input.withdrawalAccountId, { originType: "cash-closing-deposit", originId: session.id, batchId: session.id })
+    }
+    const closed = await tx.cashClose.update({ where: { id: session.id }, data: { status: "fechado", date: new Date(), closedAt: new Date(), physicalValue, expectedValue, divergence, retainedValue, withdrawnValue, withdrawalAccountId: input.withdrawalAccountId, closingReason: input.closingReason, closedBy: actor.username } })
+    await audit(tx, actor, "Caixa fechado", session.id, { entityType: "cashCloses", entityId: session.id, operation: "update", metadata: { physicalValue, expectedValue: Number(expectedValue), divergence: Number(divergence), retainedValue: Number(retainedValue), withdrawnValue: Number(withdrawnValue), withdrawalAccountId: input.withdrawalAccountId, closingReason: input.closingReason } })
     return collectionMapper("cashCloses").toApp(closed)
+  }
+  if (kind === "cash-review") {
+    const input = z.object({ sessionId: id, note: z.string().trim().min(5).max(500) }).strict().parse(payload)
+    const session = await tx.cashClose.findUniqueOrThrow({ where: { id: input.sessionId } })
+    if (session.status !== "fechado" || session.divergence.isZero()) throw new HttpError(409, "Somente fechamento com diferença permite conferência")
+    if (session.reviewedAt) throw new HttpError(409, "Esta diferença já foi conferida")
+    const reviewed = await tx.cashClose.update({ where: { id: session.id }, data: { reviewedAt: new Date(), reviewedBy: actor.username, reviewNote: input.note } })
+    await audit(tx, actor, "Diferença de caixa conferida", session.id, { entityType: "cashCloses", entityId: session.id, operation: "update", metadata: { note: input.note } })
+    return collectionMapper("cashCloses").toApp(reviewed)
   }
   if (kind === "pay-reservation") {
     const input = z.object({ reservationId: id, recordVersion: z.number().int().nonnegative().optional(), value: positiveMoney, paymentMethod: paymentSchema.or(z.literal("credito_hospede")).optional(), accountId: id.optional(),payments:paymentLinesSchema.optional() }).strict().parse(payload)

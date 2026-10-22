@@ -309,6 +309,16 @@ export interface AuditEntry {
 }
 
 export interface CashClose {
+  previousSessionId?: string
+  openingReason?: string
+  retainedValue?: number
+  withdrawnValue?: number
+  withdrawalAccountId?: string
+  closingReason?: string
+  closedBy?: string
+  reviewedAt?: string
+  reviewedBy?: string
+  reviewNote?: string
   responsibleUserId?: string
   status?: "aberto" | "fechado"
   openedAt?: string
