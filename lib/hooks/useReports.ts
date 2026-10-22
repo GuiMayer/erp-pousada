@@ -1,3 +1,4 @@
+import { salePaymentBreakdown, totalSalesByMethod } from "@/lib/reports/sale-payments"
 import { pousadaStock } from "@/lib/pousada-scope"
 import { businessDay, businessHour, normalizePayment, netItemValues } from "../utils/business-values"
 import { useCallback, useMemo } from "react"
@@ -46,21 +47,13 @@ export function useReports() {
     const averageTicket = transactionCount > 0 ? totalRevenue / transactionCount : 0
 
     // Revenue by payment method
-    const cashRevenue = daySales
-      .filter(s => normalizePayment(s.paymentMethod) === "Dinheiro")
-      .reduce((sum, s) => sum + s.total, 0)
+    const cashRevenue = totalSalesByMethod(daySales, "Dinheiro")
 
-    const debitRevenue = daySales
-      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Debito")
-      .reduce((sum, s) => sum + s.total, 0)
+    const debitRevenue = totalSalesByMethod(daySales, "Cartao Debito")
 
-    const creditRevenue = daySales
-      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Credito")
-      .reduce((sum, s) => sum + s.total, 0)
+    const creditRevenue = totalSalesByMethod(daySales, "Cartao Credito")
 
-    const pixRevenue = daySales
-      .filter(s => normalizePayment(s.paymentMethod) === "PIX")
-      .reduce((sum, s) => sum + s.total, 0)
+    const pixRevenue = totalSalesByMethod(daySales, "PIX")
 
     // Calculate previous day for comparison
     const prevDate = new Date(date)
@@ -141,13 +134,10 @@ export function useReports() {
     const methodMap = new Map<string, { revenue: number; count: number }>()
 
     daySales.forEach(sale => {
-      const method = normalizePayment(sale.paymentMethod)
-      const existing = methodMap.get(method) || { revenue: 0, count: 0 }
-
-      methodMap.set(method, {
-        revenue: existing.revenue + sale.total,
-        count: existing.count + 1,
-      })
+      for (const line of salePaymentBreakdown(sale)) {
+        const existing = methodMap.get(line.method) || { revenue: 0, count: 0 }
+        methodMap.set(line.method, { revenue: Math.round((existing.revenue + line.value) * 100) / 100, count: existing.count + 1 })
+      }
     })
 
     const totalRevenue = Array.from(methodMap.values())
@@ -362,21 +352,13 @@ export function useReports() {
     const averageTicket = transactionCount > 0 ? totalRevenue / transactionCount : 0
 
     // Revenue by payment method
-    const cashRevenue = periodSales
-      .filter(s => normalizePayment(s.paymentMethod) === "Dinheiro")
-      .reduce((sum, s) => sum + s.total, 0)
+    const cashRevenue = totalSalesByMethod(periodSales, "Dinheiro")
 
-    const debitRevenue = periodSales
-      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Debito")
-      .reduce((sum, s) => sum + s.total, 0)
+    const debitRevenue = totalSalesByMethod(periodSales, "Cartao Debito")
 
-    const creditRevenue = periodSales
-      .filter(s => normalizePayment(s.paymentMethod) === "Cartao Credito")
-      .reduce((sum, s) => sum + s.total, 0)
+    const creditRevenue = totalSalesByMethod(periodSales, "Cartao Credito")
 
-    const pixRevenue = periodSales
-      .filter(s => normalizePayment(s.paymentMethod) === "PIX")
-      .reduce((sum, s) => sum + s.total, 0)
+    const pixRevenue = totalSalesByMethod(periodSales, "PIX")
 
     // Calculate previous period for comparison
     const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
@@ -464,13 +446,10 @@ export function useReports() {
     const methodMap = new Map<string, { revenue: number; count: number }>()
 
     periodSales.forEach(sale => {
-      const method = normalizePayment(sale.paymentMethod)
-      const existing = methodMap.get(method) || { revenue: 0, count: 0 }
-
-      methodMap.set(method, {
-        revenue: existing.revenue + sale.total,
-        count: existing.count + 1,
-      })
+      for (const line of salePaymentBreakdown(sale)) {
+        const existing = methodMap.get(line.method) || { revenue: 0, count: 0 }
+        methodMap.set(line.method, { revenue: Math.round((existing.revenue + line.value) * 100) / 100, count: existing.count + 1 })
+      }
     })
 
     const totalRevenue = Array.from(methodMap.values())
