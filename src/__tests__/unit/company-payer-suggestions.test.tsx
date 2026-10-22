@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
 import { ReservationsTab } from "@/components/reservations-tab"
 import { CheckinModal } from "@/components/checkin-modal"
 import { BookingForm } from "@/components/booking-form"
@@ -84,6 +84,29 @@ describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
 
 const booking = (patch: Partial<Reservation> = {}): Reservation => ({ id: "reservation", recordVersion: 3, roomId: 1, roomNumber: "101", cpf: "52998224725", guestName: "Pessoa A", payerId: "company", guestCount: 1, totalValue: 120, status: "confirmada", checkIn: businessDay(), checkOut: new Date(Date.parse(businessDay()) + 86400000).toISOString().slice(0, 10), ...patch })
 describe("Atendimento compartilhado", () => {
+
+  it("faz check-in somente do quarto escolhido dentro do grupo com seu ID e versão", async () => {
+    app.rooms = [room, { ...room, id: 2, number: "102" }]
+    app.reservations = [booking({groupId:"g"}), booking({id:"second",roomId:2,roomNumber:"102",recordVersion:7,groupId:"g"})]
+    render(<ReservationsTab />)
+    fireEvent.click(screen.getByRole("button", {name:"Abrir grupo dos quartos 101, 102"}))
+    fireEvent.click(within(screen.getByRole("region", {name:"Reserva do quarto 102"})).getByRole("button", {name:"Fazer check-in"}))
+    expect(screen.queryByRole("dialog", {name:"Reserva de vários quartos"})).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", {name:"Confirmar entrada"}))
+    await waitFor(() => expect(runOperation).toHaveBeenCalledWith("check-in", expect.objectContaining({reservationId:"second",roomId:2,recordVersion:7})))
+    expect(runOperation).toHaveBeenCalledOnce()
+  })
+  it("cancela somente o quarto escolhido dentro do grupo", async () => {
+    app.reservations = [booking({groupId:"g"}), booking({id:"second",roomId:2,roomNumber:"102",recordVersion:7,groupId:"g"})]
+    render(<ReservationsTab />)
+    fireEvent.click(screen.getByRole("button", {name:"Abrir grupo dos quartos 101, 102"}))
+    fireEvent.pointerDown(screen.getByRole("button", {name:"Mais ações da reserva second"}), {button:0,ctrlKey:false,pointerType:"mouse"})
+    fireEvent.click(await screen.findByRole("menuitem", {name:"Cancelar reserva"}))
+    expect(screen.queryByRole("dialog", {name:"Reserva de vários quartos"})).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", {name:"Confirmar cancelamento"}))
+    await waitFor(() => expect(runOperation).toHaveBeenCalledWith("cancel-reservation", expect.objectContaining({reservationId:"second",recordVersion:7})))
+    expect(runOperation).toHaveBeenCalledOnce()
+  })
   it("mantém entrada direta e recolhe editar, cancelar e ausência em um menu", async () => {
     const past = new Date(Date.parse(businessDay()) - 86400000).toISOString().slice(0,10)
     app.reservations = [booking({checkIn:past})]

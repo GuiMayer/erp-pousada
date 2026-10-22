@@ -3,6 +3,8 @@ import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { businessDay } from "@/lib/utils/business-values"
+import { pendingReservationGroups, type PendingReservationGroup } from "@/lib/reservation-groups"
+import { ReservationGroupSheet } from "./reservation-group-sheet"
 import { noShowEligible } from "@/lib/booking-flow"
 import { formatCurrency } from "@/lib/utils/formatters"
 import type { Reservation } from "@/lib/store"
@@ -28,7 +30,16 @@ export function ReservationsTab() {
   const [entry, setEntry] = useState<Reservation | null>(null)
   const [cancel, setCancel] = useState<{ reservation: Reservation; noShow: boolean } | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
-  const pendingReservations = reservations.filter(r => r.status === "confirmada").sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.roomNumber.localeCompare(b.roomNumber, "pt-BR", { numeric: true }))
+  const [groupKey, setGroupKey] = useState<string | null>(null)
+  const groups = pendingReservationGroups(reservations)
+  const pendingReservations = groups.flatMap(group => group.pending)
+  const group = groups.find(group => group.key === groupKey)
+  const closeDetails = () => { setDetailId(null); setGroupKey(null) }
+  const openGroup = (group: PendingReservationGroup) => { if (group.isGroup) setGroupKey(group.key); else setDetailId(group.pending[0].id) }
+  const period = (records: Reservation[], field: "checkIn" | "checkOut") => {
+    const dates = [...new Set(records.map(r => r[field]))]
+    return dates.length === 1 ? date(dates[0]) : "Datas variadas"
+  }
   const detail = pendingReservations.find(r => r.id === detailId)
   const entryEligible = (r: Reservation) => r.status === "confirmada" && r.checkIn <= businessDay() && can("hospitality.checkin")
   const cancelEligible = (r: Reservation) => r.status === "confirmada" && can("reservations.cancel")
@@ -38,15 +49,15 @@ export function ReservationsTab() {
     const mayCancel = cancelEligible(r)
     const mayMarkAbsent = mayCancel && noShowEligible(r.checkIn, systemSettings.checkInTime)
     return <div className="flex flex-wrap items-center justify-end gap-2" onClick={event => event.stopPropagation()}>
-      {entryEligible(r) && <Button size="sm" onClick={() => { setEntry(r); setDetailId(null) }}>Fazer check-in</Button>}
+      {entryEligible(r) && <Button size="sm" onClick={() => { setEntry(r); closeDetails() }}>Fazer check-in</Button>}
       <ReservationPaymentButton reservation={r} />
       {(mayEdit || mayCancel) && <DropdownMenu>
         <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-11 shrink-0 sm:size-9" aria-label={`Mais ações da reserva ${r.id}`} title="Mais ações"><MoreHorizontal className="size-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Quarto {r.roomNumber} · Reserva</DropdownMenuLabel>
-          {mayEdit && <DropdownMenuItem onSelect={() => { setForm(r); setDetailId(null) }}><Pencil className="size-4" />Editar reserva</DropdownMenuItem>}
-          {mayMarkAbsent && <DropdownMenuItem onSelect={() => { setCancel({reservation:r,noShow:true}); setDetailId(null) }}><UserX className="size-4" />Registrar ausência</DropdownMenuItem>}
-          {mayCancel && <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onSelect={() => { setCancel({reservation:r,noShow:false}); setDetailId(null) }}><XCircle className="size-4" />Cancelar reserva</DropdownMenuItem></>}
+          {mayEdit && <DropdownMenuItem onSelect={() => { setForm(r); closeDetails() }}><Pencil className="size-4" />Editar reserva</DropdownMenuItem>}
+          {mayMarkAbsent && <DropdownMenuItem onSelect={() => { setCancel({reservation:r,noShow:true}); closeDetails() }}><UserX className="size-4" />Registrar ausência</DropdownMenuItem>}
+          {mayCancel && <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onSelect={() => { setCancel({reservation:r,noShow:false}); closeDetails() }}><XCircle className="size-4" />Cancelar reserva</DropdownMenuItem></>}
         </DropdownMenuContent>
       </DropdownMenu>}
     </div>
@@ -54,12 +65,23 @@ export function ReservationsTab() {
   return <div className="space-y-6 animate-fade-in">
     <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Reservas</h2>{can("reservations.create") && <Button size="sm" onClick={() => setForm("new")}>Nova Reserva</Button>}</div>
     <Card><CardContent className="p-0"><Table mobilePreview={["Hóspede", "Quarto", "Entrada", "Saída", "Status"]} mobileColumns={["Hóspede", "Quarto", "Entrada", "Saída", "Valor", "Status", "Ações"]}><TableHeader><TableRow>{["Hóspede", "Quarto", "Entrada", "Saída", "Valor", "Status", "Ações"].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-      {pendingReservations.map(r => <TableRow key={r.id} className="cursor-pointer" onClick={() => setDetailId(r.id)}><TableCell><Button variant="link" className="h-auto px-0 text-left" onClick={() => setDetailId(r.id)}>{r.guestName}</Button></TableCell><TableCell>{r.roomNumber}</TableCell><TableCell>{date(r.checkIn)}</TableCell><TableCell>{date(r.checkOut)}</TableCell><TableCell>{formatCurrency(r.totalValue)}</TableCell><TableCell><Badge variant={r.status === "cancelada" || r.status === "noshow" ? "destructive" : "secondary"}>{labels[r.status]}</Badge></TableCell><TableCell onClick={e => e.stopPropagation()}>{actions(r)}</TableCell></TableRow>)}
+      {groups.map(group => {
+        const first = group.pending[0]
+        const names = [...new Set(group.pending.map(r => r.guestName))].join(", ")
+        return <TableRow key={group.key} className="cursor-pointer" onClick={() => openGroup(group)}>
+          <TableCell><Button variant="link" className="h-auto whitespace-normal px-0 text-left" onClick={() => openGroup(group)}>{names}</Button>{group.isGroup && <p className="text-xs text-muted-foreground">Grupo · {group.pending.length} de {group.members.length} aguardando</p>}</TableCell>
+          <TableCell className="whitespace-normal">{group.roomNumbers}</TableCell>
+          <TableCell>{period(group.pending, "checkIn")}</TableCell><TableCell>{period(group.pending, "checkOut")}</TableCell>
+          <TableCell>{formatCurrency(group.totalValue)}</TableCell><TableCell><Badge variant="secondary">{labels.confirmada}</Badge></TableCell>
+          <TableCell onClick={e => e.stopPropagation()}>{group.isGroup ? <Button size="sm" variant="outline" aria-label={`Abrir grupo dos quartos ${group.roomNumbers}`} onClick={() => openGroup(group)}>Abrir grupo</Button> : actions(first)}</TableCell>
+        </TableRow>
+      })}
       {!pendingReservations.length && <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma reserva aguardando chegada.</TableCell></TableRow>}
     </TableBody></Table></CardContent></Card>
     <Dialog open={!!form} onOpenChange={v => { if (!v && !busy) setForm(null) }}><DialogContent mobileTask protectDraft busy={busy} className="sm:max-w-xl"><DialogHeader><DialogTitle>{form === "new" ? "Nova reserva" : "Editar reserva"}</DialogTitle><DialogDescription>Escolha o hóspede e revise período, quarto, ocupação e preço.</DialogDescription></DialogHeader>{form && <BookingForm key={form === "new" ? "new" : form.id} intent={form === "new" ? "reservation" : "edit"} reservation={form === "new" ? undefined : form} onBusy={setBusy} onDone={() => setForm(null)} />}</DialogContent></Dialog>
     {entry && entryRoom && <CheckinModal room={entryRoom} reservation={entry} open onClose={() => setEntry(null)} />}
     {cancel && <ReservationCancellationDialog reservation={cancel.reservation} noShow={cancel.noShow} onClose={() => setCancel(null)} />}
+    {group && <ReservationGroupSheet group={group} onClose={closeDetails} actions={actions} />}
     {detail && <ReservationDetailsSheet reservation={detail} onClose={() => setDetailId(null)}>{actions(detail)}</ReservationDetailsSheet>}
   </div>
 }
