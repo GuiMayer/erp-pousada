@@ -1,4 +1,5 @@
 "use client";
+import { LodgingNightsSummary } from "./lodging-nights-summary"
 import { ReservationDiscountButton } from "./reservation-discount-dialog"
 import { getDataConfig } from "@/lib/data/config";
 import { useState, useRef, useEffect } from "react";
@@ -424,19 +425,7 @@ export function StaySheet({
                   <h3 className="font-semibold">Diárias acordadas</h3>
                   {!readOnly && active && reservations.find(r => r.id === stay.reservationId) && <ReservationDiscountButton reservation={reservations.find(r => r.id === stay.reservationId)!} disabled={pending || dirty} onApplied={onClose} />}
                   {stay.nightlyPrices?.length ? (
-                    <ul className="space-y-1 text-sm">
-                      {stay.nightlyPrices.map((n) => (
-                        <li
-                          key={n.date}
-                          className="flex flex-wrap justify-between gap-2"
-                        >
-                          <span>
-                            {n.date} · {n.guests} pessoa(s) · {n.tariffName}
-                          </span>
-                          <span>{formatCurrency(n.total)}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <LodgingNightsSummary nights={stay.nightlyPrices} />
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Composição das diárias não
