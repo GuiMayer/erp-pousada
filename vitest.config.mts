@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import { fileURLToPath } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
@@ -10,7 +10,6 @@ export default defineConfig({
     globals: true,
     // Keep browser-like workers bounded on reception PCs and small CI runners.
     maxWorkers: 4,
-    minWorkers: 1,
     setupFiles: ['./src/__tests__/setup.ts'],
     coverage: {
       provider: 'v8',
@@ -27,7 +26,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      '@': fileURLToPath(new URL('.', import.meta.url)),
     },
   },
 })

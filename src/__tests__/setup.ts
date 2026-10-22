@@ -16,6 +16,8 @@ let resetSharedState: (() => void) | null = null
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage")
+  // Current Happy DOM deliberately omits browser dialogs; tests control confirmation explicitly.
+  if (typeof window.confirm !== "function") Object.defineProperty(window, "confirm", { value: () => false, writable: true, configurable: true })
   localStorage.clear()
   if (resetSharedState) {
     resetSharedState()
