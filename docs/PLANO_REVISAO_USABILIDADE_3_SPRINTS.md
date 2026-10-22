@@ -5,8 +5,11 @@
 
 Este plano complementa as sprints funcionais já entregues. As três etapas abaixo são de revisão, não uma renumeração das sprints 1–6. Não houve alteração de código nesta análise. As constatações foram verificadas por leitura da implementação atual; observações de corte, truncamento e tamanho em pixels precisam de reprodução visual durante a execução.
 
+**Execução:** a sprint 1 foi implementada em 22/10/2026; consulte [entrega e validação](ENTREGA_REVISAO_SPRINT_1.md). As sprints 2 e 3 continuam planejadas.
+
 ## Direcionamento confirmado pelo usuário
 
+- O menu de abas fica acima do resumo de quartos. O resumo aparece **sempre e somente no Mapa**, sem opção para escondê-lo, conforme direcionamento posterior do usuário.
 - A pousada vende **somente bebidas**. Corrigir catálogo, categorias e exemplos de demonstração. O restaurante continua arquivado, sem reativar sua interface.
 - Padronizar **sub-abas** nos módulos. Manter navegação lateral com busca e agrupamentos em Configurações.
 - Preservar o fluxo atual de consumo, o controle do caixa recém-centralizado na Frente de Caixa, as permissões e a integridade dos pagamentos e do estoque.
@@ -16,7 +19,7 @@ Este plano complementa as sprints funcionais já entregues. As três etapas abai
 
 | ID | Observação | Resultado no código atual | Encaminhamento |
 | --- | --- | --- | --- |
-| R01 | Resumo de quartos fora do Mapa | Confirmado: `DashboardHeader` verifica permissão e preferência, mas não a aba ativa. Os 230 px citados dependem da viewport; não são uma medida universal. | Sprint 1: mostrar somente no Mapa, respeitando a preferência. |
+| R01 | Resumo de quartos fora do Mapa | Confirmado: `DashboardHeader` verifica permissão e preferência, mas não a aba ativa. Os 230 px citados dependem da viewport; não são uma medida universal. | Sprint 1: sempre no Mapa, abaixo das abas e sem preferência de ocultação. |
 | R02 | Catálogo duplicado e mistura de produtos | Confirmado: Cadastros e Estoque renderizam `ProductsManagementTab`. O exemplo do navegador inclui lanches, doces e serviços. | Sprint 1: cadastro único de bebidas em Cadastros; Estoque fica com operação de estoque. |
 | R03 | Subnavegação e títulos inconsistentes | Confirmado: existem composições e tamanhos distintos nos módulos. | Sprint 2: componentes comuns de cabeçalho e sub-abas; Configurações mantém a lateral. |
 | R04 | Saldos diferentes para a mesma pessoa | Há causa concreta nos exemplos: `lib/demo-data.ts` cria títulos de R$ 320/480/650 sem `sourceStayId`, com descrição de saldo de hospedagem, independentemente das estadias. Isso não prova que o núcleo PostgreSQL duplica dívidas. | Sprint 1: reconciliar cenários pela origem e validar o núcleo. Não forçar igualdade entre contas diferentes de uma pessoa. |
@@ -52,7 +55,7 @@ Este plano complementa as sprints funcionais já entregues. As três etapas abai
 6. **Unificar o cadastro de bebidas em Cadastros.** Remover a edição duplicada do Estoque. Manter lá saldos, compras, lotes, validade, perdas e inventários. Atalhos operacionais podem abrir o cadastro único preservando o rascunho. Atualizar os destinos de links, notificações e permissões que apontavam para o catálogo no Estoque.
 7. **Ajustar os exemplos e o catálogo ativo a bebidas.** Corrigir o enquadramento por identidade/classificação estável, sem depender de o texto da categoria conter “bebida”. Preservar o módulo de restaurante arquivado e não remover produtos referenciados por operações sem analisar os vínculos.
 8. **Qualificar os exemplos de auditoria e os emissores atuais.** Novos registros devem informar operação e entidade; antes/depois e motivo são registrados conforme a ação. Não gerar alterações fictícias para preencher a tela.
-9. **Restringir o resumo de quartos ao Mapa.** A preferência de aparência deve cumprir o próprio rótulo, sem ocupar altura em Financeiro, Estoque, Cadastros, Relatórios ou Configurações.
+9. **Restringir o resumo de quartos ao Mapa.** Manter o resumo sempre abaixo das abas no Mapa e remover sua preferência de ocultação. Não ocupar altura em Financeiro, Estoque, Cadastros, Relatórios ou Configurações.
 
 ### Aceite
 
