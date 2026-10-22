@@ -1,4 +1,5 @@
 "use client"
+import { PageHeader } from "./page-header"
 import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useTaskState } from "@/contexts/task-drafts-context"
 import { TransactionCheck } from "./transaction-check"
@@ -304,11 +305,11 @@ export function FinancialTab() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <h2 className="hidden sm:block text-lg font-semibold text-foreground">Financeiro</h2>
-      <p className="text-xs text-muted-foreground">Saldos internos. Confira os movimentos com seu extrato bancário. Cartões usam registro simplificado; taxas e repasses não são conciliados automaticamente.</p>
+      <PageHeader title="Financeiro" />
+      <p role="note" className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">Saldos internos. Confira os movimentos com seu extrato bancário. Cartões usam registro simplificado; taxas e repasses não são conciliados automaticamente.</p>
 
       <Tabs value={currentSection} onValueChange={setSection}>
-        <TabsList aria-label="Seções do financeiro" mobilePriority={["contas-receber", "vencimentos", "transacoes", "contas"]}>
+        <TabsList className="section-tabs" aria-label="Seções do financeiro" mobilePriority={["contas-receber", "vencimentos", "transacoes", "contas"]}>
           {visible("contas-receber") && <TabsTrigger value="contas-receber">A receber</TabsTrigger>}
           {visible("vencimentos") && <TabsTrigger value="vencimentos">A pagar</TabsTrigger>}
           {visible("transacoes") && <TabsTrigger value="transacoes">Movimentações</TabsTrigger>}

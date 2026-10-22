@@ -11,9 +11,10 @@
 
 "use client"
 
+import { SectionTabs } from "./section-tabs"
+import { PageHeader } from "./page-header"
 import { useAuth } from "@/lib/auth-context"
 import { FinancialCadastrosManagement } from "./financial-cadastros-management"
-import { Button } from "./ui/button"
 import { useState } from "react"
 import { DemoManagementReports } from "./reports/demo-management-reports"
 import { ManagementReports } from "./reports/management-reports"
@@ -474,10 +475,11 @@ export function ReportsTab() {
   const current = view === "planning" && can("budgets.read") || !can("reports.read") ? "planning" : "reports"
   if (!can("reports.read") && !can("budgets.read")) return null
   return <div className="space-y-4">
-    {can("budgets.read") && <nav aria-label="Áreas de relatórios" className="flex flex-wrap gap-2">
-      {can("reports.read") && <Button variant={current === "reports" ? "default" : "outline"} onClick={() => setView("reports")}>Indicadores</Button>}
-      <Button variant={current === "planning" ? "default" : "outline"} onClick={() => setView("planning")}>Planejamento</Button>
-    </nav>}
+    <PageHeader title="Relatórios" />
+    <SectionTabs label="Áreas de relatórios" value={current} onValueChange={setView} sections={[
+      ...(can("reports.read") ? [{key: "reports", label: "Indicadores"}] : []),
+      ...(can("budgets.read") ? [{key: "planning", label: "Planejamento"}] : []),
+    ]}>
     {current === "planning" ? <FinancialCadastrosManagement sections={["budget"]} /> : getDataConfig().adapter === "database" ? <ManagementReports /> : <DemoManagementReports beverages={<LegacyReportsTab />} />}
-  </div>
+  </SectionTabs></div>
 }

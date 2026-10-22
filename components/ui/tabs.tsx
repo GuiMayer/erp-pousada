@@ -32,7 +32,7 @@ function TabsList({ className, children, mobilePriority, ...props }: React.Compo
     const rank = (value: string) => { const index = mobilePriority.indexOf(value); return index < 0 ? 100 : index }
     return rank(a.props.value) - rank(b.props.value)
   }) : items
-  const hasMenu = items.length > 3 && !className?.includes('bg-transparent') && !className?.includes('hidden')
+  const hasMenu = items.length > 3 && !className?.includes('bg-transparent') && !className?.includes('hidden') && !className?.includes('section-tabs')
   return <>
     <TabsPrimitive.List data-slot="tabs-list" className={cn('bg-muted text-muted-foreground inline-flex h-auto max-w-full w-fit flex-wrap items-center justify-start gap-1 rounded-lg p-[3px] sm:min-h-9', hasMenu && 'mobile-desktop-tabs', className)} {...props}>{children}</TabsPrimitive.List>
     {hasMenu && <div className="mobile-section-nav sm:hidden">
@@ -53,7 +53,7 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap hover:bg-accent hover:text-accent-foreground transition-[background-color,color,box-shadow] motion-reduce:transition-none focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}

@@ -1,4 +1,6 @@
 "use client"
+import { PageHeader } from "./page-header"
+import { SectionTabs } from "./section-tabs"
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import CustomersManagement from "./customers-management"
@@ -16,8 +18,8 @@ export function RegistrationsTab() {
   const [section, setSection] = useState(sections[0]?.key)
   const [roomModal, setRoomModal] = useState(false)
   const current = sections.some(s => s.key === section) ? section : sections[0]?.key
-  return <div className="space-y-5"><nav aria-label="Áreas de cadastro" className="flex flex-wrap gap-2">{sections.map(s => <Button key={s.key} variant={current === s.key ? "default" : "outline"} onClick={() => setSection(s.key)} aria-current={current === s.key ? "page" : undefined}>{s.label}</Button>)}</nav>
+  return <div className="space-y-4"><PageHeader title="Cadastros" /><SectionTabs label="Áreas de cadastro" sections={sections} value={current} onValueChange={setSection}>
     {current === "people" && (can("customers.read") ? <CustomersManagement /> : <GuestsManagement />)}{current === "financial" && <FinancialDefinitions />}{current === "suppliers" && <SuppliersManagement />}{current === "beverages" && <ProductsManagementTab />}
     {current === "rooms" && <div className="space-y-5">{(can("rooms.edit") || can("rooms.create")) && <Button variant="outline" onClick={() => setRoomModal(true)}>Quartos e capacidades</Button>}<LodgingTariffsManagement /><ManageRoomsModal open={roomModal} onClose={() => setRoomModal(false)} /></div>}
-  </div>
+  </SectionTabs></div>
 }

@@ -365,3 +365,17 @@
   .room-date-in { animation: none !important; }
   .room-date-out { display: none; }
 }
+
+/* Local section navigation keeps one accessible tab list at every width. */
+.section-tabs[data-slot="tabs-list"] {
+  width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  justify-content: flex-start;
+  scrollbar-width: thin;
+}
+.section-tabs > [data-slot="tabs-trigger"] {
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding-inline: 1rem;
+}

@@ -1,4 +1,5 @@
 "use client"
+import { SectionTabs } from "../section-tabs"
 import { useState, type ReactNode } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -32,7 +33,7 @@ export function DemoManagementReports({ beverages }: { beverages: ReactNode }) {
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = `hospedagem-${start}-${end}.csv`; anchor.click(); URL.revokeObjectURL(url)
   }
   return <div className="space-y-4">
-    <nav aria-label="Indicadores da pousada" className="flex flex-wrap gap-2">{sections.map(s => <Button key={s.key} variant={current === s.key ? "default" : "outline"} onClick={() => setSection(s.key)}>{s.label}</Button>)}</nav>
+    <SectionTabs label="Indicadores da pousada" sections={sections} value={current} onValueChange={setSection}>
     {!current && <p>Nenhum indicador foi liberado para seu usuário.</p>}
     {current === "bebidas" ? beverages : current && <>
       <div className="flex flex-wrap items-end gap-3"><Label>Início<Input type="date" value={start} onChange={e => setStart(e.target.value)} /></Label><Label>Fim<Input type="date" value={end} onChange={e => setEnd(e.target.value)} /></Label>{current === "hospedagem" && can("reports.export") && <Button variant="outline" disabled={!report} onClick={exportReport}>Exportar hospedagem</Button>}</div>
@@ -46,5 +47,5 @@ export function DemoManagementReports({ beverages }: { beverages: ReactNode }) {
         <p className="text-sm text-muted-foreground">Inclui sinais, diárias e bebidas efetivamente recebidos no período. Não inclui valores apenas lançados na hospedagem, fundos de caixa, suprimentos ou transferências.</p>
       </>}
     </>}
-  </div>
+  </SectionTabs></div>
 }

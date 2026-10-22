@@ -1,4 +1,5 @@
 "use client"
+import { PageHeader } from "../page-header"
 import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useTaskState } from "@/contexts/task-drafts-context"
 import { InventoryWorkspace } from "./inventory-workspace"
@@ -86,22 +87,11 @@ export function StockTab() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Package className="h-8 w-8" />
-            Estoque
-          </h2>
-          <p className="text-muted-foreground">
-            Controle saldos, compras, lotes e validade das bebidas
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Estoque" description="Controle saldos, compras, lotes e validade das bebidas" />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex h-auto flex-wrap justify-start gap-1">
+        <TabsList aria-label="Seções do estoque" className="section-tabs">
           <TabsTrigger value="purchases">Compras</TabsTrigger>
           <TabsTrigger value="lots">Lotes e validade</TabsTrigger>
           <TabsTrigger value="inventory">Inventário</TabsTrigger>

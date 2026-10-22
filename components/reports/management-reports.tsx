@@ -1,4 +1,5 @@
 "use client"
+import { SectionTabs } from "../section-tabs"
 import { OriginValues, documentFields as fields } from "../document-values"
 import { FinancialForecast } from "../financial-forecast";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -438,14 +439,9 @@ export function ManagementReports() {
     );
   return (
     <div className="min-w-0 space-y-5">
-      <div>
-        <h2 className="text-2xl font-semibold">Relatórios da pousada</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Confira prestação, bebidas, custos e dinheiro pelas suas origens.
-        </p>
-      </div>
+      <SectionTabs label="Indicadores da pousada" value={available.includes(section) ? section : available[0]} onValueChange={value => { const next = value as ReportSection; setSection(next); if (query) setQuery({ section: next, start, end }) }} sections={available.map(key => ({key, label: names[key]}))}>
       <form
-        className="grid gap-3 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-3 rounded-md border p-4 sm:grid-cols-3"
         onSubmit={(e) => {
           e.preventDefault();
           setQuery({
@@ -455,21 +451,6 @@ export function ManagementReports() {
           });
         }}
       >
-        <div>
-          <Label htmlFor="report-section">Relatório</Label>
-          <select
-            id="report-section"
-            value={available.includes(section) ? section : available[0]}
-            onChange={(e) => setSection(e.target.value as ReportSection)}
-            className="mt-1 min-h-11 w-full rounded-md border bg-background px-2"
-          >
-            {available.map((s) => (
-              <option key={s} value={s}>
-                {names[s]}
-              </option>
-            ))}
-          </select>
-        </div>
         <div>
           <Label htmlFor="report-start">Início</Label>
           <Input
@@ -571,6 +552,7 @@ export function ManagementReports() {
           {origin !== null && <OriginValues value={origin} />}
         </DialogContent>
       </Dialog>
+    </SectionTabs>
     </div>
   );
 }
