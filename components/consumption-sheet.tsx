@@ -24,7 +24,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useProductSearch } from "@/lib/hooks/useProductSearch"
 import { useConsumption } from "@/lib/hooks/useConsumption"
-import { Plus, Trash2, ShoppingCart, Package, Search } from "lucide-react"
+import { Plus, Trash2, ShoppingCart,  Search } from "lucide-react"
 import type { Room } from "@/lib/store"
 
 type Props = {
@@ -150,14 +150,14 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={v => { if (!v && !sendingRef.current && !paying) onClose() }}>
-      <SheetContent onEscapeKeyDown={event => { if (sending || paying) event.preventDefault() }} onInteractOutside={event => { if (sending || paying) event.preventDefault() }} className="flex flex-col overflow-y-auto p-4 sm:max-w-lg sm:p-5">
-        <SheetHeader className="p-0 pr-6">
+      <SheetContent onEscapeKeyDown={event => { if (sending || paying) event.preventDefault() }} onInteractOutside={event => { if (sending || paying) event.preventDefault() }} className="flex flex-col overflow-hidden p-4 sm:max-w-lg sm:p-5">
+        <SheetHeader className="shrink-0 p-0 pr-6">
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="size-5 text-primary" />
             Consumo - Quarto {room.number}
           </SheetTitle>
           <SheetDescription>
-            {room.guest} - Lancamento de itens consumidos
+            {room.guest} - Lançamento de itens consumidos
           </SheetDescription>
         </SheetHeader>
 
@@ -165,7 +165,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           <p>Caixa fechado. Você pode lançar o consumo na hospedagem; para receber em dinheiro, abra o caixa.</p>
           <div><CashTurnShortcut /></div>
         </div>}
-        <div className="flex flex-1 flex-col gap-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain py-4 pr-1">
           {/* Search and Category Filter */}
           <div className="flex flex-col gap-3">
             <div className="relative">
@@ -198,19 +198,20 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <Label>Quantidade por entrega<Input aria-label="Quantidade por entrega" type="number" min={1} max={1000} value={quantity} disabled={sending || paying} onChange={event => setQuantity(Number(event.target.value))} /></Label>
             {sending && <p role="status" className="text-sm">Registrando entrega…</p>}
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Catalogo de Produtos ({filteredProducts.length})
+              Catálogo de bebidas ({filteredProducts.length})
             </Label>
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2">
               {filteredProducts.map((product) => (
                 <button
                   disabled={!can("consumptions.create") || changedContext || sending || paying || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000}
+                  aria-label={`Adicionar ${product.name} à ficha de consumo`}
                   key={product.id}
                   onClick={() => handleAddCatalogItem(product.name, product.price, product.id)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent hover:border-primary"
                 >
-                  <Package className="size-3.5 text-muted-foreground shrink-0" />
+                  <Plus className="size-3.5 text-muted-foreground shrink-0" />
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium text-foreground truncate">{product.name}</span>
+                    <span className="text-xs font-medium text-foreground break-words">{product.name}</span>
                     <CurrencyDisplay value={product.price} size="sm" className="text-[10px]" />
                   </div>
                 </button>
@@ -232,21 +233,21 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             </Label>
             <div className="flex gap-2">
               <Input
-                placeholder="Descricao"
+                aria-label="Descrição do item" placeholder="Descrição"
                 value={customLabel}
                 onChange={e => setCustomLabel(e.target.value)}
                 className="flex-1"
               />
               <Input
                 type="number"
-                placeholder="R$"
+                aria-label="Preço do item" placeholder="R$"
                 value={customPrice}
                 onChange={e => setCustomPrice(e.target.value)}
                 className="w-20"
               />
               <Input
                 type="number"
-                placeholder="Qtd"
+                aria-label="Quantidade do item" placeholder="Qtd"
                 value={customQty}
                 onChange={e => setCustomQty(e.target.value)}
                 className="w-16"
@@ -256,7 +257,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                 size="icon"
                 className="shrink-0"
                 disabled={!customLabel || !customPrice || changedContext || sending || paying}
-                onClick={handleAddCustomItem}
+                aria-label="Adicionar item personalizado" onClick={handleAddCustomItem}
               >
                 <Plus className="size-4" />
               </Button></PermissionGate>
@@ -268,10 +269,10 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           {/* Items list */}
           <div className="flex flex-col gap-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Itens Lancados ({items.length})
+              Itens lançados ({items.length})
             </Label>
             {items.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Nenhum item lancado</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">Nenhum item lançado</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {items.map((item) => (
@@ -280,7 +281,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                     className="flex items-center gap-3 rounded-lg bg-secondary/50 px-3 py-2 animate-fade-in"
                   >
                     <div className="flex flex-1 flex-col min-w-0">
-                      <span className="text-sm font-medium text-foreground truncate">{item.label}</span>
+                      <span className="text-sm font-medium text-foreground break-words">{item.label}</span>
                       <span className="text-xs text-muted-foreground">
                         {item.quantity}x <CurrencyDisplay value={item.unitPrice} size="sm" className="inline" />
                       </span>
@@ -290,7 +291,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                       variant="ghost"
                       size="icon"
                       className="size-7 text-muted-foreground hover:text-destructive shrink-0"
-                      onClick={() => handleRemoveItem(item.id)}
+                      aria-label={`Remover ${item.label}`} onClick={() => handleRemoveItem(item.id)}
                     >
                       <Trash2 className="size-3.5" />
                     </Button></PermissionGate>
@@ -301,16 +302,16 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           </div>
         </div>
 
-        <SheetFooter className="border-t border-border px-0 pb-0 pt-4 flex-col gap-3">
-          {total > 0 && <div className="flex gap-2">
-            <select aria-label="Forma de pagamento" className="rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+        <SheetFooter className="shrink-0 border-t border-border px-0 pb-0 pt-4 flex-col gap-3">
+          {total > 0 && <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2">
+            <select aria-label="Forma de pagamento" className="min-h-11 min-w-0 rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
             </select>
-            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={changedContext || paying || sending || needsCash} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
+            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button className="w-full sm:col-span-2" disabled={changedContext || paying || sending || needsCash} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
           </div>}
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground">Total Consumo</span>
+              <span className="text-xs text-muted-foreground">Total do consumo</span>
               <CurrencyDisplay value={total} size="lg" className="text-xl" />
             </div>
             <Badge className="bg-primary/10 text-primary border-transparent">
