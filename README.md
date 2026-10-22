@@ -42,13 +42,11 @@ Na captura, o carrinho contém uma água e um suco, mostrando como os itens e o 
 
 ![Frente de caixa em modo claro com catálogo de bebidas e carrinho de exemplo](docs/images/frente-caixa.jpg)
 
-### Financeiro — acompanhe resultados e vencimentos
+### Financeiro — controle o que pagar, receber e movimentar
 
-O painel reúne receitas, despesas, resultado líquido e estornos. A lista de lançamentos permite consultar categorias, valores, vencimentos e situações de pagamento, ajudando a identificar contas pendentes e organizar o fluxo financeiro.
+A aba tem quatro seções: **A receber**, **A pagar**, **Movimentações** e **Caixa e contas**. Cobranças e pagamentos mantêm recebimentos parciais, parcelas, conferência e estornos. Saldos e transferências ficam junto ao turno de caixa. As recorrências de receita e despesa ficam recolhidas nas respectivas seções.
 
-Além do resumo, a aba oferece controle de despesas e parcelas, contas a receber, clientes, fornecedores e fechamento de turno.
-
-![Financeiro em modo claro com resumo de receitas e despesas e lançamentos de exemplo](docs/images/financeiro.jpg)
+O resumo de Movimentações acompanha os filtros de tipo e período da própria lista. Pessoas, empresas e fornecedores são gerenciados exclusivamente em **Cadastros**; contas bancárias, centros de custo e categorias ficam em **Cadastros → Financeiros**. O perfil de hospedagem integra a ficha da pessoa. Orçamentos ficam em **Relatórios → Planejamento** e descontos são aplicados na reserva ou hospedagem correspondente, respeitando as permissões existentes. Veja o [guia de organização do Financeiro](docs/ORGANIZACAO_FINANCEIRO.md).
 
 ### Relatórios — transforme a operação em indicadores
 
@@ -62,7 +60,7 @@ CSV e JSON preservam período, totais, critérios e origem, com autorização no
 
 | Aba | O que permite fazer |
 | --- | --- |
-| **Cadastros** | Gerenciar pessoas, empresas e seus funcionários vinculados, fornecedores, bebidas, capacidade dos quartos e tarifas por pessoa e ocupação. |
+| **Cadastros** | Gerenciar pessoas, empresas e seus funcionários vinculados, fornecedores, bebidas, capacidade dos quartos e tarifas por pessoa e ocupação. Inclui o perfil de hospedagem da pessoa e os cadastros financeiros de contas, centros de custo e categorias. |
 | **Reservas** | Acompanhar quem ainda vai chegar, receber sinal, ajustar datas, realizar check-in e cancelar. Chegadas atrasadas permanecem até serem resolvidas. |
 | **Histórico** | Consultar hospedagens encerradas, reservas canceladas e ausências, com busca por hóspede/empresa e filtros de situação e data de entrada. |
 | **Estoque** | Receber compras com conta a pagar, converter embalagens, controlar lotes e validade, registrar perdas/devoluções e conferir inventário por corte. Saldo utilizável orienta vendas e alertas de reposição. |
