@@ -32,6 +32,8 @@ A recepção visualiza quartos disponíveis, ocupados, em limpeza ou bloqueados 
 
 Os filtros ajudam a localizar quartos por situação. A partir dos cartões, é possível iniciar o check-in, consultar o consumo, liberar um quarto após a limpeza e acompanhar bloqueios. O check-out exige a quitação do consumo pendente.
 
+Ao selecionar um dia futuro, o mapa apresenta o planejamento daquela data: **Reservar** abre a reserva com quarto e chegada preenchidos. Reservas, hospedagens e bloqueios previstos oferecem consulta, enquanto recebimentos, consumo, check-out e liberação do quarto permanecem no atendimento atual. Os filtros acompanham a previsão da data selecionada; a disponibilidade depende da saída e da limpeza efetivas no dia.
+
 ![Mapa em modo claro com situações dos quartos, hóspedes, consumo e agenda de sete dias](docs/images/mapa-quartos.jpg)
 
 ### Frente de Caixa — registre o consumo e organize a venda

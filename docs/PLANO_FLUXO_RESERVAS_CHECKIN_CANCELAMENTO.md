@@ -238,3 +238,14 @@ Juros e multa de pagamento permanecem no plano específico desse recurso; esta e
 - A alteração é de apresentação: os registros, versões, comandos transacionais e vínculos financeiros de cada quarto são preservados.
 
 Validação desta alteração: 457 testes de interface e domínio, incluindo grupo com entrada parcial, atualização do painel, datas diferentes e comandos de check-in/cancelamento com ID e versão do quarto selecionado; tipos, análise estática e build de produção aprovados. Conferência no navegador em desktop e 390 × 844 com exemplo fictício dos quartos 102 e 304. Nenhuma migração de banco foi necessária.
+
+## Planejamento do Mapa em datas futuras — 22/10/2026
+
+- Quartos livres na data escolhida oferecem **Reservar**, com quarto, chegada e saída no dia seguinte preenchidos. A confirmação utiliza o formulário existente e suas validações de disponibilidade e permissões.
+- O planejamento considera reservas confirmadas e alocações das hospedagens ativas, inclusive transferências de quarto. O dia da saída não conta como noite ocupada. O estado de limpeza e o hóspede atual não são copiados para o futuro.
+- Reservas e hospedagens previstas oferecem detalhes somente para consulta. Bloqueios oferecem consulta do motivo e da previsão de término. Conflitos de planejamento apresentam os registros envolvidos, sem oferecer uma nova reserva naquele cartão.
+- Check-out, consumo, recebimento, troca, limpeza e desbloqueio não são ações de um cartão futuro. **Voltar para hoje** retorna ao atendimento operacional. O atalho de turno de caixa e o filtro de limpeza também ficam restritos à visão atual.
+- Busca, filtros e barras futuras usam o mesmo planejamento. A previsão não garante a saída ou a limpeza efetivas no dia. Sem acesso de leitura completo, a tela informa que a disponibilidade precisa ser confirmada e respeita as permissões de criação e consulta.
+- O modelo atual não agenda bloqueios com início futuro: bloquear ou desbloquear altera a situação atual. Por isso, esses comandos não são apresentados como se agissem somente na data futura escolhida. Bloqueios sem término permanecem previstos; os demais respeitam o término informado.
+
+A alteração preserva o atendimento atual e o comportamento anterior das datas passadas. Não modifica o banco nem cria comandos financeiros. Validação: 485 testes de interface e domínio aprovados, tipos, análise estática e build de produção; conferência do Mapa e do formulário com a data selecionada em desktop e celular de 390 × 844, sem confirmar reservas de teste.
