@@ -30,7 +30,7 @@ export async function recordLedger(tx: Tx, actor: Actor, reference: string, valu
   if (paymentMethod === "Dinheiro") {
     if (accountId) throw new HttpError(400, "Pagamento em dinheiro utiliza o caixa, não uma conta bancária")
     const session = await tx.cashClose.findFirst({ where: { status: "aberto" } })
-    if (!session) throw new HttpError(409, "Abra o caixa em Financeiro antes de registrar dinheiro")
+    if (!session) throw new HttpError(409, "Abra o caixa na Frente de Caixa antes de registrar dinheiro")
     if (!cashIncoming(type)) {
       const entries = await tx.transaction.findMany({ where: { cashSessionId: session.id } })
       const available = entries.reduce((sum, entry) => cashIncoming(entry.type) ? sum.plus(entry.value) : sum.minus(entry.value), session.openingValue)

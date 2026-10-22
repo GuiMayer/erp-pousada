@@ -311,7 +311,7 @@ export function FinancialTab() {
           {visible("contas-receber") && <TabsTrigger value="contas-receber">A receber</TabsTrigger>}
           {visible("vencimentos") && <TabsTrigger value="vencimentos">A pagar</TabsTrigger>}
           {visible("transacoes") && <TabsTrigger value="transacoes">Movimentações</TabsTrigger>}
-          {visible("contas") && <TabsTrigger value="contas">Caixa e contas</TabsTrigger>}
+          {visible("contas") && <TabsTrigger value="contas">Contas bancárias</TabsTrigger>}
         </TabsList>
 
         {/* Upcoming payments */}

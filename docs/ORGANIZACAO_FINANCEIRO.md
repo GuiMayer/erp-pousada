@@ -9,7 +9,8 @@ Entrega de 22/10/2026. Cada módulo tem uma responsabilidade: Cadastros define p
 | Financeiro → A receber | Cobranças, vencimentos, recebimentos parciais ou totais, recebimento em lote quando disponível e receitas recorrentes. |
 | Financeiro → A pagar | Despesas, parcelas, vencimentos, pagamentos e despesas recorrentes. |
 | Financeiro → Movimentações | Entradas e saídas registradas, detalhes, conferência e estornos. O resumo usa os mesmos filtros da lista. |
-| Financeiro → Caixa e contas | Abertura e fechamento de turno, sangrias e suprimentos, saldos internos e transferências. |
+| Financeiro → Contas bancárias | Saldos internos e transferências bancárias. |
+| Frente de Caixa → Controle do caixa | Abertura, fechamento, fundo do próximo turno, retiradas, suprimentos, sangrias e conferência de turnos anteriores. |
 | Cadastros → Pessoas e empresas | Identidade, vínculo empresarial, ficha e perfil de hospedagem com estatísticas e crédito disponível. |
 | Cadastros → Fornecedores | Cadastro e manutenção dos fornecedores. |
 | Cadastros → Financeiros | Cadastro de contas bancárias, centros de custo e categorias financeiras. |
@@ -34,5 +35,7 @@ Atalhos de abrir caixa durante venda ou recebimento e de criar uma categoria enq
 
 - 473 testes de domínio e componentes aprovados em 70 arquivos. Os novos casos verificam quatro seções, ausência das cópias de cadastros, resumo por período, recursos separados, leitura sem escrita, permissões dos novos destinos, perfil vinculado e desconto da reserva selecionada.
 - Verificação de tipos, análise estática e build de produção aprovados. Build executado em saída isolada; configurações geradas para a validação foram restauradas depois.
-- Navegador: A receber, A pagar, Movimentações, Caixa e contas, Cadastros → Financeiros e Relatórios → Planejamento. Navegação mobile conferida em 390 × 844.
+- Navegador: A receber, A pagar, Movimentações, Contas bancárias, Cadastros → Financeiros e Relatórios → Planejamento. Navegação mobile conferida em 390 × 844.
 - APIs, transações e esquema de banco não foram alterados. Não foi necessária nova migração nem reinicialização de Docker/PostgreSQL nesta entrega; a suíte de integração de banco não foi reexecutada.
+
+O controle de turnos foi centralizado na Frente de Caixa. O Mapa não tem botão de abertura no topo; a ficha de consumo mantém somente o atalho contextual quando o caixa está fechado. Consulte [Fluxo do caixa](FLUXO_CAIXA.md).

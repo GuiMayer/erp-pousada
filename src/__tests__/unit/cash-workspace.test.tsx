@@ -66,6 +66,25 @@ describe("Operação centralizada do caixa", () => {
     await waitFor(() => expect(state.runOperation).toHaveBeenCalledWith("cash-close", { sessionId: "turn", physicalValue: 20, retainedValue: 0, withdrawalAccountId: "bank" }))
     expect(screen.getByRole("status")).toHaveTextContent("Fechamento registrado")
   })
+  it("não bloqueia o fechamento se a retirada deixar de existir após selecionar depósito", () => {
+    state.cashCloses = [turn()]
+    render(<CashSessionPanel mode="close" />)
+    fireEvent.change(screen.getByLabelText("Valor físico em dinheiro"), { target: { value: "20" } })
+    fireEvent.change(screen.getByLabelText("Fundo para o próximo turno"), { target: { value: "0" } })
+    fireEvent.click(screen.getByRole("checkbox", { name: /Já depositei/ }))
+    fireEvent.change(screen.getByLabelText("Fundo para o próximo turno"), { target: { value: "20" } })
+    expect(screen.queryByLabelText("Conta do depósito")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Confirmar fechamento" })).toBeEnabled()
+  })
+  it("não envia fechamento para outro turno aberto enquanto o formulário estava em uso", async () => {
+    state.cashCloses = [turn()]
+    const view = render(<CashSessionPanel mode="close" />)
+    fireEvent.change(screen.getByLabelText("Valor físico em dinheiro"), { target: { value: "20" } })
+    state.cashCloses = [{ ...turn(), id: "new-turn" }]; view.rerender(<CashSessionPanel mode="close" />)
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar fechamento" }))
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("O turno mudou"))
+    expect(state.runOperation).not.toHaveBeenCalled()
+  })
   it("permite a aba para operar caixa sem vender e não libera o Financeiro por isso", () => {
     const can = (permission: string) => permission === "cash.open"
     expect(canAccessTab("pdv", can)).toBe(true)

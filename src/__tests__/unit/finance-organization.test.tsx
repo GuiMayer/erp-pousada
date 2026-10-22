@@ -26,7 +26,7 @@ beforeEach(() => { cleanup(); auth.permissions = ["*"]; addGuest.mockReset(); ad
 describe("Responsabilidades de cada área", () => {
   it("limita o Financeiro a quatro seções e não repete cadastros ou planejamento", () => {
     render(<FinancialTab />)
-    expect(within(screen.getByRole("tablist", { name: "Seções do financeiro" })).getAllByRole("tab").map(t => t.textContent)).toEqual(["A receber", "A pagar", "Movimentações", "Caixa e contas"])
+    expect(within(screen.getByRole("tablist", { name: "Seções do financeiro" })).getAllByRole("tab").map(t => t.textContent)).toEqual(["A receber", "A pagar", "Movimentações", "Contas bancárias"])
     expect(screen.getByText("Lista de cobranças")).toBeInTheDocument()
     for (const name of ["Clientes", "Fornecedores", "Hospedes", "Cadastros", "Orcamentos"]) expect(screen.queryByRole("tab", { name })).not.toBeInTheDocument()
     expect(screen.queryByText("Movimento líquido")).not.toBeInTheDocument()

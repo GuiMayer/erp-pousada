@@ -45,7 +45,7 @@ const catalog: Record<string, { type: NotificationType; title: string; module: s
   "close-order": { type: "restaurant", title: "Comanda recebida", module: "restaurante", permissions: ["restaurantOrders.read", "transactions.read"] },
   "cancel-order": { type: "restaurant", title: "Comanda cancelada", module: "restaurante", permissions: ["restaurantOrders.read"] },
   production: { type: "production", title: "Produção registrada", module: "estoque", permissions: ["productions.read"] },
-  "cash-close": { type: "cash", title: "Caixa fechado", module: "financeiro", permissions: ["cashCloses.read"] },
+  "cash-close": { type: "cash", title: "Caixa fechado", module: "pdv", permissions: ["cashCloses.read"] },
   "receive-account": { type: "payment", title: "Recebimento confirmado", module: "financeiro", permissions: ["accountsReceivable.read", "transactions.read"] },
   "pay-expense": { type: "payment", title: "Despesa paga", module: "financeiro", permissions: ["expenses.read", "transactions.read"] },
   "refund-transaction": { type: "payment", title: "Receita estornada", module: "financeiro", permissions: ["transactions.read"] },
@@ -62,7 +62,7 @@ export async function emitOperation(tx: Tx, actor: Actor, requestId: string, kin
     requiredPermissions: entry.permissions, reference, actorId: actor.id })
   if (kind === "cash-close" && output && Math.abs(Number(output.divergence)) >= rules.cashDifferenceWarning) await emitEvent(tx, {
     dedupKey: `${actor.id}:${requestId}:cash-difference`, type: "cash", title: "Diferença no fechamento do caixa",
-    message: "O fechamento apresenta divergência e precisa de conferência.", module: "financeiro", requiredPermissions: ["cashCloses.read"],
+    message: "O fechamento apresenta divergência e precisa de conferência.", module: "pdv", requiredPermissions: ["cashCloses.read"],
     priority: Math.abs(Number(output.divergence)) >= rules.cashDifferenceCritical ? "critical" : "high", reference, actorId: actor.id })
   if (kind === "production" && output && Number(output.yield) < rules.yieldWarningPercentage) await emitEvent(tx, {
     dedupKey: `${actor.id}:${requestId}:yield`, type: "production", title: "Rendimento abaixo do esperado",

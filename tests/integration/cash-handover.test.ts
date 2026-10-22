@@ -32,6 +32,8 @@ describe("Passagem e conferência do caixa", () => {
     await expect(op("cash-close", { sessionId: turn.id, physicalValue: 90 })).rejects.toMatchObject({ details: { code: "CASH_DIFFERENCE" } })
     expect((await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).status).toBe("aberto")
     await op("cash-close", { sessionId: turn.id, physicalValue: 90, retainedValue: 30, closingReason: "Diferença identificada na contagem" })
+    const closingNotice = await prisma.notificationEvent.findFirstOrThrow({ where: { reference: turn.id, title: "Caixa fechado" } })
+    expect(closingNotice.module).toBe("pdv")
     const key = randomUUID()
     await expect(op("cash-review", { sessionId: turn.id, note: "Contagem conferida" }, operator)).rejects.toMatchObject({ status: 403 })
     await op("cash-review", { sessionId: turn.id, note: "Contagem conferida" }, admin, key)
