@@ -1,23 +1,20 @@
 "use client"
+import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 import { useTaskState, useTaskRef } from "@/contexts/task-drafts-context"
 import { CashTurnShortcut } from "./cash-turn-shortcut"
 import { PermissionGate } from "@/components/permission-gate"
 
-import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 
 import { getDataConfig } from "@/lib/data/config"
 
 import { POSCheckoutDialog,type CheckoutSelection } from "./pos-checkout-dialog"
-import { BankAccountPicker } from "./payment-fields"
 import { useState, useMemo, useRef, useEffect } from "react"
 import { pousadaProducts } from "@/lib/pousada-scope"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
-import { useStockIntegration } from "@/lib/hooks/useStockIntegration"
-import { useBusinessRules } from "@/lib/hooks/useBusinessRules"
 import { useToast } from "@/hooks/use-toast"
 import { calculateCartSubtotal, calculateCartTotal, calculateItemTotal, formatCurrency, formatCurrencyFixed } from "@/lib/utils/price-calculations"
-import { getTodayISO, ROOM_STATUS } from "@/lib/utils/constants"
+import { getTodayISO } from "@/lib/utils/constants"
 import { formatDateTime } from "@/lib/utils/date-formatting"
 import { stockAvailable, validateStockAvailability as validateStockItemAvailability } from "@/lib/utils/stock-validation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +24,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -44,33 +40,19 @@ import {
 } from "@/components/ui/table"
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, CreditCard,
-  Banknote, QrCode, Receipt, X, Percent, User, Barcode,
-  Clock, CheckCircle2, XCircle, History, Package,
+  Receipt, X, Percent, User, Barcode,
+  CheckCircle2, XCircle, History, Package,
 } from "lucide-react"
-import { PRODUCT_CATEGORIES, type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
+import { type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
 
-
-const PAYMENT_METHODS = [
-  { id: "dinheiro", label: "Dinheiro", icon: Banknote },
-  { id: "cartao_debito", label: "Cartao Debito", icon: CreditCard },
-  { id: "cartao_credito", label: "Cartao Credito", icon: CreditCard },
-  { id: "pix", label: "PIX", icon: QrCode },
-]
 
 export function POSTab() {
   const {
-    posProducts: allProducts, posSales, rooms, stockItems,
-    runOperation, addPOSSale, updatePOSSale, addTransaction, addAuditEntry,
-    addConsumptionItem, getCategoryName, productCategories,
+    posProducts: allProducts, posSales, stays = [], rooms, stockItems,
+    runOperation, getCategoryName, productCategories,
   } = useApp()
   const posProducts = useMemo(() => pousadaProducts(allProducts, productCategories).filter(p => p.active !== false), [allProducts, productCategories])
   const { username, role, can } = useAuth()
-  const {
-    processStockForSale,
-    restoreStockForSale,
-    validateStockAvailability,
-  } = useStockIntegration()
-  const { checkCashPayment, checkChangeAmount } = useBusinessRules()
   const { toast } = useToast()
 
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
@@ -81,14 +63,11 @@ export function POSTab() {
   const [barcodeInput, setBarcodeInput] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [globalDiscount, setGlobalDiscount] = useTaskState("pos.globalDiscount", 0)
-  const [customer, setCustomer] = useTaskState("pos.customer", "")
+  const [customer, setCustomer] = useTaskState("pos.customerStayId", "")
 
   // Payment modal
   const [paymentOpen, setPaymentOpen] = useTaskState("pos.paymentOpen", false)
-  const [paymentAccountId, setPaymentAccountId] = useState("")
   const [returnToStock, setReturnToStock] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState("dinheiro")
-  const [amountPaid, setAmountPaid] = useState("")
 
   // Receipt modal
   const [receiptOpen, setReceiptOpen] = useState(false)
@@ -149,10 +128,7 @@ export function POSTab() {
     return todaySales.reduce((sum, s) => sum + s.total, 0)
   }, [todaySales])
 
-  // Occupied rooms for customer selection
-  const occupiedRooms = useMemo(() => {
-    return rooms.filter(r => r.status === ROOM_STATUS.OCCUPIED && r.guest)
-  }, [rooms])
+  const activeStays = can("stays.read") ? stays.filter(stay => stay.status === "active") : []
 
   // Handle barcode scan
   useEffect(() => {
@@ -273,131 +249,16 @@ export function POSTab() {
   function openPayment() {
     operationRef.current = crypto.randomUUID()
     if (cart.length === 0) return
-    setPaymentMethod("dinheiro")
-    setAmountPaid("")
     setPaymentOpen(true)
   }
 
   async function finalizeIntegratedSale(selection:CheckoutSelection) {
     operationRef.current??=crypto.randomUUID()
-    const saved=await runOperation<POSSale>('sale',{sale:{id:operationRef.current,items:cart,total,amountPaid:selection.stayId?0:selection.payments!.reduce((v,p)=>v+p.value,0),customer:customer||undefined,...selection},globalDiscount},operationRef.current)
+    const saved=await runOperation<POSSale>('sale',{sale:{id:operationRef.current,items:cart,total,amountPaid:selection.stayId?0:selection.payments!.reduce((v,p)=>v+p.value,0),customer:activeStays.find(s=>s.id===customer)?.guestName,...selection},globalDiscount},operationRef.current)
     setLastSale(saved);setPaymentOpen(false);setReceiptOpen(true);setCart([]);setGlobalDiscount(0);setCustomer('');operationRef.current=null
     toast({title:selection.stayId?'Entrega lançada na hospedagem':'Venda recebida',description:saved.id})
   }
-  function calculateChange(): number {
-    if (paymentMethod !== "dinheiro") return 0
-    const paid = Number(amountPaid) || 0
-    return Math.max(0, paid - total)
-  }
-
-  const [submitting, setSubmitting] = useTaskState("pos.submitting", false)
   const operationRef = useTaskRef<string | null>("pos.operation", null)
-  async function finalizeSale() {
-    if (submitting) return
-    operationRef.current ??= crypto.randomUUID()
-
-    const paid = Number(amountPaid) || total
-    if (paymentMethod === "dinheiro" && paid < total) return
-
-    // Validate stock availability before processing
-    const stockValidation = validateStockAvailability(cart)
-    if (!stockValidation.valid) {
-      toast({
-        title: "Estoque Insuficiente",
-        description: stockValidation.errors.join("; "),
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Check business rules for payment
-    if (paymentMethod === "dinheiro") {
-      checkCashPayment(paid)
-      const change = calculateChange()
-      if (change > 0) {
-        checkChangeAmount(change)
-      }
-    }
-
-    const sale: POSSale = {
-      id: operationRef.current,
-      date: new Date().toISOString(),
-      items: cart,
-      subtotal,
-      discount: discountAmount,
-      total,
-      paymentMethod: PAYMENT_METHODS.find(p => p.id === paymentMethod)?.label || paymentMethod,
-      amountPaid: paid,
-      change: calculateChange(),
-      customer: customer || undefined,
-      operator: username || "sistema",
-      status: "concluida",
-    }
-
-    if (getDataConfig().adapter === "database") {
-      setSubmitting(true)
-      try {
-        const saved = await runOperation<POSSale>("sale", { sale: { ...sale, accountId: paymentMethod === "dinheiro" ? undefined : paymentAccountId || undefined }, globalDiscount }, operationRef.current)
-        setLastSale(saved); setPaymentOpen(false); setCart([]); setGlobalDiscount(0); setCustomer("")
-        operationRef.current = null
-        toast({ title: "Venda finalizada", description: saved.id })
-      } catch (error) { toast({ title: "Venda não concluída", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
-      finally { setSubmitting(false) }
-      return
-    }
-
-    // Process stock deduction with rollback capability
-    const stockResult = await processStockForSale(cart, username || "sistema")
-
-    if (!stockResult.success) {
-      toast({
-        title: "Erro ao Processar Estoque",
-        description: stockResult.error || "Erro desconhecido",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Stock processed successfully, now save the sale
-    await addPOSSale(sale)
-
-    // Add transaction
-    await addTransaction({
-      id: `T${Date.now()}`,
-      date: getTodayISO(),
-      description: `Venda PDV ${sale.id}${customer ? ` - ${customer}` : ""}`,
-      value: total,
-      type: "receita",
-      category: "Venda Balcao",
-      paymentMethod: sale.paymentMethod,
-      responsible: username || "sistema",
-    })
-
-    await addAuditEntry({
-      user: username || "sistema",
-      action: `Venda finalizada: ${formatCurrency(total)}`,
-      reference: `PDV ${sale.id} - ${sale.paymentMethod}`,
-    })
-
-    // Add audit entry for stock movements
-    if (stockResult.movementIds && stockResult.movementIds.length > 0) {
-      await addAuditEntry({
-        user: username || "sistema",
-        action: `Baixa automatica de estoque`,
-        reference: `PDV ${sale.id} - ${stockResult.movementIds.length} ${stockResult.movementIds.length === 1 ? "item" : "itens"}`,
-      })
-    }
-
-    toast({
-      title: "Venda Finalizada",
-      description: `${sale.id} - ${formatCurrency(total)}`,
-    })
-
-    setLastSale(sale)
-    setPaymentOpen(false)
-    setReceiptOpen(true)
-    clearCart()
-  }
 
   function openCancelSale(sale: POSSale) {
     setReturnToStock(false)
@@ -409,76 +270,12 @@ export function POSTab() {
 
   async function confirmCancelSale() {
     if (!saleToCancel) return
-    if (getDataConfig().adapter === "demo-localStorage" && role !== "supervisor" && !await validateSupervisorPasswordAsync(supervisorPassword)) {
-      toast({ title: "Aprovação recusada", variant: "destructive" }); return
-    }
-    if (getDataConfig().adapter === "database") {
-      try { await runOperation("cancel-sale", { saleId: saleToCancel.id, reason: cancelReason, returnToStock }); setCancelOpen(false); setSaleToCancel(null); setCancelReason(""); setSupervisorPassword("") }
-      catch (error) { toast({ title: "Estorno não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
-      return
-    }
-    if (saleToCancel.status !== "concluida") {
-      toast({
-        title: "Cancelamento bloqueado",
-        description: "Apenas vendas concluidas podem ser canceladas.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const stockResult = returnToStock ? await restoreStockForSale(
-      saleToCancel.items,
-      username || "sistema",
-      `PDV ${saleToCancel.id} - ${cancelReason}`
-    ) : { success: true, error: undefined }
-
-    if (!stockResult.success) {
-      toast({
-        title: "Erro ao Restaurar Estoque",
-        description: stockResult.error || "Erro desconhecido",
-        variant: "destructive",
-      })
-      return
-    }
-
-    updatePOSSale(saleToCancel.id, {
-      status: "cancelada",
-      cancelReason,
-    })
-
-    // Add reversal transaction
-    await addTransaction({
-      id: `T${Date.now()}`,
-      date: getTodayISO(),
-      description: `Cancelamento Venda ${saleToCancel.id}`,
-      value: saleToCancel.total,
-      type: "estorno",
-      category: "Cancelamento PDV",
-      responsible: username || "sistema",
-      notes: cancelReason,
-    })
-
-    await addAuditEntry({
-      user: username || "sistema",
-      action: `Venda cancelada: ${formatCurrency(saleToCancel.total)}`,
-      reference: `PDV ${saleToCancel.id} - ${cancelReason}`,
-    })
-
-    if (stockResult.movementIds && stockResult.movementIds.length > 0) {
-      await addAuditEntry({
-        user: username || "sistema",
-        action: `Estoque restaurado por cancelamento`,
-        reference: `PDV ${saleToCancel.id} - ${stockResult.movementIds.length} ${stockResult.movementIds.length === 1 ? "item" : "itens"}`,
-      })
-    }
-
-    toast({
-      title: "Venda Cancelada",
-      description: `${saleToCancel.id} - ${formatCurrency(saleToCancel.total)}`,
-    })
-
-    setCancelOpen(false)
-    setSaleToCancel(null)
+    if (getDataConfig().adapter === "demo-localStorage" && role !== "supervisor" && !await validateSupervisorPasswordAsync(supervisorPassword)) { toast({ title: "Aprovação recusada", variant: "destructive" }); return }
+    try {
+      await runOperation("cancel-sale", { saleId: saleToCancel.id, reason: cancelReason, returnToStock })
+      setCancelOpen(false); setSaleToCancel(null); setCancelReason(""); setSupervisorPassword("")
+      toast({ title: "Venda estornada" })
+    } catch (error) { toast({ title: "Estorno não concluído", description: error instanceof Error ? error.message : "Tente novamente", variant: "destructive" }) }
   }
 
   return (
@@ -616,17 +413,18 @@ export function POSTab() {
             </div>
 
             {/* Customer selection */}
-            <div className="mt-3">
+            <div className="mt-3 space-y-2">
+              <Label id="pos-guest-label">Hóspede (opcional)</Label>
               <Select value={customer || "none"} onValueChange={(v) => setCustomer(v === "none" ? "" : v)}>
-                <SelectTrigger className="h-9 text-sm">
+                <SelectTrigger aria-labelledby="pos-guest-label" className="h-9 text-sm">
                   <User className="mr-2 size-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Vincular a hospede (opcional)" />
+                  <SelectValue placeholder="Hóspede (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {occupiedRooms.map(room => (
-                    <SelectItem key={room.id} value={`Quarto ${room.number} - ${room.guest}`}>
-                      Quarto {room.number} - {room.guest}
+                  <SelectItem value="none">Venda avulsa</SelectItem>
+                  {activeStays.map(stay => (
+                    <SelectItem key={stay.id} value={stay.id}>
+                      Quarto {rooms.find(room => room.id === stay.roomId)?.number ?? stay.roomId} - {stay.guestName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -823,110 +621,7 @@ export function POSTab() {
       </div>
 
       {/* Payment Modal */}
-      {getDataConfig().adapter==='database' ? (paymentOpen&&<POSCheckoutDialog total={total} onClose={()=>setPaymentOpen(false)} onConfirm={finalizeIntegratedSale}/>) : <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent mobileTask protectDraft className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="size-5 text-primary" />
-              Pagamento
-            </DialogTitle>
-            <DialogDescription>
-              Total: <span className="font-bold text-foreground">{formatCurrency(total)}</span>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-4 py-4">
-            {/* Payment method selection */}
-            <div className="flex flex-col gap-2">
-              <Label className="text-sm font-medium">Forma de Pagamento</Label>
-              <ToggleGroup
-                type="single"
-                value={paymentMethod}
-                onValueChange={v => v && setPaymentMethod(v)}
-                className="grid grid-cols-2 gap-2"
-              >
-                {PAYMENT_METHODS.map(method => (
-                  <ToggleGroupItem
-                    key={method.id}
-                    value={method.id}
-                    className="flex h-16 flex-col items-center justify-center gap-1 rounded-lg border border-border data-[state=on]:border-primary data-[state=on]:bg-primary/10"
-                  >
-                    <method.icon className="size-5" />
-                    <span className="text-xs">{method.label}</span>
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-
-            {/* Amount paid (for cash) */}
-            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} />
-            {paymentMethod === "dinheiro" && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="amountPaid" className="text-sm font-medium">
-                  Valor Recebido
-                </Label>
-                <Input
-                  id="amountPaid"
-                  type="number"
-                  step="0.01"
-                  min={total}
-                  value={amountPaid}
-                  onChange={e => setAmountPaid(e.target.value)}
-                  placeholder={total.toFixed(2)}
-                  className="text-lg"
-                  autoFocus
-                />
-                {Number(amountPaid) >= total && (
-                  <div className="flex items-center justify-between rounded-lg bg-success/10 px-3 py-2">
-                    <span className="text-sm text-success">Troco:</span>
-                    <span className="text-lg font-bold tabular-nums text-success">
-                      {formatCurrency(calculateChange())}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Quick cash buttons */}
-            {paymentMethod === "dinheiro" && (
-              <div className="flex flex-wrap gap-2">
-                {[10, 20, 50, 100, 200].map(value => (
-                  <Button
-                    key={value}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAmountPaid(String(value))}
-                    disabled={value < total}
-                  >
-                    {formatCurrency(value)}
-                  </Button>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAmountPaid(total.toFixed(2))}
-                >
-                  Exato
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={finalizeSale}
-              disabled={submitting || paymentMethod === "dinheiro" && (Number(amountPaid) || 0) < total}
-              className="gap-2"
-            >
-              <CheckCircle2 className="size-4" />
-              Finalizar Venda
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>}
+      {paymentOpen && <POSCheckoutDialog total={total} initialStayId={customer} onClose={() => setPaymentOpen(false)} onConfirm={finalizeIntegratedSale} />}
 
       {/* Receipt Modal */}
       <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>

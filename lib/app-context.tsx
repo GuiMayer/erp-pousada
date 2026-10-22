@@ -1,4 +1,5 @@
 "use client"
+import { demoPOSOperation } from "./data/demo-pos"
 import { businessDay } from "./utils/business-values"
 import { roomPlan } from "./room-planning"
 
@@ -373,7 +374,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return result as T
       }
     }
-    const result = getDataConfig().adapter === "demo-localStorage" && demoBookingKinds.includes(kind)
+    const result = getDataConfig().adapter === "demo-localStorage" && ["sale", "cancel-sale"].includes(kind)
+      ? await demoPOSOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T
+      : getDataConfig().adapter === "demo-localStorage" && demoBookingKinds.includes(kind)
       ? await demoBookingOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T
       : getDataConfig().adapter === "demo-localStorage" && kind.startsWith("stay-")
       ? await demoStayOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T

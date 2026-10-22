@@ -24,3 +24,9 @@ Os registros de hospedagem, ocupantes, alocações, diárias, pagamentos e consu
 Uma identificação do cenário é gravada junto aos dados de exemplo. Abas do mesmo navegador coordenam a inicialização pelo mesmo bloqueio usado pelos comandos demonstrativos. Falha ao obter a sessão não autoriza substituir os exemplos usando o relógio do navegador. O relógio real das operações continua funcionando: o cenário não congela a data corrente do sistema.
 
 O armazenamento é independente por navegador e endereço. Isso serve para testar a interface; testes de sincronização entre dispositivos exigem o modo de banco compartilhado. A carga não é executada no adaptador `database` e não altera o banco operacional nem a demonstração Docker.
+
+## Venda para hóspede no caixa
+
+Selecione o hóspede no carrinho, se houver, e abra **Pagamento**. **Receber agora (não lançar na ficha)** registra o recebimento e não cria dívida no consumo. **Marcar na ficha de consumo** exige hospedagem ativa e permissão de lançamento; atualiza o extrato e o mapa, sem recebimento no caixa. A escolha do hóspede identifica a hospedagem por ID, sem interpretar o texto do quarto.
+
+O mesmo formulário é usado na demonstração e no banco. Na demonstração, venda, estoque, cobrança e auditoria são preparados juntos antes de publicar o resultado. Repetir a confirmação preserva a venda original. O estorno de entrega ainda não recebida corrige a ficha sem inventar devolução de dinheiro; devolver estoque continua sendo uma escolha explícita. A hospedagem é conferida novamente pela versão selecionada para impedir lançamento após alteração ou encerramento.

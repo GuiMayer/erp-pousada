@@ -18,6 +18,15 @@ describe('Controles de pagamento da Sprint 3',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Confirmar venda'}))
     await waitFor(()=>expect(confirm).toHaveBeenCalledOnce())
   })
+  it('o hóspede do carrinho é pré-selecionado, mas a ficha exige uma escolha explícita',async()=>{
+    const confirm=vi.fn()
+    render(<POSCheckoutDialog total={12} initialStayId="stay" onClose={vi.fn()} onConfirm={confirm}/>)
+    expect(screen.getByLabelText('Como cobrar')).toHaveValue('counter')
+    fireEvent.change(screen.getByLabelText('Como cobrar'),{target:{value:'stay'}})
+    expect(screen.getByLabelText('Hospedagem para cobrança')).toHaveValue('stay')
+    fireEvent.click(screen.getByRole('button',{name:'Lançar na hospedagem'}))
+    await waitFor(()=>expect(confirm).toHaveBeenCalledWith({stayId:'stay',stayVersion:3}))
+  })
   beforeEach(()=>{state.runOperation.mockReset();state.stays[0].recordVersion=3})
   it('trocar crédito pessoal por pagamento misto não envia ordem de consumir crédito',async()=>{
     const confirm=vi.fn()
