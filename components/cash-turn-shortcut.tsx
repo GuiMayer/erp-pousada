@@ -2,7 +2,6 @@
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
-import { getDataConfig } from "@/lib/data/config"
 import { CashSessionPanel, type CashTask } from "./cash-session-panel"
 import { Button } from "./ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog"
@@ -18,7 +17,7 @@ export function CashTaskDialog({ task, onClose }: { task: CashTask; onClose: () 
 export function CashTurnShortcut() {
   const { can } = useAuth(), { cashCloses = [] } = useApp()
   const [open, setOpen] = useState(false)
-  if (getDataConfig().adapter !== "database" || cashCloses.some(turn => turn.status === "aberto")) return null
+  if (cashCloses.some(turn => turn.status === "aberto")) return null
   if (!can("cash.open")) return <p className="text-sm text-muted-foreground">Peça a um usuário autorizado para abrir o caixa na Frente de Caixa.</p>
   return <><Button variant="outline" onClick={() => setOpen(true)}>Abrir caixa</Button>{open && <CashTaskDialog task="open" onClose={() => setOpen(false)} />}</>
 }

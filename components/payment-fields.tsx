@@ -9,7 +9,6 @@ import { normalizePayment } from "@/lib/utils/business-values"
 import { distributePayment,type PaymentLine } from '@/lib/payments'
 import { PaymentEditor } from './payment-editor'
 import { CashTurnShortcut } from './cash-turn-shortcut'
-import { getDataConfig } from '@/lib/data/config'
 
 export function BankAccountPicker({ method, accountId, setAccountId }: { method: string; accountId: string; setAccountId: (value: string) => void }) {
   const { bankAccounts } = useApp()
@@ -36,7 +35,7 @@ export function PaymentDialog({ open, onClose, title, maximum, allowCredit, mixe
   const [method, setMethod] = useState("pix"), [accountId, setAccountId] = useState(""), [amount, setAmount] = useState("")
   const [pending, setPending] = useState(false), [error, setError] = useState("")
   const [mixed,setMixed]=useState(false),[lines,setLines]=useState<PaymentLine[]>([])
-  const needsCash = getDataConfig().adapter === 'database' && !cashCloses.some(turn => turn.status === 'aberto') && (mixed ? lines.some(line=>normalizePayment(line.method)==='Dinheiro'&&line.value>0) : method==='dinheiro')
+  const needsCash = !cashCloses.some(turn => turn.status === 'aberto') && (mixed ? lines.some(line=>normalizePayment(line.method)==='Dinheiro'&&line.value>0) : method==='dinheiro')
   async function confirm() {
     if (pending || needsCash) return
     const value = maximum === undefined ? 0 : Number(fixedAmount ? maximum : amount || maximum)

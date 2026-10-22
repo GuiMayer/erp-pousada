@@ -33,6 +33,7 @@ describe("Entrega no PDV com cobrança imediata ou na ficha", () => {
     expect(stayBalance((await store.stays.getById(stayId))!).consumptionBalance).toBe(0)
     expect(await store.consumptions.getTotalByRoomId(6)).toBe(0)
     expect(await store.transactions.count()).toBe(before + 1)
+    expect((await store.transactions.getAll()).find(t => t.originId === "sale-test")?.cashSessionId).toBe("DEMO-OPEN-CASH")
     const sale = (await store.posSales.getById("sale-test"))!
     expect(sale.change).toBe(10)
     expect(sale.stayId).toBeUndefined()

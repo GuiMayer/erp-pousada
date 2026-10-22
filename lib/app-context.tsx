@@ -1,4 +1,6 @@
 "use client"
+import { normalizePayment } from "@/lib/utils/business-values"
+import { demoCashKinds, demoCashOperation } from "@/lib/data/demo-cash"
 import { canReadCashStatus } from "@/lib/cash-access"
 import { demoPOSOperation } from "./data/demo-pos"
 import { businessDay } from "./utils/business-values"
@@ -375,7 +377,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return result as T
       }
     }
-    const result = getDataConfig().adapter === "demo-localStorage" && ["sale", "cancel-sale"].includes(kind)
+    const result = getDataConfig().adapter === "demo-localStorage" && demoCashKinds.includes(kind)
+      ? await demoCashOperation(dataStore, kind, payload, can, { id: user?.id ?? "demo", username: user?.username ?? "demo" }, operationId) as T
+      : getDataConfig().adapter === "demo-localStorage" && ["sale", "cancel-sale"].includes(kind)
       ? await demoPOSOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T
       : getDataConfig().adapter === "demo-localStorage" && demoBookingKinds.includes(kind)
       ? await demoBookingOperation(dataStore, kind, payload, can, user?.username ?? "demo") as T
@@ -386,7 +390,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     pendingOperationIds.current.delete(key)
     await loadAllData().catch(() => {})
     return result
-  }, [loadAllData, dataStore, can, user?.username])
+  }, [loadAllData, dataStore, can, user?.username, user?.id])
 
   useEffect(() => {
     pendingOperationIds.current.clear()
@@ -664,6 +668,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Transaction methods
   const addTransaction = useCallback(async (t: Transaction) => {
+    if (getDataConfig().adapter === "demo-localStorage" && normalizePayment(t.paymentMethod ?? "") === "Dinheiro") {
+      const turn = (await dataStore.cashCloses.getAll()).find(c => c.status === "aberto")
+      if (!turn) throw new Error("Abra o caixa antes de registrar dinheiro")
+      t = { ...t, cashSessionId: turn.id }
+    }
     const created = await dataStore.transactions.create(t)
     setTransactions(await dataStore.transactions.getAll())
 

@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { DataStore } from "./types"
 import type { POSSale } from "@/lib/store"
 import { withDemoTransaction } from "./demo-transaction"
-import { distributePayment, type PaymentLine } from "@/lib/payments"
+import { cashIncoming, distributePayment, type PaymentLine } from "@/lib/payments"
 import { netItemValues } from "@/lib/utils/business-values"
 import { stayBalance } from "@/lib/stays"
 
@@ -23,8 +23,13 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
         const value = line.applied ?? line.value
         if (!value) continue
         let accountId = line.accountId
+        let cashSessionId: string | undefined
         if (line.method === "Dinheiro") {
-          if (!(await staged.cashCloses.getAll()).some(c => c.status === "aberto")) throw Error("Abra o caixa para receber ou devolver dinheiro")
+          const turn = (await staged.cashCloses.getAll()).find(c => c.status === "aberto")
+          if (!turn) throw Error("Abra o caixa para receber ou devolver dinheiro")
+          cashSessionId = turn.id
+          const available = Math.round((turn.openingValue ?? 0) * 100) + (await staged.transactions.getAll()).filter(t => t.cashSessionId === turn.id).reduce((v, t) => v + Math.round(Math.abs(t.value) * 100) * (cashIncoming(t.type) ? 1 : -1), 0)
+          if (reversal && available < Math.round(value * 100)) throw Error("Saldo de caixa insuficiente para devolver")
         } else {
           accountId ??= accounts.filter(a => a.active).length === 1 ? accounts.find(a => a.active)!.id : undefined
           const account = accounts.find(a => a.id === accountId && a.active)
@@ -32,7 +37,7 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
           account.currentBalance = Math.round((account.currentBalance + (reversal ? -value : value)) * 100) / 100
           await staged.bankAccounts.update(account.id, { currentBalance: account.currentBalance })
         }
-        await staged.transactions.create({ date: now, description: `${reversal ? "Estorno" : "Venda"} ${saleId}`, refId: `Venda ${saleId}`, value, type: reversal ? "estorno" : "receita", category: "PDV", paymentMethod: line.method, accountId, responsible: username, originType: reversal ? "sale-refund" : "sale", originId: saleId })
+        await staged.transactions.create({ date: now, description: `${reversal ? "Estorno" : "Venda"} ${saleId}`, refId: `Venda ${saleId}`, value, type: reversal ? "estorno" : "receita", category: "PDV", paymentMethod: line.method, accountId, cashSessionId, responsible: username, originType: reversal ? "sale-refund" : "sale", originId: saleId })
       }
     }
     async function stock(sale: POSSale, restore = false) {

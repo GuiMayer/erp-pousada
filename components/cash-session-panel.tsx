@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useApp } from "@/lib/app-context"
-import { getDataConfig } from "@/lib/data/config"
 import { ApiError } from "@/lib/data/conflicts"
 import type { CashClose } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils/formatters"
@@ -49,6 +48,7 @@ export function CashSessionPanel({ mode = "open", onPendingChange, onOpened }: {
   const changedOpening = !!previous && Number(opening) !== (previous.retainedValue ?? 0)
   const canClose = !!active && can("cash.close") && (active.responsibleUserId === user?.id || can("cash.closeAny"))
   const withdrawn = Math.round((Number(physical) - Number(retained || physical)) * 100) / 100
+  const depositing = deposit && withdrawn > 0
   async function submit() {
     if (pending) return
     setPending(true); setError(""); setMessage("")
@@ -58,7 +58,7 @@ export function CashSessionPanel({ mode = "open", onPendingChange, onOpened }: {
         await runOperation("cash-movement", { direction, value: Number(movementValue), accountId, reason })
         setMovementValue(""); setReason(""); setMessage(direction === "supply" ? "Suprimento registrado: dinheiro entrou no caixa e saiu da conta escolhida." : "Sangria registrada: dinheiro saiu do caixa e entrou na conta escolhida.")
       } else if (mode === "close") {
-        const result = await runOperation<CashTurnReceipt>("cash-close", { sessionId, physicalValue: Number(physical), retainedValue: Number(retained || physical), ...(deposit ? { withdrawalAccountId: depositAccount } : {}), ...(closingReason.trim() ? { closingReason: closingReason.trim() } : {}) })
+        const result = await runOperation<CashTurnReceipt>("cash-close", { sessionId, physicalValue: Number(physical), retainedValue: Number(retained || physical), ...(depositing ? { withdrawalAccountId: depositAccount } : {}), ...(closingReason.trim() ? { closingReason: closingReason.trim() } : {}) })
         setClosed(result)
       } else {
         await runOperation("cash-open", { openingValue: Number(opening), ...(changedOpening ? { openingReason: openingReason.trim() } : {}) })
@@ -69,11 +69,10 @@ export function CashSessionPanel({ mode = "open", onPendingChange, onOpened }: {
       setError(failure instanceof Error ? failure.message : "Operação não concluída")
     } finally { setPending(false) }
   }
-  if (getDataConfig().adapter !== "database") return <p>O controle de turnos está disponível no modo conectado ao banco.</p>
   if (closed) return <div role="status"><CashReceipt turn={closed} /></div>
   const invalid = mode === "open" ? !can("cash.open") || !!active || opening === "" || (changedOpening && openingReason.trim().length < 5)
     : mode === "move" ? !can("cash.move") || !active || !accountId || !(Number(movementValue) > 0) || reason.trim().length < 5
-    : !canClose || physical === "" || Number(retained || physical) > Number(physical) || (deposit && (!depositAccount || withdrawn <= 0)) || (needsReason && closingReason.trim().length < 5)
+    : !canClose || physical === "" || Number(retained || physical) > Number(physical) || (depositing && !depositAccount) || (needsReason && closingReason.trim().length < 5)
   return <div className="grid gap-4">
     <fieldset disabled={pending} className="grid gap-4">
       {mode === "open" && <>

@@ -22,11 +22,15 @@ export function CashWorkspace() {
   const requestSequence = useRef(0)
   const active = cashCloses.find(s => s.status === "aberto")
   const closed = cashCloses.filter(s => s.status === "fechado").sort((a, b) => (b.closedAt ?? b.date).localeCompare(a.closedAt ?? a.date))
-  if (getDataConfig().adapter !== "database") return null
   async function inspect(id: string) {
     const sequence = ++requestSequence.current
     setError(""); setSelected(null); setNote(""); setPending(true)
     try {
+      if (getDataConfig().adapter === "demo-localStorage") {
+        const data = await runOperation<CashTurnReceipt>("cash-inspect", { sessionId: id })
+        if (sequence === requestSequence.current) setSelected(data)
+        return
+      }
       const response = await fetch(`/api/cash/turns/${encodeURIComponent(id)}`, { cache: "no-store" })
       const data = await response.json()
       if (!response.ok) throw Error(data.error || "Não foi possível consultar o turno")

@@ -56,7 +56,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   }, [open, currentStay?.id])
   const [paymentAccountId, setPaymentAccountId] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("pix")
-  const cashClosed = getDataConfig().adapter === "database" && !cashCloses.some(turn => turn.status === "aberto")
+  const cashClosed = !cashCloses.some(turn => turn.status === "aberto")
   const needsCash = cashClosed && paymentMethod === "dinheiro"
   const { sendNotification } = useNotifications()
 

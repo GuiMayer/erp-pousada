@@ -4,12 +4,12 @@ import { PaymentDialog } from '@/components/payment-fields'
 import { POSCheckoutDialog } from '@/components/pos-checkout-dialog'
 import { BatchReceiptsPanel } from '@/components/batch-receipts-panel'
 
-const state = vi.hoisted(() => ({runOperation:vi.fn(),stays:[{id:'stay',status:'active',recordVersion:3,roomId:1,guestName:'Ana'}],bankAccounts:[{id:'bank',active:true,name:'Conta A'}],rooms:[{id:1,number:'1'}],accountsReceivable:[{id:'a',description:'Título A',customerName:'Empresa',value:600,paidValue:100,status:'pendente',recordVersion:4},{id:'b',description:'Título B',customerName:'Empresa',value:600,paidValue:0,status:'pendente',recordVersion:7}]}))
+const state = vi.hoisted(() => ({runOperation:vi.fn(),cashCloses:[] as {id:string;status:string}[],stays:[{id:'stay',status:'active',recordVersion:3,roomId:1,guestName:'Ana'}],bankAccounts:[{id:'bank',active:true,name:'Conta A'}],rooms:[{id:1,number:'1'}],accountsReceivable:[{id:'a',description:'Título A',customerName:'Empresa',value:600,paidValue:100,status:'pendente',recordVersion:4},{id:'b',description:'Título B',customerName:'Empresa',value:600,paidValue:0,status:'pendente',recordVersion:7}]}))
 vi.mock('@/lib/app-context',()=>({useApp:()=>state}))
 vi.mock('@/lib/auth-context',()=>({useAuth:()=>({can:()=>true})}))
 describe('Controles de pagamento da Sprint 3',()=>{
   it('identifica caixa fechado antes do envio e permite PIX sem abrir dinheiro',async()=>{
-    vi.stubEnv('NEXT_PUBLIC_DATA_ADAPTER','database')
+    vi.stubEnv('NEXT_PUBLIC_DATA_ADAPTER','database');state.cashCloses=[]
     const confirm=vi.fn();render(<POSCheckoutDialog total={12} onClose={vi.fn()} onConfirm={confirm}/>)
     expect(screen.getByRole('button',{name:'Confirmar venda'})).toBeDisabled()
     expect(screen.getByText(/Abra o caixa para receber em dinheiro/)).toBeTruthy()
@@ -27,7 +27,7 @@ describe('Controles de pagamento da Sprint 3',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Lançar na hospedagem'}))
     await waitFor(()=>expect(confirm).toHaveBeenCalledWith({stayId:'stay',stayVersion:3}))
   })
-  beforeEach(()=>{state.runOperation.mockReset();state.stays[0].recordVersion=3})
+  beforeEach(()=>{state.runOperation.mockReset();state.stays[0].recordVersion=3;state.cashCloses=[{id:"turn",status:"aberto"}]})
   it('trocar crédito pessoal por pagamento misto não envia ordem de consumir crédito',async()=>{
     const confirm=vi.fn()
     render(<PaymentDialog open title="Receber" maximum={100} mixedEnabled allowCredit onClose={vi.fn()} onConfirm={confirm}/> )
