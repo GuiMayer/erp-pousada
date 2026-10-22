@@ -1,3 +1,5 @@
+> Documento histórico: preservado como referência de uma etapa anterior. Não descreve a arquitetura ou o estado atual do ERP Pousada.
+
 # Resumo da Implementação de Testes
 
 ## Status Geral

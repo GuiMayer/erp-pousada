@@ -1,3 +1,5 @@
+> Documento histórico: preservado como referência de uma etapa anterior. Não descreve a arquitetura ou o estado atual do ERP Pousada.
+
 # Refatoração do Sistema de Gestão de Pousada
 
 Este documento descreve o processo de refatoração realizado no sistema de gestão de pousada, organizado em 6 fases principais.

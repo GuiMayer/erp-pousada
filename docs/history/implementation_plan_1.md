@@ -1,3 +1,5 @@
+> Documento histórico: preservado como referência de uma etapa anterior. Não descreve a arquitetura ou o estado atual do ERP Pousada.
+
 # Estratégia de Produção: Sistema Local para Pousada/Restaurante (Revisão Desktop)
 
 Este plano detalha a arquitetura para levar o protótipo (Next.js) para produção em um ambiente **100% offline**, priorizando a **facilidade de instalação (1 clique)**, facilidade de uso (abrir como programa normal) e rotina de backups automáticos (horário/diário).

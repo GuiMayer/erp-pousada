@@ -1,3 +1,5 @@
+> Documento histórico: preservado como referência de uma etapa anterior. Não descreve a arquitetura ou o estado atual do ERP Pousada.
+
 # Comparativo de Funcionalidades: Sistema Atual vs Requisitos de Restaurante
 
 **Data da Análise:** 08/05/2026  

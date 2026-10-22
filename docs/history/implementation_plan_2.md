@@ -1,3 +1,5 @@
+> Documento histórico: preservado como referência de uma etapa anterior. Não descreve a arquitetura ou o estado atual do ERP Pousada.
+
 # Arquitetura de Dados e Plano de Migração (SQLite)
 
 Com base nas melhores práticas da engenharia de software contemporânea e aproveitando a stack do projeto (Next.js 16 + React 19), este documento destrincha tecnicamente *como* migraremos do armazenamento volátil (`lib/app-context.tsx`) para o banco de dados persistente **SQLite**.

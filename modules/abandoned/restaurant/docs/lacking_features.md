@@ -1,3 +1,5 @@
+> Documento histórico: preservado como referência de uma etapa anterior. Não descreve a arquitetura ou o estado atual do ERP Pousada.
+
 # Especificação de Requisitos: Sistema de Gestão de Restaurante
 
 ## 1. Visão Geral do Negócio

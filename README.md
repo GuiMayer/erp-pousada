@@ -255,7 +255,7 @@ Para instalar com dados reais, siga o [guia de produção](docs/PRODUCAO.md), co
 - [Camada de dados e repositórios](docs/DATA_LAYER.md)
 - [Mapa da migração relacional](docs/DATABASE_DOMAIN_MAP.md)
 - [Configuração local da instalação](config/README.md)
-- [Histórico da refatoração](REFACTORING.md)
+- [Histórico da refatoração](docs/history/REFACTORING.md)
 
 ## Contribuição e licença
 
