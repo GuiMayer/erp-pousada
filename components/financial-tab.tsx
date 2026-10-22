@@ -757,7 +757,7 @@ function SummaryCard({
   const styles = {
     success: "bg-success/10 text-success",
     destructive: "bg-destructive/10 text-destructive",
-    warning: "bg-warning/15 text-warning-foreground",
+    warning: "bg-warning/15 text-foreground",
     primary: "bg-primary/10 text-primary",
   }
   return (

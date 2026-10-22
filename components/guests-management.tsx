@@ -107,6 +107,10 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
         {can("guests.create") && (!person || !filteredGuests.length) && <Button onClick={() => openDialog()} className="gap-2"><Plus className="size-4" />{person ? "Adicionar perfil de hospedagem" : "Novo Hospede"}</Button>}
       </div>
 
+      {person ? <div className="space-y-3">{filteredGuests.map(guest => <div key={guest.cpf} className="space-y-3 rounded-lg border p-3">
+        <dl className="grid grid-cols-2 gap-3 text-sm"><div><dt>Estadias</dt><dd>{guest.totalStays}</dd></div><div><dt>Ticket médio</dt><dd>{formatCurrency(guest.avgTicket)}</dd></div><div><dt>Ausências</dt><dd>{guest.noShows}</dd></div><div><dt>Crédito disponível</dt><dd>{formatCurrency(guest.creditValue ?? 0)}</dd></div></dl>
+        <div className="flex gap-2">{can("guests.edit") && <Button size="sm" variant="outline" onClick={() => openDialog(guest)}>Editar perfil de hospedagem</Button>}{can("guests.delete") && <Button size="sm" variant="outline" onClick={() => handleDelete(guest)}>Excluir perfil de hospedagem</Button>}</div>
+      </div>)}{!filteredGuests.length && <p className="text-sm text-muted-foreground">Perfil de hospedagem não cadastrado.</p>}</div> : <>
       <Card>
         <CardContent className="p-0">
           <Table mobileColumns={["Nome", "CPF", "Estadias", "Ticket Médio", "No-shows", "Ações"]} mobilePreview={["Nome", "Estadias", "Ticket Médio"]}>
@@ -143,6 +147,7 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
           </Table>
         </CardContent>
       </Card>
+      </>}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent>

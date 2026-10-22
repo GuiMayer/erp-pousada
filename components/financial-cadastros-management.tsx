@@ -289,14 +289,14 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">{balancesOnly ? "Saldos das contas" : "Contas bancárias"}</CardTitle>
-          {allowed("bankAccount", "create") && !balancesOnly && <Button size="sm" variant="outline" onClick={() => openBankAccount()}><Plus className="size-4" /></Button>}
+          {allowed("bankAccount", "create") && !balancesOnly && <Button aria-label="Nova conta bancária" size="sm" variant="outline" onClick={() => openBankAccount()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {bankAccounts.map(account => (
             <div key={account.id} className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <div className="font-medium">{account.name}</div>
-                <div className="text-xs text-muted-foreground">{formatCurrency(account.currentBalance)}</div>
+                <div className="text-xs text-muted-foreground">{balancesOnly ? formatCurrency(account.currentBalance) : account.bank || "Conta bancária"}</div>
               </div>
               {!balancesOnly && <RowActions collection="bankAccounts" active={account.active} onEdit={() => openBankAccount(account)} onDelete={() => removeCadastro("bankAccount", account.id, account.name, account.recordVersion)} />}
             </div>
@@ -310,7 +310,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Transferencias</CardTitle>
-          {allowed("bankTransfer", "create") && <Button size="sm" variant="outline" onClick={() => openBankTransfer()}><Plus className="size-4" /></Button>}
+          {allowed("bankTransfer", "create") && <Button aria-label="Nova transferência" size="sm" variant="outline" onClick={() => openBankTransfer()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {(allowed("bankTransfer") ? bankTransfers : []).map(transfer => (
@@ -331,7 +331,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Centros de Custo</CardTitle>
-          {allowed("costCenter", "create") && <Button size="sm" variant="outline" onClick={() => openCostCenter()}><Plus className="size-4" /></Button>}
+          {allowed("costCenter", "create") && <Button aria-label="Novo centro de custo" size="sm" variant="outline" onClick={() => openCostCenter()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {costCenters.map(costCenter => (
@@ -352,7 +352,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Orcamentos</CardTitle>
-          {allowed("budget", "create") && <Button size="sm" variant="outline" onClick={() => openBudget()}><Plus className="size-4" /></Button>}
+          {allowed("budget", "create") && <Button aria-label="Novo orçamento" size="sm" variant="outline" onClick={() => openBudget()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {budgets.map(budget => (
@@ -373,7 +373,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Recorrencias</CardTitle>
-          {allowed("recurringTransaction", "create") && <Button size="sm" variant="outline" onClick={() => openRecurringTransaction()}><Plus className="size-4" /></Button>}
+          {allowed("recurringTransaction", "create") && <Button aria-label="Nova recorrência" size="sm" variant="outline" onClick={() => openRecurringTransaction()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {recurringTransactions.filter(t => !recurringType || t.type === recurringType).map(transaction => (
