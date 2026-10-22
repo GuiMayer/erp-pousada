@@ -1,5 +1,7 @@
 "use client";
 import { PermissionGate } from "@/components/permission-gate";
+import { reservationAmounts } from "@/lib/reservation-amounts";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { useState } from "react";
 import type { Reservation } from "@/lib/store";
 import { useApp } from "@/lib/app-context";
@@ -14,10 +16,7 @@ export function ReservationPaymentButton({
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<Reservation | null>(null);
   const reservation = open && snapshot ? snapshot : latest;
-  const balance = Math.max(
-    0,
-    reservation.totalValue - (reservation.paidValue ?? 0),
-  );
+  const { balance } = reservationAmounts([reservation]);
   if (!["confirmada", "checkin"].includes(reservation.status) || balance <= 0)
     return null;
   return (
@@ -26,12 +25,14 @@ export function ReservationPaymentButton({
         <Button
           variant="outline"
           size="sm"
+          aria-label={`Receber ${formatCurrency(balance)} de ${reservation.guestName}`}
+          title={`Saldo da hospedagem: ${formatCurrency(balance)}`}
           onClick={() => {
             setSnapshot(latest);
             setOpen(true);
           }}
         >
-          Receber hospedagem · R$ {balance.toFixed(2)}
+          Receber
         </Button>
       </PermissionGate>
       <ReservationPaymentDialog

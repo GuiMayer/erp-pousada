@@ -1,3 +1,5 @@
+import { stayBalance } from "./stays"
+import { cashIncoming } from "./payments"
 import { pousadaProducts } from "./pousada-scope"
 import { quoteLodging, type LodgingTariff } from "./lodging-pricing"
 import { normalizeDocument } from "./utils/cpf-cnpj-validator"
@@ -157,6 +159,11 @@ export function createDemoData(now = new Date()) {
   guests.forEach((guest, index) => { guest.customerId = customers[index].id; guest.active = true })
   customers.push({ id: "DEMO-COMPANY", name: "Empresa Horizonte · Exemplo", cpfCnpj: "12ABC34501DE35", roles: ["payer"], active: true, createdAt: timestamp(-30), updatedAt: timestamp(0) })
   customers[0].companyId = "DEMO-COMPANY"
+  reservations.push(...[2, 5].map((roomId, index): Reservation => ({
+    id: `DEMO-CREDIT-${index}`, roomId, roomNumber: rooms.find(r => r.id === roomId)!.number,
+    guestName: guests[0].name, cpf: guests[0].cpf, checkIn: date(-11 + index * 3), checkOut: date(-9 + index * 3),
+    status: "checkout", totalValue: 0,
+  })))
   const lodgingTariffs: LodgingTariff[] = [...new Set(rooms.map(r => r.type))].flatMap((roomType, index) => [
     { id: 'DEMO-T'+index+'-one', name: roomType+' · uma pessoa', roomType, minGuests: 1, maxGuests: 1, pricePerPerson: 120, validFrom: date(-365), active: true },
     { id: 'DEMO-T'+index+'-group', name: roomType+' · duas ou três pessoas', roomType, minGuests: 2, maxGuests: 3, pricePerPerson: 100, validFrom: date(-365), active: true },
@@ -166,7 +173,7 @@ export function createDemoData(now = new Date()) {
     r.guestCount = 2; r.payerId = person.companyId ?? person.id; r.recordVersion = 0
     const quote = quoteLodging(rooms.find(room => room.id === r.roomId)!, lodgingTariffs, { roomId: r.roomId, guestCount: 2, checkIn: r.checkIn, checkOut: r.checkOut })
     r.totalValue = quote.total; r.originalValue = quote.total; r.nightlyPrices = quote.nights
-    r.paidValue = r.status === "checkout" ? r.totalValue : r.status === "checkin" || (r.id === "DEMO-R008" || r.id === "DEMO-R009") ? Math.min(100, r.totalValue) : 0
+    r.paidValue = r.status === "checkout" && !r.id.startsWith("DEMO-CREDIT-") ? r.totalValue : r.status === "checkin" || r.id.startsWith("DEMO-CREDIT-") || (r.id === "DEMO-R008" || r.id === "DEMO-R009") ? Math.min(100, r.totalValue) : 0
     if (r.paidValue > 0) transactions.push({ id: `DEMO-T-BOOKING-${index}`, date: timestamp(0), description: `Hospedagem ${r.id}`, refId: `Hospedagem ${r.id}`, value: r.paidValue, type: "receita", paymentMethod: "PIX", accountId: "DEMO-BANK", responsible: "supervisor", originType: "reservation", originId: r.id })
   }
   const consumptionExamples: Record<number, [string, number][]> = {
@@ -194,23 +201,38 @@ export function createDemoData(now = new Date()) {
     charges: r.status === "checkin" ? (consumptions.find(c => c.roomId === r.roomId)?.items ?? []).map(item => ({ ...item, status: "active", createdAt: timestamp(0) })) : [],
     payments: r.paidValue ? [{ id: `DEMO-PAY-${r.id}`, value: r.paidValue, bucket: "lodging", method: "PIX", createdAt: timestamp(0), transactionId: `DEMO-T-BOOKING-${reservations.indexOf(r)}` }] : [],
   }))
-  const accountsReceivable: AccountReceivable[] = [0, 2, 5].map((index) => ({
-    id: `DEMO-AR${index}`, customerId: customers[index].id, customerName: customers[index].name,
-    description: "Saldo de hospedagem — exemplo", value: [320, 480, 650][index % 3],
-    issueDate: date(-5), dueDate: date(index === 0 ? -1 : index),
-    status: index === 0 ? "vencido" : "pendente", category: "Hospedagem",
+  const settled = stays.find(s => s.status === "active" && s.roomId === 6)!
+  const water = posProducts.find(p => p.id === "P001")!
+  settled.charges.push({ id: "DEMO-SETTLED-CONSUMPTION", productId: water.id, label: water.name, unitPrice: water.price, quantity: 2, status: "active", createdAt: timestamp(-1) })
+  settled.payments.push({ id: "DEMO-SETTLED-PAYMENT", value: water.price * 2, bucket: "consumption", method: "PIX", createdAt: timestamp(-1), transactionId: "DEMO-SETTLED-TX" })
+  transactions.push({ id: "DEMO-SETTLED-TX", date: timestamp(-1), description: `Bebidas quitadas — ${settled.reservationId}`, refId: `Hospedagem ${settled.reservationId}`, value: water.price * 2, type: "receita", paymentMethod: "PIX", accountId: "DEMO-BANK", responsible: "supervisor", originType: "stay", originId: settled.id })
+  const accountsReceivable: AccountReceivable[] = stays.filter(s => s.status === "closed" && stayBalance(s).balance > 0).map((stay, index) => ({
+    id: `DEMO-AR${index}`, sourceStayId: stay.id, customerId: stay.payerId!, customerName: customers.find(c => c.id === stay.payerId)!.name,
+    description: `Hospedagem ${stay.reservationId} · ${stay.guestName} · quarto ${rooms.find(r => r.id === stay.roomId)!.number}`,
+    value: stayBalance(stay).balance, paidValue: 0, issueDate: stay.checkOut, dueDate: date(index === 0 ? -1 : 3),
+    status: index === 0 ? "vencido" : "pendente", category: "Hospedagem", recordVersion: 0,
   }))
+  // Payment movements identify their real account or cash turn, including examples.
+  const cashCloses = Array.from({ length: 14 }, (_, index) => {
+    const offset = index - 13, id = offset === 0 ? "DEMO-OPEN-CASH" : `DEMO-CASH-${index}`
+    const entries = transactions.filter(t => businessDay(t.date) === date(offset) && t.paymentMethod === "Dinheiro")
+    entries.forEach(t => { t.cashSessionId = id })
+    const expected = 200 + entries.reduce((sum, t) => sum + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100
+    return { id, date: timestamp(offset), status: offset === 0 ? "aberto" as const : "fechado" as const, openedAt: timestamp(offset, 9), closedAt: offset === 0 ? undefined : timestamp(offset, 22), operator: "supervisor", responsibleUserId: "demo-supervisor", openingValue: 200, expectedValue: expected, physicalValue: offset === 0 ? 0 : expected, divergence: 0, retainedValue: 200, withdrawnValue: offset === 0 ? 0 : expected - 200, closedBy: offset === 0 ? undefined : "supervisor" }
+  })
+  for (const entry of transactions) if (entry.paymentMethod !== "Dinheiro") entry.accountId = "DEMO-BANK"
+  const bankBalance = 5000 + transactions.filter(t => t.accountId === "DEMO-BANK").reduce((sum, t) => sum + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100
+  const auditLog = reservations.map((r, i) => ({ id: `DEMO-AUDIT-${i}`, date: timestamp(0), user: "supervisor", action: "Reserva cadastrada", reference: r.id, entityType: "reservations", entityId: r.id, operation: "create" as const, metadata: { after: { guestName: r.guestName, roomId: r.roomId, totalValue: r.totalValue, paidValue: r.paidValue, payerId: r.payerId }, reason: "Cenário fictício de demonstração" } }))
   return {
     lodgingTariffs, rooms, reservations, stays, guests, expenses, transactions, posProducts, posSales,
     restaurantTables, restaurantOrders, stockItems, stockMovements, customers, accountsReceivable,
     categories: structuredClone(initialCategories), productCategories: structuredClone(initialProductCategories.filter(category => !category.isRestaurant)),
     employees: [], users: structuredClone(initialUsers), userSessions: [],
     systemSettings: [{ ...initialSystemSettings, contactEmail: "contato@example.com", contactPhone: "", address: "", notifyLowStock: false }],
-    auditLog: seed.auditLog.map((entry) => ({ ...entry, date: new Date(now.getTime() - entry.hoursAgo * 3600000).toISOString() })),
-    cashCloses: [...seed.cashCloses.map((entry) => ({ ...entry, status: "fechado", date: new Date(now.getTime() - entry.hoursAgo * 3600000).toISOString() })), { id: "DEMO-OPEN-CASH", date: timestamp(0), status: "aberto", openedAt: timestamp(0), openingValue: 200, operator: "supervisor", physicalValue: 200, expectedValue: 200, divergence: 0 }],
+    auditLog, cashCloses,
     consumptions,
     recipes: [], productions: [], employeeConsumptions: [], suppliers: [],
-    bankAccounts: [{ id: "DEMO-BANK", name: "Conta de demonstração", type: "corrente", active: true, initialBalance: 5000, currentBalance: 5000 + reservations.reduce((sum, r) => sum + (r.paidValue ?? 0), 0) }], bankTransfers: [], costCenters: [], budgets: [], recurringTransactions: [],
+    bankAccounts: [{ id: "DEMO-BANK", name: "Conta de demonstração", type: "corrente", active: true, initialBalance: 5000, currentBalance: bankBalance }], bankTransfers: [], costCenters: [], budgets: [], recurringTransactions: [],
   }
 }
 
@@ -219,7 +241,7 @@ export async function seedDemoSession(store: Pick<DataStore, "exportAll" | "impo
   if (getDataConfig().adapter !== "demo-localStorage") throw new Error("Exemplos disponíveis apenas na demonstração do navegador")
   const anchor = new Date(startedAt)
   if (!Number.isFinite(anchor.getTime())) throw new Error("Data de início da demonstração inválida")
-  const id = `room-scenarios-2:${anchor.toISOString()}`
+  const id = `room-scenarios-3:${anchor.toISOString()}`
   const existing = JSON.parse(await store.exportAll()) as { demoScenario?: { id: string } }
   if (existing.demoScenario?.id === id) return false
   await store.importAll(JSON.stringify({ ...createDemoData(anchor), demoScenario: { id, startedAt: anchor.toISOString() } }))

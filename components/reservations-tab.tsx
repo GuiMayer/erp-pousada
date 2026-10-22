@@ -3,6 +3,7 @@ import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { businessDay } from "@/lib/utils/business-values"
+import { reservationAmounts } from "@/lib/reservation-amounts"
 import { pendingReservationGroups, type PendingReservationGroup } from "@/lib/reservation-groups"
 import { ReservationGroupSheet } from "./reservation-group-sheet"
 import { noShowEligible } from "@/lib/booking-flow"
@@ -71,12 +72,13 @@ export function ReservationsTab() {
     <Card><CardContent className="p-0"><Table mobilePreview={["Hóspede", "Quarto", "Entrada", "Saída", "Status"]} mobileColumns={["Hóspede", "Quarto", "Entrada", "Saída", "Valor", "Status", "Ações"]}><TableHeader><TableRow>{["Hóspede", "Quarto", "Entrada", "Saída", "Valor", "Status", "Ações"].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
       {groups.map(group => {
         const first = group.pending[0]
+        const amounts = reservationAmounts(group.pending)
         const names = [...new Set(group.pending.map(r => r.guestName))].join(", ")
         return <TableRow key={group.key} className="cursor-pointer" onClick={() => openGroup(group)}>
           <TableCell><Button variant="link" className="h-auto whitespace-normal px-0 text-left" onClick={() => openGroup(group)}>{names}</Button>{group.isGroup && <p className="text-xs text-muted-foreground">Grupo · {group.pending.length} de {group.members.length} aguardando</p>}</TableCell>
           <TableCell className="whitespace-normal">{group.roomNumbers}</TableCell>
           <TableCell>{period(group.pending, "checkIn")}</TableCell><TableCell>{period(group.pending, "checkOut")}</TableCell>
-          <TableCell>{formatCurrency(group.totalValue)}</TableCell><TableCell><Badge variant="secondary">{labels.confirmada}</Badge></TableCell>
+          <TableCell><span>Total: {formatCurrency(amounts.total)}</span><p className="text-xs text-muted-foreground">Recebido: {formatCurrency(amounts.received)} · Saldo: {formatCurrency(amounts.balance)}</p></TableCell><TableCell><Badge variant="secondary">{labels.confirmada}</Badge></TableCell>
           <TableCell onClick={e => e.stopPropagation()}>{group.isGroup ? <Button size="sm" variant="outline" aria-label={`Abrir grupo dos quartos ${group.roomNumbers}`} onClick={() => openGroup(group)}>Abrir grupo</Button> : actions(first)}</TableCell>
         </TableRow>
       })}
