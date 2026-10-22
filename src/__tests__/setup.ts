@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom'
 import { expect, afterEach, beforeEach, vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
+
+// Demo initialization loads several repositories; assertions must not race a
+// one-second startup deadline when the machine is also running the application.
+configure({ asyncUtilTimeout: 3000 })
 
 // Cleanup after each test
 afterEach(() => {

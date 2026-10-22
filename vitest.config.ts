@@ -8,6 +8,9 @@ export default defineConfig({
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
     environment: 'happy-dom',
     globals: true,
+    // Keep browser-like workers bounded on reception PCs and small CI runners.
+    maxWorkers: 4,
+    minWorkers: 1,
     setupFiles: ['./src/__tests__/setup.ts'],
     coverage: {
       provider: 'v8',
