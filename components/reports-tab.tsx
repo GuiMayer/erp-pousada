@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context"
 import { FinancialCadastrosManagement } from "./financial-cadastros-management"
 import { Button } from "./ui/button"
 import { useState } from "react"
+import { DemoManagementReports } from "./reports/demo-management-reports"
 import { ManagementReports } from "./reports/management-reports"
 import { getDataConfig } from "@/lib/data/config"
 import { useReports } from "@/lib/hooks/useReports"
@@ -254,7 +255,7 @@ function LegacyReportsTab() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Relatórios</h2>
           <p className="text-muted-foreground">
-            Análise de vendas e geração de relatórios
+            Vendas realizadas, incluindo valores lançados na hospedagem. Consulte Recebimentos para o dinheiro recebido.
           </p>
         </div>
 
@@ -295,7 +296,7 @@ function LegacyReportsTab() {
           {/* Key Metrics - Always visible */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
             <MetricCard
-              title="Receita Total"
+              title="Vendas de bebidas"
               value={dailySummary.totalRevenue}
               format="currency"
               icon={<DollarSign className="h-5 w-5" />}
@@ -477,6 +478,6 @@ export function ReportsTab() {
       {can("reports.read") && <Button variant={current === "reports" ? "default" : "outline"} onClick={() => setView("reports")}>Indicadores</Button>}
       <Button variant={current === "planning" ? "default" : "outline"} onClick={() => setView("planning")}>Planejamento</Button>
     </nav>}
-    {current === "planning" ? <FinancialCadastrosManagement sections={["budget"]} /> : getDataConfig().adapter === "database" ? <ManagementReports /> : <LegacyReportsTab />}
+    {current === "planning" ? <FinancialCadastrosManagement sections={["budget"]} /> : getDataConfig().adapter === "database" ? <ManagementReports /> : <DemoManagementReports beverages={<LegacyReportsTab />} />}
   </div>
 }

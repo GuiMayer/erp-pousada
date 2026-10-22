@@ -19,7 +19,7 @@ describe("Origens e saldos dos cenários de demonstração", () => {
       const stay = snapshot.stays.find(s => s.id === title.sourceStayId)!
       expect(stay.status).toBe("closed")
       expect(title.customerId).toBe(stay.payerId)
-      expect(title.value - title.paidValue).toBe(stayBalance(stay).balance)
+      expect(title.value - (title.paidValue ?? 0)).toBe(stayBalance(stay).balance)
       expect(title.description).toContain(stay.reservationId)
     }
     expect(snapshot.stays.some(s => s.status === "active" && s.charges.length > 0 && stayBalance(s).consumptionBalance === 0)).toBe(true)
