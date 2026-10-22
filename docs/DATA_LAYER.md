@@ -151,7 +151,7 @@ Production data uses PostgreSQL through Next.js API routes. Browser repositories
 - **Client**: `lib/db/client.ts`
 - **Schema**: `prisma/schema.prisma`
 - **Relational tables**: rooms, reservations, finance, POS, restaurant, stock, employees, users, settings, audit
-- **Legacy table**: `local_data_entries` remains only for fallback and migration compatibility
+- **Historical schema**: `local_data_entries` remains in applied schema history; the current application has no JSONB fallback adapter or conversion command.
 - **Default local URL**: `postgresql://pousada_dev:local-development-only@127.0.0.1:5432/pousada_dev`
 - **Runtime scope**: Prisma stays server-side; do not import it in client components
 - **Cloud path**: keep repository code unchanged, then point `DATABASE_URL` to a managed PostgreSQL provider when needed
@@ -200,37 +200,7 @@ await replaceCollection("rooms", rooms)
 
 ### Legacy JSON Migration
 
-Older versions stored production collections in the `local_data_entries` JSONB table. Use the migration tool after applying relational migrations:
-
-```bash
-pnpm db:migrate-local-data
-```
-
-The Windows maintenance menu also exposes `Migrar dados legados para tabelas relacionais`. It creates a backup before running the migration.
-
-This migration copies recognized collection keys into relational tables. It does not delete `local_data_entries`; keep it until the converted data is verified.
-
-### Storage Limits
-
-- **localStorage quota**: ~5-10MB depending on browser
-- **Monitoring**: Use `getStorageUsage()` to check current usage
-- **Cleanup**: Automatic when reaching 80% of quota
-
-### Data Export/Import
-
-```typescript
-const { exportData, importData, clearAllData } = useApp()
-
-// Export all data as JSON
-const json = await exportData()
-// Save to file or send to server
-
-// Import data from JSON
-await importData(json)
-
-// Clear all data (use with caution!)
-await clearAllData()
-```
+The application has never been deployed with operational data in this table. The unused JSONB adapter and `db:migrate-local-data` command were removed. Operational imports use the reviewed initial-import workflow or the authenticated backup/restore flow. The historical table and applied migrations remain unchanged; removing a database object requires a separate new migration.
 
 ## Multi-User Support
 

@@ -166,7 +166,7 @@ pnpm dev
 
 Reinicie o servidor de desenvolvimento sempre que trocar o modo de dados. O endereço de banco acima corresponde à configuração local de exemplo do Compose.
 
-No modo `database`, o navegador acessa `/api/data`, e as coleções mapeadas são persistidas em tabelas relacionais via Prisma. O adaptador JSONB legado permanece apenas para migração. Consulte o [mapa do domínio](docs/DATABASE_DOMAIN_MAP.md) para os detalhes da transição.
+No modo `database`, o navegador acessa `/api/data`, e as coleções mapeadas são persistidas em tabelas relacionais via Prisma. A persistência operacional usa as tabelas relacionais; o adaptador JSONB e sua ferramenta de conversão foram retirados. Consulte o [mapa do domínio](docs/DATABASE_DOMAIN_MAP.md) para os detalhes da transição.
 
 ## Execução com Docker
 

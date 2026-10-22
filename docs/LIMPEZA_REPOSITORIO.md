@@ -11,3 +11,7 @@ O arquivo continua ignorado pelo Git. Este commit registra a limpeza sem version
 ## Documentação
 
 Os planos de SQLite/Electron e os relatos antigos de testes/refatoração foram movidos para `docs/history/`, com aviso histórico. Os requisitos e a comparação antiga do restaurante foram movidos para `modules/abandoned/restaurant/docs/`. O conteúdo foi preservado, e o link do README foi atualizado. Os requisitos, sprints, guias de operação e relatórios atuais permanecem nas localizações existentes.
+
+## Código substituído
+
+Foram retirados aliases e telas sem entrada ativa, a folha CSS duplicada, utilitários antigos de autenticação/sincronização/estoque, o adaptador JSONB e seu comando de conversão. Os quatro hooks de carrinho, desconto, busca de hóspedes e pagamento sem uso foram removidos com os testes exclusivos dessas implementações. A autenticação, estoque transacional, sincronização atual, importação inicial e restauração continuam nos fluxos atuais. O esquema e as migrações aplicadas foram preservados.
