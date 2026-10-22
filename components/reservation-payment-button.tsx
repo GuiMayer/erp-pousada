@@ -1,4 +1,5 @@
 "use client";
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { PermissionGate } from "@/components/permission-gate";
 import { reservationAmounts } from "@/lib/reservation-amounts";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -64,7 +65,7 @@ export function ReservationPaymentDialog({
       mixedEnabled
       open={open}
       onClose={onClose}
-      title={`Hospedagem — ${reservation.guestName}${credit ? ` · crédito R$ ${credit.toFixed(2)}` : ""}`}
+      title={`Hospedagem — ${reservation.guestName}${credit ? ` · crédito R$ ${localizedNumber(credit, 2)}` : ""}`}
       maximum={balance}
       allowCredit={credit > 0}
       onConfirm={async (paymentMethod, accountId, value, payments) => {

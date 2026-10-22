@@ -66,7 +66,7 @@ describe('Controles de pagamento da Sprint 3',()=>{
     for(const checkbox of screen.getAllByRole('checkbox'))fireEvent.click(checkbox)
     fireEvent.change(screen.getByLabelText('Receber de Título A'),{target:{value:'250'}})
     fireEvent.change(screen.getByLabelText('Receber de Título B'),{target:{value:'250'}})
-    fireEvent.click(screen.getByRole('button',{name:'Receber R$ 500.00'}))
+    fireEvent.click(screen.getByRole('button',{name:'Receber R$ 500,00'}))
     expect(screen.getByLabelText('Valor a receber')).toBeDisabled()
     fireEvent.click(screen.getByText('Confirmar pagamento'))
     await waitFor(()=>expect(state.runOperation).toHaveBeenCalledWith('receive-batch',expect.objectContaining({targets:[{accountReceivableId:'a',recordVersion:4,value:250,installmentId:undefined},{accountReceivableId:'b',recordVersion:7,value:250,installmentId:undefined}]})))

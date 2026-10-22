@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/utils/formatters"
 import { z } from "zod"
 import type { DataStore } from "./types"
 import type { CashClose } from "@/lib/store"
@@ -72,7 +73,7 @@ export function demoCashOperation(store: DataStore, kind: string, payload: unkno
     if (retainedValue > physicalValue) throw Error("O fundo não pode exceder o dinheiro contado")
     if (turn.status !== "aberto") throw Error("Caixa já fechado")
     const values = totals(turn), divergence = (cents(physicalValue) - cents(values.expectedValue)) / 100, withdrawnValue = (cents(physicalValue) - cents(retainedValue)) / 100
-    if (divergence && !input.closingReason) throw new ApiError(`Há diferença no caixa. Esperado: R$ ${values.expectedValue.toFixed(2)}. Contado: R$ ${physicalValue.toFixed(2)}. Diferença: R$ ${divergence.toFixed(2)}. Reconte ou informe uma justificativa.`, 409, "CASH_DIFFERENCE")
+    if (divergence && !input.closingReason) throw new ApiError(`Há diferença no caixa. Esperado: ${formatCurrency(values.expectedValue)}. Contado: ${formatCurrency(physicalValue)}. Diferença: ${formatCurrency(Number(divergence))}. Reconte ou informe uma justificativa.`, 409, "CASH_DIFFERENCE")
     if (input.withdrawalAccountId) {
       demand("cash.move")
       const account = (await staged.bankAccounts.getAll()).find(a => a.id === input.withdrawalAccountId && a.active)

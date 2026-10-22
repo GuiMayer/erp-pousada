@@ -42,7 +42,7 @@ describe("Fila de reservas aguardando chegada", () => {
     render(<ReservationsTab />)
     expect(screen.getAllByRole("row")).toHaveLength(2)
     expect(screen.getByText("101, 102")).toBeInTheDocument()
-    expect(screen.getByText(/350,00/)).toBeInTheDocument()
+    expect(screen.getByText(/Total:.*350,00/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Abrir grupo dos quartos 101, 102" }))
     const first = screen.getByRole("region", { name: "Reserva do quarto 101" })
     const second = screen.getByRole("region", { name: "Reserva do quarto 102" })

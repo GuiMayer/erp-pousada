@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
@@ -28,8 +29,8 @@ export function MetricCard({
   const formattedValue = format === 'currency' 
     ? formatCurrency(Number(value))
     : format === 'percentage'
-    ? `${Number(value).toFixed(1)}%`
-    : value
+    ? `${localizedNumber(Number(value), 1)}%`
+    : typeof value === "number" ? localizedNumber(value, 0) : value
 
   const getTrendIcon = () => {
     if (!trend) return null
@@ -60,7 +61,7 @@ export function MetricCard({
           <div className="flex items-center gap-1 mt-2">
             {getTrendIcon()}
             <span className={cn("text-xs font-medium", getTrendColor())}>
-              {trend.value > 0 ? '+' : ''}{trend.value.toFixed(1)}%
+              {trend.value > 0 ? '+' : ''}{localizedNumber(trend.value, 1)}%
             </span>
             <span className="text-xs text-muted-foreground">{trend.label}</span>
           </div>

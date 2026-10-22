@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -46,7 +47,7 @@ export function PaymentMethodChart({ data, enableAnimations = true }: PaymentMet
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Vendas por Forma de Pagamento</CardTitle>
+          <CardTitle>Vendas por forma de cobrança</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-[300px]">
           <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
@@ -58,7 +59,7 @@ export function PaymentMethodChart({ data, enableAnimations = true }: PaymentMet
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Vendas por Forma de Pagamento</CardTitle>
+        <CardTitle>Vendas por forma de cobrança</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>
@@ -91,7 +92,7 @@ export function PaymentMethodChart({ data, enableAnimations = true }: PaymentMet
                       <div key="tooltip" className="flex flex-col gap-1">
                         <span className="font-medium">{formatCurrency(value as number)}</span>
                         <span className="text-xs text-muted-foreground">
-                          {item?.count} transações ({item?.percentage.toFixed(1)}%)
+                          {item?.count} transações ({localizedNumber(item?.percentage, 1)}%)
                         </span>
                       </div>,
                       name

@@ -8,9 +8,20 @@ import { businessDay } from "./business-values"
  * @param value - The numeric value to format
  * @returns Formatted currency string (e.g., "R$ 1.234,56")
  */
-export function formatCurrency(value: number): string {
-  // Use toLocaleString and replace non-breaking space with regular space for consistency
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/\u00A0/g, ' ')
+const numberFormats = new Map<string, Intl.NumberFormat>()
+export function formatNumber(value: number | null | undefined, decimals = 2, useGrouping = true): string {
+  if (value == null || !Number.isFinite(value)) return "—"
+  const key = `${decimals}:${useGrouping}`
+  let formatter = numberFormats.get(key)
+  if (!formatter) { formatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping }); numberFormats.set(key, formatter) }
+  return formatter.format(value)
+}
+export function formatCurrency(value: number, decimals = 2): string {
+  if (!Number.isFinite(value)) return "—"
+  return `${value < 0 ? "-" : ""}R$ ${formatNumber(Math.abs(value), decimals)}`
+}
+export function formatPercent(value: number, decimals = 1): string {
+  return Number.isFinite(value) ? `${formatNumber(value, decimals)}%` : "—"
 }
 
 /**

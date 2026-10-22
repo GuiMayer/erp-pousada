@@ -1,4 +1,6 @@
 "use client"
+import { receivableAmounts } from "@/lib/receivable-amounts"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { GuestsManagement } from "./guests-management"
 import { PersonDossier } from "./person-dossier"
 import { getDataConfig } from "@/lib/data/config"
@@ -679,10 +681,7 @@ export default function CustomersManagement() {
                     Valor Pendente
                   </div>
                   <div className="text-2xl font-bold">
-                    R$ {getCustomerAccountsReceivable(selectedCustomer.id)
-                      .filter(ar => ar.status === "pendente" || ar.status === "vencido")
-                      .reduce((sum, ar) => sum + ar.value, 0)
-                      .toFixed(2)}
+                    R$ {localizedNumber(receivableAmounts(getCustomerAccountsReceivable(selectedCustomer.id)).balance, 2)}
                   </div>
                 </div>
                 <div className="rounded-lg border p-4">
@@ -691,10 +690,7 @@ export default function CustomersManagement() {
                     Total Pago
                   </div>
                   <div className="text-2xl font-bold text-green-600 dark:text-success">
-                    R$ {getCustomerAccountsReceivable(selectedCustomer.id)
-                      .filter(ar => ar.status === "pago")
-                      .reduce((sum, ar) => sum + ar.value, 0)
-                      .toFixed(2)}
+                    R$ {localizedNumber(receivableAmounts(getCustomerAccountsReceivable(selectedCustomer.id)).received, 2)}
                   </div>
                 </div>
               </div>
@@ -718,7 +714,7 @@ export default function CustomersManagement() {
                           .map((ar) => (
                             <TableRow key={ar.id}>
                               <TableCell>{ar.description}</TableCell>
-                              <TableCell>R$ {ar.value.toFixed(2)}</TableCell>
+                              <TableCell>R$ {localizedNumber(receivableAmounts([ar]).balance, 2)}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
                                   <Calendar className="h-4 w-4 text-muted-foreground" />

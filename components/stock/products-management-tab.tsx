@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { MobileSummary } from "@/components/mobile-summary"
 import { PermissionGate } from "@/components/permission-gate"
 
@@ -246,7 +247,7 @@ export function ProductsManagementTab({targetId}:{targetId?:string}={}) {
                       {getCategoryName(product.categoryId)}
                     </Badge>
                   </TableCell>
-                  <TableCell>R$ {product.price.toFixed(2)}</TableCell>
+                  <TableCell>R$ {localizedNumber(product.price, 2)}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {product.barcode || "-"}
                   </TableCell>

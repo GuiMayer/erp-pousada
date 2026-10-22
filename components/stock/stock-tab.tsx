@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useTaskState } from "@/contexts/task-drafts-context"
 import { InventoryWorkspace } from "./inventory-workspace"
 import { getDataConfig } from "@/lib/data/config"
@@ -187,7 +188,7 @@ export function StockTab() {
                   </TableCell>
                   <TableCell>{item.minimumStock} {item.unit}</TableCell>
                   <TableCell>{item.maximumStock} {item.unit}</TableCell>
-                  <TableCell>R$ {item.averageCost.toFixed(2)}</TableCell>
+                  <TableCell>R$ {localizedNumber(item.averageCost, 2)}</TableCell>
                   <TableCell>{getStatusBadge(item)}</TableCell>
                   <TableCell className="text-right">
                     <PermissionGate permission="stock.adjust"><Button

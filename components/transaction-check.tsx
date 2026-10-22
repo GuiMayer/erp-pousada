@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useState } from 'react'
 import { useApp } from '@/lib/app-context'
 import { useAuth } from '@/lib/auth-context'
@@ -14,7 +15,7 @@ export function TransactionCheck({transaction,onDone}:{transaction:Transaction;o
     {transaction.originType&&<p>Origem: {transaction.originType} · {transaction.originId}</p>}
     {transaction.batchId&&<p className="break-all">Grupo de pagamento: {transaction.batchId}</p>}
     {transaction.reversalOfId&&<p className="break-all">Estorno de: {transaction.reversalOfId}</p>}
-    {transaction.allocations?.map(a=><p key={a.id} className="break-all">{a.targetType} · {a.targetId}: R$ {a.value.toFixed(2)}</p>)}
+    {transaction.allocations?.map(a=><p key={a.id} className="break-all">{a.targetType} · {a.targetId}: R$ {localizedNumber(a.value, 2)}</p>)}
     {transaction.accountId&&<><p>{transaction.checkedAt?'Conferido manualmente':'Ainda não conferido no extrato bancário'}{transaction.checkNote&&`: ${transaction.checkNote}`}</p>{can('transactions.check')&&<><Input aria-label="Justificativa da conferência" placeholder="Justificativa (mínimo 5 caracteres)" value={note} disabled={pending} onChange={e=>setNote(e.target.value)}/><Button disabled={pending||note.trim().length<5} onClick={submit}>{pending?'Registrando…':transaction.checkedAt?'Desmarcar conferência':'Marcar como conferido'}</Button></>}</>}
     {error&&<p role="alert" className="text-destructive">{error}</p>}
   </div>

@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/utils/formatters"
 import { receiveTargets, payExpense } from "./settlements"
 import { receiveStay, stayInclude } from "./stays"
 import { requireVersion } from "./concurrency"
@@ -85,7 +86,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     const entries = await tx.transaction.findMany({ where: { cashSessionId: session.id } })
     const expectedValue = entries.reduce((sum, entry) => cashIncoming(entry.type) ? sum.plus(entry.value) : sum.minus(entry.value), session.openingValue)
     const divergence = D(physicalValue).minus(expectedValue)
-    if (!divergence.isZero() && !input.closingReason) throw new HttpError(409, `Há diferença no caixa. Esperado: R$ ${expectedValue.toFixed(2)}. Contado: R$ ${physicalValue.toFixed(2)}. Diferença: R$ ${divergence.toFixed(2)}. Reconte ou informe uma justificativa.`, { code: "CASH_DIFFERENCE" })
+    if (!divergence.isZero() && !input.closingReason) throw new HttpError(409, `Há diferença no caixa. Esperado: ${formatCurrency(Number(expectedValue))}. Contado: ${formatCurrency(physicalValue)}. Diferença: ${formatCurrency(Number(divergence))}. Reconte ou informe uma justificativa.`, { code: "CASH_DIFFERENCE" })
     const retainedValue = D(input.retainedValue ?? physicalValue)
     if (retainedValue.gt(physicalValue)) throw new HttpError(400, "O fundo não pode exceder o dinheiro contado")
     const withdrawnValue = D(physicalValue).minus(retainedValue)

@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useTaskState } from "@/contexts/task-drafts-context"
 import { TransactionCheck } from "./transaction-check"
 import { PermissionGate } from "@/components/permission-gate"
@@ -711,7 +712,7 @@ export function FinancialTab() {
       </Dialog>
 
       {/* Refund modal */}
-      <PaymentDialog key={payingExpense?.id ?? "empty"} mixedEnabled={getDataConfig().adapter==="database"} maximum={payingExpense ? payingExpense.value-(payingExpense.paidValue??0) : undefined} open={!!payingExpense} onClose={() => setPayingExpense(null)} title={`Pagar despesa — ${payingExpense?.description || ""} · R$ ${(payingExpense?.value ?? 0).toFixed(2)}`} onConfirm={async (paymentMethod, accountId,value,payments) => {
+      <PaymentDialog key={payingExpense?.id ?? "empty"} mixedEnabled={getDataConfig().adapter==="database"} maximum={payingExpense ? payingExpense.value-(payingExpense.paidValue??0) : undefined} open={!!payingExpense} onClose={() => setPayingExpense(null)} title={`Pagar despesa — ${payingExpense?.description || ""} · R$ ${localizedNumber((payingExpense?.value ?? 0), 2)}`} onConfirm={async (paymentMethod, accountId,value,payments) => {
         if (!payingExpense) return
         await runOperation("pay-expense", { expenseId: payingExpense.expenseId, recordVersion: payingExpense.recordVersion, installmentId: payingExpense.installmentId, paymentMethod, accountId,value,payments })
       }} />

@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 import { useTaskState, useTaskRef } from "@/contexts/task-drafts-context"
 import { CashWorkspace } from "./cash-workspace"
@@ -667,7 +668,7 @@ export function POSTab() {
                       </span>
                     </div>
                     <div className="text-muted-foreground">
-                      {item.quantity}x {item.product.price.toFixed(2)}
+                      {item.quantity}x {localizedNumber(item.product.price, 2)}
                       {item.discount > 0 && ` (-${item.discount}%)`}
                     </div>
                   </div>
@@ -676,24 +677,24 @@ export function POSTab() {
                 {lastSale.discount > 0 && (
                   <div className="flex justify-between text-success">
                     <span>Desconto:</span>
-                    <span className="tabular-nums">-{lastSale.discount.toFixed(2)}</span>
+                    <span className="tabular-nums">-{localizedNumber(lastSale.discount, 2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-base font-bold">
                   <span>TOTAL:</span>
-                  <span className="tabular-nums">{lastSale.total.toFixed(2)}</span>
+                  <span className="tabular-nums">{localizedNumber(lastSale.total, 2)}</span>
                 </div>
                 <Separator className="my-2" />
                 <div className="flex justify-between">
                   <span>{lastSale.paymentMethod}:</span>
-                  <span className="tabular-nums">{lastSale.amountPaid.toFixed(2)}</span>
+                  <span className="tabular-nums">{localizedNumber(lastSale.amountPaid, 2)}</span>
                 </div>
                 {lastSale.payments?.map((payment, index) => <div key={index} className="flex justify-between text-xs"><span>{payment.method}</span><span>{formatCurrency(payment.applied ?? payment.value)}</span></div>)}
                 {lastSale.stayId && <p className="text-xs">Lançado na conta da hospedagem; sem recebimento no balcão.</p>}
                 {lastSale.change > 0 && (
                   <div className="flex justify-between">
                     <span>Troco:</span>
-                    <span className="tabular-nums">{lastSale.change.toFixed(2)}</span>
+                    <span className="tabular-nums">{localizedNumber(lastSale.change, 2)}</span>
                   </div>
                 )}
                 <Separator className="my-2" />

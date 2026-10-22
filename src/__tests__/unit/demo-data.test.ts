@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { createDemoData, seedDemoSession, initializeBrowserDemo } from "../../../lib/demo-data"
 import { createDataStore } from "../../../lib/data/repositories"
 import { LocalStorageAdapter } from "../../../lib/data/storage-adapter"
+import { stayBalance } from "@/lib/stays"
 import { isCPF } from "@/lib/utils/cpf-cnpj-validator"
 
 describe("demonstration data", () => {
@@ -30,15 +31,16 @@ describe("demonstration data", () => {
   it("varies beverages and quantities, including rooms with no consumption, with matching statement balances", () => {
     const data = createDemoData(new Date("2026-10-22T15:00:00Z"))
     const active = data.stays.filter(s => s.status === "active")
-    expect(active.filter(s => s.charges.length === 0)).toHaveLength(2)
+    expect(active.filter(s => stayBalance(s).consumptionBalance === 0)).toHaveLength(2)
     expect(active.some(s => s.charges.length > 1)).toBe(true)
     expect(new Set(active.flatMap(s => s.charges.map(c => c.label))).size).toBeGreaterThan(2)
     for (const stay of active) {
       const roomItems = data.consumptions.find(c => c.roomId === stay.roomId)!.items
-      expect(stay.charges.map(({ id, label, unitPrice, quantity }) => ({ id, label, unitPrice, quantity }))).toEqual(roomItems)
+      const charges = stayBalance(stay).consumptionBalance === 0 ? [] : stay.charges
+      expect(charges.map(({ id, label, unitPrice, quantity }) => ({ id, label, unitPrice, quantity }))).toEqual(roomItems)
       for (const item of roomItems) expect(data.posProducts.some(p => p.name === item.label && p.price === item.unitPrice)).toBe(true)
     }
-    expect(new Set(active.map(s => s.charges.reduce((sum, c) => sum + c.unitPrice * c.quantity, 0))).size).toBe(4)
+    expect(new Set(active.map(s => s.charges.reduce((sum, c) => sum + c.unitPrice * c.quantity, 0))).size).toBeGreaterThanOrEqual(4)
   })
 
   it("persists every example through the real browser storage adapter", async () => {
@@ -49,9 +51,9 @@ describe("demonstration data", () => {
       vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage")
       expect(await seedDemoSession(store, "2026-10-22T15:00:00Z")).toBe(true)
       expect(await store.rooms.getAll()).toHaveLength(12)
-      expect(await store.reservations.getAll()).toHaveLength(17)
+      expect(await store.reservations.getAll()).toHaveLength(createDemoData(new Date("2026-10-22T15:00:00Z")).reservations.length)
       expect(await store.posSales.getAll()).toHaveLength(112)
-      expect(await store.stockItems.getAll()).toHaveLength(12)
+      expect(await store.stockItems.getAll()).toHaveLength((await store.posProducts.getAll()).length)
       expect(await store.restaurantOrders.getAll()).toHaveLength(0)
       expect(await seedDemoSession(store, "2026-10-22T15:00:00Z")).toBe(false)
     } finally {

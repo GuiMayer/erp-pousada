@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -47,7 +48,7 @@ export function PaymentDialog({ open, onClose, title, maximum, allowCredit, mixe
     finally { setPending(false) }
   }
   return <Dialog open={open} onOpenChange={value => { if (!value && !pending) onClose() }}><DialogContent mobileTask protectDraft busy={pending}><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Confirme o valor e os meios de pagamento. O saldo restante continua em aberto.</DialogDescription></DialogHeader>
-    {maximum !== undefined && <Label>Valor a receber (saldo: R$ {maximum.toFixed(2)})<Input aria-label="Valor a receber" disabled={pending || fixedAmount} type="number" min="0.01" max={maximum} step="0.01" value={amount} placeholder={maximum.toFixed(2)} onChange={event => setAmount(event.target.value)} /></Label>}
+    {maximum !== undefined && <Label>Valor a receber (saldo: R$ {localizedNumber(maximum, 2)})<Input aria-label="Valor a receber" disabled={pending || fixedAmount} type="number" min="0.01" max={maximum} step="0.01" value={amount} placeholder={maximum.toFixed(2)} onChange={event => setAmount(event.target.value)} /></Label>}
     <fieldset disabled={pending} className="space-y-3">{mixed?<PaymentEditor total={Number(amount||maximum||0)} lines={lines} onChange={setLines}/>:<PaymentFields method={method} setMethod={setMethod} accountId={accountId} setAccountId={setAccountId} allowCredit={allowCredit} />}{mixedEnabled&&maximum!==undefined&&<Button variant="outline" onClick={()=>{setMixed(!mixed);setLines([{method:method==='credito_hospede'?'pix':method,value:Number(amount||maximum),accountId:method==='dinheiro'?undefined:accountId||undefined}])}}>{mixed?'Usar uma forma de pagamento':'Dividir entre formas de pagamento'}</Button>}</fieldset>
     {needsCash && <div role="status" className="rounded border p-3 text-sm"><p>Abra o caixa para receber em dinheiro. Este pagamento será mantido.</p><CashTurnShortcut /></div>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}<DialogFooter><Button disabled={pending || needsCash} onClick={confirm}>{pending ? "Registrando..." : "Confirmar pagamento"}</Button></DialogFooter>

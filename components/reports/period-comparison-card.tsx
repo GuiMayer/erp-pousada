@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
@@ -59,7 +60,7 @@ export function PeriodComparisonCard({ currentPeriod, previousPeriod }: PeriodCo
               <div className="flex items-center gap-2">
                 {getTrendIcon(revenueChange)}
                 <span className={cn("text-sm font-medium", getTrendColor(revenueChange))}>
-                  {revenueChange > 0 ? '+' : ''}{revenueChange.toFixed(1)}%
+                  {revenueChange > 0 ? '+' : ''}{localizedNumber(revenueChange, 1)}%
                 </span>
               </div>
             </div>
@@ -84,7 +85,7 @@ export function PeriodComparisonCard({ currentPeriod, previousPeriod }: PeriodCo
               <div className="flex items-center gap-2">
                 {getTrendIcon(transactionsChange)}
                 <span className={cn("text-sm font-medium", getTrendColor(transactionsChange))}>
-                  {transactionsChange > 0 ? '+' : ''}{transactionsChange.toFixed(1)}%
+                  {transactionsChange > 0 ? '+' : ''}{localizedNumber(transactionsChange, 1)}%
                 </span>
               </div>
             </div>
@@ -109,7 +110,7 @@ export function PeriodComparisonCard({ currentPeriod, previousPeriod }: PeriodCo
               <div className="flex items-center gap-2">
                 {getTrendIcon(ticketChange)}
                 <span className={cn("text-sm font-medium", getTrendColor(ticketChange))}>
-                  {ticketChange > 0 ? '+' : ''}{ticketChange.toFixed(1)}%
+                  {ticketChange > 0 ? '+' : ''}{localizedNumber(ticketChange, 1)}%
                 </span>
               </div>
             </div>

@@ -4,7 +4,7 @@ import { roundMoney } from "./business-values"
  * Consolidates pricing logic to ensure consistency across the application
  */
 
-import { LOCALE, CURRENCY_OPTIONS } from "./constants"
+import { formatCurrency as localizedCurrency, formatNumber, formatPercent } from "./formatters"
 
 export interface CartItem {
   product: {
@@ -52,14 +52,14 @@ export function calculateTotal(items: CartItem[], globalDiscountAmount: number =
  * Format currency value to BRL with locale formatting
  */
 export function formatCurrency(value: number): string {
-  return value.toLocaleString(LOCALE, CURRENCY_OPTIONS)
+  return localizedCurrency(value)
 }
 
 /**
  * Format currency value to fixed decimal string (without currency symbol)
  */
 export function formatCurrencyFixed(value: number, decimals: number = 2): string {
-  return value.toFixed(decimals)
+  return formatNumber(value, decimals)
 }
 
 /**
@@ -67,14 +67,14 @@ export function formatCurrencyFixed(value: number, decimals: number = 2): string
  * Use this for displaying prices in the UI
  */
 export function formatPrice(value: number, decimals: number = 2): string {
-  return `R$ ${value.toFixed(decimals)}`
+  return localizedCurrency(value, decimals)
 }
 
 /**
  * Format percentage value with fixed decimals
  */
 export function formatPercentage(value: number, decimals: number = 1): string {
-  return `${value.toFixed(decimals)}%`
+  return formatPercent(value, decimals)
 }
 
 /**
@@ -82,5 +82,5 @@ export function formatPercentage(value: number, decimals: number = 1): string {
  */
 export function formatPercentageChange(value: number, decimals: number = 1): string {
   const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(decimals)}%`
+  return `${sign}${formatPercent(value, decimals)}`
 }

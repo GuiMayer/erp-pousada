@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/utils/formatters"
 import { z } from "zod";
 import { businessMonthBounds } from "@/lib/utils/business-values";
 export const reportSections = [
@@ -105,7 +106,7 @@ export function spreadCents(total: number, days: string[]) {
 }
 export function reportCSV(report: ManagementReport) {
   const cell = (v: unknown) => {
-    let s = String(v ?? "");
+    let s = typeof v === "number" ? formatNumber(v, Math.min(12, (String(v).split(".")[1] ?? "").length), false) : String(v ?? "");
     if (typeof v !== "number" && /^[\s]*[=+@-]/.test(s)) s = "'" + s;
     return '"' + s.replaceAll('"', '""') + '"';
   };

@@ -1,3 +1,4 @@
+import { formatCurrency, formatNumber, formatPercent } from "./formatters"
 /**
  * CSV Export Utilities
  * 
@@ -10,23 +11,13 @@ export function exportToCSV(data: any[], filename: string) {
     return
   }
 
-  // Get headers from first object
   const headers = Object.keys(data[0])
-  
-  // Create CSV content
-  const csvContent = [
-    headers.join(','),
-    ...data.map(row => 
-      headers.map(header => {
-        const value = row[header]
-        // Escape values that contain commas or quotes
-        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-          return `"${value.replace(/"/g, '""')}"`
-        }
-        return value
-      }).join(',')
-    )
-  ].join('\n')
+  const cell = (value: unknown) => {
+    let text = typeof value === "number" ? formatNumber(value, Math.min(12, (String(value).split(".")[1] ?? "").length), false) : String(value ?? "")
+    if (typeof value !== "number" && /^[\s]*[=+@-]/.test(text)) text = "'" + text
+    return '"' + text.replaceAll('"', '""') + '"'
+  }
+  const csvContent = "\uFEFF" + [headers.map(cell).join(";"), ...data.map(row => headers.map(header => cell(row[header])).join(";"))].join("\r\n")
 
   // Create blob and download
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -40,13 +31,14 @@ export function exportToCSV(data: any[], filename: string) {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 export function exportDailySummaryToCSV(summary: any, date: string) {
   const data = [{
     Data: date,
     'Total Vendas': summary.totalSales,
-    'Receita Total': summary.totalRevenue,
+    'Vendas de bebidas': summary.totalRevenue,
     'Ticket Médio': summary.averageTicket,
     'Transações': summary.transactionCount,
     'Dinheiro': summary.cashRevenue,
@@ -76,7 +68,7 @@ export function exportSalesByCategoryToCSV(categories: any[], date: string) {
     'Categoria': c.category,
     'Receita': c.revenue,
     'Quantidade': c.quantity,
-    'Percentual': c.percentage.toFixed(2) + '%',
+    'Percentual': formatPercent(c.percentage, 2),
   }))
   
   exportToCSV(data, `vendas-por-categoria-${date}`)
@@ -87,7 +79,7 @@ export function exportPaymentMethodToCSV(methods: any[], date: string) {
     'Forma de Pagamento': m.method,
     'Receita': m.revenue,
     'Quantidade': m.count,
-    'Percentual': m.percentage.toFixed(2) + '%',
+    'Percentual': formatPercent(m.percentage, 2),
   }))
   
   exportToCSV(data, `formas-pagamento-${date}`)
@@ -127,7 +119,7 @@ export function exportCompleteReport(
     { Seção: 'RESUMO GERAL', Valor: '' },
     { Seção: 'Data', Valor: summary.date },
     { Seção: 'Total de Vendas', Valor: summary.totalSales },
-    { Seção: 'Receita Total', Valor: summary.totalRevenue },
+    { Seção: 'Vendas de bebidas', Valor: summary.totalRevenue },
     { Seção: 'Ticket Médio', Valor: summary.averageTicket },
     { Seção: 'Transações', Valor: summary.transactionCount },
     { Seção: '', Valor: '' },
@@ -140,13 +132,13 @@ export function exportCompleteReport(
     { Seção: 'TOP 5 CATEGORIAS', Valor: '' },
     ...categories.slice(0, 5).map(c => ({
       Seção: c.category,
-      Valor: `R$ ${c.revenue.toFixed(2)} (${c.percentage.toFixed(1)}%)`,
+      Valor: `${formatCurrency(c.revenue)} (${formatPercent(c.percentage)})`,
     })),
     { Seção: '', Valor: '' },
     { Seção: 'TOP 5 PRODUTOS', Valor: '' },
     ...topProducts.slice(0, 5).map((p, i) => ({
       Seção: `${i + 1}. ${p.productName}`,
-      Valor: `${p.quantity} un - R$ ${p.revenue.toFixed(2)}`,
+      Valor: `${p.quantity} un - ${formatCurrency(p.revenue)}`,
     })),
   ]
   

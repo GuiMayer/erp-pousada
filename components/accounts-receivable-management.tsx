@@ -1,4 +1,6 @@
 "use client"
+import { receivableAmounts } from "@/lib/receivable-amounts"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useTaskState } from "@/contexts/task-drafts-context"
 import { PermissionGate } from "@/components/permission-gate"
 
@@ -213,22 +215,17 @@ export function AccountsReceivableManagement() {
     return ar.status === filterStatus
   })
 
-  const totalPending = accountsReceivable
-    .filter(ar => ar.status === "pendente")
-      .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
-
-  const totalOverdue = accountsReceivable
-    .filter(ar => isOverdue(ar))
-    .reduce((sum, ar) => sum + ar.value - (ar.paidValue ?? 0), 0)
-
-  const totalReceived = accountsReceivable
-    .reduce((sum, ar) => sum + (ar.paidValue??(ar.status === "pago" ? ar.value : 0)), 0)
+  const totalPending = receivableAmounts(accountsReceivable.filter(ar => !["pago", "cancelado"].includes(ar.status) && !isOverdue(ar))).balance
+  const totalOverdue = receivableAmounts(accountsReceivable.filter(isOverdue)).balance
+  const totalReceived = receivableAmounts(accountsReceivable).received
+  const pendingPart = payingAccount?.installments?.filter(p => ["pendente", "vencido"].includes(p.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]
+  const paymentMaximum = payingAccount ? pendingPart ? pendingPart.value - (pendingPart.paidValue ?? 0) : receivableAmounts([payingAccount]).balance : undefined
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <PaymentDialog key={payingAccount?.id ?? "empty"} open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · R$ ${(payingAccount?.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]?.value ?? payingAccount?.value ?? 0).toFixed(2)}${payingAccount?.installments?.length ? " — próxima parcela pendente" : ""}`} mixedEnabled={getDataConfig().adapter==='database'} maximum={payingAccount ? (payingAccount.installments?.filter(p=>['pendente','vencido'].includes(p.status)).sort((a,b)=>a.installmentNumber-b.installmentNumber)[0] ? (()=>{const p=payingAccount.installments!.filter(p=>['pendente','vencido'].includes(p.status)).sort((a,b)=>a.installmentNumber-b.installmentNumber)[0];return p.value-(p.paidValue??0)})() : payingAccount.value-(payingAccount.paidValue??0)) : undefined} onConfirm={async (paymentMethod, accountId, value,payments) => {
+        <PaymentDialog key={payingAccount?.id ?? "empty"} open={!!payingAccount} onClose={() => setPayingAccount(null)} title={`Receber ${payingAccount?.description || ""} · saldo R$ ${localizedNumber(paymentMaximum ?? 0, 2)}${pendingPart ? " — próxima parcela pendente" : ""}`} mixedEnabled={getDataConfig().adapter==='database'} maximum={paymentMaximum} onConfirm={async (paymentMethod, accountId, value,payments) => {
         if (!payingAccount) return
         const installment = payingAccount.installments?.filter(part => ["pendente", "vencido"].includes(part.status)).sort((a, b) => a.installmentNumber - b.installmentNumber)[0]
         await runOperation("receive-account", { accountReceivableId: payingAccount.id, recordVersion: payingAccount.recordVersion, installmentId: installment?.id, paymentMethod, accountId, value,payments })
@@ -242,7 +239,7 @@ export function AccountsReceivableManagement() {
           <CardContent>
 
             <div className="text-2xl font-bold">
-              R$ {totalPending.toFixed(2)}
+              R$ {localizedNumber(totalPending, 2)}
             </div>
           </CardContent>
         </Card>
@@ -255,7 +252,7 @@ export function AccountsReceivableManagement() {
           <CardContent>
 
             <div className="text-2xl font-bold text-red-600 dark:text-destructive">
-              R$ {totalOverdue.toFixed(2)}
+              R$ {localizedNumber(totalOverdue, 2)}
             </div>
           </CardContent>
         </Card>
@@ -268,7 +265,7 @@ export function AccountsReceivableManagement() {
           <CardContent>
 
             <div className="text-2xl font-bold text-green-600 dark:text-success">
-              R$ {totalReceived.toFixed(2)}
+              R$ {localizedNumber(totalReceived, 2)}
             </div>
           </CardContent>
         </Card>
@@ -453,7 +450,7 @@ export function AccountsReceivableManagement() {
                         </div>
                       </TableCell>
                       <TableCell>{ar.description}{ar.sourceStayId && stays.find(s => s.id === ar.sourceStayId) && <div className="mt-2"><StayButton stay={stays.find(s => s.id === ar.sourceStayId)!} label="Ver hospedagem" /></div>}</TableCell>
-                      <TableCell>R$ {(ar.value - (ar.paidValue ?? 0)).toFixed(2)}{ar.sourceStayId && <p className="text-xs text-muted-foreground">Original: R$ {ar.value.toFixed(2)} · Recebido: R$ {(ar.paidValue ?? 0).toFixed(2)}</p>}</TableCell>
+                      <TableCell>R$ {localizedNumber((ar.value - (ar.paidValue ?? 0)), 2)}{ar.sourceStayId && <p className="text-xs text-muted-foreground">Original: R$ {localizedNumber(ar.value, 2)} · Recebido: R$ {localizedNumber((ar.paidValue ?? 0), 2)}</p>}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4 text-muted-foreground" />

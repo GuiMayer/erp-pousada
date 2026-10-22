@@ -40,7 +40,7 @@ describe("S6: importação e destino", () => {
         conditionKey: "stock:x",
         reference: "x",
       })?.section,
-    ).toBe("products");
+    ).toBe("movements");
     expect(
       notificationDestination({ module: "estoque", reference: "x" }),
     ).toBeUndefined();

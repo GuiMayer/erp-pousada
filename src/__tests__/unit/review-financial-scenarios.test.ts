@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest"
 import { createDemoData } from "@/lib/demo-data"
 import { stayBalance } from "@/lib/stays"
+import { receivableAmounts } from "@/lib/receivable-amounts"
 import { reservationAmounts } from "@/lib/reservation-amounts"
 import { createDataStore } from "@/lib/data/repositories"
 import { LocalStorageAdapter } from "@/lib/data/storage-adapter"
@@ -8,6 +9,9 @@ import { demoStayOperation } from "@/lib/data/demo-stays"
 
 const data = () => createDemoData(new Date("2026-10-22T15:00:00Z"))
 describe("Origens e saldos dos cenários de demonstração", () => {
+  it("inclui pagamentos parciais no total pago e não repete o valor original como dívida", () => {
+    expect(receivableAmounts([{value:600,paidValue:100,status:"pendente"},{value:50,paidValue:50,status:"pago"},{value:90,paidValue:0,status:"cancelado"}])).toEqual({total:740,received:150,balance:500})
+  })
   it("separa total, recebido e saldo em centavos, inclusive para grupos", () => {
     expect(reservationAmounts([{ totalValue: 600, paidValue: 100 }])).toEqual({ total: 600, received: 100, balance: 500 })
     expect(reservationAmounts([{ totalValue: 0.1, paidValue: 0 }, { totalValue: 0.2, paidValue: 0.1 }])).toEqual({ total: 0.3, received: 0.1, balance: 0.2 })

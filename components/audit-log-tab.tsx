@@ -1,4 +1,5 @@
 "use client"
+import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 
 import { MobileFilters } from "@/components/mobile-filters"
 import { useState, useMemo, useEffect, Fragment } from "react"
@@ -108,7 +109,7 @@ function MetadataDisplay({ metadata }: { metadata?: AuditEntry["metadata"] }) {
       {metadata.amount !== undefined && (
         <div>
           <span className="font-semibold text-muted-foreground">Valor:</span>{" "}
-          R$ {metadata.amount.toFixed(2)}
+          R$ {localizedNumber(metadata.amount, 2)}
         </div>
       )}
     </div>
