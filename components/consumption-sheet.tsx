@@ -5,6 +5,7 @@ import { getDataConfig } from "@/lib/data/config"
 import { useToast } from "@/hooks/use-toast"
 
 import { BankAccountPicker } from "./payment-fields"
+import { CashTurnShortcut } from "./cash-turn-shortcut"
 import { pousadaProducts } from "@/lib/pousada-scope"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -36,7 +37,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   const {
     addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry,
     runOperation, clearConsumption, addTransaction, posProducts,
-    getCategoryName, productCategories, stays = [],
+    getCategoryName, productCategories, stays = [], cashCloses = [],
   } = useApp()
   const { username, can } = useAuth()
   const { toast } = useToast()
@@ -55,6 +56,8 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   }, [open, currentStay?.id])
   const [paymentAccountId, setPaymentAccountId] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("pix")
+  const cashClosed = getDataConfig().adapter === "database" && !cashCloses.some(turn => turn.status === "aberto")
+  const needsCash = cashClosed && paymentMethod === "dinheiro"
   const { sendNotification } = useNotifications()
 
   const [customLabel, setCustomLabel] = useState("")
@@ -132,7 +135,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     try { await removeItem(itemId) } catch (error) { toast({ title: "Item não removido", description: String(error), variant: "destructive" }) }
   }
   async function payConsumption() {
-    if (paying || sendingRef.current) return
+    if (paying || sendingRef.current || needsCash) return
     setPaying(true)
     try {
       if (getDataConfig().adapter === "database") await runOperation("pay-consumption", { roomId: room.id, expectedStayId: expectedStayId.current, recordVersion: currentStay?.recordVersion, paymentMethod, accountId: paymentMethod.toLowerCase() === "dinheiro" ? undefined : paymentAccountId || undefined })
@@ -147,8 +150,8 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={v => { if (!v && !sendingRef.current && !paying) onClose() }}>
-      <SheetContent onEscapeKeyDown={event => { if (sending || paying) event.preventDefault() }} onInteractOutside={event => { if (sending || paying) event.preventDefault() }} className="flex flex-col overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
+      <SheetContent onEscapeKeyDown={event => { if (sending || paying) event.preventDefault() }} onInteractOutside={event => { if (sending || paying) event.preventDefault() }} className="flex flex-col overflow-y-auto p-4 sm:max-w-lg sm:p-5">
+        <SheetHeader className="p-0 pr-6">
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="size-5 text-primary" />
             Consumo - Quarto {room.number}
@@ -158,6 +161,10 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           </SheetDescription>
         </SheetHeader>
 
+        {cashClosed && <div role="status" className="grid gap-2 rounded-lg border bg-secondary/40 p-3 text-sm">
+          <p>Caixa fechado. Você pode lançar o consumo na hospedagem; para receber em dinheiro, abra o caixa.</p>
+          <div><CashTurnShortcut /></div>
+        </div>}
         <div className="flex flex-1 flex-col gap-5 py-4">
           {/* Search and Category Filter */}
           <div className="flex flex-col gap-3">
@@ -294,12 +301,12 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
           </div>
         </div>
 
-        <SheetFooter className="border-t border-border pt-4 flex-col gap-3">
+        <SheetFooter className="border-t border-border px-0 pb-0 pt-4 flex-col gap-3">
           {total > 0 && <div className="flex gap-2">
             <select aria-label="Forma de pagamento" className="rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
             </select>
-            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={changedContext || paying || sending} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
+            <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button disabled={changedContext || paying || sending || needsCash} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>
           </div>}
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col">
