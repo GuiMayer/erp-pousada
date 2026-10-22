@@ -15,3 +15,7 @@ Os planos de SQLite/Electron e os relatos antigos de testes/refatoração foram 
 ## Código substituído
 
 Foram retirados aliases e telas sem entrada ativa, a folha CSS duplicada, utilitários antigos de autenticação/sincronização/estoque, o adaptador JSONB e seu comando de conversão. Os quatro hooks de carrinho, desconto, busca de hóspedes e pagamento sem uso foram removidos com os testes exclusivos dessas implementações. A autenticação, estoque transacional, sincronização atual, importação inicial e restauração continuam nos fluxos atuais. O esquema e as migrações aplicadas foram preservados.
+
+## Interface e recursos
+
+Foram removidos os componentes UI não usados, as cópias antigas de toast/mobile e quatro componentes com testes exclusivos, além de sete imagens placeholder/ícones sem referências. Os componentes `accordion`, `confirmation-dialog` e `scroll-area` foram preservados por terem consumidores no restaurante arquivado. Ícones ativos, biblioteca efetivamente usada, componentes compartilhados e telas atuais foram mantidos. Foram retirados somente os testes exclusivos dos componentes removidos; os testes dos fluxos atuais permanecem.
