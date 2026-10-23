@@ -3,10 +3,11 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { ReservationsTab } from "@/components/reservations-tab"
 import type { Reservation } from "@/lib/store"
 
+const access = vi.hoisted(() => ({ denied: [] as string[] }))
 const app = vi.hoisted(() => ({ reservations: [] as Reservation[], rooms: [], customers: [], systemSettings: { checkInTime: "14:00" } }))
 vi.mock("@/lib/app-context", () => ({ useApp: () => app }))
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ can: () => true }) }))
-vi.mock("@/components/booking-form", () => ({ BookingForm: () => null }))
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ can: (permission: string) => !access.denied.includes(permission) }) }))
+vi.mock("@/components/booking-form", () => ({ BookingForm: ({ reservation }: { reservation?: Reservation }) => <p>Editando {reservation?.id}</p> }))
 vi.mock("@/components/checkin-modal", () => ({ CheckinModal: () => null }))
 vi.mock("@/components/reservation-cancellation-dialog", () => ({ ReservationCancellationDialog: () => null }))
 vi.mock("@/components/reservation-payment-button", () => ({ ReservationPaymentButton: () => null }))
@@ -14,7 +15,7 @@ vi.mock("@/components/reservation-payment-button", () => ({ ReservationPaymentBu
 function booking(status: Reservation["status"], checkIn = "2099-01-02"): Reservation {
   return { id: status, status, guestName: `Hóspede ${status}`, roomId: 1, roomNumber: "101", cpf: "", checkIn, checkOut: "2099-01-03", totalValue: 100 }
 }
-beforeEach(() => { cleanup(); app.reservations = [] })
+beforeEach(() => { cleanup(); app.reservations = []; access.denied = [] })
 
 describe("Fila de reservas aguardando chegada", () => {
   it("mantém reservas futuras e atrasadas, excluindo hospedados e registros concluídos", () => {
@@ -70,4 +71,29 @@ describe("Fila de reservas aguardando chegada", () => {
     expect(screen.getByText("Datas variadas")).toBeInTheDocument()
   })
 
+})
+
+
+it("expõe integrantes fora do filtro e mantém edição destinada ao quarto selecionado", () => {
+ app.reservations = [{...booking("confirmada"),id:"first",groupId:"g",roomNumber:"101"},{...booking("confirmada"),id:"second",groupId:"g",roomNumber:"102"}]
+ render(<ReservationsTab />)
+ fireEvent.change(screen.getByLabelText("Buscar reserva"),{target:{value:"101"}})
+ expect(screen.getByText(/1 de 2 quartos correspondem ao filtro/)).toBeInTheDocument()
+ fireEvent.click(screen.getByRole("button",{name:"Abrir grupo dos quartos 101, 102"}))
+ const second=screen.getByRole("region",{name:"Reserva do quarto 102"})
+ expect(within(second).getByText("Fora do filtro atual")).toBeInTheDocument()
+ fireEvent.pointerDown(within(second).getByRole("button",{name:"Mais ações da reserva second"}),{button:0,ctrlKey:false})
+ fireEvent.click(screen.getByRole("menuitem",{name:"Editar reserva"}))
+ expect(screen.getByText("Editando second")).toBeInTheDocument()
+})
+it("respeita a permissão de leitura e não expõe atalhos de alteração para consulta", () => {
+ app.reservations=[booking("confirmada")]
+ access.denied=["reservations.create","reservations.edit","reservations.discount","reservations.cancel","hospitality.checkin"]
+ const view=render(<ReservationsTab />)
+ expect(screen.queryByRole("button",{name:"Nova reserva"})).not.toBeInTheDocument()
+ expect(screen.queryByRole("button",{name:/Mais ações/})).not.toBeInTheDocument()
+ access.denied.push("reservations.read")
+ view.rerender(<ReservationsTab />)
+ expect(screen.getByRole("status")).toHaveTextContent("Você não tem permissão")
+ expect(screen.queryByRole("table")).not.toBeInTheDocument()
 })

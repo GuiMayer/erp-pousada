@@ -29,5 +29,5 @@ export function reservationWorklist(reservations: Reservation[], customers: Pick
   const size = Math.max(1, Math.floor(pageSize))
   const pageCount = Math.max(1, Math.ceil(selected.length / size))
   const page = Math.max(1, Math.min(Math.floor(requestedPage) || 1, pageCount))
-  return { allGroups, groups: selected.slice((page - 1) * size, page * size), page, pageCount, groupCount: selected.length, matchingCount: matchingIds.size, pendingCount: allGroups.reduce((n, g) => n + g.pending.length, 0), invalidPeriod: !!invalidPeriod }
+  return { matchingIds, allGroups, groups: selected.slice((page - 1) * size, page * size), page, pageCount, groupCount: selected.length, matchingCount: matchingIds.size, pendingCount: allGroups.reduce((n, g) => n + g.pending.length, 0), invalidPeriod: !!invalidPeriod }
 }

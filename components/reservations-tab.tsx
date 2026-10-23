@@ -43,7 +43,7 @@ export function ReservationsTab() {
   const [filters, setFilters] = useTaskState<ReservationFilters>("reservations.filters", emptyReservationFilters, false)
   const [page, setPage] = useTaskState("reservations.page", 1, false)
   const today = businessDay()
-  const list = useMemo(() => reservationWorklist(reservations, customers, filters, today, page), [reservations, customers, filters, today, page])
+  const list = useMemo(() => reservationWorklist(reservations, can("customers.read") ? customers : [], filters, today, page), [reservations, customers, filters, today, page, can])
   useEffect(() => { if (page !== list.page) setPage(list.page) }, [page, list.page, setPage])
   const updateFilter = (patch: Partial<ReservationFilters>) => { setFilters(previous => ({ ...previous, ...patch })); setPage(1) }
   const activeFilters = filters.query || filters.arrival !== "all" || filters.from || filters.until
@@ -57,7 +57,7 @@ export function ReservationsTab() {
     return dates.length === 1 ? date(dates[0]) : "Datas variadas"
   }
   const detail = pendingReservations.find(r => r.id === detailId)
-  const entryEligible = (r: Reservation) => r.status === "confirmada" && r.checkIn <= businessDay() && can("hospitality.checkin")
+  const entryEligible = (r: Reservation) => r.status === "confirmada" && r.checkIn <= today && can("hospitality.checkin")
   const cancelEligible = (r: Reservation) => r.status === "confirmada" && can("reservations.cancel")
   const entryRoom = rooms.find(r => r.id === entry?.roomId)
   function actions(r: Reservation) {
@@ -66,7 +66,7 @@ export function ReservationsTab() {
     const mayCancel = cancelEligible(r)
     const mayMarkAbsent = mayCancel && noShowEligible(r.checkIn, systemSettings.checkInTime)
     return <div className="flex flex-wrap items-center justify-end gap-2" onClick={event => event.stopPropagation()}>
-      {entryEligible(r) && <Button size="sm" onClick={() => { setEntry(r); closeDetails() }}>Fazer check-in</Button>}
+      {entryEligible(r) && <Button size="sm" aria-label={`Fazer check-in de ${r.guestName} no quarto ${r.roomNumber}`} onClick={() => { setEntry(r); closeDetails() }}>Check-in</Button>}
       <ReservationPaymentButton reservation={r} />
       {(mayEdit || mayCancel || mayDiscount) && <DropdownMenu>
         <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-11 shrink-0 sm:size-9" aria-label={`Mais ações da reserva ${r.id}`} title="Mais ações"><MoreHorizontal className="size-4" aria-hidden="true" /></Button></DropdownMenuTrigger>
@@ -95,12 +95,13 @@ export function ReservationsTab() {
       {groups.map(group => {
         const first = group.pending[0]
         const amounts = reservationAmounts(group.pending)
+        const payerNames = can("customers.read") ? [...new Set(group.pending.map(r => customers.find(c => c.id === r.payerId && c.name !== r.guestName)?.name).filter(Boolean))].join(", ") : ""
         const names = [...new Set(group.pending.map(r => r.guestName))].join(", ")
         return <TableRow key={group.key} className="cursor-pointer" onClick={() => openGroup(group)}>
-          <TableCell><Button variant="link" className="h-auto whitespace-normal px-0 text-left" onClick={event => {event.stopPropagation(); openGroup(group)}}>{names}</Button>{group.isGroup && <p className="text-xs text-muted-foreground">Grupo · {group.pending.length} de {group.members.length} aguardando</p>}{group.outsideCount > 0 && <p className="text-xs text-muted-foreground">{group.matchingIds.length} de {group.pending.length} quartos correspondem ao filtro; exibindo o grupo inteiro.</p>}</TableCell>
+          <TableCell><Button variant="link" className="h-auto whitespace-normal px-0 text-left" onClick={event => {event.stopPropagation(); openGroup(group)}}>{names}</Button>{payerNames && <p className="text-xs text-muted-foreground">Pagador: {payerNames}</p>}<p className="break-all text-xs text-muted-foreground">Ref.: {first.groupId ?? first.id}</p>{group.isGroup && <p className="text-xs text-muted-foreground">Grupo · {group.pending.length} de {group.members.length} aguardando</p>}{group.outsideCount > 0 && <p className="text-xs text-muted-foreground">{group.matchingIds.length} de {group.pending.length} quartos correspondem ao filtro; exibindo o grupo inteiro. No filtro: {group.pending.filter(r => list.matchingIds.has(r.id)).map(r => r.roomNumber).join(", ")}.</p>}</TableCell>
           <TableCell className="whitespace-normal">{group.roomNumbers}</TableCell>
           <TableCell>{period(group.pending, "checkIn")}</TableCell><TableCell>{period(group.pending, "checkOut")}</TableCell>
-          <TableCell><span>Total: {formatCurrency(amounts.total)}</span><p className="text-xs text-muted-foreground">Recebido: {formatCurrency(amounts.received)} · Saldo: {formatCurrency(amounts.balance)}</p></TableCell><TableCell><Badge variant="secondary">{labels.confirmada}</Badge></TableCell>
+          <TableCell><span>Total: {formatCurrency(amounts.total)}</span><p className="text-xs text-muted-foreground">Recebido: {formatCurrency(amounts.received)} · Saldo: {formatCurrency(amounts.balance)}</p></TableCell><TableCell><Badge variant="secondary" className={group.pending.every(r => r.checkIn < today) ? "bg-warning/15 text-amber-900 dark:text-warning" : undefined}>{group.pending.every(r => r.checkIn < today) ? "Chegada em atraso" : group.pending.every(r => r.checkIn === today) ? "Chega hoje" : labels.confirmada}</Badge></TableCell>
           <TableCell onClick={e => e.stopPropagation()}>{group.isGroup ? <Button size="sm" variant="outline" aria-label={`Abrir grupo dos quartos ${group.roomNumbers}`} onClick={() => openGroup(group)}>Abrir grupo</Button> : actions(first)}</TableCell>
         </TableRow>
       })}
@@ -111,7 +112,7 @@ export function ReservationsTab() {
     {entry && entryRoom && <CheckinModal room={entryRoom} reservation={entry} open onClose={() => setEntry(null)} />}
     {discount && <ReservationDiscountDialog reservation={discount} onClose={() => setDiscount(null)} />}
     {cancel && <ReservationCancellationDialog reservation={cancel.reservation} noShow={cancel.noShow} onClose={() => setCancel(null)} />}
-    {group && <ReservationGroupSheet group={group} onClose={closeDetails} actions={actions} />}
+    {group && <ReservationGroupSheet matchingIds={activeFilters ? list.matchingIds : undefined} group={group} onClose={closeDetails} actions={actions} />}
     {detail && <ReservationDetailsSheet reservation={detail} onClose={() => setDetailId(null)}>{actions(detail)}</ReservationDetailsSheet>}
   </div>
 }
