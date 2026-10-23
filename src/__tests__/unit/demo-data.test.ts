@@ -6,7 +6,7 @@ import { stayBalance } from "@/lib/stays"
 import { isCPF } from "@/lib/utils/cpf-cnpj-validator"
 
 describe("demonstration data", () => {
-  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers() })
   it("keeps reservations and beverage sale totals consistent", () => {
     const data = createDemoData(new Date("2026-10-07T15:00:00Z"))
     for (const reservation of data.reservations) {
@@ -61,7 +61,7 @@ describe("demonstration data", () => {
     }
   })
 
-  it("preserves edits in a session and restores all examples only after a new server start", async () => {
+  it("preserves edits in a session and restores all examples only after an explicit new anchor", async () => {
     vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage")
     let snapshot = JSON.stringify({ transactions: [{ id: "old-example", value: 900 }], stays: [{ id: "old-stay" }] })
     const store = {
@@ -79,20 +79,38 @@ describe("demonstration data", () => {
     expect(reset.stays.some((s: { id: string }) => s.id === "old-stay")).toBe(false)
   })
 
-  it("never writes operational data or resets examples on a failed session request", async () => {
+  it("never writes operational data or accepts an invalid anchor", async () => {
     const store = { exportAll: vi.fn(), importAll: vi.fn() }
     vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database")
     await expect(seedDemoSession(store, "2026-10-22T15:00:00Z")).rejects.toThrow("apenas na demonstração")
     await expect(initializeBrowserDemo(store)).rejects.toThrow("apenas na demonstração")
     expect(store.exportAll).not.toHaveBeenCalled()
     vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage")
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }))
-    await expect(initializeBrowserDemo(store)).rejects.toThrow("Recarregue")
     await expect(seedDemoSession(store, "invalid")).rejects.toThrow("inválida")
     expect(store.importAll).not.toHaveBeenCalled()
   })
 
-  it.each(["2026-01-31T15:00:00Z", "2026-12-31T15:00:00Z", "2026-11-01T01:00:00Z"])("builds a coherent room calendar around server start %s", (anchor) => {
+  it("uses the same browser-only initialization locally and on Pages, retaining edits until the next business day", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "demo-localStorage")
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-22T15:00:00Z"))
+    const fetch = vi.fn(() => { throw Error("API must not be called") }); vi.stubGlobal("fetch", fetch)
+    let snapshot = "{}"
+    const store = { exportAll: async () => snapshot, importAll: vi.fn(async (json: string) => { snapshot = json }) }
+    expect(await initializeBrowserDemo(store)).toBe(true)
+    const edited = JSON.parse(snapshot); edited.reservations[0].guestName = "Minha alteração"; snapshot = JSON.stringify(edited)
+    vi.setSystemTime(new Date("2026-10-23T01:00:00Z")) // Still October 22 in São Paulo.
+    expect(await initializeBrowserDemo(store)).toBe(false)
+    expect(JSON.parse(snapshot).reservations[0].guestName).toBe("Minha alteração")
+    vi.setSystemTime(new Date("2026-10-23T15:00:00Z"))
+    expect(await initializeBrowserDemo(store)).toBe(true)
+    expect(JSON.parse(snapshot).reservations.some((r: {checkIn: string}) => r.checkIn === "2026-10-24")).toBe(true)
+    vi.setSystemTime(new Date("2026-10-23T16:00:00Z"))
+    expect(await initializeBrowserDemo(store, true)).toBe(true)
+    expect(await initializeBrowserDemo(store, true)).toBe(true) // Same instant must still discard edits.
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it.each(["2026-01-31T15:00:00Z", "2026-12-31T15:00:00Z", "2026-11-01T01:00:00Z"])("builds a coherent room calendar around the demo anchor %s", (anchor) => {
     const data = createDemoData(new Date(anchor))
     const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(anchor))
     const tomorrow = new Date(Date.parse(day) + 86400000).toISOString().slice(0, 10)

@@ -236,23 +236,28 @@ export function createDemoData(now = new Date()) {
   }
 }
 
-/** Replace only the explicitly selected browser demo, once per server start/scenario. */
-export async function seedDemoSession(store: Pick<DataStore, "exportAll" | "importAll">, startedAt: string) {
+/** Replace only the explicitly selected browser demo for a given scenario anchor. */
+export async function seedDemoSession(store: Pick<DataStore, "exportAll" | "importAll">, startedAt: string, force = false) {
   if (getDataConfig().adapter !== "demo-localStorage") throw new Error("Exemplos disponíveis apenas na demonstração do navegador")
   const anchor = new Date(startedAt)
   if (!Number.isFinite(anchor.getTime())) throw new Error("Data de início da demonstração inválida")
   const id = `room-scenarios-3:${anchor.toISOString()}`
   const existing = JSON.parse(await store.exportAll()) as { demoScenario?: { id: string } }
-  if (existing.demoScenario?.id === id) return false
+  if (!force && existing.demoScenario?.id === id) return false
   await store.importAll(JSON.stringify({ ...createDemoData(anchor), demoScenario: { id, startedAt: anchor.toISOString() } }))
   return true
 }
 
-export async function initializeBrowserDemo(store: Pick<DataStore, "exportAll" | "importAll">) {
+/** Browser-only lifecycle shared by local development and static hosting. */
+export async function initializeBrowserDemo(store: Pick<DataStore, "exportAll" | "importAll">, reset = false) {
   if (getDataConfig().adapter !== "demo-localStorage") throw new Error("Exemplos disponíveis apenas na demonstração do navegador")
-  const response = await fetch("/api/demo/session", { cache: "no-store" })
-  if (!response.ok) throw new Error("Não foi possível iniciar os exemplos de demonstração. Recarregue a página.")
-  const { startedAt } = await response.json() as { startedAt: string }
-  const seed = () => seedDemoSession(store, startedAt)
+  const seed = async () => {
+    const now = new Date()
+    const existing = JSON.parse(await store.exportAll()) as { demoScenario?: { startedAt?: string } }
+    const previous = new Date(existing.demoScenario?.startedAt ?? "")
+    // Keep edits through reloads, but refresh stale dates on the next day's visit.
+    const sameDay = Number.isFinite(previous.getTime()) && businessDay(previous) === businessDay(now)
+    return seedDemoSession(store, !reset && sameDay ? previous.toISOString() : now.toISOString(), reset)
+  }
   return typeof navigator !== "undefined" && navigator.locks ? navigator.locks.request("erp-demo-booking", seed) : seed()
 }

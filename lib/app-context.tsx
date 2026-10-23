@@ -434,7 +434,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { events?.close(); clearTimeout(debounce); clearInterval(timer); window.removeEventListener("focus", focused) }
   }, [isLoggedIn, loadAllData])
 
-  // Initialize the explicit browser demo once per server session, then load its data.
+  // Initialize the explicit browser demo once per browser day, then load its data.
   useEffect(() => {
     if (isInitialized || !isLoggedIn) return // Wait for an authenticated user
 
