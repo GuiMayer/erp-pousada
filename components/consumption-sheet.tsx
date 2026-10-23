@@ -91,7 +91,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   })
 
   async function handleAddCatalogItem(name: string, unitPrice: number, productId: string) {
-    if (sendingRef.current || paying) return
+    if (sendingRef.current || paying || cashClosed) return
     sendingRef.current = true; setSending(true)
     try { await addCatalogItem(name, unitPrice, productId, quantity) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
     finally { sendingRef.current = false; setSending(false) }
@@ -110,7 +110,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
   }
 
   async function handleAddCustomItem() {
-    if (!customLabel || !customPrice || sendingRef.current || paying) return
+    if (!customLabel || !customPrice || sendingRef.current || paying || cashClosed) return
     sendingRef.current = true; setSending(true)
     try { await addCustomItem(customLabel, Number(customPrice), Number(customQty) || 1) } catch (error) { toast({ title: "Consumo não lançado", description: String(error), variant: "destructive" }); return }
     finally { sendingRef.current = false; setSending(false) }
@@ -162,7 +162,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
         </SheetHeader>
 
         {cashClosed && <div role="status" className="grid gap-2 rounded-lg border bg-secondary/40 p-3 text-sm">
-          <p>Caixa fechado. Você pode lançar o consumo na hospedagem; para receber em dinheiro, abra o caixa.</p>
+          <p>Caixa fechado — abra para vender ou lançar bebidas na hospedagem. Você pode consultar e quitar o consumo existente por PIX ou cartão.</p>
           <div><CashTurnShortcut /></div>
         </div>}
         <div className="consumption-sheet-body flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain py-4 pr-1">
@@ -203,7 +203,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
             <div className="grid grid-cols-2 gap-2">
               {filteredProducts.map((product) => (
                 <button
-                  disabled={!can("consumptions.create") || changedContext || sending || paying || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000}
+                  disabled={cashClosed || !can("consumptions.create") || changedContext || sending || paying || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000}
                   aria-label={`Adicionar ${product.name} à ficha de consumo`}
                   key={product.id}
                   onClick={() => handleAddCatalogItem(product.name, product.price, product.id)}
@@ -256,7 +256,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
                 variant="outline"
                 size="icon"
                 className="shrink-0"
-                disabled={!customLabel || !customPrice || changedContext || sending || paying}
+                disabled={cashClosed || !customLabel || !customPrice || changedContext || sending || paying}
                 aria-label="Adicionar item personalizado" onClick={handleAddCustomItem}
               >
                 <Plus className="size-4" />

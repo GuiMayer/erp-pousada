@@ -10,7 +10,7 @@ const room={id:1,number:'101',type:'casal',status:'ocupado' as const,guest:'Prim
 beforeEach(()=>{vi.stubEnv('NEXT_PUBLIC_DATA_ADAPTER','database');app.addConsumptionItem.mockReset();app.runOperation.mockReset();app.getConsumption.mockReturnValue(undefined);app.cashCloses=[];app.bankAccounts=[];app.denied=[];app.stays=[{id:'first',status:'active',roomId:1,recordVersion:3}]})
 describe('Entrega de bebida no atendimento',()=>{
  it('envia três unidades numa entrega e bloqueia toque repetido até a resposta',async()=>{
-  let finish!:()=>void;app.addConsumptionItem.mockReturnValue(new Promise<void>(resolve=>{finish=resolve}))
+  app.cashCloses=[{id:'turn',status:'aberto'}];let finish!:()=>void;app.addConsumptionItem.mockReturnValue(new Promise<void>(resolve=>{finish=resolve}))
   render(<ConsumptionSheet room={room} open onClose={()=>{}}/>);
   fireEvent.change(screen.getByLabelText('Quantidade por entrega'),{target:{value:'3'}});
   const product=screen.getByText('Água').closest('button')!;fireEvent.click(product);fireEvent.click(product);
@@ -29,17 +29,17 @@ describe('Entrega de bebida no atendimento',()=>{
 
 
 describe('Consumo com caixa fechado',()=>{
- it('avisa ao abrir sem impedir o lançamento na ficha e mantém os campos após abrir o caixa',async()=>{
+ it('bloqueia a entrega com caixa fechado e mantém os campos após abrir o caixa',async()=>{
   app.runOperation.mockImplementation(async()=>{app.cashCloses=[{id:'turn',status:'aberto'}]})
   const view=render(<ConsumptionSheet room={room} open onClose={()=>{}}/>);
-  expect(screen.getByText(/Caixa fechado. Você pode lançar/)).toBeInTheDocument();
+  expect(screen.getByText(/Caixa fechado — abra para vender/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Quantidade por entrega'),{target:{value:'3'}});
-  expect(screen.getByText('Água').closest('button')).toBeEnabled();
+  expect(screen.getByText('Água').closest('button')).toBeDisabled();
   fireEvent.click(screen.getByRole('button',{name:'Abrir caixa'}));
   fireEvent.click(within(screen.getByRole('dialog',{name:'Abrir caixa'})).getByRole('button',{name:'Abrir caixa'}));
   await waitFor(()=>expect(app.runOperation).toHaveBeenCalledWith('cash-open',{openingValue:0}));
   view.rerender(<ConsumptionSheet room={room} open onClose={()=>{}}/>);
-  await waitFor(()=>expect(screen.queryByText(/Caixa fechado. Você pode lançar/)).not.toBeInTheDocument());
+  await waitFor(()=>expect(screen.queryByText(/Caixa fechado — abra para vender/)).not.toBeInTheDocument());
   expect(screen.getByLabelText('Quantidade por entrega')).toHaveValue(3);
   expect(screen.getByRole('dialog',{name:'Consumo - Quarto 101'})).toBeInTheDocument();
   expect(app.runOperation).toHaveBeenCalledWith('cash-open',{openingValue:0});
@@ -60,7 +60,7 @@ describe('Consumo com caixa fechado',()=>{
   render(<ConsumptionSheet room={room} open onClose={()=>{}}/>);
   expect(screen.queryByRole('button',{name:'Abrir caixa'})).not.toBeInTheDocument();
   expect(screen.getByText(/Peça a um usuário autorizado/)).toBeInTheDocument();
-  expect(screen.getByText('Água').closest('button')).toBeEnabled();
+  expect(screen.getByText('Água').closest('button')).toBeDisabled();
  });
 })
 

@@ -1,3 +1,4 @@
+import { demoAddConsumption } from "./data/demo-consumption"
 "use client"
 import { normalizePayment } from "@/lib/utils/business-values"
 import { demoCashKinds, demoCashOperation } from "@/lib/data/demo-cash"
@@ -770,19 +771,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!expectedStayId) throw new Error("Reabra o consumo para identificar a hospedagem deste atendimento")
       await runOperation("add-consumption", { roomId, expectedStayId, item }); return
     }
-    await reconcileDemoStays(dataStore)
-    const existing = await dataStore.consumptions.getByRoomId(roomId)
-    if (existing) {
-      await dataStore.consumptions.update(existing.roomId, {
-        items: [...existing.items, item]
-      })
-    } else {
-      await dataStore.consumptions.create({ roomId, items: [item] })
-    }
-    setConsumptions(await dataStore.consumptions.getAll())
-    await reconcileDemoStays(dataStore)
-    setStays(await dataStore.stays.getAll())
-  }, [runOperation, dataStore])
+    await demoAddConsumption(dataStore, roomId, item, expectedStayId, can, user?.username ?? "demo")
+    await loadAllData()
+  }, [runOperation, dataStore, can, user?.username, loadAllData])
 
   const removeConsumptionItem = useCallback(async (roomId: number, itemId: string) => {
     if (getDataConfig().adapter === "database") { await runOperation("remove-consumption", { roomId, itemId }); return }

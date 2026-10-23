@@ -1,3 +1,4 @@
+import { touchDemoCash } from "./demo-cash-session"
 import { z } from "zod"
 import type { DataStore } from "./types"
 import type { POSSale } from "@/lib/store"
@@ -17,6 +18,7 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
   return withDemoTransaction(store, async staged => {
     const demand = (permission: string) => { if (!can(permission)) throw Error("Você não tem permissão para esta ação") }
     const now = new Date().toISOString()
+    const operational = () => staged.cashCloses.getAll().then(turns => turns.find(t => t.status === "aberto"))
     const accounts = await staged.bankAccounts.getAll()
     async function ledger(saleId: string, lines: (PaymentLine & { applied?: number })[], reversal = false) {
       for (const line of lines) {
@@ -37,7 +39,7 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
           account.currentBalance = Math.round((account.currentBalance + (reversal ? -value : value)) * 100) / 100
           await staged.bankAccounts.update(account.id, { currentBalance: account.currentBalance })
         }
-        await staged.transactions.create({ date: now, description: `${reversal ? "Estorno" : "Venda"} ${saleId}`, refId: `Venda ${saleId}`, value, type: reversal ? "estorno" : "receita", category: "PDV", paymentMethod: line.method, accountId, cashSessionId, responsible: username, originType: reversal ? "sale-refund" : "sale", originId: saleId })
+        await staged.transactions.create({ date: now, description: `${reversal ? "Estorno" : "Venda"} ${saleId}`, refId: `Venda ${saleId}`, value, type: reversal ? "estorno" : "receita", category: "PDV", paymentMethod: line.method, accountId, cashSessionId, operationalSessionId: (await operational())?.id, responsible: username, originType: reversal ? "sale-refund" : "sale", originId: saleId })
       }
     }
     async function stock(sale: POSSale, restore = false) {
@@ -57,6 +59,7 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
         if (existing.stayId !== input.stayId || existing.total !== input.total || JSON.stringify(existing.items.map(i => [i.id, i.product.id, i.quantity, i.discount])) !== JSON.stringify(input.items.map(i => [i.id, i.product.id, i.quantity, i.discount]))) throw Error("Esta confirmação já foi usada com outro carrinho. Reabra o pagamento.")
         return existing
       }
+      const turn = await touchDemoCash(staged, true)
       const products = await staged.posProducts.getAll()
       const items = input.items.map(item => {
         const product = products.find(p => p.id === item.product.id && p.active !== false)
@@ -81,12 +84,12 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
         if (input.payments?.length || input.amountPaid !== 0) throw Error("Lançamento na ficha não recebe no caixa")
       }
       const payment = stay ? undefined : distributePayment(total, input.payments ?? [])
-      const sale: POSSale = { id: input.id, date: now, items, subtotal, discount, total, stayId: stay?.id, payments: payment?.lines, paymentMethod: stay ? "Conta da hospedagem" : payment!.lines.length > 1 ? "Misto" : payment!.lines[0].method, amountPaid: payment?.offered ?? 0, change: payment?.change ?? 0, customer: stay?.guestName ?? input.customer, operator: username, status: "concluida" }
+      const sale: POSSale = { id: input.id, operationalSessionId: turn!.id, date: now, items, subtotal, discount, total, stayId: stay?.id, payments: payment?.lines, paymentMethod: stay ? "Conta da hospedagem" : payment!.lines.length > 1 ? "Misto" : payment!.lines[0].method, amountPaid: payment?.offered ?? 0, change: payment?.change ?? 0, customer: stay?.guestName ?? input.customer, operator: username, status: "concluida" }
       await stock(sale)
       if (stay) {
         const amounts = netItemValues(sale)
         const projection = (await staged.consumptions.getAll()).find(c => c.roomId === stay.roomId)
-        const charges = items.map((i, index) => ({ id: i.id, productId: i.product.id, sourceSaleId: sale.id, label: i.product.name, unitPrice: i.product.price, quantity: i.quantity, lineTotal: amounts[index], status: "active", createdAt: now }))
+        const charges = items.map((i, index) => ({ id: i.id, operationalSessionId: turn!.id, productId: i.product.id, sourceSaleId: sale.id, label: i.product.name, unitPrice: i.product.price, quantity: i.quantity, lineTotal: amounts[index], status: "active", createdAt: now }))
         await staged.stays.update(stay.id, { charges: [...stay.charges, ...charges], recordVersion: stay.recordVersion + 1 })
         const added = charges.map(c => ({ id: c.id, productId: c.productId, label: `${c.quantity} × ${c.label} (PDV)`, quantity: 1, unitPrice: c.lineTotal }))
         if (projection) await staged.consumptions.update(stay.roomId, { items: [...projection.items, ...added] })
@@ -97,6 +100,7 @@ export function demoPOSOperation(store: DataStore, kind: string, payload: unknow
       return sale
     }
     demand("pos.refund")
+    await touchDemoCash(staged, true)
     const input = z.object({ saleId: z.string(), reason: z.string().trim().min(1), returnToStock: z.boolean() }).parse(payload)
     const sale = await staged.posSales.getById(input.saleId)
     if (!sale || sale.status !== "concluida") throw Error("Venda já estornada ou indisponível")

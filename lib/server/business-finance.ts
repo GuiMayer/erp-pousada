@@ -1,3 +1,4 @@
+import { touchOpenCash } from "./cash-session"
 import { formatCurrency } from "@/lib/utils/formatters"
 import { receiveTargets, payExpense } from "./settlements"
 import { receiveStay, stayInclude } from "./stays"
@@ -27,10 +28,11 @@ const audit = recordAudit
 
 export async function recordLedger(tx: Tx, actor: Actor, reference: string, value: Prisma.Decimal, type = "receita", method?: string, requestedAccount?: string, origin: {batchId?:string;originType?:string;originId?:string;reversalOfId?:string} = {}) {
   const paymentMethod = method ? normalizePayment(method) : undefined
+  const turn = paymentMethod === "Dinheiro" || ["receita", "estorno"].includes(type) && paymentMethod ? await touchOpenCash(tx, paymentMethod === "Dinheiro") : undefined
   let cashSessionId: string | undefined, accountId = requestedAccount
   if (paymentMethod === "Dinheiro") {
     if (accountId) throw new HttpError(400, "Pagamento em dinheiro utiliza o caixa, não uma conta bancária")
-    const session = await tx.cashClose.findFirst({ where: { status: "aberto" } })
+    const session = turn
     if (!session) throw new HttpError(409, "Abra o caixa na Frente de Caixa antes de registrar dinheiro")
     if (!cashIncoming(type)) {
       const entries = await tx.transaction.findMany({ where: { cashSessionId: session.id } })
@@ -50,7 +52,7 @@ export async function recordLedger(tx: Tx, actor: Actor, reference: string, valu
     const updated = await tx.bankAccount.updateMany({ where: { id: account.id, ...(incoming ? {} : { currentBalance: { gte: value } }) }, data: { currentBalance: incoming ? { increment: value } : { decrement: value } } })
     if (!updated.count) throw new HttpError(409, "Saldo bancário insuficiente")
   }
-  return tx.transaction.create({ data: { ...origin,id: randomUUID(), date: new Date(), description: reference, refId: reference, value, type, paymentMethod, accountId, cashSessionId, responsible: actor.username } })
+  return tx.transaction.create({ data: { ...origin,id: randomUUID(), date: new Date(), description: reference, refId: reference, value, type, paymentMethod, accountId, cashSessionId, operationalSessionId: turn?.id, responsible: actor.username } })
 }
 
 export type PostedPayment = { transactionId: string; value: number; method: string }
@@ -80,6 +82,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
   if (kind === "cash-close") {
     const input = z.object({ sessionId: id, physicalValue: money, retainedValue: money.optional(), withdrawalAccountId: id.optional(), closingReason: z.string().trim().min(5).max(500).optional() }).strict().parse(payload)
     const { sessionId, physicalValue } = input
+    await tx.$queryRaw`SELECT id FROM cash_closes WHERE id = ${sessionId} FOR UPDATE`
     const session = await tx.cashClose.findUniqueOrThrow({ where: { id: sessionId } })
     if (session.status !== "aberto") throw new HttpError(409, "Caixa já fechado")
     if (session.responsibleUserId !== actor.id && !can(actor, "cash.closeAny")) throw new HttpError(403, "Somente o responsável ou supervisor pode fechar este caixa")

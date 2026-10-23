@@ -68,3 +68,20 @@ describe("Entrega no PDV com cobrança imediata ou na ficha", () => {
     expect(await store.consumptions.getTotalByRoomId(6)).toBe(9)
   })
 })
+
+
+describe("Vendas exigem turno em todos os meios", () => {
+  it.each(["pix", "debito", "credito", "dinheiro", "ficha"])("recusa %s sem efeitos", async method => {
+    await store.cashCloses.update("DEMO-OPEN-CASH", { status: "fechado" })
+    const before = JSON.parse(await store.exportAll())
+    const payload = method === "ficha" ? input() : input({ stayId: undefined, amountPaid: 10, payments: [{ method, value: 10 }] })
+    await expect(run(payload)).rejects.toThrow("Caixa fechado")
+    expect(JSON.parse(await store.exportAll())).toEqual(before)
+  })
+  it("reenvio confirmado não lança em outro turno", async () => {
+    const first = await run(input())
+    await store.cashCloses.update("DEMO-OPEN-CASH", { status: "fechado" })
+    expect(await run(input())).toEqual(first)
+    expect(first.operationalSessionId).toBe("DEMO-OPEN-CASH")
+  })
+})

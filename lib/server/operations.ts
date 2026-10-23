@@ -1,3 +1,4 @@
+import { touchOpenCash } from "./cash-session"
 import { lodgingDiscount } from "@/lib/lodging-summary"
 import { bookingEntry } from "./booking-entry"
 import { businessDay } from "@/lib/utils/business-values"
@@ -85,6 +86,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return Promise.all(results.map(async result => collectionMapper("reservations").toApp(await tx.reservation.findUniqueOrThrow({where:{id:(result as {id:string}).id}}))))
   }
   if (kind === "sale") {
+    const turn = await touchOpenCash(tx, true)
     const { sale, globalDiscount } = saleInput.parse(payload)
     await checkDiscount(tx, actor, Math.max(...sale.items.map(i => 100 * (1 - (1 - i.discount / 100) * (1 - globalDiscount / 100)))))
     const products = await tx.pOSProduct.findMany({ where: { id: { in: sale.items.map(i => i.product.id) } } })
@@ -107,13 +109,13 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     }
     const paid=stay?null:await postPayments(tx,actor,`Venda ${sale.id}`,Number(total),{paymentMethod:sale.paymentMethod,accountId:sale.accountId,payments:sale.payments??(sale.paymentMethod?[{method:sale.paymentMethod,value:sale.amountPaid,accountId:sale.accountId}]:undefined)},'sale',sale.id)
     for (const item of items) await moveStock(tx, item.productId, item.quantity, actor, `Venda ${sale.id}`)
-    const result = await tx.pOSSale.create({ data: { id: sale.id, date: new Date(), subtotal, discount, total, stayId:stay?.id,payments:paid?.lines,paymentMethod: stay?'Conta da hospedagem':(paid!.lines.length>1?'Misto':paid!.lines[0].method), amountPaid: paid?.offered??0, change:paid?.change??0, customer: stay?.guestName??sale.customer, operator: actor.username, status: "concluida", items: { create: items } }, include: { items: { include: { product: true } } } })
+    const result = await tx.pOSSale.create({ data: { id: sale.id, operationalSessionId: turn!.id, date: new Date(), subtotal, discount, total, stayId:stay?.id,payments:paid?.lines,paymentMethod: stay?'Conta da hospedagem':(paid!.lines.length>1?'Misto':paid!.lines[0].method), amountPaid: paid?.offered??0, change:paid?.change??0, customer: stay?.guestName??sale.customer, operator: actor.username, status: "concluida", items: { create: items } }, include: { items: { include: { product: true } } } })
     if(stay) {
       const amounts=netItemValues({total:Number(total),items:sale.items.map(i=>({...i,product:{price:Number(products.find(p=>p.id===i.product.id)!.price)}}))})
       const projection=await tx.roomConsumption.upsert({where:{roomId:stay.roomId},create:{id:randomUUID(),roomId:stay.roomId},update:{}})
       for(let index=0;index<items.length;index++) {
         const item=items[index],product=products.find(p=>p.id===item.productId)!
-        await tx.stayCharge.create({data:{id:item.id,stayId:stay.id,sourceSaleId:sale.id,productId:product.id,label:product.name,unitPrice:item.unitPrice,quantity:item.quantity,lineTotal:amounts[index]}})
+        await tx.stayCharge.create({data:{id:item.id,operationalSessionId:turn!.id,stayId:stay.id,sourceSaleId:sale.id,productId:product.id,label:product.name,unitPrice:item.unitPrice,quantity:item.quantity,lineTotal:amounts[index]}})
         await tx.roomConsumptionItem.create({data:{id:item.id,consumptionId:projection.id,label:`${item.quantity} × ${product.name} (PDV)`,unitPrice:amounts[index],quantity:1}})
       }
       await tx.stay.update({where:{id:stay.id},data:{recordVersion:{increment:1}}})
@@ -122,6 +124,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return collectionMapper("posSales").toApp(result)
   }
   if (kind === "cancel-sale") {
+    await touchOpenCash(tx, true)
     demandOperation(actor, kind)
     const input = z.object({ saleId: id, reason: text, returnToStock: z.boolean() }).strict().parse(payload)
     const sale = await tx.pOSSale.findUniqueOrThrow({ where: { id: input.saleId }, include: { items: true } })
@@ -202,6 +205,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "add-consumption") {
+    const turn = await touchOpenCash(tx, true)
     const { roomId, expectedStayId, item } = z.object({ roomId: integer, expectedStayId: id, item: z.object({ id, productId: id.optional(), label: text, unitPrice: money, quantity: integer }) }).strict().parse(payload)
     const room = await tx.room.findUniqueOrThrow({ where: { id: roomId } })
     if (room.status !== "ocupado") throw new HttpError(409, "Quarto não está ocupado")
@@ -212,7 +216,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     if (product) item.unitPrice = Number(product.price)
     else demand(actor, "consumptions.custom")
     if (product) await moveStock(tx, product.id, item.quantity, actor, `Consumo quarto ${room.number} · ${item.id}`)
-    await tx.stayCharge.create({ data: { id: item.id, stayId: stay.id, productId: product?.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity } })
+    await tx.stayCharge.create({ data: { id: item.id, operationalSessionId: turn!.id, stayId: stay.id, productId: product?.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity } })
     await tx.stay.update({ where: { id: stay.id }, data: { recordVersion: { increment: 1 } } })
     const consumption = await tx.roomConsumption.upsert({ where: { roomId }, create: { id: randomUUID(), roomId }, update: {} })
     await tx.roomConsumptionItem.create({ data: { id: item.id, label: product?.name ?? item.label, unitPrice: item.unitPrice, quantity: item.quantity, consumptionId: consumption.id } })

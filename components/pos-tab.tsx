@@ -53,7 +53,7 @@ import { type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
 export function POSTab() {
   const {
     posProducts: allProducts, posSales, stays = [], rooms, stockItems,
-    runOperation, productCategories,
+    runOperation, productCategories, cashCloses = [],
   } = useApp()
   const posProducts = useMemo(() => pousadaProducts(allProducts, productCategories).filter(p => p.active !== false), [allProducts, productCategories])
   const { username, role, can } = useAuth()
@@ -159,6 +159,7 @@ export function POSTab() {
   }
 
   function addToCart(product: POSProduct) {
+    if (!cashCloses.some(t => t.status === "aberto")) { toast({ title: "Caixa fechado", description: "Abra o caixa para vender bebidas." }); return false }
     // Check stock availability before adding
     const stockItem = stockItems.find(s => s.productId === product.id)
     const currentInCart = cart.find(item => item.product.id === product.id)?.quantity || 0

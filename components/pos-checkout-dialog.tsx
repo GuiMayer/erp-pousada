@@ -22,7 +22,7 @@ export function POSCheckoutDialog({ total, initialStayId = "", onClose, onConfir
   const [pending, setPending] = useState(false), [error, setError] = useState("")
   const eligible = can("stays.read") ? stays.filter(s => s.status === "active") : [], chosen = eligible.find(s => s.id === stayId)
   const allowStay = can("consumptions.create") && can("stays.read")
-  const needsCash = route === "counter" && lines.some(line => line.method === "dinheiro" && line.value > 0) && !cashCloses.some(turn => turn.status === "aberto")
+  const needsCash = !cashCloses.some(turn => turn.status === "aberto")
   async function submit() {
     if (pending || needsCash) return
     setError("")
@@ -43,7 +43,7 @@ export function POSCheckoutDialog({ total, initialStayId = "", onClose, onConfir
         {allowStay && (editGuest || !chosen) && (route === "stay" || !!initialStayId) && <Label>Hospedagem<select aria-label="Hospedagem para cobrança" className="mt-1 min-h-11 w-full rounded border bg-background px-2" value={stayId} onChange={event => { const id = event.target.value; setStayId(id); setStayVersion(eligible.find(stay => stay.id === id)?.recordVersion); setEditGuest(!id) }}><option value="">Selecione</option>{eligible.map(stay => <option key={stay.id} value={stay.id}>Quarto {rooms.find(room => room.id === stay.roomId)?.number ?? stay.roomId} · {stay.guestName}</option>)}</select></Label>}
         {route === "counter" ? <PaymentEditor total={total} lines={lines} onChange={setLines} /> : <p className="text-sm">A entrega será lançada no extrato, sem recebimento no balcão. O estoque será baixado uma única vez.</p>}
       </fieldset>
-      {needsCash && <div role="status" className="rounded border p-3 text-sm"><p>Abra o caixa para receber em dinheiro. O carrinho será mantido.</p><CashTurnShortcut /></div>}
+      {needsCash && <div role="status" className="rounded border p-3 text-sm"><p>Caixa fechado — abra para vender ou lançar bebidas na hospedagem. O carrinho será mantido.</p><CashTurnShortcut /></div>}
       {error && <p role="alert" className="text-destructive">{error}</p>}
       <DialogFooter><Button variant="outline" disabled={pending} onClick={onClose}>Cancelar</Button><Button disabled={pending || needsCash || (route === "stay" && (!allowStay || !chosen))} onClick={submit}>{pending ? "Confirmando…" : route === "stay" ? "Lançar na hospedagem" : "Confirmar venda"}</Button></DialogFooter>
     </DialogContent>
