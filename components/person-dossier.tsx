@@ -105,6 +105,7 @@ export function PersonDossier({ id }: { id: string }) {
           Atualizar
         </Button>
       </div>
+      <div key={section} data-slot="section-content" className="space-y-3">
       <p role="status">{busy ? "Consultando ficha…" : error}</p>
       {data && (
         <>
@@ -218,6 +219,7 @@ export function PersonDossier({ id }: { id: string }) {
           </div>
         </>
       )}
+      </div>
     </section>
   );
 }

@@ -167,7 +167,7 @@ export function SettingsShell() {
                   : "Afeta a administração ou a operação da pousada."}
               </p>
             </header>
-            <div key={selected.id}>
+            <div key={selected.id} data-slot="section-content">
               {selected.id === "aparencia" ? (
                 <Appearance />
               ) : selected.id === "avisos" ? (
