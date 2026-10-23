@@ -5,7 +5,7 @@
 
 Este plano complementa as sprints funcionais já entregues. As três etapas abaixo são de revisão, não uma renumeração das sprints 1–6. Não houve alteração de código nesta análise. As constatações foram verificadas por leitura da implementação atual; observações de corte, truncamento e tamanho em pixels precisam de reprodução visual durante a execução.
 
-**Execução:** a sprint 1 foi implementada em 22/10/2026; consulte [entrega e validação](ENTREGA_REVISAO_SPRINT_1.md). As sprints 2 e 3 continuam planejadas.
+**Execução:** a sprint 1 foi implementada em 22/10/2026; consulte [entrega e validação](ENTREGA_REVISAO_SPRINT_1.md). A sprint 2 foi implementada; consulte [entrega, validação e limites da conferência visual](ENTREGA_REVISAO_SPRINT_2.md). A sprint 3 continua planejada.
 
 ## Direcionamento confirmado pelo usuário
 

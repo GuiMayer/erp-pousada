@@ -22,7 +22,7 @@ A aba **Cadastros** reúne pessoas e empresas, fornecedores, bebidas, capacidade
 
 Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md). Hospedagem e cobrança empresarial estão na [Sprint 2](docs/ENTREGA_SPRINT_2.md). Pagamentos mistos, recebimentos distribuídos e caixa estão na [Sprint 3](docs/ENTREGA_SPRINT_3.md). Compras, lotes e validade estão na [Sprint 4](docs/ENTREGA_SPRINT_4.md). A [Sprint 6](docs/ENTREGA_SPRINT_6.md) completa a ficha da pessoa, a projeção financeira e a importação inicial com revisão.
 
-A [sprint 1 da revisão de usabilidade](docs/ENTREGA_REVISAO_SPRINT_1.md) concentra o cadastro de bebidas em Cadastros, esclarece total/recebido/saldo e separa indicadores de hospedagem, vendas e recebimentos. O resumo de quartos aparece sempre no Mapa, abaixo das abas.
+A [sprint 1 da revisão de usabilidade](docs/ENTREGA_REVISAO_SPRINT_1.md) concentra o cadastro de bebidas em Cadastros, esclarece total/recebido/saldo e separa indicadores de hospedagem, vendas e recebimentos. O resumo de quartos aparece sempre no Mapa, abaixo das abas. A [sprint 2 da revisão](docs/ENTREGA_REVISAO_SPRINT_2.md) padroniza sub-abas, datas e auditoria e melhora os gráficos e o consumo lateral. Consulte também o [estado da auditoria de dependências](docs/SEGURANCA_DEPENDENCIAS.md).
 
 ## Telas do sistema
 

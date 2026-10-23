@@ -64,3 +64,7 @@ Fontes: [avisos de Next.js](https://github.com/advisories/GHSA-2464-fhr4-w9xw), 
 ## Continuidade
 
 As sprints 2 e 3 permanecem no plano: padronização de cabeçalhos/sub-abas, contraste e geometria de gráficos, seletores de data, distribuição da ficha de consumo, busca/filtros de reservas, WhatsApp e medição operacional com o cliente. A remoção da opção de esconder o resumo do Mapa já está entregue e não depende dessas etapas.
+
+## Atualização após a entrega
+
+As dependências de produção vulneráveis foram atualizadas e a auditoria passou sem alertas: [registro de segurança](SEGURANCA_DEPENDENCIAS.md). A revisão de interface da [Sprint 2](ENTREGA_REVISAO_SPRINT_2.md) foi implementada; os itens da Sprint 3 permanecem planejados.
