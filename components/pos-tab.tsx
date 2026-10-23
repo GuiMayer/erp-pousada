@@ -1,4 +1,7 @@
 "use client"
+import { usePhoneLayout } from "@/hooks/use-phone-layout"
+import { usePOSViewport } from "@/hooks/use-pos-viewport"
+import { POSQuantityInput } from "./pos-quantity-input"
 import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { validateSupervisorPasswordAsync } from "@/lib/utils/validators"
 import { useTaskState, useTaskRef } from "@/contexts/task-drafts-context"
@@ -58,7 +61,11 @@ export function POSTab() {
 
   const [cartAnnouncement, setCartAnnouncement] = useState("")
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
-  const cartRef = useRef<HTMLDivElement>(null)
+  const reviewButton = useRef<HTMLButtonElement>(null)
+  const reviewHeading = useRef<HTMLHeadingElement>(null)
+  const phone = usePhoneLayout()
+  const viewportStyle = usePOSViewport(phone)
+  const [discountOpen, setDiscountOpen] = useState(false)
   // Cart state
   const [cart, setCart] = useTaskState<POSCartItem[]>("pos.cart", [])
   const [searchQuery, setSearchQuery] = useState("")
@@ -134,7 +141,7 @@ export function POSTab() {
   // Handle barcode scan
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "F2") {
+      if (e.key === "F2" && !document.querySelector('[role="dialog"][data-state="open"]')) {
         e.preventDefault()
         barcodeRef.current?.focus()
       }
@@ -189,31 +196,22 @@ export function POSTab() {
     return true
   }
 
+  function setItemQuantity(itemId: string, quantity: number) {
+    if (!Number.isSafeInteger(quantity) || quantity < 0) return false
+    const item = cart.find(row => row.id === itemId)
+    if (!item) return false
+    if (quantity > item.quantity && item.product.trackStock) {
+      const stockItem = stockItems.find(stock => stock.productId === item.product.id)
+      const validation = validateStockItemAvailability(stockItem, quantity, item.product.name, getDataConfig().adapter === "database")
+      if (!validation.isValid) { if (validation.error) toast(validation.error); return false }
+    }
+    setCart(previous => quantity === 0 ? previous.filter(row => row.id !== itemId) : previous.map(row => row.id === itemId ? { ...row, quantity } : row))
+    return true
+  }
+
   function updateQuantity(itemId: string, delta: number) {
-    setCart(prev => {
-      const item = prev.find(i => i.id === itemId)
-      if (!item) return prev
-
-      const newQty = Math.max(0, item.quantity + delta)
-
-      // If increasing quantity, check stock availability
-      if (delta > 0) {
-        const stockItem = stockItems.find(s => s.productId === item.product.id)
-        const validation = item.product.trackStock ? validateStockItemAvailability(stockItem, newQty, item.product.name, getDataConfig().adapter === "database") : { isValid: true }
-
-        if (!validation.isValid && validation.error) {
-          toast(validation.error)
-          return prev
-        }
-      }
-
-      return prev.map(i => {
-        if (i.id === itemId) {
-          return { ...i, quantity: newQty }
-        }
-        return i
-      }).filter(i => i.quantity > 0)
-    })
+    const item = cart.find(row => row.id === itemId)
+    if (item) setItemQuantity(itemId, Math.max(0, item.quantity + delta))
   }
 
   function removeFromCart(itemId: string) {
@@ -221,6 +219,7 @@ export function POSTab() {
   }
 
   function clearCart() {
+    operationRef.current = null
     setCart([])
     setGlobalDiscount(0)
     setCustomer("")
@@ -248,7 +247,7 @@ export function POSTab() {
   }
 
   function openPayment() {
-    operationRef.current = crypto.randomUUID()
+    operationRef.current ??= crypto.randomUUID()
     if (cart.length === 0) return
     setPaymentOpen(true)
   }
@@ -256,7 +255,7 @@ export function POSTab() {
   async function finalizeIntegratedSale(selection:CheckoutSelection) {
     operationRef.current??=crypto.randomUUID()
     const saved=await runOperation<POSSale>('sale',{sale:{id:operationRef.current,items:cart,total,amountPaid:selection.stayId?0:selection.payments!.reduce((v,p)=>v+p.value,0),customer:activeStays.find(s=>s.id===customer)?.guestName,...selection},globalDiscount},operationRef.current)
-    setLastSale(saved);setPaymentOpen(false);setReceiptOpen(true);setCart([]);setGlobalDiscount(0);setCustomer('');operationRef.current=null
+    setLastSale(saved);setPaymentOpen(false);setMobileCartOpen(false);setReceiptOpen(true);setCart([]);setGlobalDiscount(0);setCustomer('');operationRef.current=null
     toast({title:selection.stayId?'Entrega lançada na hospedagem':'Venda recebida',description:saved.id})
   }
   const operationRef = useTaskRef<string | null>("pos.operation", null)
@@ -281,10 +280,222 @@ export function POSTab() {
 
   if (!can("pos.sell")) return <div className="space-y-4"><h2 className="text-xl font-semibold">Frente de Caixa</h2><CashWorkspace /></div>
 
+  const cartPanel = (
+        <Card className="pos-cart flex flex-col">
+          <CardHeader className="border-b border-border bg-muted/30 pb-4">
+            <div className="flex items-center justify-end sm:justify-between">
+              <CardTitle className="hidden items-center gap-2 text-base sm:flex">
+                <ShoppingCart className="size-4 text-primary" />
+                Carrinho
+                {cart.length > 0 && (
+                  <Badge className="bg-primary text-primary-foreground">
+                    {cart.reduce((sum, i) => sum + i.quantity, 0)}
+                  </Badge>
+                )}
+              </CardTitle>
+              {cart.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={clearCart}
+                >
+                  <Trash2 className="mr-1 size-3" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+
+            {/* Customer selection */}
+            <div className="mt-2 space-y-1">
+              <Label id="pos-guest-label" className="sr-only">Hóspede (opcional)</Label>
+              <Select value={customer || "none"} onValueChange={(v) => setCustomer(v === "none" ? "" : v)}>
+                <SelectTrigger aria-labelledby="pos-guest-label" className="h-9 text-sm">
+                  <User className="mr-2 size-3.5 text-muted-foreground" />
+                  <SelectValue placeholder="Hóspede (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Venda avulsa</SelectItem>
+                  {activeStays.map(stay => (
+                    <SelectItem key={stay.id} value={stay.id}>
+                      Quarto {rooms.find(room => room.id === stay.roomId)?.number ?? stay.roomId} - {stay.guestName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pos-cart-items flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+            {cart.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
+                <ShoppingCart className="size-10 opacity-30" />
+                <span className="text-sm">Carrinho vazio</span>
+              </div>
+            ) : (
+              cart.map(item => {
+                const stockItem = stockItems.find(s => s.productId === item.product.id)
+                const availableStock = stockAvailable(stockItem, getDataConfig().adapter === "database")
+                const stockStatus = availableStock === undefined ? 'unknown' :
+                  availableStock <= 0 ? 'critical' :
+                  item.quantity >= availableStock ? 'warning' :
+                  availableStock <= ((stockItem?.minimumStock ?? 0) * 1.5) ? 'low' : 'ok'
+
+                return (
+                  <div
+                    key={item.id}
+                    className="pos-cart-item grid gap-2 rounded-lg border border-border bg-card p-2 animate-fade-in"
+                  >
+                    <div className="flex flex-1 flex-col gap-0.5 min-w-0">
+                      <span className="break-words text-sm font-medium text-foreground">
+                        {item.product.name}
+                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {formatCurrency(item.product.price)} x {item.quantity}
+                        </span>
+                        {item.discount > 0 && (
+                          <Badge variant="secondary" className="h-4 px-1 text-[10px] text-success">
+                            -{item.discount}%
+                          </Badge>
+                        )}
+                        {stockItem && (
+                          <div className="flex items-center gap-1">
+                            <Package className="size-3 text-muted-foreground" />
+                            <span className={`text-xs font-medium ${
+                              stockStatus === 'critical' ? 'text-destructive' :
+                              stockStatus === 'warning' ? 'text-warning' :
+                              stockStatus === 'low' ? 'text-warning' :
+                              'text-muted-foreground'
+                            }`}>
+                              {availableStock === undefined ? "Saldo não confirmado" : `${availableStock} ${stockItem.unit} utilizáveis`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-7"
+                        aria-label={`Diminuir quantidade de ${item.product.name}`}
+                      onClick={() => updateQuantity(item.id, -1)}
+                      >
+                        <Minus className="size-3" />
+                      </Button>
+                      <POSQuantityInput name={item.product.name} quantity={item.quantity} onCommit={value => setItemQuantity(item.id, value)} />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-7"
+                        aria-label={`Aumentar quantidade de ${item.product.name}`}
+                      onClick={() => updateQuantity(item.id, 1)}
+                      >
+                        <Plus className="size-3" />
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-sm font-semibold tabular-nums text-foreground">
+                        {formatCurrency(calculateItemTotal(item.product.price, item.quantity, item.discount))}
+                      </span>
+                      <div className="flex gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 text-muted-foreground hover:text-primary"
+                          aria-label={`Desconto de ${item.product.name}`}
+                          onClick={() => openItemDiscount(item)}
+                        >
+                          <Percent className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 text-muted-foreground hover:text-destructive"
+                          aria-label={`Remover ${item.product.name}`}
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </CardContent>
+
+          {/* Cart Footer */}
+          <div className="pos-cart-footer mt-auto border-t border-border bg-muted/30 p-3">
+            <Button type="button" variant="ghost" size="sm" className="mb-1 min-h-11" aria-expanded={discountOpen} aria-controls="pos-discount-editor" onClick={() => setDiscountOpen(value => !value)}>{discountOpen ? "Recolher desconto" : globalDiscount > 0 ? "Editar desconto" : "Aplicar desconto"}</Button>
+            {discountOpen && <div id="pos-discount-editor">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Label htmlFor="pos-global-discount" className="text-xs text-muted-foreground">Desconto geral (%)</Label>
+              <div className="relative w-20">
+                <Input
+                  id="pos-global-discount"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={globalDiscount || ""}
+                  onChange={e => setGlobalDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  className="h-8 pr-6 text-sm"
+                  placeholder="0"
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  %
+                </span>
+              </div>
+              {globalDiscount > 0 && (
+                <span className="text-xs text-success">
+                  -{formatCurrency(discountAmount)}
+                </span>
+              )}
+            </div>
+
+</div>}
+
+            <Separator className="mb-3" />
+
+            {/* Totals */}
+            <div className="mb-4 flex flex-col gap-1">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Subtotal</span>
+                <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+              </div>
+              {globalDiscount > 0 && (
+                <div className="flex justify-between text-sm text-success">
+                  <span>Desconto ({globalDiscount}%)</span>
+                  <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xl font-bold text-foreground">
+                <span>Total</span>
+                <span className="tabular-nums">{formatCurrency(total)}</span>
+              </div>
+            </div>
+
+            {/* Payment button */}
+            <Button
+              className="w-full gap-2"
+              size="lg"
+              disabled={cart.length === 0}
+              onClick={openPayment}
+            >
+              <CreditCard className="size-4" />
+              Pagamento
+            </Button>
+          </div>
+        </Card>
+  )
+
   return (
     <div className="pos-workspace flex flex-col gap-3">
       {/* Header with stats */}
-      <div className="pos-toolbar flex flex-wrap items-center justify-between gap-2">
+      <div className="pos-toolbar hidden flex-wrap sm:flex items-center justify-between gap-2">
         <div>
           <h2 className="hidden text-lg font-semibold text-foreground sm:block">Frente de Caixa</h2>
           <p className="text-sm text-muted-foreground">
@@ -294,22 +505,12 @@ export function POSTab() {
             </span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setHistoryOpen(true)}
-          >
-            <History className="size-3.5" />
-            Histórico de vendas
-          </Button>
-        </div>
+
       </div>
 
-      <CashWorkspace />
+      <CashWorkspace onSalesHistory={() => setHistoryOpen(true)} />
       <p role="status" aria-live="polite" className="sr-only">{cartAnnouncement}</p>
-      <Button className={`mobile-cart-bar sm:hidden ${mobileCartOpen ? "mobile-cart-bar-review" : ""}`} onClick={() => { setMobileCartOpen(true); requestAnimationFrame(() => cartRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })) }}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Ver carrinho</Button>
+      <Button ref={reviewButton} className="mobile-cart-bar sm:hidden" disabled={!cart.length} onClick={() => setMobileCartOpen(true)}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Revisar venda</Button>
       {/* Main POS Layout */}
       <div className="pos-layout grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
         {/* Left: Product Selection */}
@@ -369,215 +570,14 @@ export function POSTab() {
         </Card>
 
         {/* Right: Cart */}
-        <Card ref={cartRef} className={`pos-cart mobile-cart flex flex-col ${mobileCartOpen ? "mobile-cart-open" : ""}`}>
-          <Button variant="outline" className="sm:hidden mx-4" onClick={() => setMobileCartOpen(false)}>Voltar aos produtos</Button>
-          <CardHeader className="border-b border-border bg-muted/30 pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ShoppingCart className="size-4 text-primary" />
-                Carrinho
-                {cart.length > 0 && (
-                  <Badge className="bg-primary text-primary-foreground">
-                    {cart.reduce((sum, i) => sum + i.quantity, 0)}
-                  </Badge>
-                )}
-              </CardTitle>
-              {cart.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                  onClick={clearCart}
-                >
-                  <Trash2 className="mr-1 size-3" />
-                  Limpar
-                </Button>
-              )}
-            </div>
-
-            {/* Customer selection */}
-            <div className="mt-3 space-y-2">
-              <Label id="pos-guest-label">Hóspede (opcional)</Label>
-              <Select value={customer || "none"} onValueChange={(v) => setCustomer(v === "none" ? "" : v)}>
-                <SelectTrigger aria-labelledby="pos-guest-label" className="h-9 text-sm">
-                  <User className="mr-2 size-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Hóspede (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Venda avulsa</SelectItem>
-                  {activeStays.map(stay => (
-                    <SelectItem key={stay.id} value={stay.id}>
-                      Quarto {rooms.find(room => room.id === stay.roomId)?.number ?? stay.roomId} - {stay.guestName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-
-          <CardContent className="pos-cart-items flex flex-1 flex-col gap-3 overflow-y-auto p-3">
-            {cart.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
-                <ShoppingCart className="size-10 opacity-30" />
-                <span className="text-sm">Carrinho vazio</span>
-              </div>
-            ) : (
-              cart.map(item => {
-                const stockItem = stockItems.find(s => s.productId === item.product.id)
-                const availableStock = stockAvailable(stockItem, getDataConfig().adapter === "database")
-                const stockStatus = availableStock === undefined ? 'unknown' :
-                  availableStock <= 0 ? 'critical' :
-                  item.quantity >= availableStock ? 'warning' :
-                  availableStock <= ((stockItem?.minimumStock ?? 0) * 1.5) ? 'low' : 'ok'
-
-                return (
-                  <div
-                    key={item.id}
-                    className="mobile-cart-item flex items-center gap-3 rounded-lg border border-border bg-card p-3 animate-fade-in"
-                  >
-                    <div className="flex flex-1 flex-col gap-0.5 min-w-0">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {item.product.name}
-                      </span>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs tabular-nums text-muted-foreground">
-                          {formatCurrency(item.product.price)} x {item.quantity}
-                        </span>
-                        {item.discount > 0 && (
-                          <Badge variant="secondary" className="h-4 px-1 text-[10px] text-success">
-                            -{item.discount}%
-                          </Badge>
-                        )}
-                        {stockItem && (
-                          <div className="flex items-center gap-1">
-                            <Package className="size-3 text-muted-foreground" />
-                            <span className={`text-[10px] font-medium ${
-                              stockStatus === 'critical' ? 'text-destructive' :
-                              stockStatus === 'warning' ? 'text-warning' :
-                              stockStatus === 'low' ? 'text-warning' :
-                              'text-muted-foreground'
-                            }`}>
-                              {availableStock === undefined ? "Saldo não confirmado" : `${availableStock} ${stockItem.unit} utilizáveis`}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="size-7"
-                        aria-label={`Diminuir quantidade de ${item.product.name}`}
-                      onClick={() => updateQuantity(item.id, -1)}
-                      >
-                        <Minus className="size-3" />
-                      </Button>
-                      <span className="w-6 text-center text-sm font-medium tabular-nums">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="size-7"
-                        aria-label={`Aumentar quantidade de ${item.product.name}`}
-                      onClick={() => updateQuantity(item.id, 1)}
-                      >
-                        <Plus className="size-3" />
-                      </Button>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-sm font-semibold tabular-nums text-foreground">
-                        {formatCurrency(calculateItemTotal(item.product.price, item.quantity, item.discount))}
-                      </span>
-                      <div className="flex gap-0.5">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6 text-muted-foreground hover:text-primary"
-                          aria-label={`Desconto de ${item.product.name}`}
-                          onClick={() => openItemDiscount(item)}
-                        >
-                          <Percent className="size-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6 text-muted-foreground hover:text-destructive"
-                          aria-label={`Remover ${item.product.name}`}
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </CardContent>
-
-          {/* Cart Footer */}
-          <div className="pos-cart-footer mt-auto border-t border-border bg-muted/30 p-3">
-            {/* Global discount */}
-            <div className="mb-3 flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground">Desconto Geral:</Label>
-              <div className="relative w-20">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={globalDiscount || ""}
-                  onChange={e => setGlobalDiscount(Number(e.target.value) || 0)}
-                  className="h-8 pr-6 text-sm"
-                  placeholder="0"
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                  %
-                </span>
-              </div>
-              {globalDiscount > 0 && (
-                <span className="text-xs text-success">
-                  -{formatCurrency(discountAmount)}
-                </span>
-              )}
-            </div>
-
-            <Separator className="mb-3" />
-
-            {/* Totals */}
-            <div className="mb-4 flex flex-col gap-1">
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Subtotal</span>
-                <span className="tabular-nums">{formatCurrency(subtotal)}</span>
-              </div>
-              {globalDiscount > 0 && (
-                <div className="flex justify-between text-sm text-success">
-                  <span>Desconto ({globalDiscount}%)</span>
-                  <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-xl font-bold text-foreground">
-                <span>Total</span>
-                <span className="tabular-nums">{formatCurrency(total)}</span>
-              </div>
-            </div>
-
-            {/* Payment button */}
-            <Button
-              className="w-full gap-2"
-              size="lg"
-              disabled={cart.length === 0}
-              onClick={openPayment}
-            >
-              <CreditCard className="size-4" />
-              Pagamento
-            </Button>
-          </div>
-        </Card>
+        {!phone && cartPanel}
       </div>
+
+      {phone && mobileCartOpen && !paymentOpen && !itemDiscountOpen && !receiptOpen && <Dialog open onOpenChange={setMobileCartOpen}><DialogContent mobileTask className="pos-review" style={viewportStyle} onOpenAutoFocus={event => { event.preventDefault(); reviewHeading.current?.focus() }} onCloseAutoFocus={event => { event.preventDefault(); if (!document.querySelector('[role="dialog"][data-state="open"]')) reviewButton.current?.focus({ preventScroll: true }) }}>
+        <DialogHeader><DialogTitle ref={reviewHeading} tabIndex={-1}>Revisar venda</DialogTitle><DialogDescription>Confira os itens e escolha como cobrar.</DialogDescription></DialogHeader>
+        {cartPanel}
+        <DialogFooter><Button variant="outline" onClick={() => setMobileCartOpen(false)}>Voltar aos produtos</Button></DialogFooter>
+      </DialogContent></Dialog>}
 
       {/* Payment Modal */}
       {paymentOpen && <POSCheckoutDialog total={total} initialStayId={customer} onClose={() => setPaymentOpen(false)} onConfirm={finalizeIntegratedSale} />}

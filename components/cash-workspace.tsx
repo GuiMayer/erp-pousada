@@ -1,4 +1,6 @@
 "use client"
+import { usePhoneLayout } from "@/hooks/use-phone-layout"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu"
 import { useState, useRef } from "react"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
@@ -14,7 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 const dateTime = (value: string) => new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })
 
-export function CashWorkspace() {
+export function CashWorkspace({ onSalesHistory }: { onSalesHistory?: () => void }) {
+  const phone = usePhoneLayout()
   const { cashCloses = [], runOperation } = useApp(), { can, user } = useAuth()
   const [task, setTask] = useState<CashTask | null>(null)
   const [history, setHistory] = useState(false), [selected, setSelected] = useState<CashTurnReceipt | null>(null)
@@ -50,9 +53,17 @@ export function CashWorkspace() {
       <div><p className="font-semibold">{active ? "Caixa aberto" : "Caixa fechado"}</p><p className="text-sm text-muted-foreground">{active ? `${active.operator} · aberto em ${dateTime(active.openedAt ?? active.date)}` : "Abra para receber ou pagar em dinheiro."}</p></div>
       <div className="flex flex-wrap gap-2">
         {!active && can("cash.open") && <Button onClick={() => setTask("open")}>Abrir caixa</Button>}
-        {active && can("cash.move") && <Button variant="outline" onClick={() => setTask("move")}>Movimentar</Button>}
+
         {active && can("cash.close") && (active.responsibleUserId === user?.id || can("cash.closeAny")) && <Button onClick={() => setTask("close")}>Fechar caixa</Button>}
-        {can("cashCloses.read") && <Button variant="outline" onClick={() => setHistory(true)}>Turnos anteriores</Button>}
+        {phone ? (active && can("cash.move") || can("cashCloses.read") || onSalesHistory) && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline">Mais ações do caixa</Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          {active && can("cash.move") && <DropdownMenuItem onSelect={() => setTask("move")}>Movimentar caixa</DropdownMenuItem>}
+          {can("cashCloses.read") && <DropdownMenuItem onSelect={() => setHistory(true)}>Turnos anteriores</DropdownMenuItem>}
+          {onSalesHistory && <DropdownMenuItem onSelect={onSalesHistory}>Histórico de vendas</DropdownMenuItem>}
+        </DropdownMenuContent></DropdownMenu> : <>
+          {active && can("cash.move") && <Button variant="outline" onClick={() => setTask("move")}>Movimentar</Button>}
+          {can("cashCloses.read") && <Button variant="outline" onClick={() => setHistory(true)}>Turnos anteriores</Button>}
+          {onSalesHistory && <Button variant="outline" onClick={onSalesHistory}>Histórico de vendas</Button>}
+        </>}
       </div>
     </div>
     {active && businessDay(active.openedAt ?? active.date) < businessDay() && <p role="status" className="mt-3 rounded border border-warning/40 bg-warning/10 p-2 text-sm">Este caixa está aberto desde um dia anterior. Confira os movimentos e faça a passagem de turno.</p>}

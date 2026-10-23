@@ -251,7 +251,6 @@
   .mobile-room-card [data-slot="card-content"] > div:first-child { margin-top: 0; padding: 6px 8px; gap: 4px; }
   .mobile-room-card [data-slot="card-content"] .text-xs { font-size: 12px; }
   .mobile-catalog { max-height: none; overflow: visible; }
-  .mobile-cart:not(.mobile-cart-open) { display: none; }
   .mobile-cart-bar { position: fixed; bottom: calc(82px + env(safe-area-inset-bottom)); left: 12px; right: 12px; z-index: 39; box-shadow: 0 4px 18px #0002; font-size: 13px; }
   .dashboard-shell:has(> [data-slot="tabs"] > [data-state="active"] .mobile-cart-bar) { padding-bottom: calc(156px + env(safe-area-inset-bottom)); }
   [data-slot="dialog-content"][data-mobile-task] { inset: 0; transform: none !important; translate: 0 0 !important; --tw-translate-x: 0px !important; --tw-translate-y: 0px !important; animation: none !important; width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
@@ -350,21 +349,12 @@
   [data-mobile-cards] [data-slot="badge"].bg-destructive.text-destructive-foreground { color: white; }
 }
 
-@media (max-width: 639px) {
-  .mobile-cart { min-width: 0; max-width: 100%; }
-  .mobile-cart-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
-  .mobile-cart-item > :first-child { grid-column: 1 / -1; }
-  .mobile-cart-item .mobile-cart-duplicate { display: none; }
-  .mobile-cart-item > :last-child { min-width: 0; }
-  .mobile-cart-item > :first-child > span { white-space: normal; overflow-wrap: anywhere; }
-}
 
 @media (max-width: 639px) {
   [data-slot="toggle-group"] { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; width: 100%; gap: 4px; }
   [data-slot="toggle-group-item"] { flex: 0 0 auto; min-width: max-content; }
 }
 
-@media (max-width: 639px) { .mobile-cart-bar.mobile-cart-bar-review { display: none; } }
 
 /* Browse the week without moving the consulted date. Only the date track slides. */
 @keyframes room-date-enter-next { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -434,4 +424,33 @@
   .pos-product { padding: 10px; }
   .pos-workspace > .cash-workspace > div:first-child { gap: 8px; }
   .pos-workspace > .cash-workspace > div:first-child > div:last-child { gap: 4px; }
+}
+
+.pos-cart-item { grid-template-columns: minmax(0, 1fr) auto; }
+.pos-cart-item > :first-child { grid-column: 1 / -1; }
+.pos-cart-item > :last-child { min-width: 0; }
+.pos-quantity-input { height: 32px; appearance: textfield; }
+.pos-quantity-input::-webkit-inner-spin-button, .pos-quantity-input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+@media (max-width: 639px) {
+  .pos-layout > .pos-cart { display: none; }
+  .pos-cart-item [data-slot="button"], .pos-quantity-input { min-width: 44px; min-height: 44px; }
+  .pos-review[data-mobile-task], .pos-checkout[data-mobile-task] { top: var(--pos-viewport-top, 0px); bottom: auto; height: var(--pos-viewport-height, 100dvh); max-height: var(--pos-viewport-height, 100dvh); }
+  .pos-review[data-mobile-task] { container-type: size; }
+  .pos-review[data-mobile-task] > .mobile-task-body { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+  .pos-review .pos-cart { flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .pos-review .pos-cart-items { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .pos-review .pos-cart-footer { padding: 8px 12px; }
+  .pos-review .pos-cart-footer > .mb-4 { margin-bottom: 8px; }
+  .pos-review [data-slot="dialog-footer"] { padding-block: 6px calc(6px + env(safe-area-inset-bottom)); }
+}
+/* When the keyboard or landscape leaves little height, let the complete cart
+   scroll as one surface instead of crushing the items between fixed controls. */
+@media (max-width: 639px) and (max-height: 600px) {
+  .pos-review[data-mobile-task] > .mobile-task-body { display: block; overflow-y: auto; }
+  .pos-review .pos-cart-items { overflow: visible; }
+}
+
+@container (max-height: 600px) {
+  .pos-review[data-mobile-task] > .mobile-task-body { display: block; overflow-y: auto; }
+  .pos-review .pos-cart-items { overflow: visible; }
 }

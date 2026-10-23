@@ -6,11 +6,12 @@ import { ApiError } from "@/lib/data/conflicts"
 import type { CashClose } from "@/lib/store"
 import { canAccessTab } from "@/lib/permissions"
 
-const state = vi.hoisted(() => ({ cashCloses: [] as CashClose[], runOperation: vi.fn(), permissions: [] as string[], bankAccounts: [{ id: "bank", name: "Conta", active: true }] }))
+const state = vi.hoisted(() => ({ cashCloses: [] as CashClose[], runOperation: vi.fn(), phone: false, permissions: [] as string[], bankAccounts: [{ id: "bank", name: "Conta", active: true }] }))
+vi.mock("@/hooks/use-phone-layout", () => ({ usePhoneLayout: () => state.phone }))
 vi.mock("@/lib/app-context", () => ({ useApp: () => state }))
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ can: (p: string) => state.permissions.includes(p), user: { id: "operator" } }) }))
 beforeEach(() => {
-  cleanup(); vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database"); state.cashCloses = []; state.runOperation.mockReset()
+  state.phone = false; cleanup(); vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database"); state.cashCloses = []; state.runOperation.mockReset()
   state.permissions = ["cash.open", "cash.close", "cash.move", "cashCloses.read"]
 })
 const turn = (): CashClose => ({ id: "turn", status: "aberto", operator: "Ana", responsibleUserId: "operator", date: "2026-01-01T10:00:00Z", openedAt: "2026-01-01T10:00:00Z", openingValue: 20, physicalValue: 0, expectedValue: 20, divergence: 0 })
@@ -90,4 +91,16 @@ describe("Operação centralizada do caixa", () => {
     expect(canAccessTab("pdv", can)).toBe(true)
     expect(canAccessTab("financeiro", can)).toBe(false)
   })
+})
+
+it("mantém fechamento visível no celular e reúne ações secundárias no menu", async () => {
+  state.phone = true; state.cashCloses = [turn()]
+  const history = vi.fn()
+  render(<CashWorkspace onSalesHistory={history} />)
+  expect(screen.getByRole("button", { name: "Fechar caixa" })).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Movimentar" })).not.toBeInTheDocument()
+  fireEvent.keyDown(screen.getByRole("button", { name: "Mais ações do caixa" }), { key: "ArrowDown" })
+  expect(await screen.findByRole("menuitem", { name: "Movimentar caixa" })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole("menuitem", { name: "Histórico de vendas" }))
+  expect(history).toHaveBeenCalledOnce()
 })
