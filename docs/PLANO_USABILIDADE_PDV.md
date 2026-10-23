@@ -1,5 +1,7 @@
 # Plano de usabilidade da Frente de Caixa
 
+Estado: implementação e validação automatizada entregues; conferência visual pendente. Consulte [a entrega e o roteiro de conferência](ENTREGA_USABILIDADE_PDV.md).
+
 ## Objetivo e limites
 
 No desktop Full HD, manter a página de vendas dentro da janela, com produtos, carrinho, total e ação de pagamento acessíveis sem rolar a página. Listas extensas de produtos ou itens poderão rolar **dentro de seus painéis**; quantidade arbitrária de itens não pode exigir altura ilimitada nem ser escondida.
