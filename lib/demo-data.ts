@@ -153,7 +153,7 @@ export function createDemoData(now = new Date()) {
   const restaurantTables: RestaurantTable[] = []
   const customers: Customer[] = guests.map((guest, index) => ({
     roles: ["guest", "payer"], id: `DEMO-CLI${index + 1}`, name: guest.name, cpfCnpj: normalizeDocument(guest.cpf),
-    email: `hospede${index + 1}@example.com`, notes: "Cadastro fictício para demonstração",
+    email: `hospede${index + 1}@example.com`, phone: index % 3 === 0 ? undefined : `+1 202 555 01${String(index).padStart(2, "0")}`, notes: "Cadastro fictício para demonstração",
     active: true, createdAt: timestamp(-30), updatedAt: timestamp(0),
   }))
   guests.forEach((guest, index) => { guest.customerId = customers[index].id; guest.active = true })

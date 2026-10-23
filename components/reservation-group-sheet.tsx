@@ -1,4 +1,5 @@
 "use client"
+import { ReservationContact } from "./reservation-contact"
 import type { ReactNode } from "react"
 import type { Reservation } from "@/lib/store"
 import type { PendingReservationGroup } from "@/lib/reservation-groups"
@@ -23,8 +24,9 @@ export function ReservationGroupSheet({ group, matchingIds, onClose, actions }: 
         {group.members.map(r => <section key={r.id} aria-label={`Reserva do quarto ${r.roomNumber}`} className="space-y-3 rounded-lg border p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Quarto {r.roomNumber}</h3><Badge variant={["cancelada", "noshow"].includes(r.status) ? "destructive" : "secondary"}>{reservationLabels[r.status]}</Badge></div>
           <div className="space-y-1 text-sm"><p className="font-medium">{r.guestName}</p><p className="break-all text-xs text-muted-foreground">Ref.: {r.id}</p>{matchingIds && r.status === "confirmada" && !matchingIds.has(r.id) && <p className="text-sm text-muted-foreground">Fora do filtro atual</p>}<p>Entrada: {date(r.checkIn)} · Saída: {date(r.checkOut)}</p><p>Contratado: {formatCurrency(r.totalValue)} · Recebido: {formatCurrency(reservationAmounts([r]).received)} · Saldo: {formatCurrency(reservationAmounts([r]).balance)}</p></div>
+          <ReservationContact reservation={r} />
           {r.status === "confirmada" ? actions(r) : <p className="text-sm text-muted-foreground">{r.status === "checkin" ? "Hospedagem em andamento. Continue o atendimento pelo Mapa." : "Atendimento concluído. Consulte os detalhes no Histórico."}</p>}
-          <details><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Dados da reserva do quarto {r.roomNumber}</summary><ReservationDetails reservation={r} /></details>
+          <details><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Dados da reserva do quarto {r.roomNumber}</summary><ReservationDetails reservation={r} showContact={false} /></details>
         </section>)}
       </div>
     </SheetContent>
