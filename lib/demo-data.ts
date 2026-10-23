@@ -1,3 +1,4 @@
+import { summarizeCash } from "./cash-summary"
 import { isCardPayment } from "./payment-accounts"
 import { stayBalance } from "./stays"
 import { cashIncoming } from "./payments"
@@ -11,7 +12,7 @@ import {
   initialSystemSettings, initialUsers,
   type Room, type Reservation, type GuestProfile, type POSProduct, type POSSale,
   type RestaurantTable, type RestaurantOrder, type StockItem, type StockMovement,
-  type Transaction, type Expense, type Customer, type AccountReceivable, type RoomConsumption,
+  type Transaction, type Expense, type Customer, type AccountReceivable, type RoomConsumption, type CashClose,
 } from "./store"
 import type { DataStore } from "./data/types"
 import type { Stay } from "./stays"
@@ -214,14 +215,24 @@ export function createDemoData(now = new Date()) {
     status: index === 0 ? "vencido" : "pendente", category: "Hospedagem", recordVersion: 0,
   }))
   // Payment movements identify their real account or cash turn, including examples.
-  const cashCloses = Array.from({ length: 14 }, (_, index) => {
+  const cashCloses: CashClose[] = Array.from({ length: 14 }, (_, index) => {
     const offset = index - 13, id = offset === 0 ? "DEMO-OPEN-CASH" : `DEMO-CASH-${index}`
     const entries = transactions.filter(t => businessDay(t.date) === date(offset) && t.paymentMethod === "Dinheiro")
     entries.forEach(t => { t.cashSessionId = id })
+    // Explicit example shifts, generated together with their operations.
+    transactions.filter(t => businessDay(t.date) === date(offset)).forEach(t => { t.operationalSessionId = id })
+    posSales.filter(s => businessDay(s.date) === date(offset)).forEach(s => { s.operationalSessionId = id })
     const expected = 200 + entries.reduce((sum, t) => sum + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100
-    return { id, date: timestamp(offset), status: offset === 0 ? "aberto" as const : "fechado" as const, openedAt: timestamp(offset, 9), closedAt: offset === 0 ? undefined : timestamp(offset, 22), operator: "supervisor", responsibleUserId: "demo-supervisor", openingValue: 200, expectedValue: expected, physicalValue: offset === 0 ? 0 : expected, divergence: 0, retainedValue: 200, withdrawnValue: offset === 0 ? 0 : expected - 200, closedBy: offset === 0 ? undefined : "supervisor" }
+    return { id, recordVersion: 0, date: timestamp(offset), status: offset === 0 ? "aberto" as const : "fechado" as const, openedAt: timestamp(offset, 9), closedAt: offset === 0 ? undefined : timestamp(offset, 22), operator: "supervisor", responsibleUserId: "demo-supervisor", openingValue: 200, expectedValue: expected, physicalValue: offset === 0 ? 0 : expected, divergence: 0, retainedValue: 200, withdrawnValue: offset === 0 ? 0 : expected - 200, closedBy: offset === 0 ? undefined : "supervisor" }
   })
   for (const entry of transactions) if (entry.paymentMethod !== "Dinheiro") entry.accountId = isCardPayment(entry.paymentMethod ?? "") ? "CARDS-CLEARING" : "DEMO-BANK"
+  for (const stay of stays) for (const charge of stay.charges) charge.operationalSessionId = "DEMO-OPEN-CASH"
+  for (const turn of cashCloses) if (turn.status === "fechado") turn.closingSummary = summarizeCash(turn, transactions, stays.flatMap(s => s.charges))
+  const pendingCards = transactions.filter(t => t.accountId === "CARDS-CLEARING").reduce((n, t) => n + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100
+  if (pendingCards >= 100) {
+    const common = { date: timestamp(-1), description: "Repasse fictício do cartão", originType: "card-payout", originId: "DEMO-PAYOUT", batchId: "DEMO-PAYOUT", responsible: "supervisor" }
+    transactions.push({ ...common, id: "DEMO-PAYOUT-OUT", type: "transferencia_saida", value: 100, accountId: "CARDS-CLEARING" }, { ...common, id: "DEMO-PAYOUT-IN", type: "transferencia_entrada", value: 97, accountId: "DEMO-BANK" }, { ...common, id: "DEMO-PAYOUT-FEE", type: "despesa", category: "Taxas de cartão", value: 3 })
+  }
   const bankBalance = 5000 + transactions.filter(t => t.accountId === "DEMO-BANK").reduce((sum, t) => sum + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100
   const auditLog = reservations.map((r, i) => ({ id: `DEMO-AUDIT-${i}`, date: timestamp(0), user: "supervisor", action: "Reserva cadastrada", reference: r.id, entityType: "reservations", entityId: r.id, operation: "create" as const, metadata: { after: { guestName: r.guestName, roomId: r.roomId, totalValue: r.totalValue, paidValue: r.paidValue, payerId: r.payerId }, reason: "Cenário fictício de demonstração" } }))
   return {
@@ -242,7 +253,7 @@ export async function seedDemoSession(store: Pick<DataStore, "exportAll" | "impo
   if (getDataConfig().adapter !== "demo-localStorage") throw new Error("Exemplos disponíveis apenas na demonstração do navegador")
   const anchor = new Date(startedAt)
   if (!Number.isFinite(anchor.getTime())) throw new Error("Data de início da demonstração inválida")
-  const id = `room-scenarios-3:${anchor.toISOString()}`
+  const id = `room-scenarios-4:${anchor.toISOString()}`
   const existing = JSON.parse(await store.exportAll()) as { demoScenario?: { id: string } }
   if (!force && existing.demoScenario?.id === id) return false
   await store.importAll(JSON.stringify({ ...createDemoData(anchor), demoScenario: { id, startedAt: anchor.toISOString() } }))
