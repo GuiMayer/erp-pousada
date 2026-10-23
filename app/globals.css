@@ -400,3 +400,23 @@
   .consumption-sheet { overflow-y: auto; overscroll-behavior: contain; }
   .consumption-sheet-body { flex: none; overflow: visible; }
 }
+
+/* POS owns its density; other modules retain their normal card spacing. */
+.pos-catalog, .pos-cart { min-width: 0; min-height: 0; gap: 0; padding-block: 0; }
+.pos-catalog > [data-slot="card-header"], .pos-cart > [data-slot="card-header"] { flex-shrink: 0; padding: 12px; }
+.pos-cart-footer { flex-shrink: 0; }
+.pos-workspace > .cash-workspace { padding: 10px 12px; }
+
+/* Fit the available viewport, including the demo banner, rather than subtracting
+   hard-coded header heights. Short/zoomed windows keep ordinary page scrolling. */
+@media (min-width: 80rem) and (min-height: 50rem) {
+  body:has(.dashboard-shell[data-workspace="pdv"]) { display: flex; flex-direction: column; height: 100dvh; }
+  .app-main:has(.dashboard-shell[data-workspace="pdv"]) { flex: 1; min-height: 0; }
+  .dashboard-shell[data-workspace="pdv"] { height: 100%; min-height: 0; max-width: 1800px; gap: 12px; padding-block: 12px; }
+  .dashboard-shell[data-workspace="pdv"] > [data-slot="tabs"] { flex: 1; min-height: 0; gap: 12px; }
+  .dashboard-shell[data-workspace="pdv"] > [data-slot="tabs"] > [data-state="active"] { display: flex; min-height: 0; }
+  .pos-workspace { flex: 1; min-height: 0; }
+  .pos-workspace > :not(.pos-layout) { flex-shrink: 0; }
+  .pos-layout { flex: 1; min-height: 0; }
+  .pos-catalog-body, .pos-cart-items { flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
+}

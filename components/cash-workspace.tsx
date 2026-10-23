@@ -45,7 +45,7 @@ export function CashWorkspace() {
     catch (failure) { setError((failure as Error).message) }
     finally { setPending(false) }
   }
-  return <section aria-label="Controle do caixa" className="rounded-lg border bg-card p-3 sm:p-4">
+  return <section aria-label="Controle do caixa" className="cash-workspace rounded-lg border bg-card p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><p className="font-semibold">{active ? "Caixa aberto" : "Caixa fechado"}</p><p className="text-sm text-muted-foreground">{active ? `${active.operator} · aberto em ${dateTime(active.openedAt ?? active.date)}` : "Abra para receber ou pagar em dinheiro."}</p></div>
       <div className="flex flex-wrap gap-2">

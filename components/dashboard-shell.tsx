@@ -37,7 +37,7 @@ export function DashboardShell() {
   }, [activeTab, can, permittedTab, setActiveTab])
 
   return (
-    <div className="dashboard-shell mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
+    <div data-workspace={visible(activeTab) ? activeTab : permittedTab} className="dashboard-shell mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
       {dataError && <div role="alert" className="rounded-lg border border-destructive p-4 text-destructive">Não foi possível atualizar os dados: {dataError}. Recarregue a página para tentar novamente.</div>}
       {phone && <MobileNavigation />}
       <div className="hidden sm:block"><DashboardHeader /></div>
