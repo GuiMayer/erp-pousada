@@ -30,7 +30,7 @@ export async function financialForecast(
         ),
         end = dates.at(-1)!;
       const accounts = await tx.bankAccount.findMany({
-        where: { active: true },
+        where: { active: true, type: { notIn: ["cartao", "caixa"] } },
         orderBy: { name: "asc" },
       });
       const selected =
@@ -53,7 +53,7 @@ export async function financialForecast(
           "Projeção prospectiva a partir de hoje: saldo interno base + títulos pendentes por vencimento. Não reconstrói previsão histórica.",
           "Parcelas substituem o título. Vencidos ficam separados e não são recebidos/pagos ficticiamente hoje.",
           "Reservas são cenário comercial separado: data estimada de cobrança na saída planejada, sem obrigação ou dinheiro confirmado.",
-          "Cartões registrados no saldo interno não comprovam repasse bancário. A projeção não é saldo disponível confirmado.",
+          "Cartões a receber são excluídos do saldo bancário base até registrar o repasse.",
           "Contas selecionadas: " +
             accounts
               .filter((a) => selected.includes(a.id))
@@ -74,7 +74,7 @@ export async function financialForecast(
         });
         if (cash) {
           const entries = await tx.transaction.findMany({
-            where: { cashSessionId: cash.id, paymentMethod: "dinheiro" },
+            where: { cashSessionId: cash.id },
             select: { type: true, value: true },
             take: 50001,
           });

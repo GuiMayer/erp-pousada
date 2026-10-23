@@ -1,3 +1,4 @@
+import { isCardPayment } from "./payment-accounts"
 import { stayBalance } from "./stays"
 import { cashIncoming } from "./payments"
 import { pousadaProducts } from "./pousada-scope"
@@ -220,7 +221,7 @@ export function createDemoData(now = new Date()) {
     const expected = 200 + entries.reduce((sum, t) => sum + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100
     return { id, date: timestamp(offset), status: offset === 0 ? "aberto" as const : "fechado" as const, openedAt: timestamp(offset, 9), closedAt: offset === 0 ? undefined : timestamp(offset, 22), operator: "supervisor", responsibleUserId: "demo-supervisor", openingValue: 200, expectedValue: expected, physicalValue: offset === 0 ? 0 : expected, divergence: 0, retainedValue: 200, withdrawnValue: offset === 0 ? 0 : expected - 200, closedBy: offset === 0 ? undefined : "supervisor" }
   })
-  for (const entry of transactions) if (entry.paymentMethod !== "Dinheiro") entry.accountId = "DEMO-BANK"
+  for (const entry of transactions) if (entry.paymentMethod !== "Dinheiro") entry.accountId = isCardPayment(entry.paymentMethod ?? "") ? "CARDS-CLEARING" : "DEMO-BANK"
   const bankBalance = 5000 + transactions.filter(t => t.accountId === "DEMO-BANK").reduce((sum, t) => sum + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100
   const auditLog = reservations.map((r, i) => ({ id: `DEMO-AUDIT-${i}`, date: timestamp(0), user: "supervisor", action: "Reserva cadastrada", reference: r.id, entityType: "reservations", entityId: r.id, operation: "create" as const, metadata: { after: { guestName: r.guestName, roomId: r.roomId, totalValue: r.totalValue, paidValue: r.paidValue, payerId: r.payerId }, reason: "Cenário fictício de demonstração" } }))
   return {
@@ -232,7 +233,7 @@ export function createDemoData(now = new Date()) {
     auditLog, cashCloses,
     consumptions,
     recipes: [], productions: [], employeeConsumptions: [], suppliers: [],
-    bankAccounts: [{ id: "DEMO-BANK", name: "Conta de demonstração", type: "corrente", active: true, initialBalance: 5000, currentBalance: bankBalance }], bankTransfers: [], costCenters: [], budgets: [], recurringTransactions: [],
+    bankAccounts: [{ id: "DEMO-BANK", name: "Conta de demonstração", type: "conta_corrente", active: true, initialBalance: 5000, currentBalance: bankBalance }, { id: "CARDS-CLEARING", name: "Cartões a receber", type: "cartao", active: true, initialBalance: 0, currentBalance: transactions.filter(t => t.accountId === "CARDS-CLEARING").reduce((n, t) => n + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0) / 100 }], bankTransfers: [], costCenters: [], budgets: [], recurringTransactions: [],
   }
 }
 

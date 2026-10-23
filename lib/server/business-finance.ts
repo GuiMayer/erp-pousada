@@ -1,3 +1,4 @@
+import { acceptsPayment, isCardPayment, cardPayoutAmounts } from "@/lib/payment-accounts"
 import { touchOpenCash } from "./cash-session"
 import { formatCurrency } from "@/lib/utils/formatters"
 import { receiveTargets, payExpense } from "./settlements"
@@ -42,14 +43,15 @@ export async function recordLedger(tx: Tx, actor: Actor, reference: string, valu
     cashSessionId = session.id
   } else if (paymentMethod) {
     if (!accountId) {
-      const accounts = await tx.bankAccount.findMany({ where: { active: true }, take: 2 })
+      let accounts = await tx.bankAccount.findMany({ where: { active: true, type: isCardPayment(paymentMethod) ? "cartao" : { notIn: ["cartao", "caixa"] } }, take: 2 })
+      if (isCardPayment(paymentMethod) && !accounts.length) accounts = [await tx.bankAccount.upsert({ where: { id: "CARDS-CLEARING" }, create: { id: "CARDS-CLEARING", name: "Cartões a receber", type: "cartao", active: true, initialBalance: 0, currentBalance: 0 }, update: {} })]
       if (accounts.length !== 1) throw new HttpError(400, "Selecione uma conta bancária ativa para este pagamento")
       accountId = accounts[0].id
     }
     const account = await tx.bankAccount.findUniqueOrThrow({ where: { id: accountId } })
-    if (!account.active) throw new HttpError(409, "Conta bancária inativa")
+    if (!acceptsPayment(account, paymentMethod)) throw new HttpError(409, "Selecione uma conta ativa adequada ao pagamento: cartões usam Cartões a receber")
     const incoming = type === "receita" || type === "transferencia_entrada"
-    const updated = await tx.bankAccount.updateMany({ where: { id: account.id, ...(incoming ? {} : { currentBalance: { gte: value } }) }, data: { currentBalance: incoming ? { increment: value } : { decrement: value } } })
+    const updated = await tx.bankAccount.updateMany({ where: { id: account.id, ...(incoming ? {} : { currentBalance: { gte: value } }) }, data: { recordVersion: { increment: 1 }, currentBalance: incoming ? { increment: value } : { decrement: value } } })
     if (!updated.count) throw new HttpError(409, "Saldo bancário insuficiente")
   }
   return tx.transaction.create({ data: { ...origin,id: randomUUID(), date: new Date(), description: reference, refId: reference, value, type, paymentMethod, accountId, cashSessionId, operationalSessionId: turn?.id, responsible: actor.username } })
@@ -218,6 +220,23 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     await tx.transaction.update({where:{id:current.id},data:{checkedAt:input.checked?new Date():null,checkedBy:input.checked?actor.username:null,checkNote:input.note}})
     await audit(tx,actor,'Movimento bancário conferido',current.id,{entityType:'transactions',entityId:current.id,operation:'update',metadata:input})
     return {success:true}
+  }
+  if (kind === "card-payout") {
+    demand(actor, "bankAccounts.transfer")
+    const input = z.object({ fromAccountId: id, toAccountId: id, gross: positiveMoney, fee: money }).strict().parse(payload)
+    const { gross, fee, net } = cardPayoutAmounts(input.gross, input.fee)
+    const source = await tx.bankAccount.findUniqueOrThrow({ where: { id: input.fromAccountId } })
+    const bank = await tx.bankAccount.findUniqueOrThrow({ where: { id: input.toAccountId } })
+    if (!source.active || source.type !== "cartao" || !acceptsPayment(bank, "PIX")) throw new HttpError(400, "Escolha Cartões a receber como origem e uma conta bancária ativa como destino")
+    const changed = await tx.bankAccount.updateMany({ where: { id: source.id, currentBalance: { gte: gross } }, data: { currentBalance: { decrement: gross }, recordVersion: { increment: 1 } } })
+    if (!changed.count) throw new HttpError(409, "Repasse excede o saldo de cartões a receber")
+    await tx.bankAccount.update({ where: { id: bank.id }, data: { currentBalance: { increment: net }, recordVersion: { increment: 1 } } })
+    const batchId = randomUUID(), common = { date: new Date(), description: "Repasse de cartão", batchId, originType: "card-payout", originId: batchId, responsible: actor.username }
+    await tx.transaction.create({ data: { ...common, id: randomUUID(), type: "transferencia_saida", value: gross, accountId: source.id } })
+    if (net > 0) await tx.transaction.create({ data: { ...common, id: randomUUID(), type: "transferencia_entrada", value: net, accountId: bank.id } })
+    if (fee > 0) await tx.transaction.create({ data: { ...common, id: randomUUID(), type: "despesa", category: "Taxas de cartão", value: fee } })
+    await audit(tx, actor, "Repasse de cartão registrado", batchId, { entityType: "bankAccounts", operation: "action", metadata: { ...input, net } })
+    return { success: true, batchId, gross, fee, net }
   }
   if (kind === "bank-transfer") {
     demand(actor, "bankAccounts.transfer")

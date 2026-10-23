@@ -81,6 +81,7 @@ export const operationPermissions: Record<string, string> = {
   "pay-expense": "expenses.pay",
   "receive-account": "accountsReceivable.receive",
   "bank-transfer": "bankAccounts.transfer",
+  "card-payout": "bankAccounts.transfer",
   "refund-transaction": "transactions.refund",
   "cash-open": "cash.open",
   "cash-close": "cash.close",

@@ -1,3 +1,5 @@
+import { withDemoTransaction } from "./demo-transaction"
+import { demoLedger } from "./demo-ledger"
 import type { DataStore } from "./types"
 import { stayBalance, type Stay } from "@/lib/stays"
 import { businessDay } from "@/lib/utils/business-values"
@@ -44,6 +46,10 @@ export async function demoConsumptionCorrection(store: DataStore, roomId: number
 }
 const command=z.object({stayId:z.string().min(1),recordVersion:z.number().int().nonnegative()}).passthrough()
 export async function demoStayOperation(store: DataStore,kind: string,payload: unknown,can:(p:string)=>boolean,username: string) {
+  return withDemoTransaction(store, staged => applyStayOperation(staged, kind, payload, can, username))
+}
+
+async function applyStayOperation(store: DataStore,kind: string,payload: unknown,can:(p:string)=>boolean,username: string) {
   await reconcileDemoStays(store)
   const input=command.parse(payload)
   const s=await store.stays.getById(input.stayId)
@@ -102,15 +108,7 @@ export async function demoStayOperation(store: DataStore,kind: string,payload: u
     const method=z.enum(['pix','dinheiro','debito','credito','credito_hospede']).parse(input.paymentMethod)
     if(method==='credito_hospede')throw Error('Use o fluxo de crédito pessoal existente para os exemplos')
     const lodging=Math.min(value,Math.max(0,balances.lodgingBalance))
-    const cash = method === 'dinheiro' ? (await store.cashCloses.getAll()).find(t => t.status === 'aberto') : undefined
-    if (method === 'dinheiro' && !cash) throw Error('Abra o caixa antes de registrar dinheiro')
-    if(method!=='dinheiro'){
-      const accounts=(await store.bankAccounts.getAll()).filter(a=>a.active)
-      const account=accounts.find(a=>a.id===input.accountId)||(accounts.length===1?accounts[0]:undefined)
-      if(!account)throw Error('Selecione uma conta ativa')
-      await store.bankAccounts.update(account.id,{currentBalance:account.currentBalance+value})
-    }
-    const transaction=await store.transactions.create({date:new Date().toISOString(),description:'Hospedagem '+s.reservationId,refId:'Hospedagem '+s.reservationId,value,type:'receita',paymentMethod:method,cashSessionId:cash?.id,responsible:username})
+    const transaction=await demoLedger(store, {date:new Date().toISOString(),description:'Hospedagem '+s.reservationId,refId:'Hospedagem '+s.reservationId,value,type:'receita',paymentMethod:method,accountId: input.accountId as string | undefined,responsible:username,originType:'stay',originId:s.id})
     if(lodging>0)s.payments.push({id:crypto.randomUUID(),value:lodging,bucket:'lodging',method,createdAt:new Date().toISOString(),transactionId:transaction.id})
     if(value>lodging)s.payments.push({id:crypto.randomUUID(),value:Math.round((value-lodging)*100)/100,bucket:'consumption',method,createdAt:new Date().toISOString()})
     const r=await store.reservations.getById(s.reservationId)

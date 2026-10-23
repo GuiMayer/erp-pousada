@@ -1,4 +1,5 @@
 "use client"
+import { CardPayout } from "./card-payout"
 import { DateField } from "@/components/ui/date-field"
 import { PageHeader } from "./page-header"
 import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
@@ -307,7 +308,7 @@ export function FinancialTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Financeiro" />
-      <p role="note" className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">Saldos internos. Confira os movimentos com seu extrato bancário. Cartões usam registro simplificado; taxas e repasses não são conciliados automaticamente.</p>
+      <p role="note" className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">Saldos registrados. Confira os movimentos com seu extrato bancário. Cartões a receber ficam separados até registrar o repasse.</p>
 
       <Tabs value={currentSection} onValueChange={setSection}>
         <TabsList className="section-tabs" aria-label="Seções do financeiro" mobilePriority={["contas-receber", "vencimentos", "transacoes", "contas"]}>
@@ -565,7 +566,7 @@ export function FinancialTab() {
           {can("recurringTransactions.read") && <details className="mt-4 rounded-lg border p-4"><summary className="min-h-11 cursor-pointer font-medium">Receitas recorrentes</summary><FinancialCadastrosManagement sections={["recurringTransaction"]} recurringType="receita" /></details>}
         </TabsContent>}
         {visible("contas") && <TabsContent value="contas" className="space-y-4">
-          <FinancialCadastrosManagement sections={["bankAccount", "bankTransfer"]} balancesOnly />
+          <CardPayout /><FinancialCadastrosManagement sections={["bankAccount", "bankTransfer"]} balancesOnly />
         </TabsContent>}
       </Tabs>
 

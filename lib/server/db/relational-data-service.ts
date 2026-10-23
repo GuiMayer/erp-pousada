@@ -256,6 +256,7 @@ export async function updateCollectionItem(key: string, id: string, data: unknow
       const end = input.blockEndDate === undefined ? current?.blockEndDate : input.blockEndDate
       if (await client.reservation.count({ where: { roomId: Number(id), status: { in: ["confirmada", "checkin"] }, checkOut: { gt: new Date(businessDay()) }, ...(end ? { checkIn: { lte: end as Date } } : {}) } })) throw new HttpError(409, "Bloqueio coincide com reserva ou hospedagem; resolva o período antes")
     }
+    if (key === "bankAccounts" && current && input.type !== undefined && input.type !== current.type && await client.transaction.count({ where: { accountId: id } })) throw new HttpError(409, "Conta com movimentos não permite alterar a classificação")
     if (key === "bankAccounts" && current && ["initialBalance", "currentBalance"].some(field => input[field] !== undefined && Number(input[field]) !== Number(current[field]))) throw new HttpError(409, "Saldo é alterado por pagamentos e transferências")
     if (["expenses", "accountsReceivable"].includes(key) && current && (current.paid === true || current.status === "pago")) throw new HttpError(409, "Título pago não pode ser alterado")
     if (key === "expenses" && await client.expenseInstallment.count({ where: { expenseId: id, paid: true } })) throw new HttpError(409, "Título possui parcelas pagas e não pode ser alterado")

@@ -1,3 +1,4 @@
+import { demoLedger } from "./demo-ledger"
 import { z } from "zod"
 import { withDemoTransaction } from "./demo-transaction"
 import type { DataStore } from "./types"
@@ -5,7 +6,7 @@ import { cancellationAmounts, cancellationReason, checkinDateError, noShowEligib
 import { businessDay, normalizePayment } from "@/lib/utils/business-values"
 import { isCPF, normalizeDocument } from "@/lib/utils/cpf-cnpj-validator"
 import { quoteLodging, type NightlyPrice } from "@/lib/lodging-pricing"
-import { cashIncoming, distributePayment, type PaymentLine } from "@/lib/payments"
+import { distributePayment, type PaymentLine } from "@/lib/payments"
 import type { Reservation, Transaction } from "@/lib/store"
 import type { Stay } from "@/lib/stays"
 
@@ -27,23 +28,9 @@ async function apply(store: DataStore, kind: string, payload: unknown, can: (p: 
   const version = (r: Reservation, value: unknown) => { if (value !== (r.recordVersion ?? 0)) throw Error("Reserva alterada; reabra o atendimento antes de confirmar") }
   async function ledger(r: Reservation, value: number, method: string, accountId?: string, original?: Transaction) {
     const normalized = normalizePayment(method), refund = !!original
-    let cashSessionId: string | undefined
-    if (normalized === "Dinheiro") {
-      const session = (await store.cashCloses.getAll()).find(s => s.status === "aberto")
-      if (!session) throw Error("Abra o caixa antes de registrar dinheiro")
-      cashSessionId = session.id
-      const cash = cents(session.openingValue ?? 0) + (await store.transactions.getAll()).filter(t => t.cashSessionId === session.id).reduce((v, t) => v + cents(Math.abs(t.value)) * (cashIncoming(t.type) ? 1 : -1), 0)
-      if (refund && cash < cents(value)) throw Error("Saldo de caixa insuficiente para devolver")
-    } else {
-      const accounts = (await store.bankAccounts.getAll()).filter(a => a.active)
-      const account = accounts.find(a => a.id === accountId) ?? (!accountId && accounts.length === 1 ? accounts[0] : undefined)
-      if (!account) throw Error("Selecione uma conta bancária ativa")
-      if (refund && cents(account.currentBalance) < cents(value)) throw Error("Saldo bancário insuficiente para devolver")
-      accountId = account.id
-      await store.bankAccounts.update(account.id, { currentBalance: decimal(cents(account.currentBalance) + cents(value) * (refund ? -1 : 1)) })
-    }
-    return store.transactions.create({ date: now, description: `${refund ? "Reembolso hospedagem" : "Hospedagem"} ${r.id}`, refId: `Hospedagem ${r.id}`, value, type: refund ? "estorno" : "receita", paymentMethod: normalized, accountId, cashSessionId, responsible: username, originType: refund ? "reservation-refund" : "reservation", originId: r.id, reversalOfId: original?.id })
+    return demoLedger(store, { date: now, description: `${refund ? "Reembolso hospedagem" : "Hospedagem"} ${r.id}`, refId: `Hospedagem ${r.id}`, value, type: refund ? "estorno" : "receita", paymentMethod: normalized, accountId, responsible: username, originType: refund ? "reservation-refund" : "reservation", originId: r.id, reversalOfId: original?.id })
   }
+
   async function receive(ids: string[], raw: unknown) {
     if (!raw) return
     demand("hospitality.receive")

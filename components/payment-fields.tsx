@@ -1,4 +1,5 @@
 "use client"
+import { acceptsPayment, isCardPayment } from "@/lib/payment-accounts"
 import { formatNumber as localizedNumber } from "@/lib/utils/formatters"
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
@@ -14,21 +15,18 @@ import { CashTurnShortcut } from './cash-turn-shortcut'
 export function BankAccountPicker({ method, accountId, setAccountId }: { method: string; accountId: string; setAccountId: (value: string) => void }) {
   const { bankAccounts } = useApp()
   if (normalizePayment(method) === "Dinheiro" || method === "credito_hospede") return null
-  const accounts = bankAccounts.filter(account => account.active)
+  const accounts = bankAccounts.filter(account => acceptsPayment(account, method))
   const selected = accounts.find(account => account.id === (accountId || (accounts.length === 1 ? accounts[0].id : "")))
-  return <Label className="flex min-w-0 flex-col items-stretch gap-1">Conta bancária<select aria-label="Conta bancária" className="mt-1 min-h-11 w-full min-w-0 rounded border bg-background p-2" value={accountId || (accounts.length === 1 ? accounts[0].id : "")} onChange={event => setAccountId(event.target.value)}><option value="">Selecione uma conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select>{selected && <span className="block whitespace-normal break-words text-xs font-normal text-muted-foreground">Conta selecionada: {selected.name}</span>}{!accounts.length && <span className="block text-xs text-destructive">Cadastre uma conta ativa no Financeiro.</span>}</Label>
+  if (isCardPayment(method) && !accounts.length) return <p className="text-sm text-muted-foreground">Cartões a receber será criado automaticamente. O valor só entra no banco ao registrar o repasse.</p>
+  return <Label className="flex min-w-0 flex-col items-stretch gap-1">{isCardPayment(method) ? "Cartões a receber" : "Conta bancária"}<select aria-label="Conta bancária" className="mt-1 min-h-11 w-full min-w-0 rounded border bg-background p-2" value={accountId || (accounts.length === 1 ? accounts[0].id : "")} onChange={event => setAccountId(event.target.value)}><option value="">Selecione uma conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select>{selected && <span className="block whitespace-normal break-words text-xs font-normal text-muted-foreground">Conta selecionada: {selected.name}</span>}{!accounts.length && <span className="block text-xs text-destructive">Cadastre uma conta ativa no Financeiro.</span>}</Label>
 }
 
 export function PaymentFields({ method, setMethod, accountId, setAccountId, allowCredit = false }: { method: string; setMethod: (value: string) => void; accountId: string; setAccountId: (value: string) => void; allowCredit?: boolean }) {
-  const { bankAccounts } = useApp()
-  const accounts = bankAccounts.filter(account => account.active)
   return <div className="grid gap-3">
     <Label>Forma de pagamento<select aria-label="Forma de pagamento" className="mt-1 w-full rounded border bg-background p-2" value={method} onChange={event => { setMethod(event.target.value); setAccountId("") }}>
       <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>{allowCredit && <option value="credito_hospede">Crédito do hóspede</option>}
     </select></Label>
-    {!['dinheiro', 'credito_hospede'].includes(method) && <Label>Conta bancária<select aria-label="Conta bancária" className="mt-1 w-full rounded border bg-background p-2" value={accountId || (accounts.length === 1 ? accounts[0].id : "")} onChange={event => setAccountId(event.target.value)}>
-      <option value="">Selecione uma conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}
-    </select>{!accounts.length && <span className="block text-xs text-destructive">Cadastre uma conta ativa no Financeiro.</span>}</Label>}
+    <BankAccountPicker method={method} accountId={accountId} setAccountId={setAccountId} />
   </div>
 }
 

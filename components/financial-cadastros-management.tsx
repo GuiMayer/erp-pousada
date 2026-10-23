@@ -288,14 +288,14 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       {visible("bankAccount") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm">{balancesOnly ? "Saldos das contas" : "Contas bancárias"}</CardTitle>
+          <CardTitle className="text-sm">{balancesOnly ? "Saldos registrados e cartões a receber" : "Contas bancárias"}</CardTitle>
           {allowed("bankAccount", "create") && !balancesOnly && <Button aria-label="Nova conta bancária" size="sm" variant="outline" onClick={() => openBankAccount()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
           {bankAccounts.map(account => (
             <div key={account.id} className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <div className="font-medium">{account.name}</div>
+                <div className="font-medium">{account.name}{account.type === "cartao" && <span className="ml-2 text-xs text-muted-foreground">A receber · fora do banco</span>}</div>
                 <div className="text-xs text-muted-foreground">{balancesOnly ? formatCurrency(account.currentBalance) : account.bank || "Conta bancária"}</div>
               </div>
               {!balancesOnly && <RowActions collection="bankAccounts" active={account.active} onEdit={() => openBankAccount(account)} onDelete={() => removeCadastro("bankAccount", account.id, account.name, account.recordVersion)} />}
@@ -403,12 +403,12 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="conta_corrente">Conta Corrente</SelectItem>
                   <SelectItem value="poupanca">Poupanca</SelectItem>
-                  <SelectItem value="cartao">Cartão</SelectItem>
+                  <SelectItem value="cartao">Cartões a receber</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
             <Field label="Banco"><Input value={bankForm.bank || ""} onChange={e => setBankForm(prev => ({ ...prev, bank: e.target.value }))} /></Field>
-            <Field label="Saldo atual"><Input type="number" disabled={!!editingId} value={bankForm.currentBalance} onChange={e => setBankForm(prev => ({ ...prev, currentBalance: Number(e.target.value), initialBalance: editingId ? prev.initialBalance : Number(e.target.value) }))} /></Field>
+            <Field label="Saldo registrado"><Input type="number" disabled={!!editingId} value={bankForm.currentBalance} onChange={e => setBankForm(prev => ({ ...prev, currentBalance: Number(e.target.value), initialBalance: editingId ? prev.initialBalance : Number(e.target.value) }))} /></Field>
             <ActiveSwitch checked={bankForm.active} onChange={active => setBankForm(prev => ({ ...prev, active }))} />
           </div>
           <DialogFooter><Button variant="outline" onClick={closeDialog}>Cancelar</Button><Button onClick={saveBankAccount}>Salvar</Button></DialogFooter>
@@ -425,13 +425,13 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
             <Field label="Conta de origem">
               <Select value={transferForm.fromAccountId} onValueChange={value => setTransferForm(prev => ({ ...prev, fromAccountId: value }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{bankAccounts.map(account => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{bankAccounts.filter(a => a.active && a.type !== "cartao" && a.type !== "caixa").map(account => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label="Conta de destino">
               <Select value={transferForm.toAccountId} onValueChange={value => setTransferForm(prev => ({ ...prev, toAccountId: value }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{bankAccounts.map(account => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{bankAccounts.filter(a => a.active && a.type !== "cartao" && a.type !== "caixa").map(account => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label="Valor"><Input type="number" value={transferForm.value} onChange={e => setTransferForm(prev => ({ ...prev, value: Number(e.target.value) }))} /></Field>
