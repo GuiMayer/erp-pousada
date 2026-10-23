@@ -1,3 +1,4 @@
+import { exportAllCollections, importAllCollections } from "@/lib/server/db/relational-data-service"
 import { beforeEach, afterAll, describe, it, expect } from "vitest"
 import { randomUUID } from "node:crypto"
 import { prisma } from "@/lib/db/client"
@@ -108,4 +109,18 @@ describe("Turno operacional e gaveta independentes", () => {
       expect(await prisma.transaction.count()).toBe(0)
     }
   })
+})
+
+it("backup restaura venda na ficha, entrega manual, turno e resumo sem perder relações", async () => {
+  const turn = await op<CashClose>("cash-open", {openingValue:0}), stay = await arrive()
+  const delivery = sale(2, {stayId:stay.id,stayVersion:stay.recordVersion,amountPaid:0})
+  await op("sale", delivery)
+  await op("add-consumption", {roomId:1,expectedStayId:stay.id,item:{id:"manual-water",productId:"water",label:"Água",unitPrice:10,quantity:1}})
+  const closed = await close(turn, 0)
+  const snapshot = await exportAllCollections()
+  await importAllCollections(snapshot, actor)
+  expect((await prisma.pOSSale.findUniqueOrThrow({where:{id:delivery.sale.id}})).stayId).toBe(stay.id)
+  expect((await prisma.stayCharge.findUniqueOrThrow({where:{id:"manual-water"}})).operationalSessionId).toBe(turn.id)
+  expect((await prisma.cashClose.findUniqueOrThrow({where:{id:turn.id}})).closingSummary).toEqual(closed.closingSummary)
+  expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:"stock"}})).currentStock)).toBe(497)
 })

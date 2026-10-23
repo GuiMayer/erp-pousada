@@ -17,6 +17,7 @@ import { getCollectionKeys, getCollectionMapper } from "./mappers"
 import { HttpError } from "../http"
 import type { Actor } from "../auth"
 import { businessDay } from "@/lib/utils/business-values"
+import type { Stay } from "@/lib/stays"
 
 type Client = Prisma.TransactionClient
 type Row = Record<string, unknown>
@@ -28,7 +29,7 @@ type Model = {
   delete(args: unknown): Promise<Row>
   deleteMany(args?: unknown): Promise<unknown>
 }
-export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "purchases", "expenses", "cashCloses", "transactions", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockLots", "stockMovements", "stockInventories", "purchaseReturns", "productions", "employeeConsumptions", "stays", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
+export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "purchases", "expenses", "cashCloses", "transactions", "consumptions", "stays", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockLots", "stockMovements", "stockInventories", "purchaseReturns", "productions", "employeeConsumptions", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
 export const portableKeys = collectionOrder.filter(key => !["users", "userSessions", "auditLog", "systemSettings"].includes(key))
 // Company rows must exist before importing their people, regardless of export order.
 const orderedItems = (key: string, items: unknown[]) => key === "customers" ? [...items].sort((a, b) => Number(!!(a as Row).companyId) - Number(!!(b as Row).companyId)) : items
@@ -361,8 +362,20 @@ export async function importAllCollections(json: string, actor?: Actor) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(74192026)`
     actor = await currentActor(tx, actor)
     if (actor) demand(actor, "data.restore")
+    // Break the sale/charge cycle explicitly, without disabling any FK checks.
+    await tx.stayCharge.deleteMany()
     for (const key of [...portableKeys].reverse()) await model(key, tx).deleteMany()
-    for (const key of portableKeys) for (const item of orderedItems(key, data[key] as unknown[])) await createCollectionItem(key, item, undefined, tx)
+    const charges: Row[] = []
+    for (const key of portableKeys) for (const item of orderedItems(key, data[key] as unknown[])) {
+      if (key === "stays") {
+        const stay = item as Stay
+        const mapped = collectionMapper("stays").toCreate(stay)
+        const nested = mapped.charges as { create?: Row[] } | undefined
+        for (const charge of nested?.create ?? []) charges.push({ ...charge, stayId: stay.id })
+        await createCollectionItem(key, { ...stay, charges: [] }, undefined, tx)
+      } else await createCollectionItem(key, item, undefined, tx)
+    }
+    for (const charge of charges) await tx.stayCharge.create({ data: validateMappedData("stayCharge", charge, false) as unknown as Prisma.StayChargeUncheckedCreateInput })
     if (legacySnapshot) {
       const reservations = await tx.reservation.findMany({ where: { status: { in: ["checkin", "checkout"] } } })
       for (const reservation of reservations) await ensureStay(tx, reservation.id, true)
@@ -376,6 +389,7 @@ export async function clearAllCollections(actor?: Actor) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(74192026)`
     actor = await currentActor(tx, actor)
     if (actor) demand(actor, "data.restore")
+    await tx.stayCharge.deleteMany()
     for (const key of [...portableKeys].reverse()) await model(key, tx).deleteMany()
     await resetSessionsAfterRestore(tx, actor, "Dados operacionais apagados")
   }, { timeout: 60000, isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
