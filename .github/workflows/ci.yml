@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -136,3 +137,42 @@ jobs:
           docker compose exec -T backup-worker sh -c 'test -f /backups/last-success && test ! -f /backups/last-error'
           docker compose exec -T backup-worker sh -c 'test -f /backups/last-secondary-success && for file in /backups/*.dump; do cmp "$file" "/backup-secondary/$(basename "$file")"; done'
           docker compose down
+
+  browser-demo:
+    name: Demonstração estática
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_BASE_PATH: /erp-pousada
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:demo
+      - run: pnpm build:demo:verify
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          path: .local/browser-demo-site
+  deploy-demo:
+    name: Publicar demonstração
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [validation, windows-panel, browser-demo]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Publicar somente após aprovação de todas as verificações
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -8,8 +8,8 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jet
 export const metadata: Metadata = {
   description: 'Dashboard de gerenciamento de quartos',
   icons: {
-    icon: '/icon.png',
-    apple: '/apple-icon.png',
+    icon: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/icon.png`,
+    apple: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/apple-icon.png`,
   },
 }
 
@@ -27,7 +27,7 @@ export default function RootLayout({
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && (
           <div role="status" className="bg-amber-100 text-amber-950 px-4 py-2 text-center text-sm font-medium">
-            Demonstração · Dados fictícios. As alterações serão descartadas ao encerrar este ambiente.
+            Demonstração · Dados fictícios. Ambiente de testes, separado dos dados operacionais.
           </div>
         )}
         {children}

@@ -24,7 +24,10 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test:run && pnpm build",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "postinstall": "prisma generate",
-    "db:reset-admin": "tsx scripts/reset-admin.ts"
+    "db:reset-admin": "tsx scripts/reset-admin.ts",
+    "dev:demo": "node scripts/browser-demo.mjs dev",
+    "build:demo": "node scripts/browser-demo.mjs build",
+    "build:demo:verify": "node scripts/verify-browser-demo.mjs"
   },
   "dependencies": {
     "@next/env": "16.4.2",
