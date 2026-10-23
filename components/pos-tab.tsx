@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/table"
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, CreditCard,
-  Receipt, X, Percent, User, Barcode,
+  Receipt, X, Percent, User,
   CheckCircle2, XCircle, History, Package,
 } from "lucide-react"
 import { type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
@@ -50,7 +50,7 @@ import { type POSProduct, type POSCartItem, type POSSale } from "@/lib/store"
 export function POSTab() {
   const {
     posProducts: allProducts, posSales, stays = [], rooms, stockItems,
-    runOperation, getCategoryName, productCategories,
+    runOperation, productCategories,
   } = useApp()
   const posProducts = useMemo(() => pousadaProducts(allProducts, productCategories).filter(p => p.active !== false), [allProducts, productCategories])
   const { username, role, can } = useAuth()
@@ -62,7 +62,6 @@ export function POSTab() {
   // Cart state
   const [cart, setCart] = useTaskState<POSCartItem[]>("pos.cart", [])
   const [searchQuery, setSearchQuery] = useState("")
-  const [barcodeInput, setBarcodeInput] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [globalDiscount, setGlobalDiscount] = useTaskState("pos.globalDiscount", 0)
   const [customer, setCustomer] = useTaskState("pos.customerStayId", "")
@@ -107,8 +106,8 @@ export function POSTab() {
   // Filtered products
   const filteredProducts = useMemo(() => {
     return posProducts.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.barcode && p.barcode.includes(searchQuery))
+      const matchesSearch = p.name.toLocaleLowerCase("pt-BR").includes(searchQuery.trim().toLocaleLowerCase("pt-BR")) ||
+        (p.barcode && p.barcode.includes(searchQuery.trim()))
       const matchesCategory = categoryFilter === "all" || p.categoryId === categoryFilter
       return matchesSearch && matchesCategory
     })
@@ -146,11 +145,9 @@ export function POSTab() {
 
   function handleBarcodeSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const product = posProducts.find(p => p.barcode === barcodeInput)
-    if (product) {
-      addToCart(product)
-    }
-    setBarcodeInput("")
+    const matches = posProducts.filter(p => p.barcode && p.barcode === searchQuery.trim())
+    if (matches.length === 1 && addToCart(matches[0])) setSearchQuery("")
+    else if (matches.length > 1) toast({ title: "Código associado a mais de uma bebida", description: "Selecione o produto no catálogo." })
     barcodeRef.current?.focus()
   }
 
@@ -165,7 +162,7 @@ export function POSTab() {
 
     if (!validation.isValid && validation.error) {
       toast(validation.error)
-      return
+      return false
     }
 
     if (validation.warning) {
@@ -189,6 +186,7 @@ export function POSTab() {
         discount: 0,
       }]
     })
+    return true
   }
 
   function updateQuantity(itemId: string, delta: number) {
@@ -318,34 +316,15 @@ export function POSTab() {
         <Card className="pos-catalog overflow-hidden">
           <CardHeader className="border-b border-border bg-muted/30 pb-4">
             <div className="flex flex-col gap-4">
-              {/* Search and Barcode */}
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="relative min-w-0 flex-1">
-                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar produto..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
-                  <div className="relative w-full sm:w-auto">
-                    <Barcode className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      ref={barcodeRef}
-                      placeholder="Codigo de barras (F2)"
-                      value={barcodeInput}
-                      onChange={e => setBarcodeInput(e.target.value)}
-                      className="w-full pl-9 sm:w-48"
-                    />
-                  </div>
-                </form>
-              </div>
+              <form onSubmit={handleBarcodeSubmit} className="relative">
+                <Search aria-hidden className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input ref={barcodeRef} aria-label="Buscar bebida por nome ou código" placeholder="Buscar nome ou código de barras" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+                <span className="sr-only">Use F2 para buscar. Enter adiciona somente um código de barras exato e único.</span>
+              </form>
 
               {/* Category Tabs */}
               <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
-                <TabsList className="h-auto flex-wrap gap-1 bg-transparent p-0">
+                <TabsList aria-label="Categorias de bebidas" className="pos-categories h-auto gap-1 bg-transparent p-0">
                   {categories.map(cat => (
                     <TabsTrigger
                       key={cat.id}
@@ -360,24 +339,21 @@ export function POSTab() {
             </div>
           </CardHeader>
 
-          <CardContent className="pos-catalog-body mobile-catalog max-h-[45dvh] overflow-y-auto p-3 lg:max-h-none">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+          <CardContent className="pos-catalog-body mobile-catalog p-3">
+            <div className="pos-products grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               {filteredProducts.map(product => (
                 <button
                   aria-label={`Adicionar ${product.name} ao carrinho`}
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-start gap-1 rounded-xl border border-border bg-card p-3 text-left transition-all hover:border-primary hover:bg-accent hover:shadow-sm active:scale-[0.98]"
+                  className="pos-product flex flex-col items-start gap-1 rounded-xl border border-border bg-card p-3 text-left transition-all hover:border-primary hover:bg-accent hover:shadow-sm active:scale-[0.98]"
                 >
                   <div className="flex w-full items-start justify-between gap-2">
                     <span className="text-sm font-medium leading-tight text-foreground line-clamp-2">
                       {product.name}
                     </span>
-                    <Plus aria-hidden className="size-4 shrink-0 text-primary" />
+                    {cart.some(item => item.product.id === product.id) ? <span className="text-xs font-semibold text-primary" aria-label="Quantidade no carrinho">{cart.find(item => item.product.id === product.id)!.quantity}×</span> : <Plus aria-hidden className="size-4 shrink-0 text-primary" />}
                   </div>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {getCategoryName(product.categoryId)}
-                  </Badge>
                   <span className="mt-auto text-base font-bold tabular-nums text-primary">
                     {formatCurrency(product.price)}
                   </span>

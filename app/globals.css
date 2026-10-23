@@ -420,3 +420,18 @@
   .pos-layout { flex: 1; min-height: 0; }
   .pos-catalog-body, .pos-cart-items { flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
 }
+
+.pos-categories[data-slot="tabs-list"] { flex-wrap: nowrap; overflow-x: auto; width: 100%; justify-content: flex-start; }
+.pos-categories [data-slot="tabs-trigger"] { flex: 0 0 auto; white-space: nowrap; }
+.pos-product { min-height: 88px; }
+@media (min-width: 64rem) { .pos-products { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+@media (max-width: 639px) {
+  .pos-toolbar > div:first-child { display: none; }
+  .pos-toolbar { justify-content: flex-end; }
+  .pos-toolbar [data-slot="button"] { min-height: 44px; }
+  .pos-catalog-body { max-height: none; overflow: visible; }
+  .pos-catalog [data-slot="card-header"] > div { gap: 8px; }
+  .pos-product { padding: 10px; }
+  .pos-workspace > .cash-workspace > div:first-child { gap: 8px; }
+  .pos-workspace > .cash-workspace > div:first-child > div:last-child { gap: 4px; }
+}
