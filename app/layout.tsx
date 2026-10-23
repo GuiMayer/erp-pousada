@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { DM_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
+import { DemoBanner } from '@/components/demo-banner'
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
@@ -25,11 +26,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
-        {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && (
-          <div role="status" className="bg-amber-100 text-amber-950 px-4 py-2 text-center text-sm font-medium">
-            Demonstração · Dados fictícios. Ambiente de testes, separado dos dados operacionais.
-          </div>
-        )}
+        {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && <DemoBanner />}
         {children}
       </body>
     </html>
