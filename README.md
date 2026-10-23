@@ -129,7 +129,7 @@ Use o perfil supervisor para explorar também o módulo de administração. Essa
 
 ### Dados de exemplo
 
-Ao abrir a demonstração, o sistema usa a data de inicialização do servidor, no horário de São Paulo, para montar o cenário:
+Ao entrar na demonstração, o sistema usa o dia atual do navegador, no horário de São Paulo, para montar o cenário:
 
 - **12 quartos** com situações de ocupação, disponibilidade, limpeza e manutenção.
 - **17 reservas e 9 hóspedes**, incluindo cinco estadias em andamento, saída atrasada, chegada hoje, três quartos com chegada amanhã (dois no mesmo grupo), reservas nas próximas duas semanas e histórico de saída, cancelamento e ausência.
@@ -137,9 +137,11 @@ Ao abrir a demonstração, o sistema usa a data de inicialização do servidor, 
 - **112 vendas distribuídas em 14 dias**, com lançamentos financeiros correspondentes.
 - **12 itens de estoque**, movimentações, alertas de reposição, despesas e contas a receber.
 
-Os exemplos ficam no navegador, sob o prefixo `erp-pousada-demo`, isolados do PostgreSQL. Recarregar a página preserva as alterações enquanto o servidor permanecer na mesma execução. Ao reiniciar o servidor e reabrir ou atualizar a página, o cenário é restaurado com datas relativas ao novo início. A referência não muda automaticamente à meia-noite durante um teste.
+Os exemplos ficam no navegador, sob o prefixo `erp-pousada-demo`, isolados do PostgreSQL. Recarregar, sair/entrar ou reiniciar o servidor preserva alterações no mesmo dia. No próximo dia de acesso, os exemplos são renovados; uma página aberta não é restaurada à meia-noite.
 
-Para começar novamente, reinicie `pnpm dev` (ou `npm run dev`) e atualize a página. Cada navegador mantém suas próprias alterações; este modo não compartilha dados entre dispositivos. O modo `database`, incluindo a demonstração Docker, continua com seu próprio banco e ciclo de inicialização. A implementação dos exemplos está em [`lib/demo-data.ts`](lib/demo-data.ts).
+Use `npm run dev:demo` para selecionar esse modo explicitamente. `npm run dev` usa o mesmo modo quando `.env.local` define `NEXT_PUBLIC_DATA_ADAPTER=demo-localStorage`. No login, o pop-up **Acessos da demonstração** permite preencher credenciais e **Restaurar exemplos e descartar alterações**. Para restaurar após testar, saia da conta primeiro.
+
+A mesma demonstração pode ser publicada automaticamente no GitHub Pages. Os testes aprovam a publicação da `main`; PRs apenas validam. Consulte [demonstração web e publicação](docs/DEMONSTRACAO_WEB.md). Cada navegador mantém suas alterações; a demonstração Docker com PostgreSQL conserva seu próprio ciclo de dados.
 
 ## Desenvolvimento com PostgreSQL
 
