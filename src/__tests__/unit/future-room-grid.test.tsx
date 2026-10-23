@@ -49,6 +49,8 @@ describe("Navegação independente da seleção no Mapa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Semana anterior" }))
     expect(screen.getByRole("button", { name: selected })).toHaveAttribute("aria-pressed", "true")
     const newDate = addDays(parseISO(state.day), 1)
+    // A Sunday starts the next strip; navigate without changing the selection.
+    if (newDate.getDay() === 0) fireEvent.click(screen.getByRole("button", { name: "Próxima semana" }))
     fireEvent.click(screen.getByRole("button", { name: format(newDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR }) }))
     expect(screen.getByText("Cartão 101")).toHaveAttribute("data-date", format(newDate, "yyyy-MM-dd"))
   })
