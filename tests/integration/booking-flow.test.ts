@@ -12,7 +12,7 @@ if (new URL(process.env.DATABASE_URL || "postgresql://localhost/invalid").pathna
 const day = (offset: number) => { const d = new Date(businessDay() + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + offset); return d.toISOString().slice(0, 10) }
 let actor: Actor
 beforeEach(async () => {
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE "customers", "rooms", "users", "system_settings", "bank_accounts" CASCADE')
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "customers", "rooms", "users", "system_settings", "bank_accounts", "cash_closes" CASCADE')
   const user = await prisma.user.create({ data: { id: "booking-actor", username: "booking-actor", fullName: "Teste", role: "supervisor", password: "test-only", createdBy: "test" } })
   const session = await prisma.authSession.create({ data: { userId: user.id, tokenHash: randomUUID(), expiresAt: new Date(Date.now() + 600000) } })
   actor = { id: user.id, username: user.username, role: "supervisor", sessionId: session.id, approvedUntil: null, permissions: ALL_PERMISSIONS }

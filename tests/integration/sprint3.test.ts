@@ -32,6 +32,7 @@ beforeEach(async () => {
   await prisma.pOSProduct.create({data:{id:'s2-drink',name:'Água S2',price:12,categoryId:'s2-beverages',trackStock:true}})
   await prisma.stockItem.create({data:{id:'s2-stock',productId:'s2-drink',productName:'Água S2',unit:'un',currentStock:10,minimumStock:1,maximumStock:20,averageCost:3,lastPurchasePrice:3}})
   await prisma.stockLot.create({data:{id:'s2-lot',productId:'s2-drink',code:'TEST',origin:'test',quantity:10,receivedQuantity:10,remainingValue:30,unitCost:3}})
+  await prisma.cashClose.create({data:{id:'fixture-turn',operator:actor.username,responsibleUserId:actor.id,status:'aberto',date:new Date(),openingValue:0,expectedValue:0,physicalValue:0,divergence:0}})
   await prisma.bankAccount.create({data:{id:'s2-bank',name:'Conta S2',type:'corrente',active:true,initialBalance:0,currentBalance:0}})
 })
 afterAll(async () => { await prisma.user.deleteMany({where:{id:{startsWith:prefix}}}); await prisma.$disconnect() })
@@ -59,7 +60,7 @@ describe('Sprint 3 — caixa e liquidação',()=>{
     expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)).toBe(10)
   })
   it('um recebimento misto quita diárias e bebidas com um lançamento por meio e restaura o estorno vinculado',async()=>{
-    const s=await start();await op('cash-open',{openingValue:0})
+    const s=await start();expect(await prisma.cashClose.count({where:{status:'aberto'}})).toBe(1)
     await op('stay-receive',{stayId:s.id,recordVersion:s.recordVersion,value:424,payments:[{method:'pix',value:410,accountId:'s2-bank'},{method:'dinheiro',value:20}]})
     expect(stayBalance(await current()).balance).toBe(0)
     expect(await prisma.transaction.count({where:{type:'receita'}})).toBe(2)
@@ -83,7 +84,7 @@ describe('Sprint 3 — caixa e liquidação',()=>{
     expect(await prisma.transaction.count({where:{type:'receita'}})).toBe(1)
   })
   it('AP-15/23/27: misto gera entradas líquidas, estorno segue meios originais e não devolve estoque por padrão',async()=>{
-    await op('cash-open',{openingValue:30});const key=randomUUID(),input=sale(key,{amountPaid:130,payments:[{method:'pix',value:40,accountId:'s2-bank'},{method:'dinheiro',value:90}]})
+    await prisma.cashClose.deleteMany();await op('cash-open',{openingValue:30});const key=randomUUID(),input=sale(key,{amountPaid:130,payments:[{method:'pix',value:40,accountId:'s2-bank'},{method:'dinheiro',value:90}]})
     await op('sale',input,actor,key);await op('sale',input,actor,key)
     const entries=await prisma.transaction.findMany({where:{originId:key}})
     expect(entries.map(e=>Number(e.value)).sort((a,b)=>a-b)).toEqual([40,80]);expect(Number((await prisma.pOSSale.findUniqueOrThrow({where:{id:key}})).change)).toBe(10)
@@ -92,7 +93,7 @@ describe('Sprint 3 — caixa e liquidação',()=>{
     expect(Number((await prisma.bankAccount.findUniqueOrThrow({where:{id:'s2-bank'}})).currentBalance)).toBe(0)
     expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)).toBe(0)
     const session=await prisma.cashClose.findFirstOrThrow({where:{status:'aberto'}})
-    await op('cash-close',{sessionId:session.id,physicalValue:30});expect(Number((await prisma.cashClose.findUniqueOrThrow({where:{id:session.id}})).divergence)).toBe(0)
+    await op('cash-close',{sessionId:session.id,physicalValue:30, recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: session.id } })).recordVersion });expect(Number((await prisma.cashClose.findUniqueOrThrow({where:{id:session.id}})).divergence)).toBe(0)
   })
   it('AP-14: PDV na hospedagem baixa estoque uma vez e recebe somente no extrato',async()=>{
     const s=await start(),key=randomUUID(),input=sale(key,{items:[{id:randomUUID(),product:{id:'s2-drink'},quantity:3,discount:0}],total:35.65,amountPaid:0,payments:undefined,stayId:s.id,stayVersion:s.recordVersion})
@@ -162,7 +163,7 @@ describe('Sprint 3 — caixa e liquidação',()=>{
     expect(Number((await prisma.paymentAllocation.aggregate({_sum:{value:true}}))._sum.value)).toBe(200)
   })
   it('AP-26/28: suprimento e sangria conservam total, conferência não altera saldo e usuário sem poder é recusado',async()=>{
-    await prisma.bankAccount.update({where:{id:'s2-bank'},data:{currentBalance:500}});await op('cash-open',{openingValue:30})
+    await prisma.bankAccount.update({where:{id:'s2-bank'},data:{currentBalance:500}});await prisma.cashClose.deleteMany();await op('cash-open',{openingValue:30})
     await op('cash-movement',{direction:'supply',value:100,accountId:'s2-bank',reason:'Suprimento do turno'})
     await op('cash-movement',{direction:'withdraw',value:40,accountId:'s2-bank',reason:'Depósito da sangria'})
     await expect(op('cash-movement',{direction:'withdraw',value:1000,accountId:'s2-bank',reason:'Teste insuficiente'})).rejects.toThrow('Saldo')
@@ -171,7 +172,7 @@ describe('Sprint 3 — caixa e liquidação',()=>{
     await op('check-transaction',{transactionId:movement.id,checked:true,note:'Conferido no extrato bancário'})
     expect((await prisma.transaction.findUniqueOrThrow({where:{id:movement.id}})).checkedAt).not.toBeNull()
     const cash=await prisma.cashClose.findFirstOrThrow({where:{status:'aberto'}})
-    await op('cash-close',{sessionId:cash.id,physicalValue:90})
+    await op('cash-close',{sessionId:cash.id,physicalValue:90, recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: cash.id } })).recordVersion })
     expect(Number((await prisma.cashClose.findUniqueOrThrow({where:{id:cash.id}})).expectedValue)).toBe(90)
     expect(Number((await prisma.bankAccount.findUniqueOrThrow({where:{id:'s2-bank'}})).currentBalance)).toBe(440)
   })

@@ -124,6 +124,7 @@ beforeEach(async () => {
       currentBalance: 1000,
     },
   });
+  await prisma.cashClose.create({data:{id:"fixture-turn",operator:actor.username,responsibleUserId:actor.id,status:"aberto",date:new Date(),openingValue:0,expectedValue:0,physicalValue:0,divergence:0}});
 });
 afterAll(async () => {
   await prisma.authSession.deleteMany({ where: { userId: prefix } });
@@ -423,7 +424,7 @@ describe("S6: fechamento dos requisitos", () => {
         dueDate: new Date(day(1)),
       },
     });
-    await operate("cash-open", { openingValue: 30 });
+    await prisma.cashClose.deleteMany(); await operate("cash-open", { openingValue: 30 });
     const withoutCash = await financialForecast(actor, {
       days: 2,
       accounts: "s6-bank",

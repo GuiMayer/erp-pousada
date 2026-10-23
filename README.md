@@ -52,13 +52,13 @@ Ao selecionar um dia futuro, o mapa apresenta o planejamento daquela data: **Res
 
 O catálogo apresenta os produtos por categoria, com busca por nome ou código de barras. O operador adiciona itens ao carrinho, ajusta quantidades, aplica descontos e seleciona a forma de pagamento para concluir a venda.
 
-Na captura, o carrinho contém uma água e um suco, mostrando como os itens e o total ficam visíveis durante o atendimento. A aba também oferece acesso ao histórico de vendas. O controle de turnos fica nesta aba, com ações explícitas de **Abrir caixa**, **Movimentar**, **Fechar caixa** e **Turnos anteriores**. Veja o [fluxo de operação do caixa](docs/FLUXO_CAIXA.md).
+Na captura, o carrinho contém uma água e um suco, mostrando como os itens e o total ficam visíveis durante o atendimento. A aba também oferece acesso ao histórico de vendas. O controle de turnos fica nesta aba, com ações explícitas de **Abrir caixa**, **Movimentar**, **Fechar caixa** e **Turnos anteriores**. Vendas e consumo de bebidas exigem caixa aberto em qualquer meio de pagamento. O fechamento separa o resumo por forma de pagamento da conferência do dinheiro físico. Veja o [fluxo de operação do caixa](docs/FLUXO_CAIXA.md).
 
 ![Frente de caixa em modo claro com catálogo de bebidas e carrinho de exemplo](docs/images/frente-caixa.jpg)
 
 ### Financeiro — controle o que pagar, receber e movimentar
 
-A aba tem quatro seções: **A receber**, **A pagar**, **Movimentações** e **Contas bancárias**. Cobranças e pagamentos mantêm recebimentos parciais, parcelas, conferência e estornos. Saldos e transferências ficam em Contas bancárias; abertura, fechamento e passagem de turno ficam na Frente de Caixa. As recorrências de receita e despesa ficam recolhidas nas respectivas seções.
+A aba tem quatro seções: **A receber**, **A pagar**, **Movimentações** e **Contas bancárias**. Cobranças e pagamentos mantêm recebimentos parciais, parcelas, conferência e estornos. Saldos, transferências e repasses manuais de cartão ficam em Contas bancárias. Cartões a receber ficam separados do saldo bancário até o repasse; abertura, fechamento e passagem de turno ficam na Frente de Caixa. As recorrências de receita e despesa ficam recolhidas nas respectivas seções.
 
 O resumo de Movimentações acompanha os filtros de tipo e período da própria lista. Pessoas, empresas e fornecedores são gerenciados exclusivamente em **Cadastros**; contas bancárias, centros de custo e categorias ficam em **Cadastros → Financeiros**. O perfil de hospedagem integra a ficha da pessoa. Orçamentos ficam em **Relatórios → Planejamento** e descontos são aplicados na reserva ou hospedagem correspondente, respeitando as permissões existentes. Veja o [guia de organização do Financeiro](docs/ORGANIZACAO_FINANCEIRO.md).
 

@@ -61,7 +61,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(
-    "TRUNCATE customers, rooms, product_categories, transactions, stock_inventories, notification_events CASCADE",
+    "TRUNCATE customers, rooms, product_categories, transactions, cash_closes, stock_inventories, notification_events CASCADE",
   );
   for (const a of [actor, stockActor])
     await prisma.authSession.upsert({
@@ -101,6 +101,7 @@ beforeEach(async () => {
     },
     update: { currentBalance: 1000 },
   });
+  await prisma.cashClose.create({data:{id:"fixture-turn",operator:actor.username,responsibleUserId:actor.id,status:"aberto",date:new Date(),openingValue:0,expectedValue:0,physicalValue:0,divergence:0}});
 });
 afterAll(async () => {
   await prisma.user.deleteMany({ where: { id: { startsWith: prefix } } });

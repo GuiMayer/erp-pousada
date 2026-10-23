@@ -29,9 +29,9 @@ const open = async (value = 100, actor = admin) => await op("cash-open", { openi
 describe("Passagem e conferência do caixa", () => {
   it("exige justificativa para diferença, conserva a contagem e registra a conferência separadamente", async () => {
     const turn = await open()
-    await expect(op("cash-close", { sessionId: turn.id, physicalValue: 90 })).rejects.toMatchObject({ details: { code: "CASH_DIFFERENCE" } })
+    await expect(op("cash-close", { sessionId: turn.id, physicalValue: 90 , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion })).rejects.toMatchObject({ details: { code: "CASH_DIFFERENCE" } })
     expect((await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).status).toBe("aberto")
-    await op("cash-close", { sessionId: turn.id, physicalValue: 90, retainedValue: 30, closingReason: "Diferença identificada na contagem" })
+    await op("cash-close", { sessionId: turn.id, physicalValue: 90, retainedValue: 30, closingReason: "Diferença identificada na contagem" , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion })
     const closingNotice = await prisma.notificationEvent.findFirstOrThrow({ where: { reference: turn.id, title: "Caixa fechado" } })
     expect(closingNotice.module).toBe("pdv")
     const key = randomUUID()
@@ -47,7 +47,7 @@ describe("Passagem e conferência do caixa", () => {
   })
   it("liga o fundo ao próximo turno e pede motivo quando o valor muda", async () => {
     const turn = await open()
-    await op("cash-close", { sessionId: turn.id, physicalValue: 100, retainedValue: 40 })
+    await op("cash-close", { sessionId: turn.id, physicalValue: 100, retainedValue: 40 , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion })
     await expect(open(30)).rejects.toMatchObject({ details: { code: "CASH_OPENING_DIFFERENCE" } })
     const next = await op("cash-open", { openingValue: 30, openingReason: "Fundo reduzido pelo supervisor" }) as { previousSessionId: string }
     expect(next.previousSessionId).toBe(turn.id)
@@ -55,7 +55,7 @@ describe("Passagem e conferência do caixa", () => {
   })
   it("deposita a retirada uma única vez sem gerar receita, inclusive com sobra na contagem", async () => {
     const turn = await open(100), request = randomUUID()
-    const input = { sessionId: turn.id, physicalValue: 110, retainedValue: 5, withdrawalAccountId: prefix, closingReason: "Sobra verificada na contagem" }
+    const input = { sessionId: turn.id, physicalValue: 110, retainedValue: 5, withdrawalAccountId: prefix, closingReason: "Sobra verificada na contagem" , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion }
     await op("cash-close", input, admin, request); await op("cash-close", input, admin, request)
     expect(Number((await prisma.bankAccount.findUniqueOrThrow({ where: { id: prefix } })).currentBalance)).toBe(605)
     const entries = await prisma.transaction.findMany()
@@ -65,8 +65,8 @@ describe("Passagem e conferência do caixa", () => {
   })
   it("não fecha nem movimenta saldo quando depósito ou fundo são inválidos", async () => {
     const turn = await open(100, operator)
-    await expect(op("cash-close", { sessionId: turn.id, physicalValue: 100, retainedValue: 101 }, operator)).rejects.toMatchObject({ status: 400 })
-    await expect(op("cash-close", { sessionId: turn.id, physicalValue: 100, retainedValue: 0, withdrawalAccountId: prefix }, operator)).rejects.toMatchObject({ status: 403 })
+    await expect(op("cash-close", { sessionId: turn.id, physicalValue: 100, retainedValue: 101 , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion }, operator)).rejects.toMatchObject({ status: 400 })
+    await expect(op("cash-close", { sessionId: turn.id, physicalValue: 100, retainedValue: 0, withdrawalAccountId: prefix , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion }, operator)).rejects.toMatchObject({ status: 403 })
     expect((await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).status).toBe("aberto")
     expect(Number((await prisma.bankAccount.findUniqueOrThrow({ where: { id: prefix } })).currentBalance)).toBe(500)
   })
@@ -75,7 +75,7 @@ describe("Passagem e conferência do caixa", () => {
     const state = await cashStatus(operator)
     expect(state[0]).toMatchObject({ id: turn.id, status: "aberto", expectedValue: 0 })
     expect(state[0]).not.toHaveProperty("openingValue")
-    await op("cash-close", { sessionId: turn.id, physicalValue: 90, retainedValue: 30, closingReason: "Falta de troco confirmada" }, operator)
+    await op("cash-close", { sessionId: turn.id, physicalValue: 90, retainedValue: 30, closingReason: "Falta de troco confirmada" , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion }, operator)
     const previous = (await cashStatus(operator))[0]
     expect(previous).toMatchObject({ retainedValue: 30, expectedValue: 0, divergence: 0 })
     expect(previous).not.toHaveProperty("closingReason")
@@ -89,7 +89,7 @@ describe("Passagem e conferência do caixa", () => {
   it("serializa um movimento concorrente ao fechamento sem alterar turno fechado", async () => {
     const turn = await open()
     const results = await Promise.allSettled([
-      op("cash-close", { sessionId: turn.id, physicalValue: 100 }),
+      op("cash-close", { sessionId: turn.id, physicalValue: 100 , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion }),
       op("cash-movement", { direction: "supply", value: 10, accountId: prefix, reason: "Suprimento concorrente" }),
     ])
     expect(results.some(r => r.status === "fulfilled")).toBe(true)

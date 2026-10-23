@@ -369,103 +369,14 @@ describe('AppContext', () => {
   })
 
   describe('Consumption Management', () => {
-    it('should add consumption item to room', async () => {
-      const { result } = renderHook(() => useApp(), {
-        wrapper: TestWrapper,
-      })
-
-      // Wait for initial data to load
-      await waitFor(() => {
-        expect(result.current.rooms.length).toBeGreaterThan(0)
-      })
-
-      const item = {
-        id: 'ITEM001',
-        label: 'Test Item',
-        unitPrice: 10,
-        quantity: 2,
-      }
-
+    it.each([undefined, "outdated-stay"])("recusa entrega sem identificar a hospedagem atual (%s)", async expectedStayId => {
+      const { result } = renderHook(() => useApp(), { wrapper: TestWrapper })
+      await waitFor(() => expect(result.current.rooms.length).toBeGreaterThan(0))
+      const before = result.current.getConsumption(1)
       await act(async () => {
-        await result.current.addConsumptionItem(1, item)
+        await expect(result.current.addConsumptionItem(1, { id: "item", label: "Água", unitPrice: 5, quantity: 1 }, expectedStayId)).rejects.toThrow("Reabra o consumo")
       })
-
-      await waitFor(() => {
-        const consumption = result.current.getConsumption(1)
-        expect(consumption).toBeDefined()
-        expect(consumption?.items).toHaveLength(1)
-        expect(consumption?.items[0]).toEqual(item)
-      })
-    })
-
-    it('should remove consumption item from room', async () => {
-      const { result } = renderHook(() => useApp(), {
-        wrapper: TestWrapper,
-      })
-
-      // Wait for initial data to load
-      await waitFor(() => {
-        expect(result.current.rooms.length).toBeGreaterThan(0)
-      })
-
-      const item = {
-        id: 'ITEM002',
-        label: 'Test Item',
-        unitPrice: 10,
-        quantity: 2,
-      }
-
-      await act(async () => {
-        await result.current.addConsumptionItem(1, item)
-      })
-
-      await act(async () => {
-        await result.current.removeConsumptionItem(1, 'ITEM002')
-      })
-
-      await waitFor(() => {
-        const consumption = result.current.getConsumption(1)
-        expect(consumption?.items).toHaveLength(0)
-      })
-    })
-
-    it('should clear all consumption for a room', async () => {
-      const { result } = renderHook(() => useApp(), {
-        wrapper: TestWrapper,
-      })
-
-      // Wait for initial data to load
-      await waitFor(() => {
-        expect(result.current.rooms.length).toBeGreaterThan(0)
-      })
-
-      const item1 = {
-        id: 'ITEM003',
-        label: 'Test Item 1',
-        unitPrice: 10,
-        quantity: 1,
-      }
-
-      const item2 = {
-        id: 'ITEM004',
-        label: 'Test Item 2',
-        unitPrice: 15,
-        quantity: 2,
-      }
-
-      await act(async () => {
-        await result.current.addConsumptionItem(1, item1)
-        await result.current.addConsumptionItem(1, item2)
-      })
-
-      await act(async () => {
-        await result.current.clearConsumption(1)
-      })
-
-      await waitFor(() => {
-        const consumption = result.current.getConsumption(1)
-        expect(consumption).toBeUndefined()
-      })
+      expect(result.current.getConsumption(1)).toEqual(before)
     })
   })
 

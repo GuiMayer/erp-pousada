@@ -38,7 +38,7 @@ beforeAll(async () => {
 afterAll(async () => { await prisma.$disconnect() })
 beforeEach(async () => {
   await prisma.productCategory.update({ where: { id: "category" }, data: { isRestaurant: false } })
-  await prisma.cashClose.deleteMany(); await prisma.bankAccount.update({ where: { id: "test-bank" }, data: { currentBalance: 1000 } })
+  await prisma.stay.deleteMany(); await prisma.transaction.deleteMany(); await prisma.pOSSale.deleteMany(); await prisma.cashClose.deleteMany(); await prisma.bankAccount.update({ where: { id: "test-bank" }, data: { currentBalance: 1000 } })
   await executeOperation(actor, randomUUID(), "cash-open", { openingValue: 30 })
   await prisma.accountReceivable.deleteMany({ where: { sourceStayId: { not: null } } })
   await prisma.stay.deleteMany()
@@ -207,7 +207,7 @@ describe("Proteção das APIs e integridade de operações", () => {
     const cash = salePayload(2); cash.sale.paymentMethod = "dinheiro"
     await executeOperation(actor, randomUUID(), "sale", cash)
     await executeOperation(actor, randomUUID(), "sale", salePayload())
-    const close = await executeOperation(actor, randomUUID(), "cash-close", { physicalValue: 50, sessionId: (await prisma.cashClose.findFirstOrThrow({ where: { status: "aberto" } })).id })
+    const close = await executeOperation(actor, randomUUID(), "cash-close", { recordVersion: (await prisma.cashClose.findFirstOrThrow({ where: { status: "aberto" } })).recordVersion, physicalValue: 50, sessionId: (await prisma.cashClose.findFirstOrThrow({ where: { status: "aberto" } })).id })
     expect(close).toHaveProperty("expectedValue", 50)
     expect(close).toHaveProperty("openingValue", 30)
     expect(close).toHaveProperty("divergence", 0)
@@ -389,14 +389,14 @@ describe("Regressões das regras de negócio", () => {
     await prisma.expense.create({ data: { id: expenseId, description: "Despesa", category: "outros", value: 12, dueDate: new Date() } })
     await operate("pay-expense", { expenseId, paymentMethod: "Dinheiro" })
     const session = await prisma.cashClose.findFirstOrThrow({ where: { status: "aberto" } })
-    expect(await operate("cash-close", { sessionId: session.id, physicalValue: 18 })).toHaveProperty("expectedValue", 18)
-    await expect(operate("cash-close", { sessionId: session.id, physicalValue: 18 })).rejects.toMatchObject({ status: 409 })
+    expect(await operate("cash-close", { sessionId: session.id, physicalValue: 18 , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: session.id } })).recordVersion })).toHaveProperty("expectedValue", 18)
+    await expect(operate("cash-close", { sessionId: session.id, physicalValue: 18 , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: session.id } })).recordVersion })).rejects.toMatchObject({ status: 409 })
     const cashSale = salePayload(); cashSale.sale.paymentMethod = "dinheiro"
     await expect(operate("sale", cashSale)).rejects.toMatchObject({ status: 409 })
     expect(await prisma.pOSSale.count()).toBe(0)
     const second = await operate("cash-open", { openingValue: 40, openingReason: "Reforço do fundo para o turno" }) as { id: string }
     await operate("sale", cashSale)
-    expect(await operate("cash-close", { sessionId: second.id, physicalValue: 50 })).toHaveProperty("expectedValue", 50)
+    expect(await operate("cash-close", { sessionId: second.id, physicalValue: 50 , recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: second.id } })).recordVersion })).toHaveProperty("expectedValue", 50)
   })
 
   it("comanda preserva preço contratado e exige versão atual no fechamento", async () => {

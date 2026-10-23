@@ -1,47 +1,58 @@
-# Operação e passagem de turno do caixa
+# Operação e fechamento do caixa
 
-O caixa é único e compartilhado pela pousada. A Frente de Caixa concentra a abertura, movimentação, fechamento e consulta de turnos. O Financeiro mantém cobranças, despesas, movimentos e contas bancárias. O Mapa mantém as tarefas de hospedagem.
+O caixa é um turno único e compartilhado pela pousada. A Frente de Caixa concentra abertura, movimentação, fechamento e turnos anteriores. O Financeiro concentra contas, cobranças, despesas e repasses de cartão.
 
-## Rotina do operador
+## Rotina do atendente
 
-1. Em **Frente de Caixa**, selecionar **Abrir caixa**, conferir o fundo sugerido e confirmar. Zero é permitido. Se houver um fechamento anterior, o fundo reservado é sugerido; mudar o valor exige motivo e a abertura fica vinculada ao turno anterior. A abertura não gera receita nem movimenta conta bancária.
-2. Vender ou receber normalmente. Somente dinheiro movimenta o turno físico. PIX e cartões movimentam a conta ativa escolhida. Lançar consumo na hospedagem não recebe dinheiro; a baixa de estoque continua no momento da entrega, sem repetição no pagamento.
-3. Usar **Movimentar** para suprimento ou sangria, com conta, valor e motivo. Os dois lados da transferência ficam registrados sem receita artificial. Saídas não podem exceder o saldo disponível.
-4. Selecionar **Fechar caixa**, contar o dinheiro e informar o total. O esperado não é apresentado antes da primeira confirmação. Uma diferença mantém o turno aberto e oferece recontagem ou confirmação com justificativa obrigatória.
-5. Informar quanto ficará como fundo; deixar o campo vazio mantém todo o valor contado. O restante é retirada em espécie sob responsabilidade de quem fecha. Só selecionar **Já depositei a retirada em uma conta** quando o depósito foi efetivamente realizado. Este registro incrementa a conta como transferência, não receita.
-6. Conferir o comprovante com fundo inicial, entradas, saídas, esperado antes da retirada, contado, diferença, fundo reservado e retirada. O botão **Turnos anteriores** permite consultar novamente. Quem tem autorização de conferência pode registrar observação sobre uma diferença sem alterar os números do fechamento.
+1. **Abrir caixa:** conferir o fundo em dinheiro e confirmar. Pode ser zero. O fundo anterior é sugerido; mudar o valor exige motivo. Abrir não gera receita.
+2. **Atender:** vender bebidas ou lançar na ficha da hospedagem. Todos os meios, inclusive PIX, cartão e ficha, exigem caixa aberto. A entrega baixa o estoque uma vez; cobrar depois não baixa novamente.
+3. **Movimentar**, quando necessário: registrar suprimento ou sangria com conta e motivo. São transferências, não vendas.
+4. **Fechar caixa:** informar dinheiro contado e quanto deixar para o próximo turno. O esperado não aparece antes da contagem inicial. Deixar o fundo vazio mantém todo o dinheiro contado; zero significa retirar tudo.
+5. **Conferir fechamento:** comparar o resumo do atendimento e a conferência do dinheiro. Recontar quando necessário. Diferença exige justificativa. Confirmar registra o fechamento.
+6. **Turnos anteriores:** consultar o comprovante e, conforme permissão, registrar conferência de diferença. A conferência não reescreve o fechamento.
 
-A retirada em espécie fica no fechamento, separada da movimentação de vendas e pagamentos usada na contagem. Se for depositada, o movimento bancário aponta para o fechamento (`cash-closing-deposit`). Não somar novamente esse depósito como venda ou receita. O relatório financeiro usa o esperado registrado no fechamento, preservando a conferência daquele turno.
+Se alguém movimentar o turno durante a revisão, o fechamento é recusado e pede uma nova conferência, preservando os valores digitados. Não há abertura automática, caixa por usuário nem encerramento automático à meia-noite.
 
-## Consumo e pagamentos
+## O que entra em cada resumo
 
-A ficha lateral continua abrindo no próprio Mapa. Com caixa fechado, exibe aviso e **Abrir caixa**; sem permissão, orienta pedir a abertura a um usuário autorizado. O formulário é compartilhado com a Frente de Caixa e preserva a ficha e os campos do atendimento. Somente receber em dinheiro exige caixa aberto: marcar consumo e receber em PIX/cartão continuam disponíveis.
+**Resumo do atendimento:** Dinheiro, PIX, Débito e Crédito, cada um com Recebido, Devolvido e Líquido. Pagamento misto é dividido nas formas reais. Considera o valor aplicado: receber uma nota de R$ 100 por uma venda de R$ 60 conta R$ 60.
 
-O topo do Mapa e o Financeiro não repetem os controles de turno. Atalhos contextuais de abertura em pagamentos permanecem para não interromper o atendimento. Um turno de dia anterior recebe aviso na Frente de Caixa; não há encerramento automático, pois o dinheiro precisa ser contado.
+**Bebidas lançadas na hospedagem:** valor e quantidade de entregas/vendas separados, sem somar ao dinheiro recebido. A entrega pertence ao turno da venda; a quitação pertence ao turno do recebimento, ou fica fora de turno quando permitida.
 
-## Permissões
+**Conferência do dinheiro:** fundo inicial + entradas em espécie − saídas em espécie. PIX, cartões e ficha não alteram a gaveta. Devoluções em dinheiro já entram nas saídas; não são descontadas novamente.
 
-- `cash.open`: abrir e consultar o fundo sugerido.
-- `cash.close`: fechar o próprio turno, identificado pelo ID do usuário.
-- `cash.closeAny`: autorizar o fechamento de outro responsável, em conjunto com `cash.close`.
-- `cash.move`: suprimentos, sangrias e depósito da retirada do fechamento.
-- `cashCloses.read`: histórico e comprovantes de turnos.
-- `cash.review`: registrar conferência de divergência; a interface exige também leitura dos turnos.
-- A Frente de Caixa pode ser acessada para controlar turnos sem `pos.sell`; nesse caso não mostra o catálogo de venda.
-- O estado operacional usa uma consulta reduzida quando o usuário não tem leitura dos fechamentos. Não expõe valores de vendas, contagens ou diferenças. A sincronização atualiza esse estado após abertura ou fechamento por outro usuário.
+A retirada fica sob responsabilidade de quem fecha. Marcar **Já depositei a retirada em uma conta** somente se o depósito realmente ocorreu. O depósito é transferência e não nova receita.
 
-## Persistência e validação
+## Caixa fechado
 
-No PostgreSQL, as operações passam por autorização no servidor, transação serializável e identificador de operação. O índice único impede dois caixas abertos. Tentativas concorrentes de recebimento e fechamento são resolvidas sem anexar um recebimento novo ao turno já encerrado. A migração `20261022000000_cash_handover` adiciona os campos de passagem e conferência; deve ser aplicada pelo procedimento normal de atualização do banco (`pnpm exec prisma migrate deploy`). Não reinicializar o banco para instalar a mudança.
+- Bloqueia novas vendas/entregas de bebidas no PDV e no Consumo do Mapa, independentemente da cobrança. Estornos de vendas do PDV também exigem turno aberto e autorização.
+- Permite consultar catálogo, carrinho, consumo existente e demais cadastros. A ficha mostra **Abrir caixa** quando há permissão; caso contrário orienta procurar alguém autorizado. Os rascunhos permanecem.
+- Não cria bloqueio para recebimentos da recepção: diárias, sinais e contas a receber podem ser quitados por PIX/cartão com caixa fechado. Dinheiro continua exigindo caixa aberto.
+- Quitar consumo anterior por PIX/cartão é recebimento de dívida, não entrega de bebida. Essa quitação também permanece disponível.
+- Recebimentos eletrônicos feitos com caixa fechado aparecem como fora de turno no Financeiro. Não são anexados ao próximo turno.
 
-A demonstração no navegador também permite operar turnos. Usa o armazenamento local e a transação de demonstração, sem acessar o banco do servidor. Ela não representa compartilhamento entre dispositivos; para esse uso, utilizar o modo conectado ao PostgreSQL. Vendas e recebimentos em dinheiro identificam o turno nos dois modos.
+## Cartões e banco
 
-Validação inclui abertura concorrente, movimento durante fechamento, diferença com justificativa, fundo do próximo turno, depósito sem receita nem repetição, autorização, estado sem acesso financeiro e preservação da ficha de consumo ao abrir caixa.
+Esta separação vale para recebimentos de clientes. Despesas por débito/crédito continuam saindo da conta bancária escolhida. PIX confirmado entra na conta escolhida. Débito/crédito entram em uma conta do tipo **Cartões a receber**. Se não houver esse controle, ele é criado no primeiro recebimento de cartão, com saldo inicial zero. Esse saldo não é dinheiro disponível no banco nem entra no saldo bancário base da previsão.
 
-## Verificação da entrega
+Em **Financeiro → Contas bancárias → Registrar repasse do cartão**, escolher o controle de cartões e o banco, informar bruto e taxa e conferir o líquido. O sistema exige bruto = líquido + taxa, valida o saldo pendente e registra a baixa, o depósito líquido e a despesa na mesma operação. Reenvio não duplica o repasse.
 
-- 463 testes unitários e de interface aprovados.
-- 99 testes de integração aprovados em PostgreSQL isolado, incluindo caixa, pagamentos, permissões e notificações.
-- Verificação de tipos, lint sem avisos e build de produção aprovados.
-- Interface conferida no navegador em viewport mobile: controle explícito de turno na Frente de Caixa, formulário de fechamento e padding da ficha de consumo.
-- A migração foi aplicada somente ao banco isolado de validação. A versão web local atual usa demonstração no navegador; a atualização de uma instalação PostgreSQL precisa executar as migrações normalmente.
+Não há integração com maquininha ou extrato. Repasses são manuais. Um estorno pela conta original exige saldo nessa conta; se já houve repasse, a devolução requer conciliação financeira antes de confirmar. Não registrar outro recebimento do cliente para contornar saldo insuficiente.
+
+## Permissões e atualização
+
+Abertura, fechamento, fechamento de outro responsável, movimentação, conferência e estorno preservam suas permissões. O repasse usa **Transferir entre contas**. A consulta do estado do caixa não libera histórico ou saldos financeiros.
+
+Aplicar a nova migração pelo procedimento normal de atualização:
+
+```powershell
+pnpm exec prisma migrate deploy
+```
+
+A migração `20261023000100_operational_cash_sessions` adiciona vínculos operacionais, versão e resumo final. `cashSessionId` continua exclusivo da gaveta; `operationalSessionId` identifica o atendimento. O fechamento grava um resumo imutável. Vendas, recebimentos e fechamento usam transação serializável, bloqueio curto do turno e repetição segura.
+
+A demonstração do navegador utiliza a mesma regra e armazenamento local. Seus dados continuam separados por navegador; compartilhamento entre usuários exige PostgreSQL. Os exemplos são restaurados na próxima abertura após atualizar este conjunto de cenários.
+
+## Validação desta entrega
+
+Consulte [ENTREGA_FECHAMENTO_CAIXA.md](ENTREGA_FECHAMENTO_CAIXA.md) para evidências e roteiro visual. A migração foi executada somente no PostgreSQL isolado dos testes, sem alterar o banco operacional.

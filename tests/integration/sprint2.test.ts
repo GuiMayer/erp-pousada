@@ -22,7 +22,7 @@ beforeAll(async () => {
 })
 beforeEach(async () => {
   for (const a of [actor,reception]) await prisma.authSession.upsert({ where:{id:a.sessionId},create:{id:a.sessionId,userId:a.id,tokenHash:randomUUID(),expiresAt:new Date(Date.now()+600000)},update:{expiresAt:new Date(Date.now()+600000)} })
-  await prisma.$executeRawUnsafe('TRUNCATE customers, rooms, guest_profiles, product_categories, transactions CASCADE')
+  await prisma.$executeRawUnsafe('TRUNCATE customers, rooms, guest_profiles, product_categories, transactions, cash_closes CASCADE')
   await prisma.bankAccount.deleteMany()
   await prisma.room.createMany({ data: [1,2,3].map(id => ({ id, number: 'S2-'+id, type: 'casal', status: 'disponivel', capacity: id === 3 ? 1 : 2 })) })
   await createCollectionItem('customers',{ id: 's2-company', name:'Empresa S2', cpfCnpj:'11222333000181', active:true, roles:['payer'] },actor)
@@ -42,6 +42,7 @@ async function start(company=true, deposit=0) {
   if(deposit) await op('pay-reservation',{reservationId:r.id,value:deposit,paymentMethod:'pix',accountId:'s2-bank'})
   const booking = await prisma.reservation.findUniqueOrThrow({where:{id:r.id}})
   await op('check-in',{...payload,reservationId:r.id,recordVersion:booking.recordVersion,payerId:booking.payerId})
+  if (!await prisma.cashClose.count({where:{status:'aberto'}})) await op('cash-open',{openingValue:0})
   await op('add-consumption',{roomId:1,expectedStayId:(await prisma.stay.findFirstOrThrow({where:{roomId:1,status:'active'}})).id,item:{id:randomUUID(),productId:'s2-drink',label:'nome adulterado',unitPrice:1,quantity:2}})
   return current()
 }
@@ -74,7 +75,8 @@ describe('Sprint 2 — hospedagem independente e cobrança',()=>{
     await expect(op('pay-consumption',{roomId:1,expectedStayId:s.id,recordVersion:s.recordVersion,paymentMethod:'pix',accountId:'s2-bank'})).rejects.toMatchObject({status:409})
     expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:'s2-stock'}})).currentStock)).toBe(stockBefore)
     expect(await prisma.stayCharge.count({where:{stayId:active.id}})).toBe(0)
-    await op('add-consumption',{roomId:1,expectedStayId:(await prisma.stay.findFirstOrThrow({where:{roomId:1,status:'active'}})).id,item:{id:randomUUID(),productId:'s2-drink',label:'Água',unitPrice:12,quantity:1}})
+    if (!await prisma.cashClose.count({where:{status:'aberto'}})) await op('cash-open',{openingValue:0})
+  await op('add-consumption',{roomId:1,expectedStayId:(await prisma.stay.findFirstOrThrow({where:{roomId:1,status:'active'}})).id,item:{id:randomUUID(),productId:'s2-drink',label:'Água',unitPrice:12,quantity:1}})
     const old=(await getCollection('stays') as Stay[]).find(row=>row.id===s.id)!
     await op('stay-receive',{stayId:old.id,recordVersion:old.recordVersion,value:324,paymentMethod:'pix',accountId:'s2-bank'})
     expect((await prisma.roomConsumption.findUniqueOrThrow({where:{roomId:1},include:{items:true}})).items).toHaveLength(1)

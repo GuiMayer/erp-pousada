@@ -16,8 +16,9 @@ async function user(id: string, profile: string) {
 }
 const emit = (key = randomUUID(), priority: "medium" | "critical" = "medium") => prisma.$transaction(tx => emitEvent(tx, { dedupKey: key, type: "reservation", title: "Reserva criada", message: "Exemplo", module: "reservas", requiredPermissions: ["reservations.read"], priority }))
 beforeAll(async () => {
-  await prisma.$executeRawUnsafe('TRUNCATE users, rooms, product_categories, system_settings, notification_events, operation_receipts CASCADE')
+  await prisma.$executeRawUnsafe('TRUNCATE users, customers, rooms, bank_accounts, transactions, cash_closes, product_categories, system_settings, notification_events, operation_receipts CASCADE')
   admin = await user("notif-admin", "administrador"); reception = await user("notif-reception", "recepcao"); stock = await user("notif-stock", "estoque")
+  await prisma.bankAccount.create({data:{id:"notif-bank",name:"Conta dos testes de notificações",type:"conta_corrente",active:true,initialBalance:0,currentBalance:0}})
   await prisma.systemSettings.create({ data: { id: "notif-settings", pousadaName: "Teste", checkInTime: "14:00", checkOutTime: "12:00", discountCeiling: 10 } })
   await prisma.room.create({ data: { id: 1, number: "101", type: "casal", status: "disponivel" } })
   await prisma.productCategory.create({ data: { id: "notif-category", name: "Teste", color: "blue", icon: "Cup" } })
@@ -100,6 +101,7 @@ describe("Central operacional persistida", () => {
     expect(await prisma.stockMovement.count({ where: { reason: "Perda de teste" } })).toBe(1); expect(await prisma.notificationEvent.count({ where: { type: "stock" } })).toBe(1)
   })
   it("pedidos simultâneos com o mesmo recibo emitem uma única venda", async () => {
+    if (!await prisma.cashClose.count({where:{status:"aberto"}})) await executeOperation(admin, randomUUID(), "cash-open", {openingValue:0,openingReason:"Fundo zero no teste de venda"})
     const requestId = randomUUID(); const saleId = randomUUID()
     const payload = { sale: { id: saleId, items: [{ id: randomUUID(), product: { id: "notif-product" }, quantity: 1, discount: 0 }], total: 10, amountPaid: 10, paymentMethod: "pix" }, globalDiscount: 0 }
     await Promise.all([executeOperation(admin, requestId, "sale", payload), executeOperation(admin, requestId, "sale", payload)])

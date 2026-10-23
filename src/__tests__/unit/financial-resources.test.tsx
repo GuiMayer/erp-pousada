@@ -12,7 +12,7 @@ beforeEach(() => { cleanup(); auth.permissions = ["bankAccounts.read", "bankTran
 describe("Separação dos recursos financeiros", () => {
   it("renderiza apenas o recurso solicitado, mantendo planejamento fora de contas", () => {
     render(<FinancialCadastrosManagement sections={["bankAccount", "bankTransfer"]} balancesOnly />)
-    expect(screen.getByText("Saldos das contas")).toBeInTheDocument()
+    expect(screen.getByText("Saldos registrados e cartões a receber")).toBeInTheDocument()
     expect(screen.getByText("Conta de teste")).toBeInTheDocument()
     for (const name of ["Orçamentos", "Recorrências", "Centros de Custo"]) expect(screen.queryByText(name)).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Editar cadastro")).not.toBeInTheDocument()
@@ -34,6 +34,6 @@ describe("Separação dos recursos financeiros", () => {
     render(<FinancialCadastrosManagement sections={["bankAccount", "bankTransfer"]} balancesOnly />)
     expect(screen.getByText("Transferencias")).toBeInTheDocument()
     expect(screen.getAllByRole("button")).toHaveLength(1)
-    expect(screen.queryByText("Saldos das contas")).not.toBeInTheDocument()
+    expect(screen.queryByText("Saldos registrados e cartões a receber")).not.toBeInTheDocument()
   })
 })

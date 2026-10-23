@@ -114,4 +114,4 @@ Fundo inicial de R$ 100; recebidos R$ 200 em dinheiro, R$ 300 em PIX e R$ 400 em
 4. Resumo, prévia, fechamento, comprovante e navegação compacta.
 5. Regressão completa, exemplos finais, documentação e roteiro de homologação.
 
-Sem implementação neste documento. Não introduzir emissão fiscal, serviços externos ou conversão hipotética de dados de produção. A referência de desenho é separar resumo por meio de pagamento da contagem física, como no [fluxo de fechamento documentado pelo Odoo](https://github.com/odoo/documentation/blob/19.0/content/applications/sales/point_of_sale/use.rst#close-the-pos-register), adaptando a complexidade à pousada.
+Implementação descrita em [ENTREGA_FECHAMENTO_CAIXA.md](ENTREGA_FECHAMENTO_CAIXA.md). Este documento preserva o plano e suas decisões. Não introduzir emissão fiscal, serviços externos ou conversão hipotética de dados de produção. A referência de desenho é separar resumo por meio de pagamento da contagem física, como no [fluxo de fechamento documentado pelo Odoo](https://github.com/odoo/documentation/blob/19.0/content/applications/sales/point_of_sale/use.rst#close-the-pos-register), adaptando a complexidade à pousada.

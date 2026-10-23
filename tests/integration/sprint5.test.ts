@@ -160,6 +160,7 @@ beforeEach(async () => {
       accountId: "s5-bank",
     },
   });
+  await prisma.cashClose.create({data:{id:"fixture-turn",operator:actor.username,responsibleUserId:actor.id,status:"aberto",date:new Date(),openingValue:0,expectedValue:0,physicalValue:0,divergence:0}});
 });
 afterAll(async () => {
   await prisma.user.delete({ where: { id } });
@@ -536,7 +537,7 @@ describe("Sprint 5 — números pela origem e recuperação", () => {
                 await executeOperation(c, requestId, "sale", payload);
                 break;
               } catch (e) {
-                if ((e as { code?: string }).code !== "P2034" || retry >= 5)
+                if (!((e as { code?: string }).code === "P2034" || (e as { details?: { code?: string } }).details?.code === "TEMPORARY_CONTENTION") || retry >= 5)
                   throw e;
                 conflicts++;
               }

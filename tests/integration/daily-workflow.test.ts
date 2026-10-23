@@ -59,7 +59,7 @@ it("reserva com sinal, venda na ficha, parcial concorrente, quitação e fechame
   await op("stay-receive",receipt,receiptKey); await op("stay-receive",receipt,receiptKey)
   const settled = await current(), checkoutKey = randomUUID(), checkout = {stayId:stay.id,recordVersion:settled.recordVersion}
   await op("stay-checkout",checkout,checkoutKey); await op("stay-checkout",checkout,checkoutKey)
-  await op("cash-close",{sessionId:turn.id,physicalValue:140})
+  await op("cash-close",{sessionId:turn.id,physicalValue:140, recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion })
   expect((await current()).status).toBe("closed")
   expect(Number((await prisma.stockItem.findUniqueOrThrow({where:{id:"stock"}})).currentStock)).toBe(8)
   expect(Number((await prisma.bankAccount.findUniqueOrThrow({where:{id:"bank"}})).currentBalance)).toBe(184)
@@ -71,7 +71,7 @@ it("caixa fechado entre a preparação e a confirmação recusa recebimento e pr
   const turn = await op("cash-open",{openingValue:100}) as {id:string}
   const stay = await arrive()
   const receipt = {stayId:stay.id,recordVersion:stay.recordVersion,value:20,paymentMethod:"dinheiro"}
-  await op("cash-close",{sessionId:turn.id,physicalValue:100})
+  await op("cash-close",{sessionId:turn.id,physicalValue:100, recordVersion: (await prisma.cashClose.findUniqueOrThrow({ where: { id: turn.id } })).recordVersion })
   const key = randomUUID()
   await expect(op("stay-receive",receipt,key)).rejects.toMatchObject({status:409})
   expect((await current()).payments).toHaveLength(0)
