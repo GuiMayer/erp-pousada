@@ -36,6 +36,7 @@ describe("Protótipo da sprint 1", () => {
     await waitFor(() => expect(saveTariff).toHaveBeenCalledWith(expect.objectContaining({ id: "one", recordVersion: 3, active: false }), true))
   })
   it("consulta CNPJ não substitui dados até a confirmação", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database")
     const apply = vi.fn()
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ cpfCnpj: "12ABC34501DE35", name: "Empresa Exemplo", address: "Rua A", city: "Cidade", state: "PR", phone: "", email: "" })))
     render(<CnpjLookup document="12.abc.345/01de-35" onApply={apply} />)
@@ -44,6 +45,13 @@ describe("Protótipo da sprint 1", () => {
     expect(apply).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "Usar estes dados" }))
     expect(apply).toHaveBeenCalledWith(expect.objectContaining({ cpfCnpj: "12ABC34501DE35" }))
+  })
+  it("orienta preenchimento manual na demo sem consultar a API", () => {
+    const fetch = vi.fn(); vi.stubGlobal("fetch", fetch)
+    render(<CnpjLookup document="12.abc.345/01de-35" onApply={vi.fn()} />)
+    expect(screen.getByText(/preencha os dados manualmente/)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Consultar CNPJ" })).not.toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalled()
   })
   it("recepção encontra cadastros no menu mobile sem perder atalhos", () => {
     const permissions = PROFILES.recepcao.permissions

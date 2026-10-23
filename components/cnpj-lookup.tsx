@@ -1,4 +1,5 @@
 "use client"
+import { getDataConfig } from "@/lib/data/config"
 import { useState } from "react"
 import { Button } from "./ui/button"
 import { normalizeDocument, validateCNPJ } from "@/lib/utils/cpf-cnpj-validator"
@@ -21,6 +22,7 @@ export function CnpjLookup({ document, onApply }: { document: string; onApply: (
     finally { setPending(false) }
   }
   if (!validateCNPJ(cnpj)) return null
+  if (getDataConfig().adapter === "demo-localStorage") return <p className="text-xs text-muted-foreground">Consulta externa de CNPJ disponível na instalação com servidor. Nesta demonstração, preencha os dados manualmente.</p>
   return <div className="space-y-2">
     <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => lookup()}>{pending ? "Consultando…" : "Consultar CNPJ"}</Button>
     {error && <p role="status" className="text-sm text-muted-foreground">{error}</p>}

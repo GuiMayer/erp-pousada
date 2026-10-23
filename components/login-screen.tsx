@@ -1,5 +1,9 @@
 "use client"
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { demoAccounts } from "@/lib/demo-accounts"
+import { initializeBrowserDemo } from "@/lib/demo-data"
+import { createDataStore } from "@/lib/data/repositories"
 import { getDataConfig } from "@/lib/data/config"
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
@@ -17,6 +21,9 @@ export function LoginScreen() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
+  const [demoOpen, setDemoOpen] = useState(getDataConfig().adapter === "demo-localStorage")
+  const [demoMessage, setDemoMessage] = useState("")
+  const [resetting, setResetting] = useState(false)
   const [pending, setPending] = useState(false)
   const demo = getDataConfig().adapter === "demo-localStorage"
 
@@ -71,14 +78,31 @@ export function LoginScreen() {
               <LogIn className="size-4" />
               Entrar
             </Button>
-            {demo && <div className="rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground">Credenciais de teste:</p>
-              <p className="mt-1">Operador: <span className="font-mono">operador / 1234</span></p>
-              <p>Supervisor: <span className="font-mono">supervisor / adm123</span></p>
-            </div>}
+            {demo && <Button type="button" variant="outline" onClick={() => setDemoOpen(true)}>Acessos da demonstração</Button>}
+
           </form>
         </CardContent>
       </Card>
+      {demo && <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Explore a demonstração</DialogTitle><DialogDescription>Dados fictícios, exclusivos deste navegador. Use um dos acessos abaixo; nenhuma conta precisa ser criada.</DialogDescription></DialogHeader>
+          <div className="space-y-3">
+            {[{ username: "supervisor", password: "adm123", label: "Supervisor · acesso completo" }, { username: "operador", password: "1234", label: "Operador · atendimento" }].map(account => <div key={account.username} className="rounded-lg border p-3 space-y-2">
+              <p className="font-medium">{account.label}</p><p className="text-sm">Usuário: <code>{account.username}</code> · Senha: <code>{account.password}</code></p>
+              <Button type="button" variant="outline" onClick={() => { setUsername(account.username); setPassword(account.password); setDemoOpen(false) }}>Preencher acesso de {account.username}</Button>
+            </div>)}
+            <p className="text-sm text-muted-foreground">As alterações ficam neste navegador. Ao acessar em outro dia, os exemplos são renovados. Para recomeçar agora, restaure os exemplos.</p>
+            <Button type="button" variant="outline" disabled={resetting} onClick={async () => {
+              setResetting(true); setDemoMessage("")
+              try { await initializeBrowserDemo(createDataStore({ prefix: "erp-pousada-demo", enableSync: false }), true); setDemoMessage("Exemplos restaurados. Você já pode entrar.") }
+              catch { setDemoMessage("Não foi possível restaurar. Verifique se o navegador permite armazenamento local.") }
+              finally { setResetting(false) }
+            }}>{resetting ? "Restaurando…" : "Restaurar exemplos e descartar alterações"}</Button>
+            {demoMessage && <p role="status" className="text-sm">{demoMessage}</p>}
+          </div>
+        </DialogContent>
+      </Dialog>}
+
     </div>
   )
 }

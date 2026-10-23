@@ -1,6 +1,7 @@
 "use client"
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, Fragment, type ReactNode } from "react"
 import type { UserRole } from "./store"
+import { demoAccounts } from "./demo-accounts"
 import { getDataConfig } from "./data/config"
 import { effectivePermissions } from "./permissions"
 type AuthUser = { id: string; username: string; role: UserRole; permissions?: string[]; accessProfile?: string | null; accessVersion?: number; approvablePermissions?: string[] }
@@ -8,7 +9,6 @@ type AuthContextType = { user: AuthUser | null; isLoggedIn: boolean; isLoading: 
 const AuthContext = createContext<AuthContextType | null>(null)
 const DEMO_KEY = "erp_demo_auth"
 const SYNC_KEY = "erp_auth_changed"
-const demoUsers = { operador: { password: "1234", role: "operador" }, supervisor: { password: "adm123", role: "supervisor" } } as const
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setLoading] = useState(true)
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     const normalized = username.trim().toLowerCase()
     if (demo) {
-      const account = demoUsers[normalized as keyof typeof demoUsers]
+      const account = demoAccounts.find(account => account.username === normalized)
       if (!account || account.password !== password) return false
       const next = { id: `demo-${normalized}`, username: normalized, role: account.role }
       generation.current++; setUser(next); localStorage.setItem(DEMO_KEY, JSON.stringify(next)); return true
