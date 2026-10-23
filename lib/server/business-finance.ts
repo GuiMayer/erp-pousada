@@ -1,3 +1,4 @@
+import { cashSummary } from "./cash-summary"
 import { acceptsPayment, isCardPayment, cardPayoutAmounts } from "@/lib/payment-accounts"
 import { touchOpenCash } from "./cash-session"
 import { formatCurrency } from "@/lib/utils/formatters"
@@ -81,13 +82,22 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
     await audit(tx, actor, "Caixa aberto", session.id, { entityType: "cashCloses", entityId: session.id, operation: "create", metadata: { openingValue, previousSessionId: previous?.id, openingReason, previousRetainedValue: previous ? Number(previous.retainedValue) : undefined } })
     return collectionMapper("cashCloses").toApp(session)
   }
+  if (kind === "cash-preview") {
+    const input = z.object({ sessionId: id }).strict().parse(payload)
+    const session = await tx.cashClose.findUniqueOrThrow({ where: { id: input.sessionId } })
+    if (session.status !== "aberto") throw new HttpError(409, "Caixa já fechado")
+    if (session.responsibleUserId !== actor.id && !can(actor, "cash.closeAny")) throw new HttpError(403, "Somente o responsável ou supervisor pode conferir o fechamento")
+    return { ...collectionMapper("cashCloses").toApp(session) as object, closingSummary: await cashSummary(tx, session) }
+  }
   if (kind === "cash-close") {
-    const input = z.object({ sessionId: id, physicalValue: money, retainedValue: money.optional(), withdrawalAccountId: id.optional(), closingReason: z.string().trim().min(5).max(500).optional() }).strict().parse(payload)
+    const input = z.object({ sessionId: id, recordVersion: z.number().int().nonnegative(), physicalValue: money, retainedValue: money.optional(), withdrawalAccountId: id.optional(), closingReason: z.string().trim().min(5).max(500).optional() }).strict().parse(payload)
     const { sessionId, physicalValue } = input
     await tx.$queryRaw`SELECT id FROM cash_closes WHERE id = ${sessionId} FOR UPDATE`
     const session = await tx.cashClose.findUniqueOrThrow({ where: { id: sessionId } })
     if (session.status !== "aberto") throw new HttpError(409, "Caixa já fechado")
     if (session.responsibleUserId !== actor.id && !can(actor, "cash.closeAny")) throw new HttpError(403, "Somente o responsável ou supervisor pode fechar este caixa")
+    if (input.recordVersion !== session.recordVersion) throw new HttpError(409, "O caixa mudou durante a conferência. Confira o resumo atualizado antes de fechar.", { code: "CASH_CHANGED" })
+    const summary = await cashSummary(tx, session)
     const entries = await tx.transaction.findMany({ where: { cashSessionId: session.id } })
     const expectedValue = entries.reduce((sum, entry) => cashIncoming(entry.type) ? sum.plus(entry.value) : sum.minus(entry.value), session.openingValue)
     const divergence = D(physicalValue).minus(expectedValue)
@@ -102,7 +112,7 @@ export async function financeOperation(tx: Tx, actor: Actor, kind: string, paylo
       // deposit moves the bank balance. Neither custody nor deposit is revenue.
       await recordLedger(tx, actor, `Depósito do fechamento ${session.id}`, withdrawnValue, "transferencia_entrada", "pix", input.withdrawalAccountId, { originType: "cash-closing-deposit", originId: session.id, batchId: session.id })
     }
-    const closed = await tx.cashClose.update({ where: { id: session.id }, data: { status: "fechado", date: new Date(), closedAt: new Date(), physicalValue, expectedValue, divergence, retainedValue, withdrawnValue, withdrawalAccountId: input.withdrawalAccountId, closingReason: input.closingReason, closedBy: actor.username } })
+    const closed = await tx.cashClose.update({ where: { id: session.id }, data: { recordVersion: { increment: 1 }, closingSummary: summary, status: "fechado", date: new Date(), closedAt: new Date(), physicalValue, expectedValue, divergence, retainedValue, withdrawnValue, withdrawalAccountId: input.withdrawalAccountId, closingReason: input.closingReason, closedBy: actor.username } })
     await audit(tx, actor, "Caixa fechado", session.id, { entityType: "cashCloses", entityId: session.id, operation: "update", metadata: { physicalValue, expectedValue: Number(expectedValue), divergence: Number(divergence), retainedValue: Number(retainedValue), withdrawnValue: Number(withdrawnValue), withdrawalAccountId: input.withdrawalAccountId, closingReason: input.closingReason } })
     return { ...collectionMapper("cashCloses").toApp(closed) as object, incomingValue: Number(entries.filter(e => cashIncoming(e.type)).reduce((sum, e) => sum.plus(e.value), D(0))), outgoingValue: Number(entries.filter(e => !cashIncoming(e.type)).reduce((sum, e) => sum.plus(e.value), D(0))) }
   }

@@ -85,6 +85,7 @@ export const operationPermissions: Record<string, string> = {
   "refund-transaction": "transactions.refund",
   "cash-open": "cash.open",
   "cash-close": "cash.close",
+  "cash-preview": "cash.close",
   "cash-movement": "cash.move",
   "cash-review": "cash.review",
   "check-transaction": "transactions.check",

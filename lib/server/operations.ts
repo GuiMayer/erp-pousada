@@ -224,6 +224,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
     return { success: true }
   }
   if (kind === "remove-consumption") {
+    await touchOpenCash(tx)
     demandOperation(actor, kind)
     const input = z.object({ roomId: integer, itemId: id }).strict().parse(payload)
     const item = await tx.roomConsumptionItem.findUniqueOrThrow({ where: { id: input.itemId }, include: { consumption: true } })

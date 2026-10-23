@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { CashWorkspace } from "@/components/cash-workspace"
 import { CashSessionPanel } from "@/components/cash-session-panel"
-import { ApiError } from "@/lib/data/conflicts"
 import type { CashClose } from "@/lib/store"
 import { canAccessTab } from "@/lib/permissions"
 
@@ -14,7 +13,7 @@ beforeEach(() => {
   state.phone = false; cleanup(); vi.stubEnv("NEXT_PUBLIC_DATA_ADAPTER", "database"); state.cashCloses = []; state.runOperation.mockReset()
   state.permissions = ["cash.open", "cash.close", "cash.move", "cashCloses.read"]
 })
-const turn = (): CashClose => ({ id: "turn", status: "aberto", operator: "Ana", responsibleUserId: "operator", date: "2026-01-01T10:00:00Z", openedAt: "2026-01-01T10:00:00Z", openingValue: 20, physicalValue: 0, expectedValue: 20, divergence: 0 })
+const turn = (): CashClose => ({ id: "turn", recordVersion: 0, status: "aberto", operator: "Ana", responsibleUserId: "operator", date: "2026-01-01T10:00:00Z", openedAt: "2026-01-01T10:00:00Z", openingValue: 20, physicalValue: 0, expectedValue: 20, divergence: 0 })
 
 describe("Operação centralizada do caixa", () => {
   it("oferece abertura quando fechado e fechamento explícito quando aberto", () => {
@@ -24,7 +23,7 @@ describe("Operação centralizada do caixa", () => {
     expect(screen.queryByRole("button", { name: "Abrir caixa" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Fechar caixa" }))
     expect(screen.getByLabelText("Valor físico em dinheiro")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Confirmar fechamento" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Conferir fechamento" })).toBeDisabled()
   })
   it("não oferece fechar turno de outra pessoa sem autorização e avisa turno antigo", () => {
     state.cashCloses = [{ ...turn(), responsibleUserId: "other" }]
@@ -45,10 +44,10 @@ describe("Operação centralizada do caixa", () => {
   })
   it("pede justificativa após diferença e permite recontar sem fechar", async () => {
     state.cashCloses = [turn()]
-    state.runOperation.mockRejectedValueOnce(new ApiError("Há diferença", 409, "CASH_DIFFERENCE"))
+    state.runOperation.mockResolvedValueOnce({ ...turn(), closingSummary: { methods: [], deferred: { value: 0, count: 0 }, incomingValue: 0, outgoingValue: 0, expectedValue: 20 } })
     render(<CashSessionPanel mode="close" />)
     fireEvent.change(screen.getByLabelText("Valor físico em dinheiro"), { target: { value: "15" } })
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar fechamento" }))
+    fireEvent.click(screen.getByRole("button", { name: "Conferir fechamento" }))
     await waitFor(() => expect(screen.getByLabelText("Justificativa da diferença")).toBeInTheDocument())
     expect(screen.getByRole("button", { name: "Confirmar fechamento" })).toBeDisabled()
     fireEvent.click(screen.getByRole("button", { name: "Recontar dinheiro" }))
@@ -57,14 +56,15 @@ describe("Operação centralizada do caixa", () => {
   })
   it("envia fundo zero e depósito escolhido sem perder a contagem", async () => {
     state.cashCloses = [turn()]
-    state.runOperation.mockResolvedValue({ ...turn(), status: "fechado", physicalValue: 20, retainedValue: 0, withdrawnValue: 20 })
+    state.runOperation.mockResolvedValueOnce(turn()).mockResolvedValue({ ...turn(), status: "fechado", physicalValue: 20, retainedValue: 0, withdrawnValue: 20 })
     render(<CashSessionPanel mode="close" />)
     fireEvent.change(screen.getByLabelText("Valor físico em dinheiro"), { target: { value: "20" } })
     fireEvent.change(screen.getByLabelText("Fundo para o próximo turno"), { target: { value: "0" } })
     fireEvent.click(screen.getByRole("checkbox", { name: /Já depositei/ }))
     fireEvent.change(screen.getByLabelText("Conta do depósito"), { target: { value: "bank" } })
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar fechamento" }))
-    await waitFor(() => expect(state.runOperation).toHaveBeenCalledWith("cash-close", { sessionId: "turn", physicalValue: 20, retainedValue: 0, withdrawalAccountId: "bank" }))
+    fireEvent.click(screen.getByRole("button", { name: "Conferir fechamento" }))
+    await screen.findByRole("button", { name: "Confirmar fechamento" }); fireEvent.click(screen.getByRole("button", { name: "Confirmar fechamento" }))
+    await waitFor(() => expect(state.runOperation).toHaveBeenCalledWith("cash-close", { recordVersion: 0, sessionId: "turn", physicalValue: 20, retainedValue: 0, withdrawalAccountId: "bank" }))
     expect(screen.getByRole("status")).toHaveTextContent("Fechamento registrado")
   })
   it("não bloqueia o fechamento se a retirada deixar de existir após selecionar depósito", () => {
@@ -75,14 +75,14 @@ describe("Operação centralizada do caixa", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /Já depositei/ }))
     fireEvent.change(screen.getByLabelText("Fundo para o próximo turno"), { target: { value: "20" } })
     expect(screen.queryByLabelText("Conta do depósito")).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Confirmar fechamento" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Conferir fechamento" })).toBeEnabled()
   })
   it("não envia fechamento para outro turno aberto enquanto o formulário estava em uso", async () => {
     state.cashCloses = [turn()]
     const view = render(<CashSessionPanel mode="close" />)
     fireEvent.change(screen.getByLabelText("Valor físico em dinheiro"), { target: { value: "20" } })
     state.cashCloses = [{ ...turn(), id: "new-turn" }]; view.rerender(<CashSessionPanel mode="close" />)
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar fechamento" }))
+    fireEvent.click(screen.getByRole("button", { name: "Conferir fechamento" }))
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("O turno mudou"))
     expect(state.runOperation).not.toHaveBeenCalled()
   })

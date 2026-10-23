@@ -19,7 +19,7 @@ describe("Turnos na demonstração do navegador", () => {
     await op("cash-open", { openingValue: 100 }, key); await op("cash-open", { openingValue: 100 }, key)
     expect(await store.cashCloses.count()).toBe(1)
     await op("cash-movement", { direction: "supply", value: 20, accountId: "bank", reason: "Suprimento teste" })
-    await op("cash-close", { sessionId: key, physicalValue: 120, retainedValue: 40 })
+    await op("cash-close", { sessionId: key, recordVersion: 1, physicalValue: 120, retainedValue: 40 })
     const inspected = await op("cash-inspect", { sessionId: key }) as { incomingValue: number; expectedValue: number; retainedValue: number }
     expect(inspected).toMatchObject({ incomingValue: 20, expectedValue: 120, retainedValue: 40 })
     await expect(op("cash-open", { openingValue: 50 })).rejects.toThrow("motivo")
@@ -28,15 +28,15 @@ describe("Turnos na demonstração do navegador", () => {
   })
   it("não encerra com diferença sem justificativa e mantém os valores após conferência", async () => {
     const key = crypto.randomUUID(); await op("cash-open", { openingValue: 100 }, key)
-    await expect(op("cash-close", { sessionId: key, physicalValue: 90 })).rejects.toMatchObject({ code: "CASH_DIFFERENCE" })
+    await expect(op("cash-close", { sessionId: key, recordVersion: 0, physicalValue: 90 })).rejects.toMatchObject({ code: "CASH_DIFFERENCE" })
     expect((await store.cashCloses.getById(key))?.status).toBe("aberto")
-    await op("cash-close", { sessionId: key, physicalValue: 90, closingReason: "Diferença conferida no turno" })
+    await op("cash-close", { sessionId: key, recordVersion: 0, physicalValue: 90, closingReason: "Diferença conferida no turno" })
     await op("cash-review", { sessionId: key, note: "Conferência do supervisor" })
     expect(await store.cashCloses.getById(key)).toMatchObject({ expectedValue: 100, physicalValue: 90, divergence: -10, reviewedBy: "operator" })
   })
   it("retira e deposita sem repetir saldo se tentarem fechar de novo", async () => {
     const key = crypto.randomUUID(); await op("cash-open", { openingValue: 100 }, key)
-    const closing = { sessionId: key, physicalValue: 100, retainedValue: 0, withdrawalAccountId: "bank" }
+    const closing = { sessionId: key, recordVersion: 0, physicalValue: 100, retainedValue: 0, withdrawalAccountId: "bank" }
     await op("cash-close", closing)
     await expect(op("cash-close", closing)).rejects.toThrow("já fechado")
     expect((await store.bankAccounts.getById("bank"))?.currentBalance).toBe(600)
@@ -45,7 +45,7 @@ describe("Turnos na demonstração do navegador", () => {
   it("recusa falta de saldo e acesso indevido sem deixar meia transferência", async () => {
     const key = crypto.randomUUID(); await op("cash-open", { openingValue: 10 }, key)
     await expect(op("cash-movement", { direction: "withdraw", value: 20, accountId: "bank", reason: "Sangria teste" })).rejects.toThrow("Saldo insuficiente")
-    await expect(demoCashOperation(store, "cash-close", { sessionId: key, physicalValue: 10 }, () => false, actor, crypto.randomUUID())).rejects.toThrow("permissão")
+    await expect(demoCashOperation(store, "cash-close", { sessionId: key, recordVersion: 0, physicalValue: 10 }, () => false, actor, crypto.randomUUID())).rejects.toThrow("permissão")
     expect(await store.transactions.count()).toBe(0)
     expect((await store.bankAccounts.getById("bank"))?.currentBalance).toBe(500)
   })
