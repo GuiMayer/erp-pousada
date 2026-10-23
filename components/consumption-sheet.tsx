@@ -300,7 +300,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
 
         <SheetFooter className="shrink-0 border-t border-border px-0 pb-0 pt-4 flex-col gap-3">
           {total > 0 && <div className="grid w-full min-w-0 items-start gap-3 sm:grid-cols-2">
-            <Label className="flex min-w-0 flex-col items-stretch gap-1">Forma de pagamento<select aria-label="Forma de pagamento" className="mt-1 min-h-11 min-w-0 rounded-md border bg-background p-2" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+            <Label className="flex min-w-0 flex-col items-stretch gap-1">Forma de pagamento<select aria-label="Forma de pagamento" className="mt-1 min-h-11 min-w-0 rounded-md border bg-background p-2" value={paymentMethod} onChange={e => { setPaymentMethod(e.target.value); setPaymentAccountId("") }}>
               <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
             </select></Label>
             <BankAccountPicker method={paymentMethod} accountId={paymentAccountId} setAccountId={setPaymentAccountId} /><PermissionGate permission="consumptions.receive"><Button className="w-full sm:col-span-2" disabled={changedContext || paying || sending || needsCash} onClick={payConsumption}>{paying ? "Registrando..." : "Quitar consumo"}</Button></PermissionGate>

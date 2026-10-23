@@ -4,6 +4,7 @@ import { CashWorkspace } from "@/components/cash-workspace"
 import { CashSessionPanel } from "@/components/cash-session-panel"
 import type { CashClose } from "@/lib/store"
 import { canAccessTab } from "@/lib/permissions"
+import { ApiError } from "@/lib/data/conflicts"
 
 const state = vi.hoisted(() => ({ cashCloses: [] as CashClose[], runOperation: vi.fn(), phone: false, permissions: [] as string[], bankAccounts: [{ id: "bank", name: "Conta", active: true }] }))
 vi.mock("@/hooks/use-phone-layout", () => ({ usePhoneLayout: () => state.phone }))
@@ -85,6 +86,20 @@ describe("Operação centralizada do caixa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Conferir fechamento" }))
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("O turno mudou"))
     expect(state.runOperation).not.toHaveBeenCalled()
+  })
+  it("preserva a contagem e exige nova conferência quando há movimento após a prévia", async () => {
+    state.cashCloses = [turn()]
+    state.runOperation.mockResolvedValueOnce({ ...turn(), recordVersion: 2 }).mockRejectedValueOnce(new ApiError("O caixa mudou", 409, "CASH_CHANGED"))
+    render(<CashSessionPanel mode="close" />)
+    fireEvent.change(screen.getByLabelText("Valor físico em dinheiro"), { target: { value: "20" } })
+    expect(screen.queryByRole("region", { name: "Resumo do atendimento" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Conferir fechamento" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar fechamento" }))
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("O caixa mudou"))
+    expect(screen.getByLabelText("Valor físico em dinheiro")).toHaveValue(20)
+    expect(screen.getByRole("button", { name: "Conferir fechamento" })).toBeEnabled()
+    expect(screen.queryByRole("button", { name: "Confirmar fechamento" })).not.toBeInTheDocument()
+    expect(state.runOperation).toHaveBeenCalledWith("cash-close", { sessionId: "turn", recordVersion: 2, physicalValue: 20, retainedValue: 20 })
   })
   it("permite a aba para operar caixa sem vender e não libera o Financeiro por isso", () => {
     const can = (permission: string) => permission === "cash.open"

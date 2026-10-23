@@ -50,7 +50,7 @@ export function CashWorkspace({ onSalesHistory }: { onSalesHistory?: () => void 
   }
   return <section aria-label="Controle do caixa" className="cash-workspace rounded-lg border bg-card p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><p className="font-semibold">{active ? "Caixa aberto" : "Caixa fechado"}</p><p className="text-sm text-muted-foreground">{active ? `${active.operator} · aberto em ${dateTime(active.openedAt ?? active.date)}` : "Abra para receber ou pagar em dinheiro."}</p></div>
+      <div><p className="font-semibold">{active ? "Caixa aberto" : "Caixa fechado"}</p><p className="text-sm text-muted-foreground">{active ? `${active.operator} · aberto em ${dateTime(active.openedAt ?? active.date)}` : "Abra para vender e lançar bebidas na hospedagem."}</p></div>
       <div className="flex flex-wrap gap-2">
         {!active && can("cash.open") && <Button onClick={() => setTask("open")}>Abrir caixa</Button>}
 

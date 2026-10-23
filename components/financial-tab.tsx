@@ -600,6 +600,7 @@ export function FinancialTab() {
                   <Separator />
                   <TxDetailRow icon={<Tag className="size-4" />} label="Categoria" value={detailTransaction.category || "Nao informada"} />
                   <TxDetailRow icon={<CreditCard className="size-4" />} label="Meio de Pagamento" value={detailTransaction.paymentMethod || "Nao informado"} />
+                  {["receita", "estorno"].includes(detailTransaction.type) && detailTransaction.paymentMethod && <p className="rounded border bg-muted/40 p-3 text-sm">{detailTransaction.operationalSessionId ? "Atendimento vinculado ao turno de caixa." : "Recebimento/devolução fora de turno — não entra no fechamento de outro caixa."}</p>}
                   <TxDetailRow icon={<User className="size-4" />} label="Responsavel" value={detailTransaction.responsible || "Nao informado"} />
                   {detailTransaction.notes && (
                     <>
