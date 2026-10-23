@@ -6,11 +6,19 @@
 
 Aplicação web em português para organizar a rotina de pousadas: da reserva ao fechamento de caixa, com controle de consumo, estoque e relatórios.
 
-[Conheça as telas](#telas-do-sistema) · [Execute a demonstração](#demonstração-local) · [Configure o banco](#desenvolvimento-com-postgresql) · [Documentação](#documentação)
+[Acesse a demonstração](https://guimayer.github.io/erp-pousada/) · [Conheça as telas](#telas-do-sistema) · [Execute localmente](#demonstração-local) · [Configure o banco](#desenvolvimento-com-postgresql) · [Documentação](#documentação)
 
 **Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Prisma 7 · PostgreSQL 16**
 
 </div>
+
+## Experimente a demonstração
+
+**[Abrir o ERP Pousada no navegador](https://guimayer.github.io/erp-pousada/)** — sem instalação ou cadastro.
+
+Na tela de login, o pop-up **Acessos da demonstração** mostra as credenciais e permite preencher o acesso. Para explorar todos os módulos, use **Supervisor**: usuário `supervisor`, senha `adm123`.
+
+Os dados são fictícios e as alterações ficam apenas no seu navegador. Para recomeçar, saia da conta e use **Restaurar exemplos e descartar alterações** no pop-up de acesso.
 
 ## Visão geral
 
