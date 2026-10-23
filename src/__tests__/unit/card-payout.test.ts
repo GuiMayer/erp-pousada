@@ -11,6 +11,12 @@ let store: ReturnType<typeof createDataStore>
 beforeEach(async () => { store = createDataStore({ adapter, enableSync: false }); await store.importAll(JSON.stringify(createDemoData())) })
 afterEach(async () => { await adapter.clear() })
 describe("Cartões e repasses", () => {
+  it("despesa por débito sai do banco sem reduzir cartões a receber", async () => {
+    const bank = (await store.bankAccounts.getById("DEMO-BANK"))!, card = (await store.bankAccounts.getById("CARDS-CLEARING"))!
+    await withDemoTransaction(store, staged => demoLedger(staged, { date: new Date().toISOString(), description: "Fornecedor fictício", type: "despesa", value: 20, paymentMethod: "debito", accountId: bank.id }))
+    expect((await store.bankAccounts.getById(bank.id))!.currentBalance).toBe(bank.currentBalance - 20)
+    expect((await store.bankAccounts.getById(card.id))!.currentBalance).toBe(card.currentBalance)
+  })
   it("cartão não aumenta banco, repasse com taxa não cria receita ou turno", async () => {
     const bank = (await store.bankAccounts.getById("DEMO-BANK"))!, card = (await store.bankAccounts.getById("CARDS-CLEARING"))!
     await store.cashCloses.update("DEMO-OPEN-CASH", { status: "fechado" })

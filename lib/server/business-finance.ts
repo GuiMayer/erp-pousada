@@ -30,6 +30,7 @@ const audit = recordAudit
 
 export async function recordLedger(tx: Tx, actor: Actor, reference: string, value: Prisma.Decimal, type = "receita", method?: string, requestedAccount?: string, origin: {batchId?:string;originType?:string;originId?:string;reversalOfId?:string} = {}) {
   const paymentMethod = method ? normalizePayment(method) : undefined
+  const accountMethod = type === "despesa" && paymentMethod && isCardPayment(paymentMethod) ? "PIX" : paymentMethod
   const turn = paymentMethod === "Dinheiro" || ["receita", "estorno"].includes(type) && paymentMethod ? await touchOpenCash(tx, paymentMethod === "Dinheiro") : undefined
   let cashSessionId: string | undefined, accountId = requestedAccount
   if (paymentMethod === "Dinheiro") {
@@ -44,13 +45,13 @@ export async function recordLedger(tx: Tx, actor: Actor, reference: string, valu
     cashSessionId = session.id
   } else if (paymentMethod) {
     if (!accountId) {
-      let accounts = await tx.bankAccount.findMany({ where: { active: true, type: isCardPayment(paymentMethod) ? "cartao" : { notIn: ["cartao", "caixa"] } }, take: 2 })
-      if (isCardPayment(paymentMethod) && !accounts.length) accounts = [await tx.bankAccount.upsert({ where: { id: "CARDS-CLEARING" }, create: { id: "CARDS-CLEARING", name: "Cartões a receber", type: "cartao", active: true, initialBalance: 0, currentBalance: 0 }, update: {} })]
+      let accounts = await tx.bankAccount.findMany({ where: { active: true, type: isCardPayment(accountMethod ?? "") ? "cartao" : { notIn: ["cartao", "caixa"] } }, take: 2 })
+      if (isCardPayment(accountMethod ?? "") && !accounts.length) accounts = [await tx.bankAccount.upsert({ where: { id: "CARDS-CLEARING" }, create: { id: "CARDS-CLEARING", name: "Cartões a receber", type: "cartao", active: true, initialBalance: 0, currentBalance: 0 }, update: {} })]
       if (accounts.length !== 1) throw new HttpError(400, "Selecione uma conta bancária ativa para este pagamento")
       accountId = accounts[0].id
     }
     const account = await tx.bankAccount.findUniqueOrThrow({ where: { id: accountId } })
-    if (!acceptsPayment(account, paymentMethod)) throw new HttpError(409, "Selecione uma conta ativa adequada ao pagamento: cartões usam Cartões a receber")
+    if (!acceptsPayment(account, accountMethod ?? paymentMethod)) throw new HttpError(409, "Selecione uma conta ativa adequada ao pagamento: cartões usam Cartões a receber")
     const incoming = type === "receita" || type === "transferencia_entrada"
     const updated = await tx.bankAccount.updateMany({ where: { id: account.id, ...(incoming ? {} : { currentBalance: { gte: value } }) }, data: { recordVersion: { increment: 1 }, currentBalance: incoming ? { increment: value } : { decrement: value } } })
     if (!updated.count) throw new HttpError(409, "Saldo bancário insuficiente")

@@ -8,15 +8,23 @@ const state = vi.hoisted(() => ({runOperation:vi.fn(),cashCloses:[] as {id:strin
 vi.mock('@/lib/app-context',()=>({useApp:()=>state}))
 vi.mock('@/lib/auth-context',()=>({useAuth:()=>({can:()=>true})}))
 describe('Controles de pagamento da Sprint 3',()=>{
-  it('identifica caixa fechado antes do envio e permite PIX sem abrir dinheiro',async()=>{
+  it("despesa com cartão seleciona banco, sem usar controle de recebimentos", () => {
+    state.cashCloses=[]
+    render(<PaymentDialog outgoing open onClose={()=>{}} title="Pagar despesa" maximum={20} onConfirm={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText("Forma de pagamento"), {target:{value:"debito"}})
+    expect(screen.getByLabelText("Conta bancária")).toHaveValue("bank")
+    expect(screen.queryByLabelText("Conta de cartões")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", {name:"Confirmar pagamento"})).toBeEnabled()
+  })
+  it('identifica caixa fechado e impede venda mesmo por PIX',async()=>{
     vi.stubEnv('NEXT_PUBLIC_DATA_ADAPTER','database');state.cashCloses=[]
     const confirm=vi.fn();render(<POSCheckoutDialog total={12} onClose={vi.fn()} onConfirm={confirm}/>)
     expect(screen.getByRole('button',{name:'Confirmar venda'})).toBeDisabled()
-    expect(screen.getByText(/Abra o caixa para receber em dinheiro/)).toBeTruthy()
+    expect(screen.getByText(/Caixa fechado — abra para vender/)).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Meio do pagamento 1'),{target:{value:'pix'}})
-    expect(screen.getByRole('button',{name:'Confirmar venda'})).toBeEnabled()
+    expect(screen.getByRole('button',{name:'Confirmar venda'})).toBeDisabled()
     fireEvent.click(screen.getByRole('button',{name:'Confirmar venda'}))
-    await waitFor(()=>expect(confirm).toHaveBeenCalledOnce())
+    expect(confirm).not.toHaveBeenCalled()
   })
   it('o hóspede do carrinho é pré-selecionado, mas a ficha exige uma escolha explícita',async()=>{
     const confirm=vi.fn()

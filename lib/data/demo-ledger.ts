@@ -8,7 +8,8 @@ import { cashIncoming } from "@/lib/payments"
 /** Called only inside withDemoTransaction: receipt and balance commit together. */
 export async function demoLedger(store: DataStore, entry: Omit<Transaction, "id"> & { id?: string }) {
   const method = normalizePayment(entry.paymentMethod ?? "")
-  const turn = method ? await touchDemoCash(store, method === "Dinheiro") : undefined
+  const accountMethod = entry.type === "despesa" && isCardPayment(method) ? "PIX" : method
+  const turn = method === "Dinheiro" || ["receita", "estorno"].includes(entry.type) && method ? await touchDemoCash(store, method === "Dinheiro") : undefined
   let accountId = entry.accountId
   const incoming = cashIncoming(entry.type)
   if (method === "Dinheiro") {
@@ -16,8 +17,8 @@ export async function demoLedger(store: DataStore, entry: Omit<Transaction, "id"
     const available = Math.round((turn!.openingValue ?? 0) * 100) + (await store.transactions.getAll()).filter(t => t.cashSessionId === turn!.id).reduce((n, t) => n + Math.round(t.value * 100) * (cashIncoming(t.type) ? 1 : -1), 0)
     if (!incoming && available < Math.round(entry.value * 100)) throw Error("Saldo de caixa insuficiente")
   } else if (method) {
-    let accounts = (await store.bankAccounts.getAll()).filter(a => acceptsPayment(a, method))
-    if (isCardPayment(method) && !accounts.length && !accountId) {
+    let accounts = (await store.bankAccounts.getAll()).filter(a => acceptsPayment(a, accountMethod))
+    if (isCardPayment(accountMethod) && !accounts.length && !accountId) {
       const account = await store.bankAccounts.create({ name: "Cartões a receber", type: "cartao", active: true, initialBalance: 0, currentBalance: 0 })
       accounts = [account]
     }

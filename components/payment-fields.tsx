@@ -12,25 +12,26 @@ import { distributePayment,type PaymentLine } from '@/lib/payments'
 import { PaymentEditor } from './payment-editor'
 import { CashTurnShortcut } from './cash-turn-shortcut'
 
-export function BankAccountPicker({ method, accountId, setAccountId }: { method: string; accountId: string; setAccountId: (value: string) => void }) {
+export function BankAccountPicker({ method, accountId, setAccountId, outgoing = false }: { outgoing?: boolean; method: string; accountId: string; setAccountId: (value: string) => void }) {
   const { bankAccounts } = useApp()
   if (normalizePayment(method) === "Dinheiro" || method === "credito_hospede") return null
-  const accounts = bankAccounts.filter(account => acceptsPayment(account, method))
+  const card = !outgoing && isCardPayment(method)
+  const accounts = bankAccounts.filter(account => acceptsPayment(account, outgoing ? "PIX" : method))
   const selected = accounts.find(account => account.id === (accountId || (accounts.length === 1 ? accounts[0].id : "")))
-  if (isCardPayment(method) && !accounts.length) return <p className="text-sm text-muted-foreground">Cartões a receber será criado automaticamente. O valor só entra no banco ao registrar o repasse.</p>
-  return <Label className="flex min-w-0 flex-col items-stretch gap-1">{isCardPayment(method) ? "Cartões a receber" : "Conta bancária"}<select aria-label={isCardPayment(method) ? "Conta de cartões" : "Conta bancária"} className="mt-1 min-h-11 w-full min-w-0 rounded border bg-background p-2" value={accountId || (accounts.length === 1 ? accounts[0].id : "")} onChange={event => setAccountId(event.target.value)}><option value="">Selecione uma conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select>{selected && <span className="block whitespace-normal break-words text-xs font-normal text-muted-foreground">Conta selecionada: {selected.name}</span>}{!accounts.length && <span className="block text-xs text-destructive">Cadastre uma conta ativa no Financeiro.</span>}</Label>
+  if (card && !accounts.length) return <p className="text-sm text-muted-foreground">Cartões a receber será criado automaticamente. O valor só entra no banco ao registrar o repasse.</p>
+  return <Label className="flex min-w-0 flex-col items-stretch gap-1">{card ? "Cartões a receber" : "Conta bancária"}<select aria-label={card ? "Conta de cartões" : "Conta bancária"} className="mt-1 min-h-11 w-full min-w-0 rounded border bg-background p-2" value={accountId || (accounts.length === 1 ? accounts[0].id : "")} onChange={event => setAccountId(event.target.value)}><option value="">Selecione uma conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select>{selected && <span className="block whitespace-normal break-words text-xs font-normal text-muted-foreground">Conta selecionada: {selected.name}</span>}{!accounts.length && <span className="block text-xs text-destructive">Cadastre uma conta ativa no Financeiro.</span>}</Label>
 }
 
-export function PaymentFields({ method, setMethod, accountId, setAccountId, allowCredit = false }: { method: string; setMethod: (value: string) => void; accountId: string; setAccountId: (value: string) => void; allowCredit?: boolean }) {
+export function PaymentFields({ method, setMethod, accountId, setAccountId, allowCredit = false, outgoing = false }: { outgoing?: boolean; method: string; setMethod: (value: string) => void; accountId: string; setAccountId: (value: string) => void; allowCredit?: boolean }) {
   return <div className="grid gap-3">
     <Label>Forma de pagamento<select aria-label="Forma de pagamento" className="mt-1 w-full rounded border bg-background p-2" value={method} onChange={event => { setMethod(event.target.value); setAccountId("") }}>
       <option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>{allowCredit && <option value="credito_hospede">Crédito do hóspede</option>}
     </select></Label>
-    <BankAccountPicker method={method} accountId={accountId} setAccountId={setAccountId} />
+    <BankAccountPicker outgoing={outgoing} method={method} accountId={accountId} setAccountId={setAccountId} />
   </div>
 }
 
-export function PaymentDialog({ open, onClose, title, maximum, allowCredit, mixedEnabled=false, fixedAmount=false, onConfirm }: { open: boolean; onClose: () => void; title: string; maximum?: number; allowCredit?: boolean; mixedEnabled?:boolean; fixedAmount?:boolean; onConfirm: (method: string, accountId: string | undefined, value: number, payments?:PaymentLine[]) => Promise<void> }) {
+export function PaymentDialog({ open, onClose, title, maximum, allowCredit, mixedEnabled=false, fixedAmount=false, outgoing=false, onConfirm }: { outgoing?: boolean; open: boolean; onClose: () => void; title: string; maximum?: number; allowCredit?: boolean; mixedEnabled?:boolean; fixedAmount?:boolean; onConfirm: (method: string, accountId: string | undefined, value: number, payments?:PaymentLine[]) => Promise<void> }) {
   const { cashCloses = [] } = useApp()
   const [method, setMethod] = useState("pix"), [accountId, setAccountId] = useState(""), [amount, setAmount] = useState("")
   const [pending, setPending] = useState(false), [error, setError] = useState("")
@@ -48,7 +49,7 @@ export function PaymentDialog({ open, onClose, title, maximum, allowCredit, mixe
   }
   return <Dialog open={open} onOpenChange={value => { if (!value && !pending) onClose() }}><DialogContent mobileTask protectDraft busy={pending}><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Confirme o valor e os meios de pagamento. O saldo restante continua em aberto.</DialogDescription></DialogHeader>
     {maximum !== undefined && <Label>Valor a receber (saldo: R$ {localizedNumber(maximum, 2)})<Input aria-label="Valor a receber" disabled={pending || fixedAmount} type="number" min="0.01" max={maximum} step="0.01" value={amount} placeholder={maximum.toFixed(2)} onChange={event => setAmount(event.target.value)} /></Label>}
-    <fieldset disabled={pending} className="space-y-3">{mixed?<PaymentEditor total={Number(amount||maximum||0)} lines={lines} onChange={setLines}/>:<PaymentFields method={method} setMethod={setMethod} accountId={accountId} setAccountId={setAccountId} allowCredit={allowCredit} />}{mixedEnabled&&maximum!==undefined&&<Button variant="outline" onClick={()=>{setMixed(!mixed);setLines([{method:method==='credito_hospede'?'pix':method,value:Number(amount||maximum),accountId:method==='dinheiro'?undefined:accountId||undefined}])}}>{mixed?'Usar uma forma de pagamento':'Dividir entre formas de pagamento'}</Button>}</fieldset>
+    <fieldset disabled={pending} className="space-y-3">{mixed?<PaymentEditor outgoing={outgoing} total={Number(amount||maximum||0)} lines={lines} onChange={setLines}/>:<PaymentFields method={method} setMethod={setMethod} accountId={accountId} setAccountId={setAccountId} allowCredit={allowCredit} outgoing={outgoing} />}{mixedEnabled&&maximum!==undefined&&<Button variant="outline" onClick={()=>{setMixed(!mixed);setLines([{method:method==='credito_hospede'?'pix':method,value:Number(amount||maximum),accountId:method==='dinheiro'?undefined:accountId||undefined}])}}>{mixed?'Usar uma forma de pagamento':'Dividir entre formas de pagamento'}</Button>}</fieldset>
     {needsCash && <div role="status" className="rounded border p-3 text-sm"><p>Abra o caixa para receber em dinheiro. Este pagamento será mantido.</p><CashTurnShortcut /></div>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}<DialogFooter><Button disabled={pending || needsCash} onClick={confirm}>{pending ? "Registrando..." : "Confirmar pagamento"}</Button></DialogFooter>
   </DialogContent></Dialog>
