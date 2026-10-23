@@ -80,7 +80,11 @@ describe("Reservas e entradas na demonstração isolada", () => {
     await store.rooms.update(1, { status: "ocupado", guest: "Outro hóspede" })
     await command("record-completed-stay", { ...base(), checkIn: day(-5), checkOut: day(-3), reason: "Registro esquecido na semana", initialPayment: { value: 200, payments: [{ method: "pix", value: 200, accountId: "bank" }] } })
     expect((await store.rooms.getById(1))?.guest).toBe("Outro hóspede")
-    expect((await store.stays.getAll())[0]).toMatchObject({ status: "closed", checkIn: day(-5), recordedAt: expect.stringContaining(day()) })
+    const recorded = (await store.stays.getAll())[0]
+    expect(recorded).toMatchObject({ status: "closed", checkIn: day(-5) })
+    // recordedAt is an instant in UTC; its business day may be the previous calendar date.
+    expect(recorded.recordedAt).toMatch(/T.*Z$/)
+    expect(businessDay(recorded.recordedAt!)).toBe(day())
   })
   it("no-show e permissão financeira valem também na demonstração", async () => {
     const r: Reservation = await reserve()
