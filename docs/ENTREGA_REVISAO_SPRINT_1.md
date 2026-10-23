@@ -67,4 +67,4 @@ As sprints 2 e 3 permanecem no plano: padronização de cabeçalhos/sub-abas, co
 
 ## Atualização após a entrega
 
-As dependências de produção vulneráveis foram atualizadas e a auditoria passou sem alertas: [registro de segurança](SEGURANCA_DEPENDENCIAS.md). A revisão de interface da [Sprint 2](ENTREGA_REVISAO_SPRINT_2.md) foi implementada; os itens da Sprint 3 permanecem planejados.
+As dependências de produção vulneráveis foram atualizadas e a auditoria passou sem alertas: [registro de segurança](SEGURANCA_DEPENDENCIAS.md). A revisão de interface da [Sprint 2](ENTREGA_REVISAO_SPRINT_2.md) foi implementada; a implementação da [Sprint 3](ENTREGA_REVISAO_SPRINT_3.md) também foi entregue, com pendências de homologação explicitadas.

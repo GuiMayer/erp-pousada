@@ -24,6 +24,8 @@ Consulte o [roteiro do protótipo e da atualização](docs/ENTREGA_SPRINT_1.md).
 
 A [sprint 1 da revisão de usabilidade](docs/ENTREGA_REVISAO_SPRINT_1.md) concentra o cadastro de bebidas em Cadastros, esclarece total/recebido/saldo e separa indicadores de hospedagem, vendas e recebimentos. O resumo de quartos aparece sempre no Mapa, abaixo das abas. A [sprint 2 da revisão](docs/ENTREGA_REVISAO_SPRINT_2.md) padroniza sub-abas, datas e auditoria e melhora os gráficos e o consumo lateral. Consulte também o [estado da auditoria de dependências](docs/SEGURANCA_DEPENDENCIAS.md).
 
+A [sprint 3](docs/ENTREGA_REVISAO_SPRINT_3.md) adiciona busca e filtros de chegadas, paginação por grupo e contato do hóspede, com um [roteiro de homologação da rotina](docs/HOMOLOGACAO_ROTINA_DIARIA.md).
+
 ## Telas do sistema
 
 Conheça quatro abas que representam os principais fluxos da aplicação. As capturas foram feitas em **modo claro**, com dados fictícios da Pousada Sol & Mar. Nomes, valores e operações são exemplos; as datas são calculadas quando a demonstração é criada.

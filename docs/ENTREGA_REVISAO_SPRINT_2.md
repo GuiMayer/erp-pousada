@@ -35,4 +35,4 @@ Os registros técnicos estão na pasta local ignorada .local, incluindo s2-full-
 
 ## Continuidade
 
-A Sprint 3 continua planejada: filtros/busca e volume de reservas, WhatsApp por ação explícita, medição dos fluxos diários e homologação operacional. A matriz visual completa e o zoom real de 200% devem ser confirmados nessa homologação. Nenhum push ou deploy foi executado nesta entrega.
+A implementação da [Sprint 3 foi entregue](ENTREGA_REVISAO_SPRINT_3.md): filtros/busca e volume de reservas, WhatsApp por ação explícita, medição técnica e roteiro dos fluxos diários. O aceite da recepção e a homologação visual completa continuam pendentes. A matriz visual completa e o zoom real de 200% devem ser confirmados nessa homologação. Nenhum push ou deploy foi executado nesta entrega.
