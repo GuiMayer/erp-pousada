@@ -32,7 +32,7 @@ beforeEach(() => { runOperation.mockReset(); denied.clear(); app.reservations = 
 describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
   it("oferece pagamento particular somente para pessoa vinculada e redefine ao trocar o CPF", () => {
     render(<ReservationsTab />)
-    fireEvent.click(screen.getByRole("button", { name: "Nova Reserva" }))
+    fireEvent.click(screen.getByRole("button", { name: "Nova reserva" }))
     fireEvent.change(screen.getByLabelText("Selecionar hóspede"), { target: { value: "person" } })
     expect(screen.getByRole("checkbox", { name: "Pagar por conta própria, fora da empresa" })).not.toBeChecked()
     expect(screen.getAllByText("Empresa A", { selector: "strong" })).toHaveLength(2)
@@ -44,7 +44,7 @@ describe("Cobrança da empresa ou particular nas novas hospedagens", () => {
   })
   it("alterna entre empresa e pessoa sem alterar o vínculo e limpa a escolha ao trocar hóspede", () => {
     render(<ReservationsTab />)
-    fireEvent.click(screen.getByRole("button", { name: "Nova Reserva" }))
+    fireEvent.click(screen.getByRole("button", { name: "Nova reserva" }))
     fireEvent.change(screen.getByLabelText("Selecionar hóspede"), { target: { value: "person" } })
     fireEvent.click(screen.getByRole("checkbox", { name: "Pagar por conta própria, fora da empresa" }))
     expect(screen.getByText("Pessoa A", { selector: "strong" })).toBeInTheDocument()
@@ -98,7 +98,7 @@ describe("Atendimento compartilhado", () => {
     app.reservations = [booking({groupId:"g"}), booking({id:"second",roomId:2,roomNumber:"102",recordVersion:7,groupId:"g"})]
     render(<ReservationsTab />)
     fireEvent.click(screen.getByRole("button", {name:"Abrir grupo dos quartos 101, 102"}))
-    fireEvent.click(within(screen.getByRole("region", {name:"Reserva do quarto 102"})).getByRole("button", {name:"Fazer check-in"}))
+    fireEvent.click(within(screen.getByRole("region", {name:"Reserva do quarto 102"})).getByRole("button", {name:/Fazer check-in de/}))
     expect(screen.queryByRole("dialog", {name:"Reserva de vários quartos"})).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", {name:"Confirmar entrada"}))
     await waitFor(() => expect(runOperation).toHaveBeenCalledWith("check-in", expect.objectContaining({reservationId:"second",roomId:2,recordVersion:7})))
@@ -119,7 +119,7 @@ describe("Atendimento compartilhado", () => {
     const past = new Date(Date.parse(businessDay()) - 86400000).toISOString().slice(0,10)
     app.reservations = [booking({checkIn:past})]
     render(<ReservationsTab />)
-    expect(screen.getByRole("button", {name:"Fazer check-in"})).toBeVisible()
+    expect(screen.getByRole("button", {name:/Fazer check-in de/})).toBeVisible()
     expect(screen.queryByRole("button", {name:"Editar"})).not.toBeInTheDocument()
     expect(screen.queryByRole("button", {name:"Cancelar"})).not.toBeInTheDocument()
     fireEvent.pointerDown(screen.getByRole("button", {name:"Mais ações da reserva reservation"}), {button:0,ctrlKey:false,pointerType:"mouse"})
@@ -144,7 +144,7 @@ describe("Atendimento compartilhado", () => {
     app.reservations = [booking()]
     render(<ReservationsTab />)
     expect(screen.queryByRole("button", {name:/Mais ações da reserva/})).not.toBeInTheDocument()
-    expect(screen.getByRole("button", {name:"Fazer check-in"})).toBeVisible()
+    expect(screen.getByRole("button", {name:/Fazer check-in de/})).toBeVisible()
   })
   it.each([-3, 0])("registra saída efetiva %s sem editar o contrato da reserva", async endOffset => {
     const day = (n: number) => new Date(Date.parse(businessDay()) + n * 86400000).toISOString().slice(0,10)
@@ -209,7 +209,7 @@ describe("Atendimento compartilhado", () => {
   it("entra pela reserva em duas ações sem redigitar identidade e envia ID/versão", async () => {
     app.reservations = [booking()]
     render(<ReservationsTab />)
-    fireEvent.click(screen.getByRole("button", { name: "Fazer check-in" }))
+    fireEvent.click(screen.getByRole("button", { name: /Fazer check-in de/ }))
     expect(screen.queryByLabelText("Selecionar hóspede")).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Confirmar entrada" }))
     await waitFor(() => expect(runOperation).toHaveBeenCalledWith("check-in", expect.objectContaining({ reservationId: "reservation", recordVersion: 3, payerId: "company" })))
