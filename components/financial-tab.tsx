@@ -305,7 +305,7 @@ export function FinancialTab() {
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
+    <div className="flex flex-col gap-6">
       <PageHeader title="Financeiro" />
       <p role="note" className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">Saldos internos. Confira os movimentos com seu extrato bancário. Cartões usam registro simplificado; taxas e repasses não são conciliados automaticamente.</p>
 

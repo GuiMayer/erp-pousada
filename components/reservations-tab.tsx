@@ -81,7 +81,7 @@ export function ReservationsTab() {
     </div>
   }
   if (!can("reservations.read")) return <p role="status">Você não tem permissão para consultar reservas.</p>
-  return <div className="space-y-4 animate-fade-in">
+  return <div className="space-y-4">
     <PageHeader title="Reservas" actions={can("reservations.create") && <Button size="sm" onClick={() => setForm("new")}>Nova reserva</Button>} />
     <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div className="space-y-2"><Label htmlFor="reservation-search">Buscar reserva</Label><Input id="reservation-search" placeholder="Hóspede, empresa, quarto ou referência" value={filters.query} onChange={e => updateFilter({query:e.target.value})} /></div>

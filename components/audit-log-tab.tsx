@@ -178,7 +178,7 @@ export function AuditLogTab() {
   if (database && !allowed) return <p>Sem acesso ao histórico de auditoria.</p>
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
+    <div className="flex flex-col gap-6">
       <PageHeader title="Auditoria" actions={<Badge variant="secondary">{filteredLog.length} de {database ? remote.total : auditLog.length} registros</Badge>} />
 
       <Card>

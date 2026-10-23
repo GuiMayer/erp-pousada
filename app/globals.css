@@ -201,6 +201,19 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+/* One entry motion for navigation panels; state changes replay it even when
+   a panel is retained in the DOM. Initial nested Radix panels keep their own
+   mount suppression, avoiding a second entry while the parent opens. */
+@keyframes tab-content-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :where([data-slot="tabs-content"][data-state="active"], [data-slot="section-content"]) {
+    animation: tab-content-enter 200ms ease-out;
+  }
+}
+
 /* Keep dialogs reachable in short viewports and when the keyboard reduces space. */
 .mobile-task-body { display: contents; }
 [data-slot="dialog-content"], [data-slot="alert-dialog-content"] {

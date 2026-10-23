@@ -38,7 +38,7 @@ export function HistoryTab() {
   const detail = entries.find(e => e.key === selected)
 
   if (!can("history.read") || !(mayReadStays || mayReadReservations)) return <p role="status">Você não tem permissão para consultar o histórico.</p>
-  return <div className="space-y-4 animate-fade-in">
+  return <div className="space-y-4">
     <PageHeader title="Histórico" description="Consulte hospedagens encerradas, cancelamentos e ausências. Cobranças pendentes ficam no Financeiro." />
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Label className="flex-col items-stretch gap-2">Buscar no histórico<Input placeholder="Hóspede, empresa, quarto ou reserva" value={query} onChange={e => setQuery(e.target.value)} /></Label>

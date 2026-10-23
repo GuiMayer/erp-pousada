@@ -54,7 +54,7 @@ export function RoomGrid() {
   }).map(({ room }) => room)
 
   return (
-    <div className="room-map flex flex-col gap-4 animate-fade-in">
+    <div className="room-map flex flex-col gap-4">
       <div className="sm:hidden space-y-2">
         <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{future ? format(calendarDate, "dd/MM") : "Agora"} · {availableCount} quartos {future ? "previstos livres" : "livres"}</span><PermissionGate permission="rooms.edit"><Button variant="outline" size="icon" aria-label="Gerenciar quartos" onClick={() => setManageRoomsOpen(true)}><Settings2 className="size-4" /></Button></PermissionGate></div>
         <Input aria-label="Buscar quarto ou hóspede" placeholder="Buscar quarto ou hóspede" value={search} onChange={event => setSearch(event.target.value)} />
