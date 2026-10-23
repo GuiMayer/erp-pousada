@@ -406,7 +406,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
 export async function executeOperation(actor: Actor, requestId: string, kind: string, payload: unknown) {
   const fingerprint = hashToken(JSON.stringify({ kind, payload }))
   const receiptId = hashToken(`${actor.id}:${requestId}`)
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
       return await prisma.$transaction(async tx => {
         if (actor.permissions) {
@@ -471,11 +471,13 @@ export async function executeOperation(actor: Actor, requestId: string, kind: st
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 })
     } catch (error) {
       const code = (error as { code?: string }).code
-      if (attempt < 2 && code === "P2034") { logEvent("info", "concurrency.retry", {}, error); await retryDelay(attempt); continue }
+      const rawConflict = code === "P2010" && (error as { meta?: { driverAdapterError?: { cause?: { originalCode?: string } } } }).meta?.driverAdapterError?.cause?.originalCode === "40001"
+      if (attempt < 4 && (code === "P2034" || rawConflict)) { logEvent("info", "concurrency.retry", {}, error); await retryDelay(attempt); continue }
       if (code === "P2002") {
         const receipt = await prisma.operationReceipt.findUnique({ where: { id: receiptId } })
-        if (receipt && receipt.requestHash === fingerprint && attempt < 2) continue
+        if (receipt && receipt.requestHash === fingerprint && attempt < 4) continue
       }
+      if (code === "P2034" || rawConflict) throw new HttpError(409, "O caixa foi movimentado por outro usuário. Revise e tente novamente.", { code: "TEMPORARY_CONTENTION" })
       throw error
     }
   }

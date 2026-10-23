@@ -1,7 +1,7 @@
 "use client"
+import { getDataConfig } from "@/lib/data/config"
 import { PermissionGate } from "@/components/permission-gate"
 
-import { getDataConfig } from "@/lib/data/config"
 import { useToast } from "@/hooks/use-toast"
 
 import { BankAccountPicker } from "./payment-fields"
@@ -36,7 +36,7 @@ type Props = {
 export function ConsumptionSheet({ room, open, onClose }: Props) {
   const {
     addConsumptionItem, removeConsumptionItem, getConsumption, addAuditEntry,
-    runOperation, clearConsumption, addTransaction, posProducts,
+    runOperation, posProducts,
     getCategoryName, productCategories, stays = [], cashCloses = [],
   } = useApp()
   const { username, can } = useAuth()
@@ -138,11 +138,7 @@ export function ConsumptionSheet({ room, open, onClose }: Props) {
     if (paying || sendingRef.current || needsCash) return
     setPaying(true)
     try {
-      if (getDataConfig().adapter === "database") await runOperation("pay-consumption", { roomId: room.id, expectedStayId: expectedStayId.current, recordVersion: currentStay?.recordVersion, paymentMethod, accountId: paymentMethod.toLowerCase() === "dinheiro" ? undefined : paymentAccountId || undefined })
-      else {
-        await addTransaction({ id: crypto.randomUUID(), date: new Date().toISOString(), description: `Consumo quarto ${room.number}`, value: total, type: "receita", paymentMethod, responsible: username || "demo" })
-        await clearConsumption(room.id)
-      }
+      await runOperation("pay-consumption", { roomId: room.id, expectedStayId: expectedStayId.current, recordVersion: currentStay?.recordVersion, paymentMethod, accountId: paymentMethod.toLowerCase() === "dinheiro" ? undefined : paymentAccountId || undefined })
       toast({ title: "Consumo quitado" })
     } catch (error) { toast({ title: "Pagamento não concluído", description: String(error), variant: "destructive" }) }
     finally { setPaying(false) }

@@ -1,7 +1,7 @@
 import { demoCardPayout } from "./data/demo-card-payout"
 import { demoLedger } from "./data/demo-ledger"
 import { withDemoTransaction } from "./data/demo-transaction"
-import { demoAddConsumption } from "./data/demo-consumption"
+import { demoAddConsumption, demoPayConsumption } from "./data/demo-consumption"
 "use client"
 import { demoCashKinds, demoCashOperation } from "@/lib/data/demo-cash"
 import { canReadCashStatus } from "@/lib/cash-access"
@@ -380,7 +380,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return result as T
       }
     }
-    const result = getDataConfig().adapter === "demo-localStorage" && kind === "card-payout"
+    const result = getDataConfig().adapter === "demo-localStorage" && kind === "pay-consumption"
+      ? await demoPayConsumption(dataStore, payload, can, user?.username ?? "demo", operationId) as T
+      : getDataConfig().adapter === "demo-localStorage" && kind === "card-payout"
       ? await demoCardPayout(dataStore, payload, can, user?.username ?? "demo", operationId) as T
       : getDataConfig().adapter === "demo-localStorage" && demoCashKinds.includes(kind)
       ? await demoCashOperation(dataStore, kind, payload, can, { id: user?.id ?? "demo", username: user?.username ?? "demo" }, operationId) as T
