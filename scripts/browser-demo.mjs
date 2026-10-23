@@ -21,7 +21,7 @@ if (command === "dev") {
   const staging = await mkdtemp(join(tmpdir(), "erp-browser-demo-"))
   const destination = join(root, ".local", "browser-demo-site")
   try {
-    for (const folder of ["app", "components", "contexts", "hooks", "lib", "modules", "styles", "public"]) {
+    for (const folder of ["app", "components", "contexts", "hooks", "lib", "modules", "public"]) {
       await cp(join(root, folder), join(staging, folder), { recursive: true })
     }
     for (const file of ["package.json", "next.config.mjs", "postcss.config.mjs"]) await cp(join(root, file), join(staging, file))
