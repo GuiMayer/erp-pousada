@@ -267,6 +267,7 @@ const transactionMapper: CollectionMapper<Transaction> = {
     allocations:row.allocations?.map((a:Row)=>({id:a.id,targetType:a.targetType,targetId:a.targetId,value:numberValue(a.value)})),
     date: dateString(row.date),
     cashSessionId: optional(row.cashSessionId),
+    operationalSessionId: optional(row.operationalSessionId),
     description: row.description,
     value: numberValue(row.value),
     type: row.type,
@@ -505,7 +506,7 @@ const posSaleMapper: CollectionMapper<POSSale> = {
   } as POSSale),
   toCreate: item => stripUndefined({
     id: item.id,
-    stayId:item.stayId,payments:item.payments,
+    stayId:item.stayId,payments:item.payments,operationalSessionId:item.operationalSessionId,
     date: dateValue(item.date),
     subtotal: item.subtotal,
     discount: item.discount,

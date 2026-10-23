@@ -28,7 +28,7 @@ type Model = {
   delete(args: unknown): Promise<Row>
   deleteMany(args?: unknown): Promise<unknown>
 }
-export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "purchases", "expenses", "transactions", "cashCloses", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockLots", "stockMovements", "stockInventories", "purchaseReturns", "productions", "employeeConsumptions", "stays", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
+export const collectionOrder = ["customers", "rooms", "lodgingTariffs", "guests", "suppliers", "bankAccounts", "costCenters", "productCategories", "posProducts", "employees", "recipes", "categories", "systemSettings", "reservations", "purchases", "expenses", "cashCloses", "transactions", "consumptions", "posSales", "restaurantTables", "restaurantOrders", "stockItems", "stockLots", "stockMovements", "stockInventories", "purchaseReturns", "productions", "employeeConsumptions", "stays", "accountsReceivable", "bankTransfers", "budgets", "recurringTransactions", "auditLog", "users", "userSessions"]
 export const portableKeys = collectionOrder.filter(key => !["users", "userSessions", "auditLog", "systemSettings"].includes(key))
 // Company rows must exist before importing their people, regardless of export order.
 const orderedItems = (key: string, items: unknown[]) => key === "customers" ? [...items].sort((a, b) => Number(!!(a as Row).companyId) - Number(!!(b as Row).companyId)) : items

@@ -1,0 +1,10 @@
+ALTER TABLE "cash_closes" ADD COLUMN "recordVersion" INTEGER NOT NULL DEFAULT 0, ADD COLUMN "closingSummary" JSONB;
+ALTER TABLE "transactions" ADD COLUMN "operationalSessionId" TEXT;
+CREATE INDEX "transactions_operationalSessionId_idx" ON "transactions"("operationalSessionId");
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_operationalSessionId_fkey" FOREIGN KEY ("operationalSessionId") REFERENCES "cash_closes"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "pos_sales" ADD COLUMN "operationalSessionId" TEXT;
+CREATE INDEX "pos_sales_operationalSessionId_idx" ON "pos_sales"("operationalSessionId");
+ALTER TABLE "pos_sales" ADD CONSTRAINT "pos_sales_operationalSessionId_fkey" FOREIGN KEY ("operationalSessionId") REFERENCES "cash_closes"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "stay_charges" ADD COLUMN "operationalSessionId" TEXT;
+CREATE INDEX "stay_charges_operationalSessionId_idx" ON "stay_charges"("operationalSessionId");
+ALTER TABLE "stay_charges" ADD CONSTRAINT "stay_charges_operationalSessionId_fkey" FOREIGN KEY ("operationalSessionId") REFERENCES "cash_closes"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;

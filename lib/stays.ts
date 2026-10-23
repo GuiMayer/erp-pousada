@@ -8,7 +8,7 @@ export type Stay = {
   recordVersion: number; endedAt?: string | null; groupId?: string | null
   occupants: { id: string; name: string; customerId?: string | null }[]
   allocations: { id: string; roomId: number; start: string; end: string; reason?: string | null }[]
-  charges: { id: string; sourceSaleId?:string|null; lineTotal?:number|null; productId?: string | null; label: string; unitPrice: number; quantity: number; status: string; reason?: string | null; createdAt: string }[]
+  charges: { operationalSessionId?: string | null; id: string; sourceSaleId?:string|null; lineTotal?:number|null; productId?: string | null; label: string; unitPrice: number; quantity: number; status: string; reason?: string | null; createdAt: string }[]
   payments: { id: string; value: number; bucket: string; method: string; createdAt: string; transactionId?: string | null }[]
   adjustments?: { id: string; value: number; reason: string; createdAt: string }[]
 }

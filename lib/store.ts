@@ -262,6 +262,7 @@ export interface ExpenseInstallment {
 }
 
 export interface Transaction {
+  operationalSessionId?: string
   batchId?:string
   originType?:string
   originId?:string
@@ -309,6 +310,8 @@ export interface AuditEntry {
 }
 
 export interface CashClose {
+  recordVersion?: number
+  closingSummary?: import("./cash-summary").CashSummary
   previousSessionId?: string
   openingReason?: string
   retainedValue?: number
@@ -504,6 +507,7 @@ export interface POSCartItem {
 }
 
 export interface POSSale {
+  operationalSessionId?: string
   stayId?:string|null
   payments?: Array<import("./payments").PaymentLine & {applied?:number}>
   id: string
