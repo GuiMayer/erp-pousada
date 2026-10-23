@@ -1,10 +1,16 @@
 "use client"
-import { useState } from "react"
+import { useMemo, useState, useEffect } from "react"
+import { useTaskState } from "@/contexts/task-drafts-context"
+import { reservationWorklist, emptyReservationFilters, type ReservationFilters } from "@/lib/reservation-worklist"
+import { PageHeader } from "./page-header"
+import { Input } from "./ui/input"
+import { Label } from "./ui/label"
+import { DateField } from "./ui/date-field"
 import { useApp } from "@/lib/app-context"
 import { useAuth } from "@/lib/auth-context"
 import { businessDay } from "@/lib/utils/business-values"
 import { reservationAmounts } from "@/lib/reservation-amounts"
-import { pendingReservationGroups, type PendingReservationGroup } from "@/lib/reservation-groups"
+import { type PendingReservationGroup } from "@/lib/reservation-groups"
 import { ReservationGroupSheet } from "./reservation-group-sheet"
 import { noShowEligible } from "@/lib/booking-flow"
 import { formatCurrency } from "@/lib/utils/formatters"
@@ -25,7 +31,7 @@ import { MoreHorizontal, Pencil, XCircle, UserX } from "lucide-react"
 const date = (value: string) => value.split("-").reverse().join("/")
 
 export function ReservationsTab() {
-  const { reservations, rooms, systemSettings } = useApp()
+  const { reservations, rooms, systemSettings, customers } = useApp()
   const { can } = useAuth()
   const [form, setForm] = useState<"new" | Reservation | null>(null)
   const [busy, setBusy] = useState(false)
@@ -34,9 +40,16 @@ export function ReservationsTab() {
   const [discount, setDiscount] = useState<Reservation | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [groupKey, setGroupKey] = useState<string | null>(null)
-  const groups = pendingReservationGroups(reservations)
-  const pendingReservations = groups.flatMap(group => group.pending)
-  const group = groups.find(group => group.key === groupKey)
+  const [filters, setFilters] = useTaskState<ReservationFilters>("reservations.filters", emptyReservationFilters, false)
+  const [page, setPage] = useTaskState("reservations.page", 1, false)
+  const today = businessDay()
+  const list = useMemo(() => reservationWorklist(reservations, customers, filters, today, page), [reservations, customers, filters, today, page])
+  useEffect(() => { if (page !== list.page) setPage(list.page) }, [page, list.page, setPage])
+  const updateFilter = (patch: Partial<ReservationFilters>) => { setFilters(previous => ({ ...previous, ...patch })); setPage(1) }
+  const activeFilters = filters.query || filters.arrival !== "all" || filters.from || filters.until
+  const groups = list.groups
+  const pendingReservations = list.allGroups.flatMap(group => group.pending)
+  const group = list.allGroups.find(group => group.key === groupKey)
   const closeDetails = () => { setDetailId(null); setGroupKey(null) }
   const openGroup = (group: PendingReservationGroup) => { if (group.isGroup) setGroupKey(group.key); else setDetailId(group.pending[0].id) }
   const period = (records: Reservation[], field: "checkIn" | "checkOut") => {
@@ -67,23 +80,33 @@ export function ReservationsTab() {
       </DropdownMenu>}
     </div>
   }
-  return <div className="space-y-6 animate-fade-in">
-    <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Reservas</h2>{can("reservations.create") && <Button size="sm" onClick={() => setForm("new")}>Nova Reserva</Button>}</div>
+  if (!can("reservations.read")) return <p role="status">Você não tem permissão para consultar reservas.</p>
+  return <div className="space-y-4 animate-fade-in">
+    <PageHeader title="Reservas" actions={can("reservations.create") && <Button size="sm" onClick={() => setForm("new")}>Nova reserva</Button>} />
+    <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="space-y-2"><Label htmlFor="reservation-search">Buscar reserva</Label><Input id="reservation-search" placeholder="Hóspede, empresa, quarto ou referência" value={filters.query} onChange={e => updateFilter({query:e.target.value})} /></div>
+      <div className="space-y-2"><Label htmlFor="reservation-arrival">Chegadas</Label><select id="reservation-arrival" className="min-h-11 w-full rounded-md border bg-background px-3 text-sm" value={filters.arrival} onChange={e => updateFilter({arrival:e.target.value as ReservationFilters["arrival"]})}><option value="all">Todas as chegadas</option><option value="today">Hoje</option><option value="next">Próximos 7 dias</option><option value="late">Chegada pendente em atraso</option></select></div>
+      <div className="space-y-2"><Label htmlFor="reservation-from">Entrada a partir de</Label><DateField id="reservation-from" aria-label="Entrada a partir de" value={filters.from} onValueChange={from => updateFilter({from})} /></div>
+      <div className="space-y-2"><Label htmlFor="reservation-until">Entrada até</Label><DateField id="reservation-until" aria-label="Entrada até" value={filters.until} onValueChange={until => updateFilter({until})} /></div>
+    </div>
+    {list.invalidPeriod && <p role="alert" className="text-sm text-destructive">A data final deve ser igual ou posterior à data inicial.</p>}
+    <div className="flex flex-wrap items-center justify-between gap-2"><p role="status" className="text-sm text-muted-foreground">{list.matchingCount} de {list.pendingCount} reservas aguardando chegada · {list.groupCount} atendimentos{activeFilters ? " no filtro" : ""}</p>{activeFilters && <Button variant="ghost" size="sm" onClick={() => {setFilters(emptyReservationFilters); setPage(1)}}>Limpar filtros</Button>}</div>
     <Card><CardContent className="p-0"><Table mobilePreview={["Hóspede", "Quarto", "Entrada", "Saída", "Status"]} mobileColumns={["Hóspede", "Quarto", "Entrada", "Saída", "Valor", "Status", "Ações"]}><TableHeader><TableRow>{["Hóspede", "Quarto", "Entrada", "Saída", "Valor", "Status", "Ações"].map(label => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
       {groups.map(group => {
         const first = group.pending[0]
         const amounts = reservationAmounts(group.pending)
         const names = [...new Set(group.pending.map(r => r.guestName))].join(", ")
         return <TableRow key={group.key} className="cursor-pointer" onClick={() => openGroup(group)}>
-          <TableCell><Button variant="link" className="h-auto whitespace-normal px-0 text-left" onClick={() => openGroup(group)}>{names}</Button>{group.isGroup && <p className="text-xs text-muted-foreground">Grupo · {group.pending.length} de {group.members.length} aguardando</p>}</TableCell>
+          <TableCell><Button variant="link" className="h-auto whitespace-normal px-0 text-left" onClick={event => {event.stopPropagation(); openGroup(group)}}>{names}</Button>{group.isGroup && <p className="text-xs text-muted-foreground">Grupo · {group.pending.length} de {group.members.length} aguardando</p>}{group.outsideCount > 0 && <p className="text-xs text-muted-foreground">{group.matchingIds.length} de {group.pending.length} quartos correspondem ao filtro; exibindo o grupo inteiro.</p>}</TableCell>
           <TableCell className="whitespace-normal">{group.roomNumbers}</TableCell>
           <TableCell>{period(group.pending, "checkIn")}</TableCell><TableCell>{period(group.pending, "checkOut")}</TableCell>
           <TableCell><span>Total: {formatCurrency(amounts.total)}</span><p className="text-xs text-muted-foreground">Recebido: {formatCurrency(amounts.received)} · Saldo: {formatCurrency(amounts.balance)}</p></TableCell><TableCell><Badge variant="secondary">{labels.confirmada}</Badge></TableCell>
           <TableCell onClick={e => e.stopPropagation()}>{group.isGroup ? <Button size="sm" variant="outline" aria-label={`Abrir grupo dos quartos ${group.roomNumbers}`} onClick={() => openGroup(group)}>Abrir grupo</Button> : actions(first)}</TableCell>
         </TableRow>
       })}
-      {!pendingReservations.length && <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma reserva aguardando chegada.</TableCell></TableRow>}
+      {!groups.length && <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">{list.pendingCount ? "Nenhuma reserva corresponde aos filtros." : "Nenhuma reserva aguardando chegada."}</TableCell></TableRow>}
     </TableBody></Table></CardContent></Card>
+    {list.pageCount > 1 && <nav aria-label="Paginação das reservas" className="flex items-center justify-between gap-3"><Button variant="outline" disabled={list.page === 1} onClick={() => setPage(list.page - 1)}>Anterior</Button><span className="text-sm">Página {list.page} de {list.pageCount}</span><Button variant="outline" disabled={list.page === list.pageCount} onClick={() => setPage(list.page + 1)}>Próxima</Button></nav>}
     <Dialog open={!!form} onOpenChange={v => { if (!v && !busy) setForm(null) }}><DialogContent mobileTask protectDraft busy={busy} className="sm:max-w-xl"><DialogHeader><DialogTitle>{form === "new" ? "Nova reserva" : "Editar reserva"}</DialogTitle><DialogDescription>Escolha o hóspede e revise período, quarto, ocupação e preço.</DialogDescription></DialogHeader>{form && <BookingForm key={form === "new" ? "new" : form.id} intent={form === "new" ? "reservation" : "edit"} reservation={form === "new" ? undefined : form} onBusy={setBusy} onDone={() => setForm(null)} />}</DialogContent></Dialog>
     {entry && entryRoom && <CheckinModal room={entryRoom} reservation={entry} open onClose={() => setEntry(null)} />}
     {discount && <ReservationDiscountDialog reservation={discount} onClose={() => setDiscount(null)} />}
