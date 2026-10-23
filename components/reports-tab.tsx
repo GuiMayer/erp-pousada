@@ -254,8 +254,7 @@ function LegacyReportsTab() {
       {/* Header with compact period selector */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Relatórios</h2>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Vendas realizadas, incluindo valores lançados na hospedagem. Consulte Recebimentos para o dinheiro recebido.
           </p>
         </div>
@@ -361,7 +360,7 @@ function LegacyReportsTab() {
 
           {/* Tabs for detailed views */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList>
+            <TabsList className="section-tabs" aria-label="Análises de bebidas">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="sales">Vendas</TabsTrigger>
               <TabsTrigger value="products">Produtos</TabsTrigger>

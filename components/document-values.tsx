@@ -1,5 +1,7 @@
 "use client"
+import { formatCurrency } from "@/lib/utils/formatters"
 export const documentFields: Record<string, string> = {
+  payerId: "Empresa ou pessoa pagadora",
   before: "Antes", after: "Depois", executorId: "Executor (ID)", approverId: "Responsável pela aprovação (ID)", permission: "Permissão", requestId: "Requisição", businessOperation: "Operação", amount: "Valor",
   id: "Identificador",
   date: "Data",
@@ -126,7 +128,7 @@ export function OriginValues({ value }: { value: unknown }) {
                   "Não"
                 )
               ) : (
-                String(v)
+                typeof v === "number" && ["value", "amount", "total", "totalValue", "paidValue", "lodgingValue", "unitPrice", "unitCost", "initialBalance", "currentBalance", "openingValue", "physicalValue", "expectedValue", "divergence", "subtotal"].includes(k) ? formatCurrency(v) : String(v)
               )}
             </dd>
           </div>

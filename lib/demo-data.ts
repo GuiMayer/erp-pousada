@@ -48,7 +48,7 @@ export function createDemoData(now = new Date()) {
   reservations.push(
     { id: "DEMO-R008", roomId: 9, roomNumber: "301", guestName: "Marina Oliveira", cpf: "000.000.000-01", checkIn: date(0), checkOut: date(3), status: "confirmada", totalValue: 1860 },
     { id: "DEMO-R009", roomId: 12, roomNumber: "304", guestName: "Felipe Rocha", cpf: "000.000.000-02", checkIn: date(1), checkOut: date(4), status: "confirmada", totalValue: 1350 },
-    { id: "DEMO-R010", roomId: 2, roomNumber: "102", guestName: "Lucia Martins", cpf: guests[6].cpf, checkIn: date(-7), checkOut: date(-4), status: "checkout", totalValue: 960 },
+    { id: "DEMO-R010", roomId: 2, roomNumber: "102", guestName: "Lúcia Martins", cpf: guests[6].cpf, checkIn: date(-7), checkOut: date(-4), status: "checkout", totalValue: 960 },
   )
   // One late departure to exercise extension/check-out, without inventing a future stay.
   rooms.find(r => r.id === 1)!.checkOut = date(-1)

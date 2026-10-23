@@ -208,10 +208,10 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
 
     if (editingId) {
       await updateBudget(editingId, budgetForm)
-      await addAuditEntry({ entityType: "budgets", operation: "update", user: auditUser, action: budgetForm.status === "ativo" ? "Orcamento editado" : "Orcamento arquivado", reference: budgetForm.name })
+      await addAuditEntry({ entityType: "budgets", operation: "update", user: auditUser, action: budgetForm.status === "ativo" ? "Orçamento editado" : "Orçamento arquivado", reference: budgetForm.name })
     } else {
       await addBudget({ id: `BUD${Date.now()}`, ...budgetForm })
-      await addAuditEntry({ entityType: "budgets", operation: "create", user: auditUser, action: "Orcamento criado", reference: budgetForm.name })
+      await addAuditEntry({ entityType: "budgets", operation: "create", user: auditUser, action: "Orçamento criado", reference: budgetForm.name })
     }
     closeDialog()
 
@@ -276,7 +276,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       await addAuditEntry({ entityType: "costCenters", operation: "delete", user: auditUser, action: "Centro de custo removido", reference })
     } else if (type === "budget") {
       await removeBudget(id, expectedVersion)
-      await addAuditEntry({ entityType: "budgets", operation: "delete", user: auditUser, action: "Orcamento removido", reference })
+      await addAuditEntry({ entityType: "budgets", operation: "delete", user: auditUser, action: "Orçamento removido", reference })
     } else {
       await removeRecurringTransaction(id, expectedVersion)
       await addAuditEntry({ entityType: "recurringTransactions", operation: "delete", user: auditUser, action: "Recorrencia removida", reference })
@@ -351,7 +351,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       {visible("budget") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm">Orcamentos</CardTitle>
+          <CardTitle className="text-sm">Orçamentos</CardTitle>
           {allowed("budget", "create") && <Button aria-label="Novo orçamento" size="sm" variant="outline" onClick={() => openBudget()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
@@ -364,7 +364,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
               <RowActions collection="budgets" active={budget.status === "ativo"} onEdit={() => openBudget(budget)} onDelete={() => removeCadastro("budget", budget.id, budget.name, budget.recordVersion)} />
             </div>
           ))}
-          {budgets.length === 0 && <EmptyState label="Nenhum orcamento cadastrado." />}
+          {budgets.length === 0 && <EmptyState label="Nenhum orçamento cadastrado." />}
         </CardContent>
       </Card>
       </>}
@@ -372,7 +372,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
       {visible("recurringTransaction") && <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm">Recorrencias</CardTitle>
+          <CardTitle className="text-sm">Recorrências</CardTitle>
           {allowed("recurringTransaction", "create") && <Button aria-label="Nova recorrência" size="sm" variant="outline" onClick={() => openRecurringTransaction()}><Plus className="size-4" /></Button>}
         </CardHeader>
         <CardContent className="space-y-2">
@@ -403,7 +403,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
                   <SelectItem value="caixa">Caixa</SelectItem>
                   <SelectItem value="conta_corrente">Conta Corrente</SelectItem>
                   <SelectItem value="poupanca">Poupanca</SelectItem>
-                  <SelectItem value="cartao">Cartao</SelectItem>
+                  <SelectItem value="cartao">Cartão</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
@@ -421,7 +421,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
           <div className="space-y-4">
             <FormError message={error} />
             <Field label="Data"><Input type="date" value={transferForm.date} onChange={e => setTransferForm(prev => ({ ...prev, date: e.target.value }))} /></Field>
-            <Field label="Descricao"><Input value={transferForm.description} onChange={e => setTransferForm(prev => ({ ...prev, description: e.target.value }))} /></Field>
+            <Field label="Descrição"><Input value={transferForm.description} onChange={e => setTransferForm(prev => ({ ...prev, description: e.target.value }))} /></Field>
             <Field label="Conta de origem">
               <Select value={transferForm.fromAccountId} onValueChange={value => setTransferForm(prev => ({ ...prev, fromAccountId: value }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -446,7 +446,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
           <div className="space-y-4">
             <FormError message={error} />
             <Field label="Nome"><Input value={costCenterForm.name} onChange={e => setCostCenterForm(prev => ({ ...prev, name: e.target.value }))} /></Field>
-            <Field label="Descricao"><Input value={costCenterForm.description || ""} onChange={e => setCostCenterForm(prev => ({ ...prev, description: e.target.value }))} /></Field>
+            <Field label="Descrição"><Input value={costCenterForm.description || ""} onChange={e => setCostCenterForm(prev => ({ ...prev, description: e.target.value }))} /></Field>
             <ActiveSwitch checked={costCenterForm.active} onChange={active => setCostCenterForm(prev => ({ ...prev, active }))} />
           </div>
           <DialogFooter><Button variant="outline" onClick={closeDialog}>Cancelar</Button><Button onClick={saveCostCenter}>Salvar</Button></DialogFooter>
@@ -455,7 +455,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
 
       <Dialog open={dialogType === "budget" && visible("budget") && allowed("budget", editingId ? "edit" : "create")} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{editingId ? "Editar Orcamento" : "Novo Orcamento"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? "Editar Orçamento" : "Novo Orçamento"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <FormError message={error} />
             <div className="grid gap-3 sm:grid-cols-3">
@@ -497,7 +497,7 @@ export function FinancialCadastrosManagement({ sections, balancesOnly = false, r
           <DialogHeader><DialogTitle>{editingId ? "Editar Recorrencia" : "Nova Recorrencia"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <FormError message={error} />
-            <Field label="Descricao"><Input value={recurringForm.description} onChange={e => setRecurringForm(prev => ({ ...prev, description: e.target.value }))} /></Field>
+            <Field label="Descrição"><Input value={recurringForm.description} onChange={e => setRecurringForm(prev => ({ ...prev, description: e.target.value }))} /></Field>
             <Field label="Categoria"><Input value={recurringForm.category} onChange={e => setRecurringForm(prev => ({ ...prev, category: e.target.value }))} /></Field>
             <Field label="Valor"><Input type="number" value={recurringForm.value} onChange={e => setRecurringForm(prev => ({ ...prev, value: Number(e.target.value) }))} /></Field>
             <Field label="Tipo">

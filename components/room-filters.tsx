@@ -8,7 +8,7 @@ type Filter = RoomStatus | "todos"
 
 const filters: { value: Filter; label: string; icon: React.ReactNode }[] = [
   { value: "todos", label: "Todos", icon: <LayoutGrid className="size-3.5" /> },
-  { value: "disponivel", label: "Disponivel", icon: <CheckCircle2 className="size-3.5" /> },
+  { value: "disponivel", label: "Disponível", icon: <CheckCircle2 className="size-3.5" /> },
   { value: "ocupado", label: "Ocupados", icon: <BedDouble className="size-3.5" /> },
   { value: "limpeza", label: "Limpeza", icon: <SprayCan className="size-3.5" /> },
   { value: "bloqueado", label: "Bloqueado", icon: <Lock className="size-3.5" /> },

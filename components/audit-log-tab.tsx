@@ -28,14 +28,14 @@ import type { AuditEntry } from "@/lib/store"
 
 const actionColors: Record<string, string> = {
   Estorno: "bg-warning/15 text-amber-900 dark:text-warning",
-  Desconto: "bg-info/15 text-info",
-  Cancelamento: "bg-destructive/15 text-destructive",
-  "No-show": "bg-destructive/15 text-destructive",
-  Desbloqueio: "bg-success/15 text-success",
+  Desconto: "bg-info/15 text-blue-800 dark:text-info",
+  Cancelamento: "bg-destructive/15 text-red-800 dark:text-destructive",
+  "No-show": "bg-destructive/15 text-red-800 dark:text-destructive",
+  Desbloqueio: "bg-success/15 text-emerald-800 dark:text-success",
   Diferenca: "bg-warning/15 text-amber-900 dark:text-warning",
-  create: "bg-success/15 text-success",
-  update: "bg-info/15 text-info",
-  delete: "bg-destructive/15 text-destructive",
+  create: "bg-success/15 text-emerald-800 dark:text-success",
+  update: "bg-info/15 text-blue-800 dark:text-info",
+  delete: "bg-destructive/15 text-red-800 dark:text-destructive",
 }
 
 const operationLabels: Record<string, string> = {
@@ -188,7 +188,7 @@ export function AuditLogTab() {
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por ação, referência ou usuário..."
+                  aria-label="Buscar por ação, referência ou usuário" placeholder="Buscar por ação, referência ou usuário..."
                   value={searchTerm}
                   onChange={(e) => { setPage(1); setSearchTerm(e.target.value) }}
                   className="pl-8"
@@ -214,7 +214,7 @@ export function AuditLogTab() {
               <div className="min-w-0 space-y-2"><label htmlFor="audit-from" className="min-w-0 text-sm">De</label><DateField id="audit-from" aria-label="Data inicial"  value={from} onValueChange={value => { setPage(1); setFrom(value) }} /></div>
               <div className="min-w-0 space-y-2"><label htmlFor="audit-to" className="min-w-0 text-sm">Até</label><DateField id="audit-to" aria-label="Data final"  value={to} onValueChange={value => { setPage(1); setTo(value) }} /></div>
               <Select value={filterUser} onValueChange={value => { setPage(1); setFilterUser(value) }}>
-                <SelectTrigger aria-label="Filtrar auditoria" className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
+                <SelectTrigger aria-label="Filtrar por usuário" className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
                   <Filter className="size-3 mr-2" />
                   <SelectValue placeholder="Usuário" />
                 </SelectTrigger>
@@ -227,7 +227,7 @@ export function AuditLogTab() {
               </Select>
 
               <Select value={filterOperation} onValueChange={value => { setPage(1); setFilterOperation(value) }}>
-                <SelectTrigger className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
+                <SelectTrigger aria-label="Filtrar por operação" className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
                   <Filter className="size-3 mr-2" />
                   <SelectValue placeholder="Operação" />
                 </SelectTrigger>
@@ -242,7 +242,7 @@ export function AuditLogTab() {
               </Select>
 
               <Select value={filterEntityType} onValueChange={value => { setPage(1); setFilterEntityType(value) }}>
-                <SelectTrigger className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
+                <SelectTrigger aria-label="Filtrar por tipo" className="min-h-11 w-full min-w-0 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
                   <Filter className="size-3 mr-2" />
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>

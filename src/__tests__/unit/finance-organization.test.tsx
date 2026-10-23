@@ -28,14 +28,14 @@ describe("Responsabilidades de cada área", () => {
     render(<FinancialTab />)
     expect(within(screen.getByRole("tablist", { name: "Seções do financeiro" })).getAllByRole("tab").map(t => t.textContent)).toEqual(["A receber", "A pagar", "Movimentações", "Contas bancárias"])
     expect(screen.getByText("Lista de cobranças")).toBeInTheDocument()
-    for (const name of ["Clientes", "Fornecedores", "Hospedes", "Cadastros", "Orcamentos"]) expect(screen.queryByRole("tab", { name })).not.toBeInTheDocument()
+    for (const name of ["Clientes", "Fornecedores", "Hóspedes", "Cadastros", "Orçamentos"]) expect(screen.queryByRole("tab", { name })).not.toBeInTheDocument()
     expect(screen.queryByText("Movimento líquido")).not.toBeInTheDocument()
   })
   it("resume somente as movimentações que pertencem ao filtro de período", () => {
     render(<FinancialTab />)
     fireEvent.mouseDown(within(screen.getByRole("tablist", { name: "Seções do financeiro" })).getByRole("tab", { name: "Movimentações" }), { button: 0, ctrlKey: false })
     expect(screen.getAllByText(/300,00/)).toHaveLength(2)
-    fireEvent.change(screen.getByLabelText("Movimentações a partir de"), { target: { value: "2026-10-01" } })
+    fireEvent.change(screen.getByLabelText("Movimentações a partir de"), { target: { value: "01/10/2026" } })
     expect(screen.queryByText("Entrada de setembro")).not.toBeInTheDocument()
     expect(screen.getAllByText(/100,00/).length).toBeGreaterThanOrEqual(2)
     expect(screen.queryByText(/300,00/)).not.toBeInTheDocument()
@@ -51,24 +51,24 @@ describe("Responsabilidades de cada área", () => {
     auth.permissions = ["budgets.read"]
     expect(canAccessTab("relatorios", auth.can)).toBe(true)
     render(<ReportsTab />)
-    expect(screen.getByText("Orcamentos")).toBeInTheDocument()
+    expect(screen.getByText("Orçamentos")).toBeInTheDocument()
     expect(screen.queryByText("Indicadores gerenciais")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Indicadores" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: "Indicadores" })).not.toBeInTheDocument()
   })
   it("cadastros financeiros têm destino próprio sem liberar outras fichas", () => {
     auth.permissions = ["costCenters.read"]
     expect(canAccessTab("cadastros", auth.can)).toBe(true)
     render(<RegistrationsTab />)
-    expect(screen.getByRole("button", { name: "Financeiros" })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "Financeiros" })).toBeInTheDocument()
     expect(screen.getByText("Centros de Custo")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Pessoas e empresas" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: "Pessoas e empresas" })).not.toBeInTheDocument()
   })
   it("preserva consulta de perfis para quem não pode ler o cadastro de pessoas", () => {
     auth.permissions = ["guests.read"]
     expect(canAccessTab("cadastros", auth.can)).toBe(true)
     render(<RegistrationsTab />)
     expect(screen.getByPlaceholderText("Buscar por nome ou CPF")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Novo Hospede" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Novo Hóspede" })).not.toBeInTheDocument()
   })
   it("cria perfil pela ficha da pessoa com identidade preenchida e sem duplicar pessoa", async () => {
     const person = { id: "person", name: "Pessoa Exemplo", cpfCnpj: "52998224725", active: true, createdAt: "", updatedAt: "" }

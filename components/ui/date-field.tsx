@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState, type ComponentProps } from "react"
 import { CalendarIcon } from "lucide-react"
-import { ptBR } from "date-fns/locale"
+import { ptBR } from "react-day-picker/locale"
 import { Calendar } from "./calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
 import { Button } from "./button"

@@ -44,7 +44,7 @@ export function LoginScreen() {
         <CardContent className="pt-4">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="username">Usuario</Label>
+              <Label htmlFor="username">Usuário</Label>
               <Input
                 id="username"
                 placeholder="Seu usuário"

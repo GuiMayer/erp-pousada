@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ptBR } from 'date-fns/locale'
+import { ptBR } from 'react-day-picker/locale'
 import {
   ChevronDownIcon,
   ChevronLeftIcon,

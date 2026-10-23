@@ -76,10 +76,10 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
 
     if (editingCpf) {
       await updateGuest(editingCpf, guestData)
-      await addAuditEntry({ entityType: "guests", operation: "update", user: auditUser, action: "Hospede editado", reference: `${guestData.name} (${guestData.cpf})` })
+      await addAuditEntry({ entityType: "guests", operation: "update", user: auditUser, action: "Hóspede editado", reference: `${guestData.name} (${guestData.cpf})` })
     } else {
       await addGuest(guestData)
-      await addAuditEntry({ entityType: "guests", operation: "create", user: auditUser, action: "Hospede criado", reference: `${guestData.name} (${guestData.cpf})` })
+      await addAuditEntry({ entityType: "guests", operation: "create", user: auditUser, action: "Hóspede criado", reference: `${guestData.name} (${guestData.cpf})` })
     }
     closeDialog()
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível salvar") }
@@ -90,7 +90,7 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
     await removeGuest(guest.cpf, guest.recordVersion)
     await addAuditEntry({ entityType: "guests", operation: "delete",
       user: username || "sistema",
-      action: "Hospede removido",
+      action: "Hóspede removido",
       reference: `${guest.name} (${guest.cpf})`,
     })
   }
@@ -104,7 +104,7 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" placeholder="Buscar por nome ou CPF" value={search} onChange={event => setSearch(event.target.value)} />
         </div>}
-        {can("guests.create") && (!person || !filteredGuests.length) && <Button onClick={() => openDialog()} className="gap-2"><Plus className="size-4" />{person ? "Adicionar perfil de hospedagem" : "Novo Hospede"}</Button>}
+        {can("guests.create") && (!person || !filteredGuests.length) && <Button onClick={() => openDialog()} className="gap-2"><Plus className="size-4" />{person ? "Adicionar perfil de hospedagem" : "Novo Hóspede"}</Button>}
       </div>
 
       {person ? <div className="space-y-3">{filteredGuests.map(guest => <div key={guest.cpf} className="space-y-3 rounded-lg border p-3">
@@ -151,7 +151,7 @@ export function GuestsManagement({ person }: { person?: Customer } = {}) {
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editingCpf ? "Editar Hospede" : "Novo Hospede"}</DialogTitle><DialogDescription>Estatísticas e identificação do perfil de hospedagem.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{editingCpf ? "Editar Hóspede" : "Novo Hóspede"}</DialogTitle><DialogDescription>Estatísticas e identificação do perfil de hospedagem.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <Field label="Nome"><Input disabled={!!person} value={form.name} onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))} /></Field>

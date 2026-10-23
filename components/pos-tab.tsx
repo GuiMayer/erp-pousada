@@ -56,6 +56,7 @@ export function POSTab() {
   const { username, role, can } = useAuth()
   const { toast } = useToast()
 
+  const [cartAnnouncement, setCartAnnouncement] = useState("")
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const cartRef = useRef<HTMLDivElement>(null)
   // Cart state
@@ -171,6 +172,7 @@ export function POSTab() {
       toast(validation.warning)
     }
 
+    setCartAnnouncement(`${product.name} adicionado ao carrinho. Quantidade: ${newQuantity}.`)
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id)
       if (existing) {
@@ -308,6 +310,7 @@ export function POSTab() {
       </div>
 
       <CashWorkspace />
+      <p role="status" aria-live="polite" className="sr-only">{cartAnnouncement}</p>
       <Button className={`mobile-cart-bar sm:hidden ${mobileCartOpen ? "mobile-cart-bar-review" : ""}`} onClick={() => { setMobileCartOpen(true); requestAnimationFrame(() => cartRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })) }}><ShoppingCart className="size-5" />{cart.reduce((sum, item) => sum + item.quantity, 0)} itens · {formatCurrency(total)} · Ver carrinho</Button>
       {/* Main POS Layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
@@ -361,6 +364,7 @@ export function POSTab() {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               {filteredProducts.map(product => (
                 <button
+                  aria-label={`Adicionar ${product.name} ao carrinho`}
                   key={product.id}
                   onClick={() => addToCart(product)}
                   className="flex flex-col items-start gap-1 rounded-xl border border-border bg-card p-3 text-left transition-all hover:border-primary hover:bg-accent hover:shadow-sm active:scale-[0.98]"
@@ -369,7 +373,7 @@ export function POSTab() {
                     <span className="text-sm font-medium leading-tight text-foreground line-clamp-2">
                       {product.name}
                     </span>
-                    <Package className="size-4 shrink-0 text-muted-foreground" />
+                    <Plus aria-hidden className="size-4 shrink-0 text-primary" />
                   </div>
                   <Badge variant="secondary" className="text-[10px]">
                     {getCategoryName(product.categoryId)}

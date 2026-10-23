@@ -14,7 +14,7 @@ describe("Separação dos recursos financeiros", () => {
     render(<FinancialCadastrosManagement sections={["bankAccount", "bankTransfer"]} balancesOnly />)
     expect(screen.getByText("Saldos das contas")).toBeInTheDocument()
     expect(screen.getByText("Conta de teste")).toBeInTheDocument()
-    for (const name of ["Orcamentos", "Recorrencias", "Centros de Custo"]) expect(screen.queryByText(name)).not.toBeInTheDocument()
+    for (const name of ["Orçamentos", "Recorrências", "Centros de Custo"]) expect(screen.queryByText(name)).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Editar cadastro")).not.toBeInTheDocument()
   })
   it("não oferece escrita para quem só consulta os cadastros", () => {

@@ -474,12 +474,12 @@ export function FinancialTab() {
                     className="h-9 w-36 text-xs"
                     placeholder="De"
                   />
-                  <span className="text-xs text-muted-foreground">ate</span>
+                  <span className="text-xs text-muted-foreground">até</span>
                   <DateField
                     aria-label="Movimentações até"  value={dateTo}
                     onValueChange={value => setDateTo(value)}
                     className="h-9 w-36 text-xs"
-                    placeholder="Ate"
+                    placeholder="Até"
                   />
                   {(dateFrom || dateTo) && (
                     <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setDateFrom(""); setDateTo("") }}>
