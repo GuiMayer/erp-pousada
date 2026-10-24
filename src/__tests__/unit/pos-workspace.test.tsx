@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { POSTab } from "@/components/pos-tab"
-import type { StockItem, POSProduct } from "@/lib/store"
-const state = vi.hoisted(() => ({ products: [] as POSProduct[], runOperation: vi.fn(), toast: vi.fn(), phone: false, stockItems: [] as StockItem[] }))
+import type { StockItem, POSProduct, POSSale } from "@/lib/store"
+const state = vi.hoisted(() => ({ products: [] as POSProduct[], sales: [] as POSSale[], runOperation: vi.fn(), toast: vi.fn(), phone: false, stockItems: [] as StockItem[] }))
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ username: "Ana", role: "supervisor", can: () => true, canRequest: () => true }) }))
-vi.mock("@/lib/app-context", () => ({ useApp: () => ({ posProducts: state.products, posSales: [], stays: [], rooms: [], stockItems: state.stockItems, runOperation: state.runOperation, productCategories: [{ id: "drinks", name: "Bebidas", active: true, isRestaurant: false }], cashCloses: [{ id: "cash", status: "aberto" }], bankAccounts: [] }) }))
+vi.mock("@/lib/app-context", () => ({ useApp: () => ({ posProducts: state.products, posSales: state.sales, stays: [], rooms: [], stockItems: state.stockItems, runOperation: state.runOperation, productCategories: [{ id: "drinks", name: "Bebidas", active: true, isRestaurant: false }], cashCloses: [{ id: "cash", status: "aberto" }], bankAccounts: [] }) }))
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: state.toast }) }))
 vi.mock("@/hooks/use-phone-layout", () => ({ usePhoneLayout: () => state.phone }))
 vi.mock("@/components/cash-workspace", () => ({ CashWorkspace: () => <p>Controle de caixa</p> }))
 beforeEach(() => {
-  state.stockItems = []; state.phone = false; state.runOperation.mockReset(); state.toast.mockReset()
+  state.sales = []; state.stockItems = []; state.phone = false; state.runOperation.mockReset(); state.toast.mockReset()
   state.products = [{ id: "water", name: "Água mineral", categoryId: "drinks", price: 5, barcode: "123456", trackStock: false }, { id: "juice", name: "Suco", categoryId: "drinks", price: 8, barcode: "987654", trackStock: false }]
 })
 describe("Seleção compacta no PDV", () => {
@@ -97,4 +97,13 @@ describe("Revisão e quantidade do PDV", () => {
     await waitFor(() => expect(state.runOperation).toHaveBeenCalledTimes(2))
     expect(state.runOperation.mock.calls[1][2]).toBe(requestId)
   })
+})
+
+it("inclui no dia comercial uma venda após meia-noite UTC", () => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-24T01:00:00Z"))
+  try {
+    state.sales = [{ id:"sale", date:"2026-10-24T01:00:00Z", status:"concluida", total:5, subtotal:5, discount:0, amountPaid:5, change:0, operator:"Ana", paymentMethod:"PIX", items:[] } as POSSale]
+    render(<POSTab />)
+    expect(screen.getByText(/1 vendas hoje/)).toHaveTextContent("R$ 5,00")
+  } finally { vi.useRealTimers() }
 })

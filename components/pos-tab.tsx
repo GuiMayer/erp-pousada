@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { calculateCartSubtotal, calculateCartTotal, calculateItemTotal, formatCurrency, formatCurrencyFixed } from "@/lib/utils/price-calculations"
 import { getTodayISO } from "@/lib/utils/constants"
+import { businessDay } from "@/lib/utils/business-values"
 import { formatDateTime } from "@/lib/utils/date-formatting"
 import { stockAvailable, validateStockAvailability as validateStockItemAvailability } from "@/lib/utils/stock-validation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -129,7 +130,7 @@ export function POSTab() {
   // Today's sales
   const todaySales = useMemo(() => {
     const today = getTodayISO()
-    return posSales.filter(s => s.date.startsWith(today) && s.status === "concluida")
+    return posSales.filter(s => businessDay(s.date) === today && s.status === "concluida")
   }, [posSales])
 
   const todayTotal = useMemo(() => {
