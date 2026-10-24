@@ -1,3 +1,8 @@
+import { reconcileDemoStays } from "@/lib/data/demo-stays"
+vi.mock("@/lib/data/demo-stays", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/lib/data/demo-stays")>()
+  return { ...actual, reconcileDemoStays: vi.fn(actual.reconcileDemoStays) }
+})
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useApp } from '../../../lib/app-context'
@@ -9,6 +14,12 @@ describe('AppContext', () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ startedAt: "2026-10-22T15:00:00Z" }) }))
   })
   afterEach(() => vi.unstubAllGlobals())
+  it("consultar dados não reconstrói nem sobrescreve fichas de hospedagem", async () => {
+    vi.mocked(reconcileDemoStays).mockClear()
+    const { result } = renderHook(() => useApp(), { wrapper: TestWrapper })
+    await waitFor(() => expect(result.current.rooms.length).toBeGreaterThan(0))
+    expect(reconcileDemoStays).not.toHaveBeenCalled()
+  })
   it('should initialize with default data', async () => {
     const { result } = renderHook(() => useApp(), {
       wrapper: TestWrapper,

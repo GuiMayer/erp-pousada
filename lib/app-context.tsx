@@ -274,7 +274,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const generation = ++loadGeneration.current
     const loadingUser = accessKey
     try {
-      if (getDataConfig().adapter === "demo-localStorage") await reconcileDemoStays(dataStore)
       const staysData = can("stays.read") ? await dataStore.stays.getAll() : []
       const [
         tariffsData, roomsData, reservationsData, guestsData, expensesData, transactionsData,
