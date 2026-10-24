@@ -56,3 +56,6 @@ A demonstração do navegador utiliza a mesma regra e armazenamento local. Seus 
 ## Validação desta entrega
 
 Consulte [ENTREGA_FECHAMENTO_CAIXA.md](ENTREGA_FECHAMENTO_CAIXA.md) para evidências e roteiro visual. A migração foi executada somente no PostgreSQL isolado dos testes, sem alterar o banco operacional.
+
+
+A revisão visual posterior de desktop e mobile está em [VALIDACAO_NAVEGADOR_CAIXA.md](VALIDACAO_NAVEGADOR_CAIXA.md), incluindo correções e limites da emulação.

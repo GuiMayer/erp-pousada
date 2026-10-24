@@ -44,9 +44,11 @@ O modo de demonstração do navegador não precisa de PostgreSQL. Recarregar ap�
 - Banco/cartão são controles gerenciais; não há conciliação automática, integração com adquirente ou emissão fiscal. O repasse é manual, com taxa informada pelo operador.
 - Estorno usa a origem do recebimento e exige saldo. Quando esse saldo já tiver sido repassado, é necessário conciliar a devolução antes de confirmar. Não há um fluxo novo de ajuste de adquirente nesta entrega.
 - A demonstração é individual por navegador. Operação compartilhada entre dispositivos utiliza PostgreSQL.
-- A conferência visual no navegador foi indisponível nesta sessão. Não foram medidas rolagem, geometria ou teclado real; não se apresentam capturas como evidência.
+- A revisão visual posterior foi concluída nos contextos descritos em [VALIDACAO_NAVEGADOR_CAIXA.md](VALIDACAO_NAVEGADOR_CAIXA.md), com capturas locais. Celular físico, teclado virtual real, zoom nativo de 200% e dois dispositivos com PostgreSQL continuam pendentes.
 
-## Roteiro de homologação visual pendente
+## Roteiro de homologação visual
+
+Cobertura realizada e limites: [relatório de validação no navegador](VALIDACAO_NAVEGADOR_CAIXA.md). O roteiro abaixo permanece como referência de homologação, não como lista integralmente pendente.
 
 1. Desktop claro/escuro e celular: abrir caixa com fundo zero; confirmar mensagem, responsável e ações permitidas.
 2. Com caixa fechado, entrar pelo consumo de um quarto: consultar saldo, tentar entregar bebida, abrir caixa pelo atalho e continuar sem perder quantidade/busca.
