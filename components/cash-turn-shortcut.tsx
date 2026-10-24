@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 export function CashTaskDialog({ task, onClose }: { task: CashTask; onClose: () => void }) {
   const [pending, setPending] = useState(false)
+  const [completed, setCompleted] = useState(false)
   const title = task === "open" ? "Abrir caixa" : task === "close" ? "Fechar caixa" : "Movimentar caixa"
-  return <Dialog open onOpenChange={value => { if (!value && !pending) onClose() }}><DialogContent mobileTask protectDraft busy={pending} className="max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{task === "close" ? "Confira o dinheiro e prepare a passagem de turno." : "Controle o dinheiro do turno sem perder o atendimento."}</DialogDescription></DialogHeader><CashSessionPanel mode={task} onPendingChange={setPending} onOpened={onClose} /></DialogContent></Dialog>
+  return <Dialog open onOpenChange={value => { if (!value && !pending) onClose() }}><DialogContent mobileTask protectDraft={!completed} onChangeCapture={() => { if (task === "move") setCompleted(false) }} busy={pending} className={`max-h-[90dvh] overflow-y-auto ${task === "close" ? "sm:max-w-2xl" : ""}`}><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{task === "close" ? "Confira o dinheiro e prepare a passagem de turno." : "Controle o dinheiro do turno sem perder o atendimento."}</DialogDescription></DialogHeader><CashSessionPanel mode={task} onPendingChange={setPending} onOpened={onClose} onCompleted={() => setCompleted(true)} /></DialogContent></Dialog>
 }
 
 // Convenience opening inside an existing payment/consumption, never a second

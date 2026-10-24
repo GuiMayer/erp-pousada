@@ -119,3 +119,19 @@ it("mantém fechamento visível no celular e reúne ações secundárias no menu
   fireEvent.click(screen.getByRole("menuitem", { name: "Histórico de vendas" }))
   expect(history).toHaveBeenCalledOnce()
 })
+
+it("fecha comprovante concluído sem pedir descarte de alterações já gravadas", async () => {
+  state.cashCloses=[turn()]
+  const confirm=vi.spyOn(window,"confirm").mockReturnValue(false)
+  state.runOperation.mockResolvedValueOnce(turn()).mockResolvedValueOnce({...turn(),status:"fechado",physicalValue:20,retainedValue:20,withdrawnValue:0})
+  render(<CashWorkspace />)
+  fireEvent.click(screen.getByRole("button",{name:"Fechar caixa"}))
+  fireEvent.change(screen.getByLabelText("Valor físico em dinheiro"),{target:{value:"20"}})
+  fireEvent.click(screen.getByRole("button",{name:"Conferir fechamento"}))
+  fireEvent.click(await screen.findByRole("button",{name:"Confirmar fechamento"}))
+  await screen.findByText("Fechamento registrado")
+  fireEvent.click(screen.getByRole("button",{name:/^Close$/}))
+  await waitFor(()=>expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+  expect(confirm).not.toHaveBeenCalled()
+  confirm.mockRestore()
+})
