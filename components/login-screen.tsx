@@ -84,15 +84,15 @@ export function LoginScreen() {
         </CardContent>
       </Card>
       {demo && <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
-        <DialogContent>
+        <DialogContent mobileTask>
           <DialogHeader><DialogTitle>Explore a demonstração</DialogTitle><DialogDescription>Dados fictícios, exclusivos deste navegador. Use um dos acessos abaixo; nenhuma conta precisa ser criada.</DialogDescription></DialogHeader>
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3 break-words">
             {[{ username: "supervisor", password: "adm123", label: "Supervisor · acesso completo" }, { username: "operador", password: "1234", label: "Operador · atendimento" }].map(account => <div key={account.username} className="rounded-lg border p-3 space-y-2">
               <p className="font-medium">{account.label}</p><p className="text-sm">Usuário: <code>{account.username}</code> · Senha: <code>{account.password}</code></p>
-              <Button type="button" variant="outline" onClick={() => { setUsername(account.username); setPassword(account.password); setDemoOpen(false) }}>Preencher acesso de {account.username}</Button>
+              <Button type="button" variant="outline" className="h-auto min-h-11 w-full whitespace-normal" onClick={() => { setUsername(account.username); setPassword(account.password); setDemoOpen(false) }}>Preencher acesso de {account.username}</Button>
             </div>)}
             <p className="text-sm text-muted-foreground">As alterações ficam neste navegador. Ao acessar em outro dia, os exemplos são renovados. Para recomeçar agora, restaure os exemplos.</p>
-            <Button type="button" variant="outline" disabled={resetting} onClick={async () => {
+            <Button type="button" variant="outline" className="h-auto min-h-11 w-full whitespace-normal" disabled={resetting} onClick={async () => {
               setResetting(true); setDemoMessage("")
               try { await initializeBrowserDemo(createDataStore({ prefix: "erp-pousada-demo", enableSync: false }), true); setDemoMessage("Exemplos restaurados. Você já pode entrar.") }
               catch { setDemoMessage("Não foi possível restaurar. Verifique se o navegador permite armazenamento local.") }
