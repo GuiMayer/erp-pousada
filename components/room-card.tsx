@@ -162,7 +162,7 @@ function CurrentRoomCard({
     consumption?.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0) ??
     0;
   const balances = stay ? stayBalance(stay) : undefined;
-  const consumptionTotal = balances?.consumption ?? legacyConsumption;
+  const consumptionTotal = balances?.consumptionBalance ?? legacyConsumption;
   const balance =
     balances?.balance ??
     (legacy ? Math.max(0, legacy.totalValue - (legacy.paidValue ?? 0)) : 0);

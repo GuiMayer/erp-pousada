@@ -182,3 +182,14 @@ describe("Cartão compacto do quarto", () => {
     ).toBeNull();
   });
 });
+
+it("mostra apenas consumo pendente após pagamento parcial e quitação", () => {
+  state.stays = [{ ...stay, payments: [{id:"p",value:4,bucket:"consumption",method:"PIX",createdAt:""}] }]
+  const view = render(<RoomCard room={room} />)
+  expect(screen.getByText("R$ 6,00")).toBeInTheDocument()
+  expect(screen.queryByText("R$ 10,00")).not.toBeInTheDocument()
+  state.stays = [{ ...stay, payments: [{id:"p",value:10,bucket:"consumption",method:"PIX",createdAt:""}] }]
+  view.rerender(<RoomCard room={room} />)
+  expect(screen.queryByText(/Consumo:/)).not.toBeInTheDocument()
+  expect(screen.getByRole("button",{name:"Receber pagamento do quarto 101"})).toHaveTextContent("R$ 200,00")
+})
