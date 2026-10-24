@@ -3,13 +3,20 @@ vi.mock("@/lib/data/demo-stays", async importOriginal => {
   const actual = await importOriginal<typeof import("@/lib/data/demo-stays")>()
   return { ...actual, reconcileDemoStays: vi.fn(actual.reconcileDemoStays) }
 })
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest'
+import { renderHook, act, waitFor, configure, getConfig } from '@testing-library/react'
 import { useApp } from '../../../lib/app-context'
 import { TestWrapper } from '../utils/test-helpers'
 import type { Room, Reservation, GuestProfile, POSProduct } from '../../../lib/store'
 
+// Integration-style context tests include real authentication and demo writes.
+vi.setConfig({ testTimeout: 15000 })
+
 describe('AppContext', () => {
+  const originalAsyncTimeout = getConfig().asyncUtilTimeout
+  // This suite performs real demo authentication; hashing can exceed the UI default on small PCs.
+  beforeAll(() => configure({ asyncUtilTimeout: 5000 }))
+  afterAll(() => configure({ asyncUtilTimeout: originalAsyncTimeout }))
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ startedAt: "2026-10-22T15:00:00Z" }) }))
   })
