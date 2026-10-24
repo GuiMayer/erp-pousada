@@ -218,12 +218,31 @@
 /* Keep dialogs reachable in short viewports and when the keyboard reduces space. */
 .mobile-task-body { display: contents; }
 [data-slot="dialog-content"], [data-slot="alert-dialog-content"] {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+[data-slot="dialog-content"] > *, [data-slot="alert-dialog-content"] > * { min-width: 0; }
 
 @media (max-width: 639px) {
+  /* Intrinsic button/text widths must not enlarge a dialog's grid track. */
+  [data-slot="dialog-content"], [data-slot="alert-dialog-content"] {
+    width: calc(100% - 2rem);
+    max-width: calc(100% - 2rem);
+    padding: 1rem;
+  }
+  [data-slot="dialog-content"]:not([data-mobile-task]) > [data-slot="dialog-header"] { padding-right: 2rem; }
+  :where([data-slot="dialog-content"], [data-slot="alert-dialog-content"]) [data-slot="button"] {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .dashboard-shell { padding: 8px 12px calc(88px + env(safe-area-inset-bottom)); gap: 12px; }
   .dashboard-shell > [data-slot="tabs"] { gap: 12px; }
   .dashboard-shell > [data-slot="tabs"] > [data-state="inactive"] { display: none; }
