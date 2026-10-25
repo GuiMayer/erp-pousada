@@ -393,7 +393,7 @@ export async function applyOperation(tx: Tx, actor: Actor, kind: string, payload
   }
   // Corrections of non-operational records are still validated and audited server-side.
   if (kind === "admin-create" || kind === "admin-update") {
-    const input = z.object({ key: id, id: id.optional(), data: z.record(z.unknown()) }).strict().parse(payload)
+    const input = z.object({ key: id, id: id.optional(), data: z.record(z.string(), z.unknown()) }).strict().parse(payload)
     if (["auditLog", "userSessions", "posSales", "transactions", "stockMovements", "reservations", "cashCloses", "bankTransfers", "restaurantOrders", "consumptions", "productions", "employeeConsumptions"].includes(input.key)) throw new HttpError(403, "Utilize o fluxo específico desta operação")
     demand(actor, `${input.key}.${kind === "admin-create" ? "create" : "edit"}`)
     if (input.key === "users") demand(actor, "users.manage")

@@ -72,7 +72,7 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.7.0",
     "tsx": "^4.23.15",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
@@ -102,6 +102,7 @@
       "prisma"
     ],
     "overrides": {
+      "fast-uri": "^3.1.9",
       "deepmerge-ts": "^8.0.0",
       "mysql2": "^3.23.1"
     }

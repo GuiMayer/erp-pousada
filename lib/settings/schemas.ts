@@ -69,7 +69,7 @@ export const settingsInput = z
   .object({
     section: z.enum(["pousada", "hospedagem", "comercial", "alertas"]),
     recordVersion: z.number().int().nonnegative(),
-    values: z.record(z.unknown()).optional(),
+    values: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 export function parseSettingsValues(section: GlobalSectionId, value: unknown) {

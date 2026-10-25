@@ -109,7 +109,7 @@ async function apply(store: DataStore, kind: string, payload: unknown, can: (p: 
     await audit(r.id, { ...amounts, cancellationReason: input.cancellationReason, financialReason: input.financialReason })
     return { success: true }
   }
-  const raw = z.record(z.unknown()).parse(payload)
+  const raw = z.record(z.string(), z.unknown()).parse(payload)
   if (kind === "reserve-group") {
     const inputs = z.array(base).min(1).max(50).parse(raw.rooms)
     if (new Set(inputs.map(i => i.roomId)).size !== inputs.length) throw Error("Selecione quartos distintos")
