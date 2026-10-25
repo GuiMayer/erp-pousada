@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createDataStore } from "@/lib/data/repositories"
 import { demoBookingOperation } from "@/lib/data/demo-bookings"
 import { businessDay } from "@/lib/utils/business-values"
@@ -10,6 +10,9 @@ let store: DataStore
 const command = (kind: string, payload: unknown, denied?: string) => demoBookingOperation(store, kind, payload, p => p !== denied, "Teste")
 const base = () => ({ roomId: 1, guestCount: 1, totalValue: 200, cpf: "52998224725", guestName: "Pessoa", payerId: "person", checkIn: day(), checkOut: day(2) })
 beforeEach(async () => {
+  // No-show eligibility must not depend on running this suite at 23:59.
+  vi.useFakeTimers({ toFake: ["Date"] })
+  vi.setSystemTime(new Date("2026-10-23T15:00:00Z"))
   let state: Record<string, unknown> = {}
   const adapter: IStorageAdapter = {
     get: async <T,>(key: string) => structuredClone(state[key] ?? null) as T | null,
@@ -27,6 +30,7 @@ beforeEach(async () => {
     systemSettings: [{ id: "settings", pousadaName: "Teste", checkInTime: "23:59", checkOutTime: "12:00", discountCeiling: 5 }],
   }))
 })
+afterEach(() => vi.useRealTimers())
 async function reserve() {
   const { roomId, guestCount, totalValue, ...identity } = base()
   await command("reserve-group", { ...identity, rooms: [{ roomId, guestCount, totalValue }], initialPayment: { value: 100, payments: [{ method: "pix", value: 100, accountId: "bank" }] } })
